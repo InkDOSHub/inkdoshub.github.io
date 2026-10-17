@@ -159,7 +159,44 @@ let ctrl = false;
 const ctrlBtn = document.getElementById("key-ctrl");
 const setCtrl = (v) => { ctrl = v; ctrlBtn.classList.toggle("on", v); };
 
-function send(data) { emulator.serial0_send(data); }
+// A porta serial do v86 tem uma fila pequena: um texto colado grande perde letras se for de uma vez.
+// Então tudo passa por uma fila que manda 256 caracteres a cada 15 ms.
+let fila = "";
+let enviando = false;
+function send(data) {
+  fila += data;
+  if (enviando) return;
+  enviando = true;
+  (function drenar() {
+    const parte = fila.slice(0, 256);
+    fila = fila.slice(256);
+    emulator.serial0_send(parte);
+    if (fila) setTimeout(drenar, 15); else enviando = false;
+  })();
+}
+
+// Colar: o xterm.js troca \n por Enter e usa o "bracketed paste" quando o shell pede.
+function colar(texto) {
+  if (!texto) return;
+  setCtrl(false);
+  term.paste(texto);
+  term.focus();
+}
+document.getElementById("key-colar").addEventListener("click", async () => {
+  try {
+    // No Safari aparece a bolha "Colar" para confirmar; é o jeito do iOS liberar a área de transferência.
+    colar(await navigator.clipboard.readText());
+  } catch (_) {
+    const t = prompt("O navegador não deixou ler a área de transferência. Cole o texto aqui:");
+    colar(t);
+  }
+});
+// Colar pelo menu do toque longo ou pelo Cmd+V em qualquer lugar do terminal.
+document.getElementById("term").addEventListener("paste", (e) => {
+  if (e.defaultPrevented) return; // o xterm.js já tratou
+  const t = e.clipboardData && e.clipboardData.getData("text/plain");
+  if (t) { e.preventDefault(); colar(t); }
+});
 
 term.onData((data) => {
   if (ctrl && data.length === 1) {
