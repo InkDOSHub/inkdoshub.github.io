@@ -1,0 +1,11 @@
+{
+  "name": "inkfs",
+  "displayName": "Pasta do InkTerminal",
+  "description": "Guarda os arquivos do editor neste navegador (IndexedDB).",
+  "version": "1.0.0",
+  "publisher": "inkterminal",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "activationEvents": ["onFileSystem:inkfs", "*"],
+  "browser": "./extension.js"
+}

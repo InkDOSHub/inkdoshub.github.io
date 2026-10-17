@@ -1,5 +1,5 @@
 #!/bin/sh
-# Recompila images/inkterminal-bzImage.bin: Linux 6.6 (i386) com o Alpine
+# Recompila terminal/images/inkterminal-bzImage.bin: Linux 6.6 (i386) com o Alpine
 # Linux 3.22 embutido como initramfs.
 # Precisa de uma máquina Linux (ou runner de CI) com:
 #   gcc make flex bison bc cpio libelf-dev git
@@ -23,5 +23,5 @@ make ARCH=i386 tinyconfig
 sed "s|@ROOTFS@|$WORK/rootfs|; s|@LIST@|$HERE/initramfs.list|" "$HERE/kernel-extra.config" >> .config
 make ARCH=i386 olddefconfig
 make ARCH=i386 -j"$(nproc)" bzImage
-cp arch/x86/boot/bzImage "$HERE/../images/inkterminal-bzImage.bin"
-echo "OK: images/inkterminal-bzImage.bin"
+cp arch/x86/boot/bzImage "$HERE/../terminal/images/inkterminal-bzImage.bin"
+echo "OK: terminal/images/inkterminal-bzImage.bin"

@@ -1,0 +1,3 @@
+miniPaint (MIT) https://github.com/viliusle/miniPaint
+commit a79733eb803fc97084ef0ee4faa96b031e69e1c0
+Copiado sem mudanças: index.html, dist/bundle.js, images/.

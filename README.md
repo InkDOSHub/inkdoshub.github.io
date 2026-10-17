@@ -1,8 +1,21 @@
 # InkTerminal
 
-Um terminal Linux de verdade que roda inteiro no navegador. Foi pensado para o iPad e o iPhone (Safari) e para ser usado dentro do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS).
+A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), feita para o iPad e o iPhone (Safari e XeOS). O InkDOS fica com os documentos e o InkTerminal com o resto.
 
 **Abrir:** https://inkterminal.github.io/
+
+| Cartão | Ferramenta (código aberto) | Pasta |
+|---|---|---|
+| Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
+| Fotos | [miniPaint](https://github.com/viliusle/miniPaint) (MIT) | `apps/foto/` |
+| Vídeo | [omniclip](https://github.com/omni-media/omniclip) (MIT), abre o site do projeto | link externo |
+| Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
+| Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
+| Música | [Webamp](https://github.com/captbaritone/webamp) (MIT) | `apps/musica/` |
+
+Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`. `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas. O omniclip não é hospedado aqui porque depende de vários CDNs e de um serviço de estatísticas.
+
+## Linux terminal
 
 - Roda Alpine Linux 3.22 com kernel Linux 6.6 (i386), emulado pelo [v86](https://github.com/copy/v86) em WebAssembly.
 - Instala qualquer programa do Alpine com `apk add` (por exemplo `apk add python3 git nano`).
@@ -11,7 +24,7 @@ Um terminal Linux de verdade que roda inteiro no navegador. Foi pensado para o i
 - **Salvar** guarda a máquina inteira (arquivos, programas instalados e a pasta `~/ipad`) no navegador. Na próxima visita ela volta do mesmo ponto. **Reiniciar** apaga tudo e começa do zero.
 - Tem uma barra de teclas extras para o teclado do celular: Esc, Tab, Ctrl, setas, `|`, `/`, `-`, `~` e Ctrl+C.
 
-## Rede
+### Rede
 
 Igual aos outros emuladores de Linux no navegador (como o [copy.sh/v86](https://copy.sh/v86/)), o Linux sai para a internet por um servidor de rede público. Com isso funcionam `apk add` de qualquer pacote do Alpine, `http://`, `https://`, `git clone`, `pip install` e `ssh`.
 
@@ -23,7 +36,7 @@ Igual aos outros emuladores de Linux no navegador (como o [copy.sh/v86](https://
 
 Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou fora do ar. A escolha fica guardada no navegador. Também dá para passar `?rede=wisp`, `?rede=relay`, `?rede=off` ou a URL `wss://`, `wisp://` ou `wisps://` de outro servidor.
 
-## Parâmetros de URL
+### Parâmetros de URL (terminal/)
 
 | Parâmetro | Efeito |
 |---|---|
@@ -32,30 +45,30 @@ Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou for
 | `?font=18` | Muda o tamanho da fonte |
 | `?rede=…` | Escolhe a rede (veja acima) |
 
-## Usar dentro do InkDOS
+### Usar dentro de outra página
 
 ```html
-<iframe src="https://inkterminal.github.io/?embed=1" style="width:100%;height:100%;border:0"></iframe>
+<iframe src="https://inkterminal.github.io/terminal/?embed=1" style="width:100%;height:100%;border:0"></iframe>
 ```
 
-## Limitações
+### Limitações
 
 - É emulação, então é bem mais lento que um computador de verdade. Instalar Python leva alguns minutos.
 - O sistema fica na memória (256 MB). Programas instalados só continuam lá depois de tocar em **Salvar**.
 - O estado salvo pesa de 20 a 100 MB, conforme o que estiver instalado.
 
-## Estrutura
+### Estrutura
 
 | Caminho | O que é |
 |---|---|
-| `index.html`, `app.js`, `style.css` | A página do terminal |
-| `vendor/v86/` | Emulador v86 0.5.471 (licença BSD-2) |
-| `vendor/xterm/` | xterm.js 6.0.0 + addon-fit (licença MIT) |
-| `bios/` | SeaBIOS e VGA BIOS (LGPL-3) |
-| `images/inkterminal-bzImage.bin` | Kernel Linux 6.6 com o Alpine embutido (GPL-2 e licenças do Alpine) |
+| `terminal/index.html`, `app.js`, `style.css` | A página do terminal |
+| `terminal/vendor/v86/` | Emulador v86 0.5.471 (licença BSD-2) |
+| `terminal/vendor/xterm/` | xterm.js 6.0.0 + addon-fit (licença MIT) |
+| `terminal/bios/` | SeaBIOS e VGA BIOS (LGPL-3) |
+| `terminal/images/inkterminal-bzImage.bin` | Kernel Linux 6.6 com o Alpine embutido (GPL-2 e licenças do Alpine) |
 | `build/` | Script e configurações para recompilar a imagem |
 
-## Recompilar a imagem do Linux
+### Recompilar a imagem do Linux
 
 Precisa de uma máquina Linux (ou um runner de CI) com `gcc make flex bison bc cpio libelf-dev git`:
 
