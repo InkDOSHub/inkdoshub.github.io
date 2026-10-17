@@ -79,14 +79,20 @@
     if (!atual || atual === "about:blank" || /\/inicio\/guardada\.html/.test(atual)) w.location.replace(url);
     try { w.focus(); } catch (_) {}
   }
+  /* Volta para a tela inicial. Se esta aba foi aberta por ela, tenta trazer a aba dela para a
+     frente; se a troca não acontece (o XeOS e alguns navegadores não deixam uma aba focar outra),
+     abre a tela inicial nesta mesma aba. Nunca abre uma janela vazia. */
   function irParaInicio() {
-    var w = null;
-    try { w = window.open("", "inkterminal-inicio"); } catch (_) {}
-    if (!w) { location.href = RAIZ; return; }
-    var atual = "";
-    try { atual = w.location.href; } catch (_) {}
-    if (!ehInicio(atual)) w.location.replace(RAIZ);
-    try { w.focus(); } catch (_) {}
+    var mae = null;
+    try { if (window.opener && !window.opener.closed && ehInicio(window.opener.location.href)) mae = window.opener; } catch (_) {}
+    if (mae) {
+      try { mae.focus(); } catch (_) {}
+      setTimeout(function () {
+        if (document.visibilityState === "visible" && document.hasFocus()) location.href = RAIZ;
+      }, 350);
+      return;
+    }
+    location.href = RAIZ;
   }
 
   if (topo && !noInicio && app) {

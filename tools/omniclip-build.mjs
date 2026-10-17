@@ -95,6 +95,45 @@ for (const [de] of trocas) if (!usadas.has(de)) throw new Error("troca não apli
     "$1await new Promise(r=>setTimeout(r,0));$3$4.width=$4.height=160;");
   if (m === n) throw new Error("troca não aplicada: prévias dos filtros");
   n = m;
+  // Importação de mídia (feita para o WebKit do XeOS): plano B para os dados do vídeo
+  // (inkMetadados), arquivo já importado volta em vez de deixar o carregamento girando
+  // (inkJaImportado), falha ao guardar não derruba a importação (inkGuardar), miniatura que não
+  // espera para sempre e erro mostrado na tela (inkAvisar). As funções ink* ficam em inkterminal.js.
+  // Os nomes curtos são os do esbuild para o omniclip 1.1.3: numa versão nova, refaça as trocas.
+  const posTrocas = [
+    [
+      "e=F?.type.startsWith(\"video\")?await this.getVideoFileMetadata(F):null;if(F){",
+      "e=F?.type.startsWith(\"video\")?await globalThis.inkMetadados(this,F):null;if(F){"
+    ],
+    [
+      "i=l.count(t);i.onsuccess=()=>{if(i.result===0){",
+      "i=l.count(t);i.onsuccess=()=>{if(this.has(t)){this.on_media_change.publish({files:[],action:\"added\"}),globalThis.inkJaImportado?.(this.get(t))}else{"
+    ],
+    [
+      "let C={file:F,hash:t,kind:\"image\"};l.add(C),this.set(t,C),this.on_media_change.publish({files:[C],action:\"added\"})}else if(F.type.startsWith(\"video\")){let{frames:C,duration:a,fps:I}=e,o={file:F,hash:t,kind:\"video\",frames:C,duration:a,fps:I,proxy:U??!1};l.add(o),",
+      "let C={file:F,hash:t,kind:\"image\"};globalThis.inkGuardar(l,C),this.set(t,C),this.on_media_change.publish({files:[C],action:\"added\"})}else if(F.type.startsWith(\"video\")){let{frames:C,duration:a,fps:I}=e,o={file:F,hash:t,kind:\"video\",frames:C,duration:a,fps:I,proxy:U??!1};globalThis.inkGuardar(l,o),"
+    ],
+    [
+      "else if(F.type.startsWith(\"audio\")){let C={file:F,hash:t,kind:\"audio\"};l.add(C),this.set(t,C),this.on_media_change.publish({files:[C],action:\"added\"})}}this.#U=!0},i.onerror=R=>console.log(\"error\")}}",
+      "else if(F.type.startsWith(\"audio\")){let C={file:F,hash:t,kind:\"audio\"};globalThis.inkGuardar(l,C),this.set(t,C),this.on_media_change.publish({files:[C],action:\"added\"})}else this.on_media_change.publish({files:[],action:\"added\"})}this.#U=!0},i.onerror=R=>{console.log(\"error\"),this.on_media_change.publish({files:[],action:\"added\"})}}}"
+    ],
+    [
+      "create_video_thumbnail(A){let Q=document.createElement(\"canvas\");Q.width=150,Q.height=50;let U=Q.getContext(\"2d\");A.currentTime=1e3/60;let F=e=>{U?.drawImage(A,0,0,150,50);let t=Q.toDataURL();e(t),removeEventListener(\"seeked\",()=>F(e))};return new Promise(e=>{A.addEventListener(\"seeked\",()=>F(e))})}",
+      "create_video_thumbnail(A){let Q=document.createElement(\"canvas\");Q.width=150,Q.height=50;let U=Q.getContext(\"2d\");return new Promise(e=>{let f=!1,d=()=>{if(f)return;f=!0;try{U?.drawImage(A,0,0,150,50)}catch{}let t=\"./assets/loading.svg\";try{t=Q.toDataURL()}catch{}e(t)},s=()=>{try{A.currentTime=1e3/60}catch{}};A.addEventListener(\"seeked\",d,{once:!0}),A.readyState>=1?s():A.addEventListener(\"loadedmetadata\",s,{once:!0}),setTimeout(d,6e3)})}"
+    ],
+    [
+      "let i=document.createElement(\"video\");i.src=URL.createObjectURL(U),i.load();let R=await this.create_video_thumbnail(i);",
+      "let i=document.createElement(\"video\");i.muted=!0,i.playsInline=!0,i.preload=\"auto\",i.src=URL.createObjectURL(U),i.load();let R=await this.create_video_thumbnail(i);"
+    ],
+    [
+      "async import_file(A,Q,U){this.#U=!1,this.on_media_change.publish({files:[],action:\"placeholder\"});",
+      "async import_file(A,Q,U){try{return await this.inkImport(A,Q,U)}catch(X){console.error(\"InkTerminal: importação falhou\",X),this.#U=!0,this.on_media_change.publish({files:[],action:\"added\"}),globalThis.inkAvisar?.(\"Não consegui importar \\\"\"+(A?.name||\"o arquivo\")+\"\\\": \"+(X?.message||X))}}async inkImport(A,Q,U){this.#U=!1,this.on_media_change.publish({files:[],action:\"placeholder\"});"
+    ]
+  ];
+  for (const [de, para] of posTrocas) {
+    if (n.split(de).length !== 2) throw new Error("troca não aplicada: " + de.slice(0, 60));
+    n = n.replace(de, () => para);
+  }
   fs.writeFileSync(f, n);
 }
 
