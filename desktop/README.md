@@ -34,3 +34,12 @@ Os pesos são estimativas: o Safari não informa quanta memória cada página us
 - Ele precisa do modo isolado do navegador (COOP/COEP). O `sw-portal.js` acrescenta esses headers só em `apps/office/` e entrega `soffice.wasm` e `soffice.data` descompactados dos `.gz`. Na primeira visita a página registra o service worker e recarrega.
 - Por isso o Office abre numa aba própria (uma janela dentro da mesa não fica isolada). O módulo pede 1 GB de memória fixa, mais cerca de 160 MB de código, e numa aba própria isso não pesa no limite da mesa.
 - Origem e sha256 dos arquivos: `apps/office/UPSTREAM-SOURCE.txt`.
+
+## Wine (teste)
+
+`apps/wine/` roda programas do Windows com o Boxedwine (emulador x86 compilado para WebAssembly, alvo
+"jit" de uma thread só, então funciona dentro de uma janela da mesa sem modo isolado). O sistema do
+Wine (~215 MB) fica em pedaços em `apps/wine/fs/` e `partes.js` junta as partes quando o emulador
+pede o .zip. Precisa de exceções WebAssembly no formato novo (Safari 18.4+); a página testa isso
+antes de liberar os botões. Pesa ~950 MB no gerenciador de memória, então ao abrir ele guarda as
+outras janelas. Origem e licenças em `apps/wine/UPSTREAM-SOURCE.txt`.

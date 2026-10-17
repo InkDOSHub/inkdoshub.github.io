@@ -1,0 +1,26 @@
+Wine (teste) do InkTerminal
+
+- Boxedwine (emulador x86 + Linux que roda o Wine), licença GPL-2.0 (BOXEDWINE-LICENSE.txt).
+  Compilado aqui a partir do código-fonte em https://github.com/danoon2/Boxedwine
+  commit cc787bf2d3062220a14d87c7e66b66407c9ba78a (2026-10-16), alvo "jit" de project/emscripten
+  (uma thread só, sem SharedArrayBuffer), com Emscripten 5.0.7: cd project/emscripten && make jit
+  emulador.html é o boxedwine.html gerado, com estilo próprio e partes.js antes do shell.
+- Sistema do Wine: TinyCore Linux 15 + Wine 11.0, de https://boxedwine.org/v2/20/TinyCore15Wine11.0.zip
+  (autorizado pelo Paulo em 2026-10-17). Licenças GPL/LGPL dos projetos (Wine: LGPL-2.1+,
+  https://gitlab.winehq.org/wine/wine; TinyCore: http://tinycorelinux.net).
+  Dividido em fs/*.partNN (o GitHub não aceita arquivos acima de 100 MB); partes.js junta as partes.
+  sha256 do .zip inteiro: 27797aa3d063f840389901349006f628e67a6e7d811a16cfb455b101e697a1ec
+- AbiWord (2015) para Windows, de http://www.boxedwine.org/demos/abiword.zip, licença GPL-2.0+,
+  código-fonte em https://gitlab.gnome.org/World/AbiWord
+- index.html e partes.js: feitos aqui.
+
+sha256 dos arquivos guardados:
+  dd7f8b64b7455e9ec906c93372f1a8c5084255f58494430abfee4711509c62e9  boxedwine.js
+  5976bb24ecb16cf7c3a497daf2ee9f50edaf6faf520655cda706532b11ada50a  boxedwine.wasm
+  a89bb2624a114005675c85a12af52cdd0d4a4156fa501e478afa4545071d45bf  boxedwine-shell.js
+  45b4658ca0666203c08ce1c55022702a03a7355a4134b8d23bc95cee5beb8e1e  fsfs.js
+  f3548956400f61c2d7f400e34166a5119c5167f4a3215e07c95c5cf95eea69a3  boxedwine.css
+  84c0ca13d545fdd5b3458f92371371bb16b5dda33dcfd77bceed1f013d388ab7  programas/abiword.zip
+  4c7cb6764f5080fad005d28cac9e42699a9e029a2da91b90f80bc898b83efe30  fs/TinyCore15Wine11.0.zip.part00
+  e2239a9f92e97a833e29595aa17a4553fe39865c9a422b83c325c627d3884ca6  fs/TinyCore15Wine11.0.zip.part01
+  a1537b1a084a4ea939e962f6cbcdd83d3e762e28f6d24d1c5a008e51ff6933fc  fs/TinyCore15Wine11.0.zip.part02
