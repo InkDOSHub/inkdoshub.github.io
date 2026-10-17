@@ -1,0 +1,28 @@
+name: Atualizar lista da cópia offline
+# Recria desktop/manifesto.json (a lista que o botão "Baixar tudo" da área de trabalho usa)
+# sempre que algum arquivo do site muda no main.
+on:
+  push:
+    branches: [main]
+    paths-ignore: [desktop/manifesto.json]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: manifesto-offline
+  cancel-in-progress: false
+jobs:
+  manifesto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/portal_manifesto.py
+      - name: Gravar se mudou
+        run: |
+          if git diff --quiet -- desktop/manifesto.json; then echo "sem mudanças"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add desktop/manifesto.json
+          git commit -m "Atualiza a lista da cópia offline"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push && exit 0; sleep 5; done
+          exit 1
