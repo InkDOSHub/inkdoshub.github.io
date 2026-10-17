@@ -18,27 +18,31 @@
     };
   };
 
-  // Na 1ª visita o coi-serviceworker recarrega a página; espera essa recarga.
-  if (!globalThis.crossOriginIsolated) return;
   var pendente = null;
   try { pendente = localStorage.getItem("inkterminal-video-editar"); } catch (_) {}
   if (!pendente) return;
-  try { localStorage.removeItem("inkterminal-video-editar"); } catch (_) {}
+  // Na 1ª visita o coi-serviceworker pode recarregar a página. Sem isolamento (XeOS, que não tem
+  // service worker) o editor funciona igual, então só espera um pouco essa recarga possível.
+  // O pedido só é apagado quando o vídeo entra, para valer também depois da recarga.
+  function apagar() { try { localStorage.removeItem("inkterminal-video-editar"); } catch (_) {} }
 
   function esperar(fn) {
     return new Promise(function (ok) {
       var t = setInterval(function () { var v = fn(); if (v) { clearInterval(t); ok(v); } }, 200);
     });
   }
-  InkBiblioteca("inkterminal-video").listar().then(function (itens) {
+  new Promise(function (ok) { setTimeout(ok, globalThis.crossOriginIsolated ? 0 : 2500); }).then(function () {
+    return InkBiblioteca("inkterminal-video").listar();
+  }).then(function (itens) {
     var item = itens.filter(function (i) { return String(i.id) === pendente; })[0];
-    if (!item) return;
+    if (!item) { apagar(); return; }
     var arq = new File([item.blob], item.nome, { type: item.tipo || item.blob.type || "video/mp4" });
     esperar(function () { var o = globalThis.inkOmni; return o && o.context && o.context.controllers && o.context; }).then(function (ctx) {
       var media = ctx.controllers.media;
       var pronto = media.on_media_change(function (m) {
         if (m.action !== "added" || !m.files.length) return;
         pronto();
+        apagar();
         var f = m.files[0];
         var mg = ctx.controllers.compositor.managers;
         if (f.kind === "video") media.create_video_elements([f]).then(function (els) { mg.videoManager.create_and_add_video_effect(els[0], ctx.state); });

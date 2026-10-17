@@ -71,6 +71,17 @@ await esbuild.build({
 
 for (const [de] of trocas) if (!usadas.has(de)) throw new Error("troca não aplicada: " + de);
 
+// InkTerminal: o ffprobe (versão com threads, que exige SharedArrayBuffer) só é criado se usado.
+// O editor não o usa (os dados do vídeo vêm do mediainfo), e assim ele abre sem modo isolado,
+// como no XeOS, onde o coi-serviceworker não consegue ligar o isolamento.
+{
+  const f = path.join(OUT, "main.js");
+  const s = fs.readFileSync(f, "utf8");
+  const n = s.replace(/ffprobe=new (\w+);/, "#inkFp=null;get ffprobe(){return this.#inkFp??=new $1};");
+  if (n === s) throw new Error("troca não aplicada: ffprobe preguiçoso");
+  fs.writeFileSync(f, n);
+}
+
 // CSS: as mesmas regras do original, sem a fonte de emoji do Google.
 const css = fs.readFileSync(path.join(OMC, "s/index.css"), "utf8")
   .replace(/@import url\('https:\/\/fonts\.googleapis\.com[^)]*\);\n?/, "");

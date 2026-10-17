@@ -41,30 +41,17 @@ de apps diferentes aparecem em "Arquivos recebidos", com um botão para cada app
 arquivo" da tela inicial faz o mesmo com um arquivo escolhido. A lista de extensões fica em
 `ROTAS` (lancador.js); o manifesto tem que ter as mesmas.
 
-## Controle de memória (`../assets/gerenciador-app.js`)
+## Abas e memória (`../assets/gerenciador-app.js`)
 
-Cada página do site (tela inicial, ferramentas, apps do InkDOS, editor ONLYOFFICE) carrega
-`assets/gerenciador-app.js`. As páginas se conhecem por um `BroadcastChannel` e pela lista
-`inkterminal-paginas` no `localStorage`. O iPadOS fecha páginas quando a memória acaba; o controle
-evita chegar lá e garante que o estado foi gravado antes:
+Cada ferramenta abre na própria aba, só quando é pedida. Tocar num cartão de um app que já está
+aberto volta para a aba dele (nome de janela `inkterminal-<app>`). As abas não se coordenam: cada
+app cuida da própria memória (o terminal, por exemplo, tem o botão de memória dele).
 
-- Cada app tem um peso estimado em MB (lista `APPS` no próprio arquivo). Quando uma página abre, ela
-  soma o peso das outras páginas carregadas. Se passar do **limite** (padrão 2 GB) ou do número de
-  **páginas carregadas** (padrão 4), a página parada há mais tempo e fora da tela é guardada: ela
-  grava o estado e troca o conteúdo por `inicio/guardada.html` (quase sem memória), que reabre o app
-  com um toque. Os dois valores ficam no botão de memória do topo (chave `inkterminal-paginas-memoria`;
-  `inkterminal-memoria` é do terminal).
-- Guardam sem perguntar: apps que salvam sozinhos (`salvaSozinho`), apps que registram
-  `inkGerenciador.aoGuardar(fn)` (terminal, Fotos) e apps do InkDOS com rascunhos de recuperação
-  ligados (sem senha), que gravam o rascunho antes e oferecem "Recuperar" ao reabrir.
-- Os outros entram num aviso "Pouca memória" na página que acabou de abrir, com um botão para guardar
-  cada um. Nada se perde sem confirmação.
-- `aoGuardar(fn)`: a função grava o que precisar e devolve "pronto" (ou nada), ou `"manter"` /
-  `{manter: "motivo"}` para continuar aberta. O prazo é de 20 s (o terminal grava a máquina inteira).
-- Páginas em segundo plano que o iPad congelou não respondem: aparecem como "em segundo plano" e não
-  contam na soma. O próprio iPad decide quando descartá-las.
+O site não aplica limite de memória: o sistema (iOS, XeOS, navegador) decide quais abas fecha.
+Os pesos da lista `APPS` são só estimativas informativas.
 
-Os pesos são estimativas: o Safari não informa quanta memória cada página usa.
+O controle anterior, que somava a memória de todas as páginas abertas e guardava as paradas, está
+em `../legado/`, fora de uso.
 
 ## Cópia offline (`offline.js`, `../sw-portal.js`, `manifesto.json`)
 
@@ -78,7 +65,7 @@ Os pesos são estimativas: o Safari não informa quanta memória cada página us
 Roda programas do Windows com o Boxedwine (emulador x86 compilado para WebAssembly, alvo "jit" de
 uma thread só, então funciona sem modo isolado). O sistema do Wine (~215 MB) fica em pedaços em
 `apps/wine/fs/`, e `partes.js` junta as partes e guarda no Cache Storage. Precisa de exceções
-WebAssembly no formato novo (Safari 18.4+). Pesa ~950 MB no controle de memória.
+WebAssembly no formato novo (Safari 18.4+). Pesa ~950 MB.
 
 - Todos os programas usam os mesmos discos (`storageKey=default`): o C: guarda o que for instalado
   e o D: guarda arquivos e programas da pessoa, os dois no IndexedDB do site.

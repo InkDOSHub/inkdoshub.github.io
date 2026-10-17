@@ -2,8 +2,8 @@
 """Adapta a cópia dos apps do InkDOS (inkdos/) ao InkTerminal. Rode depois de tools/copiar_inkdos.sh.
 
 Duas mudanças:
-1. Cada app (index.html) carrega assets/gerenciador-app.js, o controle de memória entre as páginas
-   abertas do InkTerminal.
+1. Cada app (index.html) carrega assets/gerenciador-app.js (abas dos apps, aviso de memória no
+   Safari e o editor ONLYOFFICE local).
 2. "Editar com ONLYOFFICE": no InkDOS original o botão abre os editores do site inkdos-tools.github.io
    numa aba nova. Aqui o documento vai para a cópia dos editores em onlyoffice/, na aba nova que o
    botão já abre (InkPaginas.abrirEditor, em assets/gerenciador-app.js).
@@ -33,7 +33,7 @@ function openInOfficeOriginal(file,light,win){"""
 
 TROCAS = [("function openInOffice(file,light,win){", FUNCAO)]
 
-SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=4"></script>'
+SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=5"></script>'
 
 def main():
     arquivos = sorted(glob.glob(os.path.join(RAIZ, "inkdos/apps/*/runtime/platform/file-launch.js")))
