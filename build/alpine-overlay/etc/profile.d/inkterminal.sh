@@ -4,7 +4,8 @@ alias ls='ls --color=auto'
 alias ll='ls -la'
 help() {
   echo "Comandos: ls cd cat vi top ps df free"
-  echo "Instalar programas: apk add python3 git nano"
+  echo "Instalar programas: apk add python3 git nano (qualquer pacote do Alpine)"
+  echo "Sem internet? Troque a rede no topo (wisp ou relay) e toque em Reiniciar."
   echo "Arquivos do iPad: pasta ~/ipad"
   echo "Tela com tamanho errado? Digite: resize"
   echo "Toque em Salvar para guardar tudo."

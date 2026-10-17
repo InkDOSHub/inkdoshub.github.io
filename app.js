@@ -1,4 +1,4 @@
-import { V86 } from "./vendor/v86/libv86.mjs?v=3";
+import { V86 } from "./vendor/v86/libv86.mjs?v=4";
 import { Terminal } from "./vendor/xterm/xterm.mjs";
 import { FitAddon } from "./vendor/xterm/addon-fit.mjs";
 
@@ -25,7 +25,7 @@ document.getElementById("term").addEventListener("click", () => term.focus());
 
 // ---------- Saved state (IndexedDB) ----------
 // KEY muda quando a máquina muda (kernel/dispositivos), porque um estado antigo não serve mais.
-const DB = "inkterminal", STORE = "state", KEY = "vm-v3";
+const DB = "inkterminal", STORE = "state", KEY = "vm-v4";
 function idb() {
   return new Promise((ok, fail) => {
     const r = indexedDB.open(DB, 1);
@@ -49,19 +49,24 @@ const clearStateDb = () => idbOp("readwrite", (s) => s.delete(KEY));
 
 // ---------- Emulator (v86) ----------
 const saved = params.has("fresh") ? undefined : await loadState();
-// Rede: "fetch" usa o próprio navegador (só HTTP, sem servidor).
-// "relay" usa o relay público do v86 (TCP completo). Também aceita uma URL wss:// ou wisp://.
+// Rede: como os outros emuladores de Linux no navegador, o Linux sai para a
+// internet por um servidor de rede público (o mesmo que o copy.sh/v86 oferece).
+//   "wisp"  -> wisps://wisp.mercurywork.shop/v86/ (padrão, TCP completo, http e https)
+//   "relay" -> wss://relay.widgetry.org/ (ethernet completa)
+//   "off"   -> sem rede
+// Também aceita uma URL wss://, wisp:// ou wisps:// de outro servidor.
+const REDES = { wisp: "wisps://wisp.mercurywork.shop/v86/", relay: "wss://relay.widgetry.org/", off: undefined };
 let savedRede;
-try { savedRede = localStorage.getItem("inkterminal-rede"); } catch {}
-const REDE = params.get("rede") || savedRede || "fetch";
-const relayUrl = REDE === "relay" ? "wss://relay.widgetry.org/" : REDE === "off" ? undefined : REDE;
+try { savedRede = localStorage.getItem("inkterminal-rede2"); } catch {}
+const REDE = params.get("rede") || savedRede || "wisp";
+const relayUrl = REDE in REDES ? REDES[REDE] : REDE;
 const config = {
   wasm_path: "vendor/v86/v86.wasm",
   memory_size: 256 * 1024 * 1024,
   vga_memory_size: 2 * 1024 * 1024,
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
-  bzimage: { url: "images/inkterminal-bzImage.bin?v=3" },
+  bzimage: { url: "images/inkterminal-bzImage.bin?v=4" },
   cmdline: "console=ttyS0 quiet tsc=reliable mitigations=off random.trust_cpu=on",
   filesystem: {},
   net_device: relayUrl ? { type: "virtio", relay_url: relayUrl } : undefined,
@@ -217,9 +222,9 @@ document.getElementById("download-close").addEventListener("click", () => dialog
 
 // ---------- Escolha da rede ----------
 const redeSel = document.getElementById("rede");
-redeSel.value = ["fetch", "relay", "off"].includes(REDE) ? REDE : "fetch";
+redeSel.value = REDE in REDES ? REDE : "wisp";
 redeSel.addEventListener("change", () => {
-  try { localStorage.setItem("inkterminal-rede", redeSel.value); } catch {}
+  try { localStorage.setItem("inkterminal-rede2", redeSel.value); } catch {}
   const q = new URLSearchParams(location.search);
   q.delete("rede");
   location.search = q.toString();

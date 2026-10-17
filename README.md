@@ -5,21 +5,23 @@ Um terminal Linux de verdade que roda inteiro no navegador. Foi pensado para o i
 **Abrir:** https://inkterminal.github.io/
 
 - Roda Alpine Linux 3.22 com kernel Linux 6.6 (i386), emulado pelo [v86](https://github.com/copy/v86) em WebAssembly.
-- Instala programas com `apk add` (por exemplo `apk add python3 git nano`). Isso precisa de rede.
-- Tem internet dentro do Linux (veja "Rede" abaixo).
+- Instala qualquer programa do Alpine com `apk add` (por exemplo `apk add python3 git nano`).
+- Tem internet de verdade dentro do Linux, com http e https (veja "Rede" abaixo).
 - A pasta `~/ipad` troca arquivos com o aparelho. **Enviar** coloca arquivos do iPad nela, e **Baixar** salva arquivos dela no app Arquivos.
 - **Salvar** guarda a máquina inteira (arquivos, programas instalados e a pasta `~/ipad`) no navegador. Na próxima visita ela volta do mesmo ponto. **Reiniciar** apaga tudo e começa do zero.
 - Tem uma barra de teclas extras para o teclado do celular: Esc, Tab, Ctrl, setas, `|`, `/`, `-`, `~` e Ctrl+C.
 
 ## Rede
 
+Igual aos outros emuladores de Linux no navegador (como o [copy.sh/v86](https://copy.sh/v86/)), o Linux sai para a internet por um servidor de rede público. Com isso funcionam `apk add` de qualquer pacote do Alpine, `http://`, `https://`, `git clone`, `pip install` e `ssh`.
+
 | Opção | Como funciona |
 |---|---|
-| Rede: navegador (padrão) | O próprio navegador faz os pedidos HTTP, sem servidor. Só funciona com sites que liberam CORS. `https://` dentro do Linux não funciona nesse modo, só `http://`. Se `apk` falhar, use o relay. |
-| Rede: relay | A rede passa pelo relay público do v86 (`wss://relay.widgetry.org/`). Funciona com TCP completo, mas depende desse servidor de terceiros, que pode ficar fora do ar ou lento. |
+| Rede: wisp (padrão) | Conexões TCP pelo servidor [Wisp](https://github.com/MercuryWorkshop/wisp-protocol) público `wisps://wisp.mercurywork.shop/v86/` (o mesmo que o copy.sh/v86 oferece). Os nomes de sites são resolvidos por DNS-over-HTTPS da Cloudflare. |
+| Rede: relay | Rede completa pelo relay público do v86 (`wss://relay.widgetry.org/`). Use se o wisp estiver fora do ar. |
 | Sem rede | O Linux fica sem internet. |
 
-A escolha fica guardada no navegador. Também dá para passar `?rede=relay`, `?rede=fetch`, `?rede=off` ou uma URL `wss://`/`wisp://` de outro relay.
+Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou fora do ar. A escolha fica guardada no navegador. Também dá para passar `?rede=wisp`, `?rede=relay`, `?rede=off` ou a URL `wss://`, `wisp://` ou `wisps://` de outro servidor.
 
 ## Parâmetros de URL
 
