@@ -158,25 +158,32 @@
 
   Janela.prototype.fechar = function () {
     var j = this;
-    var pergunta = Promise.resolve("sim");
-    if (j.carregada && !G.podeSairSemPerguntar(j) && G.perguntar) {
-      pergunta = G.perguntar("Fechar " + j.app.nome + "?",
-        "Se houver algo não salvo nesta janela, salve antes de fechar.",
+    function remover() {
+      j.descarregar();
+      j.el.remove();
+      j.tb.remove();
+      lista.splice(lista.indexOf(j), 1);
+      var f = focada(); if (f) f.focar();
+      redesenharTudo();
+      salvarSessao();
+      G.aoMudar();
+    }
+    if (!j.carregada) { remover(); return; }
+    function confirmar(texto) {
+      if (!G.perguntar) return Promise.resolve("sim");
+      return G.perguntar("Fechar " + j.app.nome + "?", texto,
         [{ id: "sim", texto: "Fechar" }, { id: "nao", texto: "Cancelar", secundario: true }]);
     }
-    pergunta.then(function (r) {
-      if (r !== "sim") return;
-      G.avisar(j).then(function () {
-        j.descarregar();
-        j.el.remove();
-        j.tb.remove();
-        lista.splice(lista.indexOf(j), 1);
-        var f = focada(); if (f) f.focar();
-        redesenharTudo();
-        salvarSessao();
-        G.aoMudar();
+    if (j.suportaAviso) {
+      // o app guarda o que puder; se ele pedir para ficar aberto, a pessoa decide
+      G.avisar(j).then(function (resp) {
+        if (resp !== "manter") { remover(); return; }
+        confirmar((j.motivoManter ? j.motivoManter + " " : "") + "Fechar agora pode perder o que está aberto nele.")
+          .then(function (r) { if (r === "sim") remover(); });
       });
-    });
+    } else if (!j.app.salvaSozinho) {
+      confirmar("Se houver algo não salvo nesta janela, salve antes de fechar.").then(function (r) { if (r === "sim") remover(); });
+    } else remover();
   };
 
   /* Dentro da área de trabalho, o botão "InkTerminal" das barras dos apps volta para a mesa

@@ -18,6 +18,8 @@ GRUPOS = [
     ("musica", "Música", ["apps/musica"]),
 ]
 FORA = {"desktop/manifesto.json"}
+# o editor de vídeo depende do coi-serviceworker dele e não passa pelo portal, então fica de fora da cópia
+FORA_PASTAS = ("apps/video/editor/",)
 FORA_EXT = (".md", ".txt", ".map")
 
 def arquivos(caminho):
@@ -29,7 +31,7 @@ def arquivos(caminho):
         pastas.sort()
         for n in sorted(nomes):
             rel = os.path.relpath(os.path.join(d, n), RAIZ).replace(os.sep, "/")
-            if rel in FORA or n.startswith(".") or n.endswith(FORA_EXT):
+            if rel in FORA or rel.startswith(FORA_PASTAS) or n.startswith(".") or n.endswith(FORA_EXT):
                 continue
             yield rel
 

@@ -17,7 +17,7 @@ O Safari não deixa uma página mandar a própria memória para o disco, e o iPa
 - Cada app tem um peso estimado em MB (`apps.js`). A soma dos apps carregados fica abaixo do **limite** (padrão 1 GB; o terminal no modo de memória limitada conta como ~900 MB) e do número máximo de **janelas carregadas** (padrão 3); os dois se ajustam no botão de memória do topo.
 - Quando falta espaço, a janela parada há mais tempo é guardada: o iframe sai da página (o único jeito garantido de o Safari devolver a memória) e a janela mostra "Abrir de novo".
 - Apps que salvam sozinhos (`salvaSozinho` em `apps.js`) são guardados sem perguntar. Os outros só depois de uma confirmação.
-- Um app pode avisar que sabe guardar o próprio estado incluindo `assets/gerenciador-app.js` e chamando `inkGerenciador.aoGuardar(fn)`. Antes de descarregar, a área de trabalho manda `{tipo:"inkterminal:suspender"}`, espera `{tipo:"inkterminal:pronto"}` (até 3 s) e não pergunta mais nada.
+- Um app pode avisar que sabe guardar o próprio estado incluindo `assets/gerenciador-app.js` e chamando `inkGerenciador.aoGuardar(fn)`. Antes de descarregar, a área de trabalho manda `{tipo:"inkterminal:suspender"}`, espera `{tipo:"inkterminal:pronto"}` (até 20 s) e não pergunta mais nada. Se o app responder `{tipo:"inkterminal:manter", motivo}`, a janela fica carregada; ao fechar a janela, a pessoa vê o motivo e decide.
 
 Os pesos são estimativas: o Safari não informa quanta memória cada página usa.
 
