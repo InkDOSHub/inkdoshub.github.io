@@ -128,23 +128,30 @@ $("editar").onclick = () => {
 };
 function fecharEdicao() { $("edicao").classList.add("md-hide"); $("editor").src = "about:blank"; }
 $("cancelar").onclick = fecharEdicao;
-$("concluir").onclick = () => {
-  const w = $("editor").contentWindow;
-  if (!w || !w.Layers || !w.AppConfig) return;
-  const c = document.createElement("canvas");
-  c.width = w.AppConfig.WIDTH; c.height = w.AppConfig.HEIGHT;
-  w.Layers.convert_layers_to_canvas(c.getContext("2d"), null, false);
-  const orig = fotos[atual];
-  const jpeg = /jpe?g/i.test(orig.tipo || "");
-  c.toBlob(async (blob) => {
-    if (!blob) return;
-    const nome = orig.nome.replace(/\.[^.]+$/, "") + " (editada)." + (jpeg ? "jpg" : "png");
-    const [novo] = await bib.adicionar([new File([blob], nome, { type: blob.type })]);
-    fotos.splice(atual + 1, 0, novo);
-    fecharEdicao();
-    grade();
-    ver(atual + 1);
-  }, jpeg ? "image/jpeg" : "image/png", 0.92);
-};
+// Guarda o que está no miniPaint como uma foto nova. Também é chamado sozinho
+// quando a área de trabalho precisa descarregar esta janela.
+function guardarEdicao() {
+  return new Promise((ok) => {
+    const w = $("editor").contentWindow;
+    const orig = fotos[atual];
+    if ($("edicao").classList.contains("md-hide") || !orig || !w || !w.Layers || !w.AppConfig) return ok(false);
+    const c = document.createElement("canvas");
+    c.width = w.AppConfig.WIDTH; c.height = w.AppConfig.HEIGHT;
+    w.Layers.convert_layers_to_canvas(c.getContext("2d"), null, false);
+    const jpeg = /jpe?g/i.test(orig.tipo || "");
+    c.toBlob(async (blob) => {
+      if (!blob) return ok(false);
+      const nome = orig.nome.replace(/\.[^.]+$/, "") + " (editada)." + (jpeg ? "jpg" : "png");
+      const [novo] = await bib.adicionar([new File([blob], nome, { type: blob.type })]);
+      fotos.splice(atual + 1, 0, novo);
+      fecharEdicao();
+      grade();
+      ver(atual + 1);
+      ok(true);
+    }, jpeg ? "image/jpeg" : "image/png", 0.92);
+  });
+}
+$("concluir").onclick = guardarEdicao;
+if (window.inkGerenciador) inkGerenciador.aoGuardar(guardarEdicao);
 
 bib.listar().then((lst) => { fotos = lst; grade(); modo(false); });

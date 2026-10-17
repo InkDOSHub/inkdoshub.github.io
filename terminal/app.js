@@ -302,4 +302,13 @@ memBtn.addEventListener("click", () => {
 });
 if (LIMITADA) document.getElementById("btn-save").title = "Neste modo a sessão não é salva (o swap é refeito a cada boot)";
 
+// Área de trabalho (desktop/): antes de descarregar esta janela, guarda a sessão.
+// No modo de memória limitada não há como guardar (o swap recomeça a cada boot).
+if (window.inkGerenciador && !LIMITADA) {
+  inkGerenciador.aoGuardar(async () => {
+    setStatus("Salvando antes de fechar…");
+    await saveStateDb(await emulator.save_state());
+  });
+}
+
 window.inkterminal = { emulator, term, swap };
