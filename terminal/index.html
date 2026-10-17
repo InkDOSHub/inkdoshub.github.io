@@ -9,17 +9,19 @@
 <title>InkTerminal</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230d1117%22/%3E%3Cpath d=%22M8 10l6 6-6 6M16 22h8%22 stroke=%22%233fb950%22 stroke-width=%223%22 fill=%22none%22/%3E%3C/svg%3E">
 <script src="../assets/tema.js"></script>
-<link rel="stylesheet" href="../assets/barra.css?v=1">
+<script src="../assets/icones.js" defer></script>
+<link rel="stylesheet" href="../assets/barra.css?v=2">
 <link rel="stylesheet" href="vendor/xterm/xterm.css">
 <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body class="ink-app">
 <header class="ink-bar" id="topbar">
-  <a class="ink-home" href="../">‹ InkTerminal</a>
+  <a class="ink-home" href="../" data-icone="voltar">InkTerminal</a>
   <span class="ink-title">Linux</span>
   <span class="ink-status" id="status">Carregando…</span>
   <span class="ink-spacer"></span>
   <button class="ink-btn" id="rede" title="Como o Linux acessa a internet (toque para trocar)">Rede: wisp</button>
+  <button class="ink-btn" id="memoria" title="Quanta RAM o Linux usa (toque para trocar e ligar de novo)">Memória: 256 MB</button>
   <button class="ink-btn" id="btn-upload" title="Enviar arquivos do iPad para ~/ipad">Enviar</button>
   <button class="ink-btn" id="btn-download" title="Baixar arquivos de ~/ipad">Baixar</button>
   <button class="ink-btn" id="btn-save" title="Salvar o estado da máquina neste navegador">Salvar</button>
@@ -30,10 +32,10 @@
   <button class="ink-btn" data-key="esc">Esc</button>
   <button class="ink-btn" data-key="tab">Tab</button>
   <button class="ink-btn" data-key="ctrl" id="key-ctrl">Ctrl</button>
-  <button class="ink-btn" data-key="up">↑</button>
-  <button class="ink-btn" data-key="down">↓</button>
-  <button class="ink-btn" data-key="left">←</button>
-  <button class="ink-btn" data-key="right">→</button>
+  <button class="ink-btn" data-key="up" aria-label="Seta para cima" data-icone="cima"></button>
+  <button class="ink-btn" data-key="down" aria-label="Seta para baixo" data-icone="baixo"></button>
+  <button class="ink-btn" data-key="left" aria-label="Seta para a esquerda" data-icone="anterior"></button>
+  <button class="ink-btn" data-key="right" aria-label="Seta para a direita" data-icone="proxima"></button>
   <button class="ink-btn" data-text="|">|</button>
   <button class="ink-btn" data-text="/">/</button>
   <button class="ink-btn" data-text="-">-</button>

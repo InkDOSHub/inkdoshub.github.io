@@ -53,8 +53,54 @@ const loadState = () => idbOp("readonly", (s) => s.get(KEY)).catch(() => undefin
 const saveStateDb = (buf) => idbOp("readwrite", (s) => s.put(buf, KEY));
 const clearStateDb = () => idbOp("readwrite", (s) => s.delete(KEY));
 
+// ---------- Memória ----------
+// "normal": 256 MB, como antes, e a sessão pode ser salva.
+// "limitada": 640 MB de RAM para o Linux (a aba fica perto de 1 GB), mais zram (memória comprimida) e um disco
+// de swap de 1 GB no armazenamento do site (OPFS), para onde o Linux manda o que
+// está pouco usado. Nesse modo a sessão não é salva, porque o swap é refeito a cada boot.
+let savedMem;
+try { savedMem = localStorage.getItem("inkterminal-memoria"); } catch {}
+const MEM = params.get("memoria") || savedMem || "normal";
+const LIMITADA = MEM === "limitada";
+const SWAP_BYTES = 1024 * 1024 * 1024;
+
+function abrirSwap() {
+  const w = new Worker("swap-worker.js?v=1");
+  let seq = 0;
+  const espera = new Map();
+  w.onmessage = ({ data }) => { const f = espera.get(data.id); espera.delete(data.id); f && f(data); };
+  const pedir = (m, transf) => new Promise((ok) => { m.id = ++seq; espera.set(m.id, ok); w.postMessage(m, transf || []); });
+  const disco = {
+    byteLength: SWAP_BYTES,
+    onload: null, onprogress: null,
+    lidos: 0, gravados: 0,
+    load() { this.onload && this.onload({}); },
+    get(start, len, fn) {
+      pedir({ op: "read", at: start, len }).then((r) => { this.lidos += len; fn(r.ok ? r.buf : new Uint8Array(len)); });
+    },
+    set(start, slice, fn) {
+      const buf = slice.slice();
+      pedir({ op: "write", at: start, buf }, [buf.buffer]).then(() => { this.gravados += buf.length; fn && fn(); });
+    },
+    get_and_cache(start, len, fn) { this.get(start, len, fn); },
+    get_from_cache() { return undefined; },
+    get_buffer(fn) { fn(undefined); },
+    get_state() { return []; },
+    set_state() {},
+    tamanho: () => pedir({ op: "size" }).then((r) => r.size),
+  };
+  return pedir({ op: "open", name: "inkterminal-swap.img" }).then((r) => {
+    if (!r.ok) { w.terminate(); throw new Error(r.error); }
+    return disco;
+  });
+}
+
 // ---------- Emulator (v86) ----------
-const saved = params.has("fresh") ? undefined : await loadState();
+const saved = params.has("fresh") || LIMITADA ? undefined : await loadState();
+let swap = null;
+if (LIMITADA) {
+  try { swap = await abrirSwap(); } catch (err) { console.warn("swap no armazenamento indisponível:", err); }
+}
 // Rede: como os outros emuladores de Linux no navegador, o Linux sai para a
 // internet por um servidor de rede público (o mesmo que o copy.sh/v86 oferece).
 //   "wisp"  -> wisps://wisp.mercurywork.shop/v86/ (padrão, TCP completo, http e https)
@@ -68,12 +114,14 @@ const REDE = params.get("rede") || savedRede || "wisp";
 const relayUrl = REDE in REDES ? REDES[REDE] : REDE;
 const config = {
   wasm_path: "vendor/v86/v86.wasm",
-  memory_size: 256 * 1024 * 1024,
+  memory_size: (LIMITADA ? 640 : 256) * 1024 * 1024,
   vga_memory_size: 2 * 1024 * 1024,
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
-  bzimage: { url: "images/inkterminal-bzImage.bin?v=4" },
-  cmdline: "console=ttyS0 quiet tsc=reliable mitigations=off random.trust_cpu=on",
+  bzimage: { url: "images/inkterminal-bzImage.bin?v=5" },
+  cmdline: "console=ttyS0 quiet tsc=reliable mitigations=off random.trust_cpu=on" +
+    (LIMITADA ? " inkzram=192M" + (swap ? " inkswap=1" : "") : ""),
+  hda: swap || undefined,
   filesystem: {},
   net_device: relayUrl ? { type: "virtio", relay_url: relayUrl } : undefined,
   disable_keyboard: true,
@@ -83,7 +131,7 @@ const config = {
 };
 if (saved) config.initial_state = { buffer: saved };
 
-setStatus(saved ? "Restaurando sessão salva…" : "Iniciando Linux…");
+setStatus(saved ? "Restaurando sessão salva…" : LIMITADA && !swap ? "Iniciando (sem swap no armazenamento, só zram)…" : "Iniciando Linux…");
 const emulator = new V86(config);
 
 // Serial output -> terminal, batched per frame so it stays fast.
@@ -156,6 +204,7 @@ refit();
 
 // ---------- Buttons ----------
 document.getElementById("btn-save").addEventListener("click", async () => {
+  if (LIMITADA) { setStatus("No modo Memória limitada a sessão não é salva"); term.focus(); return; }
   try {
     setStatus("Salvando…");
     const buf = await emulator.save_state();
@@ -242,4 +291,15 @@ redeBtn.addEventListener("click", () => {
   location.search = q.toString();
 });
 
-window.inkterminal = { emulator, term };
+// ---------- Escolha da memória ----------
+const memBtn = document.getElementById("memoria");
+memBtn.textContent = LIMITADA ? "Memória: 640 MB + swap" : "Memória: 256 MB";
+memBtn.addEventListener("click", () => {
+  try { localStorage.setItem("inkterminal-memoria", LIMITADA ? "normal" : "limitada"); } catch {}
+  const q = new URLSearchParams(location.search);
+  q.delete("memoria");
+  location.search = q.toString();
+});
+if (LIMITADA) document.getElementById("btn-save").title = "Neste modo a sessão não é salva (o swap é refeito a cada boot)";
+
+window.inkterminal = { emulator, term, swap };

@@ -28,6 +28,7 @@ Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`ass
 - Tem internet de verdade dentro do Linux, com http e https (veja "Rede" abaixo).
 - A pasta `~/ipad` troca arquivos com o aparelho. **Enviar** coloca arquivos do iPad nela, e **Baixar** salva arquivos dela no app Arquivos.
 - **Salvar** guarda a máquina inteira (arquivos, programas instalados e a pasta `~/ipad`) no navegador. Na próxima visita ela volta do mesmo ponto. **Reiniciar** apaga tudo e começa do zero.
+- **Memória:** o botão alterna entre 256 MB (padrão, a sessão pode ser salva) e **640 MB + swap**. No segundo modo o Linux tem 640 MB de RAM, 192 MB de zram (memória comprimida) e 1 GB de swap num arquivo do armazenamento privado do site (OPFS), gravado aos pedaços por um worker (`terminal/swap-worker.js`) sem passar pela RAM da página. A aba fica abaixo de 1 GB mesmo com o Linux usando mais memória do que tem. Nesse modo a sessão não é salva, porque o swap recomeça a cada boot.
 - Tem uma barra de teclas extras para o teclado do celular: Esc, Tab, Ctrl, setas, `|`, `/`, `-`, `~` e Ctrl+C.
 
 ### Rede
@@ -50,6 +51,7 @@ Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou for
 | `?fresh=1` | Ignora o estado salvo e liga do zero |
 | `?font=18` | Muda o tamanho da fonte |
 | `?rede=…` | Escolhe a rede (veja acima) |
+| `?memoria=limitada` | Liga o modo 640 MB + swap (`?memoria=normal` volta para 256 MB) |
 
 ### Usar dentro de outra página
 

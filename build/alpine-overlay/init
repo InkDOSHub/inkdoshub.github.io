@@ -18,6 +18,19 @@ mkdir -p /mnt/ipad
 mount -t 9p -o trans=virtio,version=9p2000.L,cache=none host9p /mnt/ipad 2>/dev/null
 ln -sfn /mnt/ipad /root/ipad
 
+# Modo de memória limitada (opção "Memória" da página): zram e swap no disco do v86
+for a in $(cat /proc/cmdline); do
+  case "$a" in inkzram=*) ZRAM=${a#inkzram=} ;; inkswap=1) SWAPDISK=1 ;; esac
+done
+if [ -n "$ZRAM" ] && [ -e /sys/block/zram0 ]; then
+  echo lz4 > /sys/block/zram0/comp_algorithm 2>/dev/null
+  echo "$ZRAM" > /sys/block/zram0/disksize && mkswap /dev/zram0 >/dev/null && swapon -p 100 /dev/zram0
+  echo 100 > /proc/sys/vm/swappiness
+fi
+if [ -n "$SWAPDISK" ] && [ -b /dev/sda ]; then
+  mkswap /dev/sda >/dev/null && swapon -p 10 /dev/sda
+fi
+
 # Rede (em segundo plano, para não atrasar o boot)
 if [ -e /sys/class/net/eth0 ]; then
   ( ip link set eth0 up; udhcpc -i eth0 -q -n -t 5 -T 2 -s /usr/share/udhcpc/default.script >/dev/null 2>&1 ) &
