@@ -1,0 +1,57 @@
+name: Portal - baixar binarios grandes
+# Roda so no branch de trabalho: baixa dos sites oficiais os binarios que o ambiente de
+# desenvolvimento nao alcanca (ZetaOffice/LibreOffice WASM e o Wine do Boxedwine), anota o
+# sha256 de cada um e grava em vendor-staging/ no proprio branch, para revisao antes de usar.
+# Autorizado pelo Paulo em 2026-10-17.
+on:
+  push:
+    branches: [claude/project-thread-6rj1pm]
+    paths: [.github/workflows/portal-vendors.yml]
+permissions:
+  contents: write
+jobs:
+  baixar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: LibreOffice WASM (ZetaOffice)
+        run: |
+          set -e
+          D=vendor-staging/office; mkdir -p $D
+          B=https://cdn.zetaoffice.net/zetaoffice_latest
+          for f in soffice.js soffice.wasm soffice.data soffice.data.js.metadata qtloader.js; do
+            curl -fsSL -D $D/$f.headers -H "Accept-Encoding: identity" "$B/$f" -o $D/$f
+          done
+          ls -l $D
+          file $D/soffice.wasm $D/soffice.data | tee $D/tipos.txt
+          sha256sum $D/soffice.* $D/qtloader.js > $D/SHA256SUMS
+          for f in soffice.wasm soffice.data; do
+            if head -c4 $D/$f | od -An -tx1 | grep -q "00 61 73 6d" || [ "$f" = soffice.data ]; then gzip -9 -k $D/$f; fi
+          done
+          ls -l $D
+          for f in $D/*; do s=$(stat -c%s $f); if [ $s -gt 95000000 ]; then split -b 90m -d $f $f.part; rm $f; fi; done
+          ls -l $D
+      - name: Boxedwine (Wine 11 e demo AbiWord)
+        run: |
+          set -e
+          D=vendor-staging/wine; mkdir -p $D
+          curl -fsSL https://boxedwine.org/v2/20/TinyCore15Wine11.0.zip -o /tmp/wine.zip
+          sha256sum /tmp/wine.zip | tee $D/SHA256SUMS
+          python3 -c "
+          import zipfile,collections
+          z=zipfile.ZipFile('/tmp/wine.zip'); c=collections.Counter(); u=collections.Counter()
+          for i in z.infolist():
+            k='/'.join(i.filename.split('/')[:4]); c[k]+=i.compress_size; u[k]+=i.file_size
+          for k,v in c.most_common(120): print(v//1024,'KB zip',u[k]//1024,'KB',k)
+          " > $D/wine-dirs.txt
+          split -b 90m -d /tmp/wine.zip $D/TinyCore15Wine11.0.zip.part
+          curl -fsSL http://www.boxedwine.org/demos/abiword.zip -o $D/abiword.zip
+          sha256sum $D/abiword.zip >> $D/SHA256SUMS
+          ls -l $D
+      - name: Gravar no branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor-staging
+          git commit -m "Binarios do portal (LibreOffice WASM e Boxedwine) para avaliacao"
+          git push
