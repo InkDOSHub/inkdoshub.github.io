@@ -14,7 +14,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | omniclip (editor de Vídeo) | MIT | copiado para `apps/video/editor/`, com as bibliotecas listadas em `apps/video/UPSTREAM-SOURCE.txt` |
 | Bibliotecas do omniclip: Shoelace, PixiJS, pixi-filters, opfs-tools, web-demuxer (código), lit, mp4box, wavesurfer.js, zip.js, coi-serviceworker | MIT ou BSD | |
 | mediainfo.js (leitura de dados do vídeo) | BSD-2-Clause | |
-| Apps do InkDOS (`inkdos/`) | MIT | cópia sem mudanças; as bibliotecas que vêm junto têm as licenças em `inkdos/licenses/`. O botão "Edit with ONLYOFFICE" abre os editores do site inkdos-tools.github.io, que não foram copiados |
+| Apps do InkDOS (`inkdos/`) | MIT | cópia sem mudanças; as bibliotecas que vêm junto têm as licenças em `inkdos/licenses/`. O botão "Editar com ONLYOFFICE" abre a cópia dos editores em `onlyoffice/` |
 | v86 (emulador do terminal) | BSD-2-Clause | |
 | xterm.js | MIT | |
 
@@ -27,6 +27,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | SeaBIOS / VGA BIOS | LGPL-3.0 | manter a licença (`terminal/bios/COPYING.LESSER`) e indicar onde está o código-fonte |
 | Boxedwine (Wine, `apps/wine/`) | GPL-2.0 | oferecer o código-fonte: compilado sem mudanças do commit `cc787bf` de https://github.com/danoon2/Boxedwine; licença em `apps/wine/BOXEDWINE-LICENSE.txt` |
 | Wine 11.0, TinyCore Linux 15 e AbiWord (dentro de `apps/wine/`) | Wine LGPL-2.1+, TinyCore GPL, AbiWord GPL-2.0+ | pacotes oficiais sem mudanças, com o código-fonte público nos projetos; origem e sha256 em `apps/wine/UPSTREAM-SOURCE.txt` |
+| Editores ONLYOFFICE (`onlyoffice/`, "Editar com ONLYOFFICE" nos documentos) | AGPL-3.0 | oferecer o código-fonte correspondente, inclusive das mudanças: origem e lista de mudanças em `onlyoffice/UPSTREAM-SOURCE.txt` (ranuts/document e o branch source de inkdos-tools/inkdos-tools.github.io). A AGPL vale também para quem usa pela rede, então num produto pago estas pastas precisam continuar com o código aberto |
 | jschardet (dentro do VS Code) | LGPL-2.1 | manter a licença; o arquivo não foi alterado |
 | ffmpeg.wasm 0.12.5 (`apps/video/editor/ffmpeg-core/`, usado ao exportar) | GPL-2.0 ou posterior | oferecer o código-fonte: é o pacote `@ffmpeg/core@0.12.5` sem mudanças, com o código em https://github.com/ffmpegwasm/ffmpeg.wasm |
 | FFmpeg dentro do web-demuxer e do ffprobe-wasm | LGPL-2.1 | manter a licença e indicar o código-fonte (pacotes npm sem mudanças) |

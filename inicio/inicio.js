@@ -23,16 +23,20 @@
 
   G.janelas = function () { return lista; };
 
-  function app(id) { return window.INK_APPS.filter(function (a) { return a.id === id; })[0]; }
+  // editores ONLYOFFICE abertos pelos apps do InkDOS: um "app" por documento (veja abrirEditor)
+  var extras = [];
+  function app(id) { return window.INK_APPS.concat(extras).filter(function (a) { return a.id === id; })[0]; }
   function aberto(id) { return lista.filter(function (j) { return j.app.id === id; })[0]; }
   function icone(id) {
-    var s = document.querySelector('[data-app="' + id + '"] .app-icon svg');
+    var s = document.querySelector('[data-app="' + id + '"] .app-icon svg') ||
+      (id.indexOf("office-") === 0 ? document.querySelector('[data-app="documentos"] .app-icon svg') : null);
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (s ? s.innerHTML : "") + "</svg>";
   }
 
   function salvarSessao() {
     try {
-      localStorage.setItem(SESSAO, JSON.stringify({ abertos: lista.map(function (j) { return j.app.id; }), ativo: ativo ? ativo.app.id : null }));
+      localStorage.setItem(SESSAO, JSON.stringify({ abertos: lista.map(function (j) { return j.app.id; }), ativo: ativo ? ativo.app.id : null,
+        extras: lista.filter(function (j) { return j.app.handoff; }).map(function (j) { return j.app; }) }));
     } catch (_) {}
   }
 
@@ -46,6 +50,19 @@
     this.el = document.createElement("div");
     this.el.className = "tela";
     this.el.hidden = true;
+    this.corpo = this.el;
+    // o editor ONLYOFFICE não tem barra própria: ganha uma com Voltar (para o app do InkDOS de onde veio) e Fechar
+    if (a.handoff) {
+      var j = this;
+      this.el.classList.add("com-barra");
+      this.el.innerHTML = '<header class="tela-barra"><button type="button" class="tela-voltar">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>' +
+        '<span class="tela-titulo"></span><button type="button" class="tela-fechar">Fechar</button></header><div class="tela-corpo"></div>';
+      this.el.querySelector(".tela-titulo").textContent = a.nome;
+      this.corpo = this.el.querySelector(".tela-corpo");
+      this.el.querySelector(".tela-voltar").addEventListener("click", function () { voltarInicio(); });
+      this.el.querySelector(".tela-fechar").addEventListener("click", function () { fechar(j); });
+    }
     telas.appendChild(this.el);
   }
 
@@ -59,7 +76,7 @@
     f.src = j.app.url;
     j.iframe = f;
     j.suportaAviso = false;
-    j.el.appendChild(f);
+    j.corpo.appendChild(f);
     j.carregada = true;
   };
 
@@ -78,6 +95,7 @@
   };
 
   function remover(j) {
+    if (j.app.handoff) apagarHandoff(j.app.handoff);
     j.descarregar();
     j.el.remove();
     lista.splice(lista.indexOf(j), 1);
@@ -323,8 +341,40 @@
   });
 
   // Sessão: depois de uma queda da aba, os apps voltam guardados; só o que estava na tela carrega
+  /* O documento que o app do InkDOS passou para o editor fica no IndexedDB "inkdos-tool-handoff"
+     até o editor ser fechado (assim ele reabre o mesmo documento se sair da memória). */
+  function apagarHandoff(id) {
+    try {
+      var req = indexedDB.open("inkdos-tool-handoff", 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore("files"); };
+      req.onsuccess = function () {
+        var db = req.result, tx = db.transaction("files", "readwrite"), st = tx.objectStore("files");
+        st.delete(id);
+        // e as entradas esquecidas há mais de 7 dias
+        var c = st.openCursor();
+        c.onsuccess = function () { var k = c.result; if (!k) return; if (!k.value || Date.now() - (k.value.at || 0) > 7 * 864e5) k.delete(); k.continue(); };
+        tx.oncomplete = function () { db.close(); };
+      };
+    } catch (_) {}
+  }
+
+  // Chamado pelos apps do InkDOS (inkdos/, "Editar com ONLYOFFICE"); veja tools/adaptar_inkdos.py
+  window.InkInicio = Object.freeze({
+    abrirEditor: function (info) {
+      var id = "office-" + String(info.id).replace(/[^A-Za-z0-9-]/g, "");
+      var a = {
+        id: id, nome: "ONLYOFFICE · " + String(info.nome || "documento"), peso: 500, salvaSozinho: false, handoff: String(info.id),
+        url: "onlyoffice/editor.html?embed=1&embedOrigin=" + encodeURIComponent(location.origin) +
+          "&inkdos-handoff=" + encodeURIComponent(info.id) + (info.locale ? "&locale=" + encodeURIComponent(info.locale) : ""),
+      };
+      extras.push(a);
+      abrir(id);
+    },
+  });
+
   var dados = {};
   try { dados = JSON.parse(localStorage.getItem(SESSAO) || "{}") || {}; } catch (_) {}
+  (dados.extras || []).forEach(function (a) { if (a && a.id && a.handoff && a.url && !app(a.id)) extras.push(a); });
   (dados.abertos || []).forEach(function (id) { var a = app(id); if (a && !aberto(id)) lista.push(new Aberto(a)); });
   var pedido = location.hash.slice(1);
   if (app(pedido)) {

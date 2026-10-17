@@ -10,3 +10,4 @@ find . -mindepth 1 -maxdepth 1 ! -name index.html ! -name UPSTREAM-SOURCE.txt -e
 git -C "$ORIGEM" archive HEAD apps shared assets licenses LICENSE VERSION.json | tar -x
 sed -i "s/commit [0-9a-f]\{7,\} ([0-9-]*)/commit $COMMIT ($(date +%F))/" UPSTREAM-SOURCE.txt
 echo "inkdos/ atualizado para o commit $COMMIT"
+python3 "$RAIZ/tools/adaptar_inkdos.py"

@@ -46,3 +46,10 @@ Wine (~215 MB) fica em pedaços em `apps/wine/fs/` e `partes.js` junta as partes
 pede o .zip. Precisa de exceções WebAssembly no formato novo (Safari 18.4+); a página testa isso
 antes de liberar os botões. Pesa ~950 MB no gerenciador de memória, então ao abrir ele guarda os
 outros apps. Origem e licenças em `apps/wine/UPSTREAM-SOURCE.txt`.
+
+## Editores ONLYOFFICE (`../onlyoffice/`)
+
+"Editar com ONLYOFFICE" nos apps do InkDOS guarda o documento no IndexedDB `inkdos-tool-handoff` e
+chama `InkInicio.abrirEditor` desta tela, que abre `onlyoffice/editor.html` em tela cheia, com uma
+barra (Voltar, Fechar). O documento fica guardado até o editor ser fechado, para reabrir se o
+editor sair da memória. O Salvar do editor baixa o arquivo (no iPad, o Safari pergunta onde guardar).

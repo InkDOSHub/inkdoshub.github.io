@@ -18,6 +18,7 @@ GRUPOS = [
     ("musica", "Música", ["apps/musica"]),
     ("wine", "Wine (teste)", ["apps/wine"]),
     ("inkdos", "Documentos (InkDOS)", ["inkdos"]),
+    ("onlyoffice", "Editores ONLYOFFICE", ["onlyoffice"]),
 ]
 FORA = {"inicio/manifesto.json"}
 # o editor de vídeo depende do coi-serviceworker dele e não passa pelo portal, então fica de fora da cópia

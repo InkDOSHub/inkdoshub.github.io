@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta http-equiv="Content-Security-Policy" content="connect-src 'self' data: blob:; frame-src 'self' blob: https://vfydr2m9wk-ops.github.io; form-action 'none'; object-src 'none'; base-uri 'self'" data-inkdos-office>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InkDOS Office · update</title>
+</head>
+<body style="font:16px -apple-system,BlinkMacSystemFont,sans-serif;padding:24px">
+<p>Updating… / Atualizando…</p>
+<script>
+// Check for updates lands here (check-update.html; update.html is the same page for older copies of the Home). It is
+// never cached (scripts/cloudflare_prepare.py). The Home and every file it loads are fetched again past the cache
+// (cache: 'reload' stores the new copy), then the Home opens with ?warm=1, which fetches every tool again.
+(function () {
+  var done = false;
+  function back() { if (!done) { done = true; var q = new URLSearchParams(location.search), keep = q.get('embed') === '1' ? '&' + q.toString() : ''; location.replace('./?warm=1&t=' + Date.now() + keep); } }
+  setTimeout(back, 20000);
+  function again(url) { return fetch(url, { cache: 'reload' }).then(function (r) { return r.text(); }).catch(function () { return ''; }); }
+  Promise.all([again('./'), again('./index.html')]).then(function (pages) {
+    var html = pages[0] || pages[1] || '', urls = [];
+    html.replace(/(?:src|href)="(\.?\/[^"#]+)"/g, function (_, u) { if (!/^\/\//.test(u)) urls.push(new URL(u, location.href).href); return _; });
+    return Promise.all(urls.map(again));
+  }).then(back, back);
+})();
+</script>
+</body>
+</html>

@@ -36,6 +36,14 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent;touch-
 .tela[hidden]{display:none}
 .tela iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:var(--bg)}
 body.com-app{overflow:hidden}
+.tela.com-barra{display:flex;flex-direction:column}
+.tela.com-barra[hidden]{display:none}
+.tela-barra{flex:0 0 auto;display:flex;align-items:center;gap:10px;height:44px;padding:0 10px;background:var(--card);border-bottom:1px solid var(--border);font-size:14px}
+.tela-barra button{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--btn);font-size:14px;font-weight:600}
+.tela-barra .tela-voltar{border-color:transparent;background:none;padding-left:2px}
+.tela-barra svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tela-titulo{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-weight:600}
+.tela-corpo{position:relative;flex:1;min-height:0}
 
 /* Painéis */
 .painel{position:fixed;top:calc(env(safe-area-inset-top) + 92px);right:max(16px,calc((100vw - 1180px)/2));z-index:60;width:min(380px,calc(100vw - 32px));max-height:calc(100dvh - 110px);overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}

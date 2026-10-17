@@ -1,0 +1,19 @@
+ranuts/document
+https://github.com/ranuts/document
+commit 9c743826d0152239dc7ad51677535d59679c7ff1
+license AGPL-3.0
+changes: see build.py on the source branch of https://github.com/inkdos-tools/inkdos-tools.github.io
+
+Cópia no InkTerminal (onlyoffice/)
+- Copiado de https://github.com/inkdos-tools/inkdos-tools.github.io, branch main, commit ea7e09d
+  (o site publicado em https://inkdos-tools.github.io/), a pedido do Paulo (2026-10-17), para os
+  editores abrirem dentro da tela inicial do InkTerminal sem depender de outro site.
+- Fora da cópia: páginas de apresentação e de outros idiomas, help/, convert/, open/ e o editor de
+  Visio (sdkjs/visio, web-apps/apps/visioeditor).
+- Mudanças:
+  - editor.html e web-apps/apps/*/main/index*.html: caminhos "/..." da raiz trocados por relativos;
+  - assets/document-D6dV2NFg.js: o worker do x2t é achado a partir do próprio módulo, e o Salvar do
+    editor funciona no modo embed quando o documento veio do InkDOS (inkdos-handoff);
+  - assets/editor-Cs5INJPw.js: manifest.json relativo;
+  - inkdos-handoff.js: lê o documento direto do IndexedDB deste site;
+  - sw.js: usa o service worker do InkTerminal (../sw-portal.js).
