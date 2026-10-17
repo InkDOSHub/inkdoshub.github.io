@@ -27,3 +27,10 @@ Os pesos são estimativas: o Safari não informa quanta memória cada página us
 - O service worker `sw-portal.js` (escopo `/`, registrado só pela área de trabalho) usa a rede quando ela existe e a cópia quando não existe, então uma versão nova do site nunca se mistura com arquivos velhos.
 - O editor de vídeo (omniclip) tem o service worker próprio dele (`coi-serviceworker`), que vence o do portal naquela pasta; por enquanto ele precisa de internet.
 - `manifesto.json` é a lista de arquivos com tamanho e hash. Ele é recriado por `python3 tools/portal_manifesto.py`, e o workflow `.github/workflows/manifesto-offline.yml` faz isso sozinho a cada push no `main`.
+
+## Office (`../apps/office/`)
+
+- LibreOffice compilado para WebAssembly (ZetaOffice) com zetajs: Writer, Calc e Impress completos (interface em inglês), com Abrir, Salvar (no formato do arquivo, ou ODF para documentos novos) e PDF.
+- Ele precisa do modo isolado do navegador (COOP/COEP). O `sw-portal.js` acrescenta esses headers só em `apps/office/` e entrega `soffice.wasm` e `soffice.data` descompactados dos `.gz`. Na primeira visita a página registra o service worker e recarrega.
+- Por isso o Office abre numa aba própria (uma janela dentro da mesa não fica isolada). O módulo pede 1 GB de memória fixa, mais cerca de 160 MB de código, e numa aba própria isso não pesa no limite da mesa.
+- Origem e sha256 dos arquivos: `apps/office/UPSTREAM-SOURCE.txt`.

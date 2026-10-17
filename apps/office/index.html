@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Office · InkTerminal</title>
+<script src="../../assets/tema.js"></script>
+<script src="../../assets/icones.js" defer></script>
+<link rel="stylesheet" href="../../assets/barra.css?v=2">
+<style>
+  .ink-bar{overflow-x:auto;scrollbar-width:none}
+  .ink-bar::-webkit-scrollbar{display:none}
+  .ink-main{background:var(--bg)}
+  #qtcanvas{position:absolute;inset:0;width:100%;height:100%;border:0;padding:0;outline:none;visibility:hidden;display:block}
+  #aviso{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;color:var(--muted);font-size:14px;line-height:1.5}
+  #aviso strong{color:var(--text);font-size:16px}
+  #aviso .barra{width:min(320px,80%);height:8px;border-radius:4px;background:var(--btn-active);overflow:hidden}
+  #aviso .barra span{display:block;height:100%;width:0;background:var(--accent)}
+  .novo{display:none;gap:6px}
+  .novo.aberto{display:inline-flex}
+  select.ink-btn{appearance:none;-webkit-appearance:none}
+</style>
+</head>
+<body class="ink-app">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
+  <span class="ink-title">Office</span>
+  <button class="ink-btn" id="b-texto" type="button" disabled>Novo texto</button>
+  <button class="ink-btn" id="b-planilha" type="button" disabled>Nova planilha</button>
+  <button class="ink-btn" id="b-apresentacao" type="button" disabled>Nova apresentação</button>
+  <button class="ink-btn" id="b-abrir" type="button" disabled>Abrir</button>
+  <span class="ink-spacer"></span>
+  <span class="ink-status" id="status">Carregando o LibreOffice…</span>
+  <button class="ink-btn" id="b-salvar" type="button" disabled>Salvar</button>
+  <button class="ink-btn" id="b-pdf" type="button" disabled>PDF</button>
+</header>
+<main class="ink-main" onselectstart="event.preventDefault()">
+  <div id="aviso"><strong>Carregando o LibreOffice</strong><span id="aviso-texto">Na primeira vez são cerca de 80 MB. Depois ele fica guardado no aparelho.</span><div class="barra"><span id="aviso-barra"></span></div></div>
+  <canvas id="qtcanvas" contenteditable="true" oncontextmenu="event.preventDefault()" onkeydown="event.preventDefault()"></canvas>
+</main>
+<input type="file" id="arquivo" hidden accept=".odt,.ods,.odp,.odg,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.rtf,.txt,.csv">
+<script src="office.js?v=1"></script>
+</body>
+</html>

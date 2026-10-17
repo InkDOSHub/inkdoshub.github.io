@@ -16,6 +16,7 @@ GRUPOS = [
     ("codigo", "Código", ["apps/codigo"]),
     ("quadro", "Quadro branco", ["apps/quadro"]),
     ("musica", "Música", ["apps/musica"]),
+    ("office", "Office (LibreOffice)", ["apps/office"]),
 ]
 FORA = {"desktop/manifesto.json"}
 # o editor de vídeo depende do coi-serviceworker dele e não passa pelo portal, então fica de fora da cópia
