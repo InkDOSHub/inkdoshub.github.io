@@ -303,9 +303,11 @@ memBtn.addEventListener("click", () => {
 if (LIMITADA) document.getElementById("btn-save").title = "Neste modo a sessão não é salva (o swap é refeito a cada boot)";
 
 // Área de trabalho (desktop/): antes de descarregar esta janela, guarda a sessão.
-// No modo de memória limitada não há como guardar (o swap recomeça a cada boot).
-if (window.inkGerenciador && !LIMITADA) {
+// No modo de memória limitada não há como guardar (o swap recomeça a cada boot),
+// então pede para a janela continuar aberta.
+if (window.inkGerenciador) {
   inkGerenciador.aoGuardar(async () => {
+    if (LIMITADA) return { manter: "O terminal está no modo 640 MB + swap, que não pode ser salvo. Fechar apaga a sessão." };
     setStatus("Salvando antes de fechar…");
     await saveStateDb(await emulator.save_state());
   });
