@@ -14,6 +14,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | omniclip (editor de Vídeo) | MIT | copiado para `apps/video/editor/`, com as bibliotecas listadas em `apps/video/UPSTREAM-SOURCE.txt` |
 | Bibliotecas do omniclip: Shoelace, PixiJS, pixi-filters, opfs-tools, web-demuxer (código), lit, mp4box, wavesurfer.js, zip.js, coi-serviceworker | MIT ou BSD | |
 | mediainfo.js (leitura de dados do vídeo) | BSD-2-Clause | |
+| zetajs (ponte JavaScript do Office) | MIT | `apps/office/ZETAJS-LICENSE.txt` |
 | v86 (emulador do terminal) | BSD-2-Clause | |
 | xterm.js | MIT | |
 
@@ -24,6 +25,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | Kernel Linux 6.6 | GPL-2.0 | oferecer o código-fonte correspondente. Usamos a tag `v6.6` sem mudanças, mais `build/kernel-extra.config` e `build/build.sh`, então basta apontar para eles |
 | Programas do Alpine dentro da imagem (BusyBox, musl, apk-tools etc.) | GPL-2.0, MIT e outras | mesmo caso: são os pacotes oficiais do Alpine 3.22 sem mudanças, com o código-fonte público no Alpine |
 | SeaBIOS / VGA BIOS | LGPL-3.0 | manter a licença (`terminal/bios/COPYING.LESSER`) e indicar onde está o código-fonte |
+| LibreOffice / ZetaOffice (Office, `apps/office/`) | MPL-2.0, com partes LGPLv3+ e de terceiros | a MPL exige manter os avisos e oferecer o código-fonte dos arquivos da MPL usados; não é preciso mudar nada aqui. Detalhes e origem em `apps/office/UPSTREAM-SOURCE.txt` |
 | jschardet (dentro do VS Code) | LGPL-2.1 | manter a licença; o arquivo não foi alterado |
 | ffmpeg.wasm 0.12.5 (`apps/video/editor/ffmpeg-core/`, usado ao exportar) | GPL-2.0 ou posterior | oferecer o código-fonte: é o pacote `@ffmpeg/core@0.12.5` sem mudanças, com o código em https://github.com/ffmpegwasm/ffmpeg.wasm |
 | FFmpeg dentro do web-demuxer e do ffprobe-wasm | LGPL-2.1 | manter a licença e indicar o código-fonte (pacotes npm sem mudanças) |
