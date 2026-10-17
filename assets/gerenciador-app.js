@@ -348,8 +348,35 @@
       verificar();
     }
     anunciar();
+    if (document.readyState === "complete") setTimeout(receber, 400);
+    else addEventListener("load", function () { setTimeout(receber, 400); });
     if (document.readyState === "complete") setTimeout(iniciar, 1500);
     else addEventListener("load", function () { setTimeout(iniciar, 1500); });
+  }
+
+  /* Arquivos mandados pela tela inicial (inicio/lancador.js): ficam no IndexedDB
+     "inkterminal-entrada" e chegam ao app pelo botão de abrir dele (o input #arquivos). */
+  function receber() {
+    var m = /(?:^#|&)ink-arquivos=([A-Za-z0-9-]+)/.exec(location.hash);
+    if (!m || !window.indexedDB) return;
+    var id = m[1];
+    try { history.replaceState(history.state, "", location.pathname + location.search); } catch (_) {}
+    var req = indexedDB.open("inkterminal-entrada", 1);
+    req.onupgradeneeded = function () { req.result.createObjectStore("arquivos"); };
+    req.onsuccess = function () {
+      var db = req.result, tx = db.transaction("arquivos", "readwrite"), st = tx.objectStore("arquivos"), get = st.get(id);
+      get.onsuccess = function () {
+        var v = get.result;
+        st.delete(id);
+        var entrada = document.getElementById("arquivos");
+        if (!v || !v.arquivos || !entrada) return;
+        var dt = new DataTransfer();
+        v.arquivos.forEach(function (a) { dt.items.add(new File([a.data], a.name, { type: a.type || "", lastModified: a.lastModified || Date.now() })); });
+        entrada.files = dt.files;
+        entrada.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      tx.oncomplete = function () { db.close(); };
+    };
   }
 
   /* Usado pela tela inicial (inicio/inicio.js) e pelos apps do InkDOS (editor ONLYOFFICE). */

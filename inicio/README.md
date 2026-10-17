@@ -17,6 +17,30 @@ para a raiz.
 - **Abertos** mostra as páginas abertas; o X fecha a página (o navegador só deixa fechar as que a
   tela inicial abriu; as outras viram a tela inicial).
 
+## Lançador de arquivos (`lancador.js`, `../manifest.webmanifest`)
+
+Como a tela inicial do InkDOS original: com o InkTerminal instalado, o manifesto registra a tela
+inicial para os tipos de arquivo dos apps (`file_handlers`, ação `./`). Abrir um arquivo no XeOS manda
+o arquivo para ela (`launchQueue`), e ela escolhe o app pela extensão:
+
+| App | Extensões |
+|---|---|
+| Documentos | docx, rtf, doc, odt, pages |
+| Planilhas | xlsx, xls, csv, tsv, ods, numbers |
+| Apresentações | pptx, ppt, odp, key |
+| PDF | pdf |
+| Leitor EPUB | epub |
+| Texto simples | txt, md, log, ini, json, xml, yaml e parecidos |
+| Fotos | jpg, png, gif, webp, heic, avif, svg e outras imagens |
+| Vídeo | mp4, mov, m4v, webm, mkv |
+| Música | mp3, m4a, aac, wav, ogg, flac, opus |
+| Código | js, ts, py, html, css, c, cpp, java, rs, go, sh, sql e outras linguagens |
+
+Um arquivo (ou vários do mesmo app de mídia ou do Código) abre o app nesta mesma página. Arquivos
+de apps diferentes aparecem em "Arquivos recebidos", com um botão para cada app. O botão "Abrir
+arquivo" da tela inicial faz o mesmo com um arquivo escolhido. A lista de extensões fica em
+`ROTAS` (lancador.js); o manifesto tem que ter as mesmas.
+
 ## Controle de memória (`../assets/gerenciador-app.js`)
 
 Cada página do site (tela inicial, ferramentas, apps do InkDOS, editor ONLYOFFICE) carrega

@@ -9,7 +9,7 @@ import hashlib, json, os, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GRUPOS = [
-    ("inicio", "Tela inicial", ["inicio", "assets", "index.html", "sw-portal.js", "desktop/index.html"]),
+    ("inicio", "Tela inicial", ["inicio", "assets", "index.html", "manifest.webmanifest", "sw-portal.js", "desktop/index.html"]),
     ("terminal", "Linux terminal", ["terminal"]),
     ("foto", "Fotos", ["apps/foto"]),
     ("video", "Vídeo", ["apps/video"]),

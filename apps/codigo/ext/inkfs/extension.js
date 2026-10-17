@@ -132,4 +132,24 @@ exports.activate = async function (context) {
   const fs = new InkFS(await openDb());
   await fs.load();
   context.subscriptions.push(vscode.workspace.registerFileSystemProvider("inkfs", fs, { isCaseSensitive: true }));
+  abrirRecebidos();
 };
+
+// Arquivos mandados pela tela inicial do InkTerminal (inicio/lancador.js): já estão na pasta, em
+// /Recebidos; o pedido diz quais abrir.
+function abrirRecebidos() {
+  const r = indexedDB.open("inkterminal-codigo-abrir", 1);
+  r.onupgradeneeded = () => r.result.createObjectStore("abrir");
+  r.onsuccess = () => {
+    const db = r.result, tx = db.transaction("abrir", "readwrite"), st = tx.objectStore("abrir"), get = st.get("pedido");
+    get.onsuccess = () => {
+      const v = get.result;
+      st.delete("pedido");
+      if (!v || !Array.isArray(v.caminhos) || Date.now() - (v.at || 0) > 600000) return;
+      v.caminhos.forEach((caminho, i) => {
+        vscode.commands.executeCommand("vscode.open", vscode.Uri.from({ scheme: "inkfs", path: caminho }), { preview: false, preserveFocus: i > 0 });
+      });
+    };
+    tx.oncomplete = () => db.close();
+  };
+}
