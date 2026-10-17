@@ -6,7 +6,7 @@
    Quando falta espaço, a janela parada há mais tempo é guardada e descarregada (o iframe sai da
    página, que é o único jeito garantido de o Safari devolver a memória). Ela volta ao ser tocada.
 
-   Antes de descarregar, o app recebe {tipo:"inkterminal:suspender"} e tem 3 s para guardar o
+   Antes de descarregar, o app recebe {tipo:"inkterminal:suspender"} e tem até 20 s para guardar o
    estado e responder {tipo:"inkterminal:pronto"} (veja assets/gerenciador-app.js). Apps que não
    usam esse aviso e não salvam sozinhos só são descarregados depois de você confirmar. */
 (function () {
@@ -32,34 +32,50 @@
 
     podeSairSemPerguntar: function (j) { return !!(j.app.salvaSozinho || j.suportaAviso); },
 
-    /* Pede ao app para guardar o estado e espera a resposta (até 3 s). */
+    /* Pede ao app para guardar o estado. Resposta: "pronto" (pode descarregar), "manter" (o app pede
+       para ficar aberto; motivo em j.motivoManter) ou "sem-resposta" (não usa o aviso ou passou do prazo).
+       O prazo é de 20 s porque o terminal grava a máquina inteira (20 a 100 MB). */
     avisar: function (j) {
-      if (!j.suportaAviso || !j.iframe || !j.iframe.contentWindow) return Promise.resolve(false);
+      if (!j.suportaAviso || !j.iframe || !j.iframe.contentWindow) return Promise.resolve("sem-resposta");
       return new Promise(function (ok) {
         var feito = false;
         function fim(v) { if (feito) return; feito = true; removeEventListener("message", ouvir); ok(v); }
         function ouvir(e) {
-          if (e.source === j.iframe.contentWindow && e.data && e.data.tipo === "inkterminal:pronto") fim(true);
+          if (!j.iframe || e.source !== j.iframe.contentWindow || !e.data) return;
+          if (e.data.tipo === "inkterminal:pronto") fim("pronto");
+          else if (e.data.tipo === "inkterminal:manter") { j.motivoManter = e.data.motivo || ""; fim("manter"); }
         }
         addEventListener("message", ouvir);
-        try { j.iframe.contentWindow.postMessage({ tipo: "inkterminal:suspender" }, location.origin); } catch (_) { fim(false); }
-        setTimeout(function () { fim(false); }, 3000);
+        try { j.iframe.contentWindow.postMessage({ tipo: "inkterminal:suspender" }, location.origin); } catch (_) { fim("sem-resposta"); }
+        setTimeout(function () { fim("sem-resposta"); }, 20000);
       });
     },
 
-    /* Descarrega uma janela. perguntar=false só é usado quando a própria pessoa pediu. */
-    suspender: function (j, perguntar) {
+    /* Descarrega uma janela. explicito=true quando a própria pessoa tocou em "Guardar". */
+    suspender: function (j, explicito) {
       if (!j.carregada) return Promise.resolve(true);
       var pergunta = Promise.resolve("sim");
-      if (perguntar !== false && !G.podeSairSemPerguntar(j) && G.perguntar) {
-        pergunta = G.perguntar("Liberar memória?",
-          "Para abrir mais um app, preciso fechar \"" + j.app.nome + "\", que não salva sozinho. " +
+      if (!G.podeSairSemPerguntar(j) && G.perguntar) {
+        pergunta = G.perguntar(explicito ? "Guardar " + j.app.nome + "?" : "Liberar memória?",
+          (explicito ? "" : "Para abrir mais um app, preciso fechar \"" + j.app.nome + "\", que não salva sozinho. ") +
           "Se houver algo não salvo nele, salve antes. A janela continua na área de trabalho e volta ao ser tocada.",
-          [{ id: "sim", texto: "Fechar " + j.app.nome }, { id: "nao", texto: "Manter aberto", secundario: true }]);
+          [{ id: "sim", texto: (explicito ? "Guardar " : "Fechar ") + j.app.nome }, { id: "nao", texto: "Manter aberto", secundario: true }]);
       }
       return pergunta.then(function (r) {
         if (r !== "sim") return false;
-        return G.avisar(j).then(function () { j.descarregar(); G.aoMudar(); return true; });
+        j.guardando = true; G.aoMudar();
+        return G.avisar(j).then(function (resp) {
+          j.guardando = false;
+          if (resp === "manter") {
+            G.aoMudar();
+            if (explicito && G.perguntar) {
+              G.perguntar(j.app.nome + " precisa ficar aberto", j.motivoManter || "O app pediu para não ser fechado agora.",
+                [{ id: "ok", texto: "OK" }]);
+            }
+            return false;
+          }
+          j.descarregar(); G.aoMudar(); return true;
+        });
       });
     },
 
