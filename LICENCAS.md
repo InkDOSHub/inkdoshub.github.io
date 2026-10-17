@@ -26,6 +26,8 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | Programas do Alpine dentro da imagem (BusyBox, musl, apk-tools etc.) | GPL-2.0, MIT e outras | mesmo caso: são os pacotes oficiais do Alpine 3.22 sem mudanças, com o código-fonte público no Alpine |
 | SeaBIOS / VGA BIOS | LGPL-3.0 | manter a licença (`terminal/bios/COPYING.LESSER`) e indicar onde está o código-fonte |
 | LibreOffice / ZetaOffice (Office, `apps/office/`) | MPL-2.0, com partes LGPLv3+ e de terceiros | a MPL exige manter os avisos e oferecer o código-fonte dos arquivos da MPL usados; não é preciso mudar nada aqui. Detalhes e origem em `apps/office/UPSTREAM-SOURCE.txt` |
+| Boxedwine (Wine, `apps/wine/`) | GPL-2.0 | oferecer o código-fonte: compilado sem mudanças do commit `cc787bf` de https://github.com/danoon2/Boxedwine; licença em `apps/wine/BOXEDWINE-LICENSE.txt` |
+| Wine 11.0, TinyCore Linux 15 e AbiWord (dentro de `apps/wine/`) | Wine LGPL-2.1+, TinyCore GPL, AbiWord GPL-2.0+ | pacotes oficiais sem mudanças, com o código-fonte público nos projetos; origem e sha256 em `apps/wine/UPSTREAM-SOURCE.txt` |
 | jschardet (dentro do VS Code) | LGPL-2.1 | manter a licença; o arquivo não foi alterado |
 | ffmpeg.wasm 0.12.5 (`apps/video/editor/ffmpeg-core/`, usado ao exportar) | GPL-2.0 ou posterior | oferecer o código-fonte: é o pacote `@ffmpeg/core@0.12.5` sem mudanças, com o código em https://github.com/ffmpegwasm/ffmpeg.wasm |
 | FFmpeg dentro do web-demuxer e do ffprobe-wasm | LGPL-2.1 | manter a licença e indicar o código-fonte (pacotes npm sem mudanças) |

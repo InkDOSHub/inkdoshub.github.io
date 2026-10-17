@@ -14,7 +14,7 @@ html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5
 .workspace-card{--accent:#6b7280;position:relative;min-height:154px;padding:27px 50px 25px 31px;background:var(--card);border:1px solid var(--border);border-radius:20px;display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;column-gap:20px;overflow:hidden}
 .workspace-card:active{background:var(--pill-bg)}
 .workspace-card .accent{position:absolute;left:0;top:20px;bottom:20px;width:5px;border-radius:0 5px 5px 0;background:var(--accent)}
-.terminal{--accent:#3fb950}.foto{--accent:#d64a24}.video{--accent:#b42318}.codigo{--accent:#2f6fed}.quadro{--accent:#d9a514}.musica{--accent:#7655c7}.office{--accent:#1d6fb8}.mesa{--accent:#0f8b7d}
+.terminal{--accent:#3fb950}.foto{--accent:#d64a24}.video{--accent:#b42318}.codigo{--accent:#2f6fed}.quadro{--accent:#d9a514}.musica{--accent:#7655c7}.office{--accent:#1d6fb8}.mesa{--accent:#0f8b7d}.wine{--accent:#8c1d40}
 .app-icon{width:58px;height:58px;border-radius:15px;background:color-mix(in srgb,var(--accent) 11%,var(--icon-base));display:grid;place-items:center}
 .app-icon svg{width:34px;height:34px;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .workspace-copy{min-width:0}.workspace-copy strong{display:block;font-size:19px;line-height:1.15;font-weight:745;letter-spacing:-.018em}.workspace-copy small{display:block;margin-top:8px;font-size:13px;line-height:1.35;color:var(--muted)}
