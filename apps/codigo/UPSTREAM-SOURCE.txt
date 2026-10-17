@@ -1,3 +1,3 @@
 VS Code para web 1.91.1 (MIT) via npm vscode-web@1.91.1 (https://github.com/Felx-B/vscode-web),
 compilação oficial do https://github.com/microsoft/vscode. Copiado sem mudanças (sem os .map) em vscode/.
-A página index.html e a extensão ext/inkfs (pasta guardada no navegador) são do InkTerminal.
+As páginas index.html e editor.html e a extensão ext/inkfs (pasta guardada no navegador) são do InkTerminal.

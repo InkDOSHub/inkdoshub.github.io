@@ -1,56 +1,15 @@
-:root {
-  --bg: #0d1117;
-  --bar: #161b22;
-  --line: #30363d;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --accent: #3fb950;
-  --key: #21262d;
-}
-* { box-sizing: border-box; }
-html, body {
-  margin: 0; height: 100%; background: var(--bg); color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  overscroll-behavior: none;
-}
-body {
-  display: flex; flex-direction: column; height: 100dvh; position: fixed; inset: 0; width: 100%;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-}
-#topbar {
-  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-  background: var(--bar); border-bottom: 1px solid var(--line); font-size: 14px;
-}
-.brand { font-weight: 600; color: inherit; text-decoration: none; }
-#status { color: var(--muted); font-size: 13px; }
-.spacer { flex: 1; }
-button {
-  font: inherit; font-size: 14px; color: var(--text); background: var(--key);
-  border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px;
-  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-}
-button:active { background: var(--line); }
-button.on { background: var(--accent); color: #0d1117; border-color: var(--accent); }
-#term { flex: 1; min-height: 0; padding: 6px 4px 0 8px; }
-#keys {
-  display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto;
-  background: var(--bar); border-top: 1px solid var(--line);
-}
-#keys button { min-width: 44px; padding: 8px 10px; font-family: ui-monospace, Menlo, monospace; }
-body.embed #topbar { display: none; }
-.brand small { color: var(--muted); font-weight: 400; font-size: 12px; }
-#topbar { flex-wrap: wrap; row-gap: 6px; }
-#topbar button { padding: 6px 10px; }
-dialog {
-  background: var(--bar); color: var(--text); border: 1px solid var(--line);
-  border-radius: 12px; width: min(420px, calc(100% - 32px)); padding: 16px;
-}
-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+/* Terminal do InkTerminal: a barra e as cores vêm de ../assets/barra.css (as mesmas de todas as ferramentas). */
+body.ink-app { position: fixed; inset: 0; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
+.ink-bar { flex-wrap: wrap; row-gap: 6px; }
+#term { padding: 6px 4px 0 8px; background: var(--term-bg); }
+:root { --term-bg: #ffffff; }
+html[data-theme="dark"] { --term-bg: #0d1117; }
+.ink-keys { flex: 0 0 auto; display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; background: var(--card); border-top: 1px solid var(--border); }
+.ink-keys .ink-btn { min-width: 44px; padding: 8px 10px; font-family: ui-monospace, Menlo, monospace; }
+body.embed .ink-bar { display: none; }
+dialog { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; width: min(420px, calc(100% - 32px)); padding: 16px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
 dialog h2 { font-size: 16px; margin: 0 0 12px; }
 #download-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 50vh; overflow-y: auto; }
 #download-list button { text-align: left; font-family: ui-monospace, Menlo, monospace; }
 #download-list code { color: var(--accent); }
-select {
-  font: inherit; font-size: 14px; color: var(--text); background: var(--key);
-  border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
-}

@@ -6,48 +6,46 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="InkTerminal">
-<meta name="theme-color" content="#0d1117">
 <title>InkTerminal</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230d1117%22/%3E%3Cpath d=%22M8 10l6 6-6 6M16 22h8%22 stroke=%22%233fb950%22 stroke-width=%223%22 fill=%22none%22/%3E%3C/svg%3E">
+<script src="../assets/tema.js"></script>
+<link rel="stylesheet" href="../assets/barra.css?v=1">
 <link rel="stylesheet" href="vendor/xterm/xterm.css">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
-<body>
-<header id="topbar">
-  <a class="brand" href="../" title="Voltar para o início">‹ InkTerminal <small>v4</small></a>
-  <span id="status">Carregando…</span>
-  <span class="spacer"></span>
-  <select id="rede" title="Como o Linux acessa a internet">
-    <option value="wisp">Rede: wisp</option>
-    <option value="relay">Rede: relay</option>
-    <option value="off">Sem rede</option>
-  </select>
-  <button id="btn-upload" title="Enviar arquivos do iPad para ~/ipad">Enviar</button>
-  <button id="btn-download" title="Baixar arquivos de ~/ipad">Baixar</button>
-  <button id="btn-save" title="Salvar o estado da máquina neste navegador">Salvar</button>
-  <button id="btn-reset" title="Apagar o estado salvo e reiniciar do zero">Reiniciar</button>
+<body class="ink-app">
+<header class="ink-bar" id="topbar">
+  <a class="ink-home" href="../">‹ InkTerminal</a>
+  <span class="ink-title">Linux</span>
+  <span class="ink-status" id="status">Carregando…</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" id="rede" title="Como o Linux acessa a internet (toque para trocar)">Rede: wisp</button>
+  <button class="ink-btn" id="btn-upload" title="Enviar arquivos do iPad para ~/ipad">Enviar</button>
+  <button class="ink-btn" id="btn-download" title="Baixar arquivos de ~/ipad">Baixar</button>
+  <button class="ink-btn" id="btn-save" title="Salvar o estado da máquina neste navegador">Salvar</button>
+  <button class="ink-btn" id="btn-reset" title="Apagar o estado salvo e reiniciar do zero">Reiniciar</button>
 </header>
-<main id="term"></main>
-<nav id="keys" aria-label="Teclas extras">
-  <button data-key="esc">Esc</button>
-  <button data-key="tab">Tab</button>
-  <button data-key="ctrl" id="key-ctrl">Ctrl</button>
-  <button data-key="up">↑</button>
-  <button data-key="down">↓</button>
-  <button data-key="left">←</button>
-  <button data-key="right">→</button>
-  <button data-text="|">|</button>
-  <button data-text="/">/</button>
-  <button data-text="-">-</button>
-  <button data-text="~">~</button>
-  <button data-key="ctrl-c">^C</button>
+<main class="ink-main" id="term"></main>
+<nav id="keys" class="ink-keys" aria-label="Teclas extras">
+  <button class="ink-btn" data-key="esc">Esc</button>
+  <button class="ink-btn" data-key="tab">Tab</button>
+  <button class="ink-btn" data-key="ctrl" id="key-ctrl">Ctrl</button>
+  <button class="ink-btn" data-key="up">↑</button>
+  <button class="ink-btn" data-key="down">↓</button>
+  <button class="ink-btn" data-key="left">←</button>
+  <button class="ink-btn" data-key="right">→</button>
+  <button class="ink-btn" data-text="|">|</button>
+  <button class="ink-btn" data-text="/">/</button>
+  <button class="ink-btn" data-text="-">-</button>
+  <button class="ink-btn" data-text="~">~</button>
+  <button class="ink-btn" data-key="ctrl-c">^C</button>
 </nav>
 <input type="file" id="file-picker" multiple hidden>
 <dialog id="download-dialog">
   <h2>Baixar da pasta ~/ipad</h2>
   <div id="download-list"></div>
-  <button id="download-close">Fechar</button>
+  <button class="ink-btn" id="download-close">Fechar</button>
 </dialog>
-<script type="module" src="app.js?v=4"></script>
+<script type="module" src="app.js?v=5"></script>
 </body>
 </html>

@@ -7,13 +7,15 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
-| Fotos | [miniPaint](https://github.com/viliusle/miniPaint) (MIT) | `apps/foto/` |
+| Fotos | [miniPaint](https://github.com/viliusle/miniPaint) (MIT) | `apps/foto/` (o miniPaint fica em `apps/foto/app/`) |
 | Vídeo | [omniclip](https://github.com/omni-media/omniclip) (MIT), abre o site do projeto | link externo |
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
 | Música | [Webamp](https://github.com/captbaritone/webamp) (MIT) | `apps/musica/` |
 
-Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`. `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas. O omniclip não é hospedado aqui porque depende de vários CDNs e de um serviço de estatísticas.
+Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas. O omniclip não é hospedado aqui porque depende de vários CDNs e de um serviço de estatísticas.
+
+Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no botão da tela inicial.
 
 ## Linux terminal
 

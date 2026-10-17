@@ -1,4 +1,4 @@
-import { V86 } from "./vendor/v86/libv86.mjs?v=4";
+import { V86 } from "./vendor/v86/libv86.mjs?v=5";
 import { Terminal } from "./vendor/xterm/xterm.mjs";
 import { FitAddon } from "./vendor/xterm/addon-fit.mjs";
 
@@ -13,7 +13,13 @@ const term = new Terminal({
   cursorBlink: true,
   fontFamily: 'ui-monospace, Menlo, "SF Mono", monospace',
   fontSize: Number(params.get("font")) || (Math.min(screen.width, screen.height) < 500 ? 12 : 15),
-  theme: { background: "#0d1117", foreground: "#e6edf3", cursor: "#3fb950" },
+  // Cores seguem o tema do InkTerminal (../assets/tema.js)
+  theme: document.documentElement.dataset.theme === "dark"
+    ? { background: "#0d1117", foreground: "#e6edf3", cursor: "#3fb950", selectionBackground: "#264f78" }
+    : { background: "#ffffff", foreground: "#192235", cursor: "#1a7f37", selectionBackground: "#b6d7ff",
+        black: "#192235", brightBlack: "#697486", white: "#d0d7de", brightWhite: "#eef1f5",
+        green: "#1a7f37", brightGreen: "#1f883d", blue: "#0550ae", brightBlue: "#0969da",
+        yellow: "#9a6700", brightYellow: "#7d4e00" },
   scrollback: 5000,
 });
 const fit = new FitAddon();
@@ -201,6 +207,7 @@ document.getElementById("btn-download").addEventListener("click", () => {
   }
   for (const path of files) {
     const b = document.createElement("button");
+    b.className = "ink-btn";
     b.textContent = path.slice(1);
     b.addEventListener("click", async () => {
       const data = await emulator.read_file(path);
@@ -221,10 +228,15 @@ document.getElementById("btn-download").addEventListener("click", () => {
 document.getElementById("download-close").addEventListener("click", () => dialog.close());
 
 // ---------- Escolha da rede ----------
-const redeSel = document.getElementById("rede");
-redeSel.value = REDE in REDES ? REDE : "wisp";
-redeSel.addEventListener("change", () => {
-  try { localStorage.setItem("inkterminal-rede2", redeSel.value); } catch {}
+// Um botão (o XeOS redesenha os <select>): cada toque passa para a próxima opção e liga de novo.
+const redeBtn = document.getElementById("rede");
+const NOMES = { wisp: "Rede: wisp", relay: "Rede: relay", off: "Sem rede" };
+const atualRede = REDE in REDES ? REDE : "wisp";
+redeBtn.textContent = REDE in NOMES ? NOMES[REDE] : "Rede: própria";
+redeBtn.addEventListener("click", () => {
+  const ordem = ["wisp", "relay", "off"];
+  const prox = ordem[(ordem.indexOf(atualRede) + 1) % ordem.length];
+  try { localStorage.setItem("inkterminal-rede2", prox); } catch {}
   const q = new URLSearchParams(location.search);
   q.delete("rede");
   location.search = q.toString();

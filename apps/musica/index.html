@@ -4,26 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Música · InkTerminal</title>
+<script src="../../assets/tema.js"></script>
+<link rel="stylesheet" href="../../assets/barra.css">
 <style>
-  html, body { margin: 0; height: 100%; background: #1d2433; color: #e6edf3; font: 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  header { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: #10151f; }
-  header a { color: inherit; text-decoration: none; font-weight: 600; }
-  header .spacer { flex: 1; }
-  button { font: inherit; color: #e6edf3; background: #2b3548; border: 1px solid #3d4a63; border-radius: 8px; padding: 7px 12px; }
-  #hint { padding: 12px 14px; color: #9aa7bd; font-size: 14px; }
-  #app { position: absolute; inset: 56px 0 0 0; }
+  #hint { margin: 14px; color: var(--muted); font-size: 14px; }
 </style>
 </head>
-<body>
-<header>
-  <a href="../../" title="Voltar para o início">‹ InkTerminal</a>
-  <span>Música</span>
-  <span class="spacer"></span>
-  <button id="open">Abrir músicas</button>
+<body class="ink-app">
+<header class="ink-bar">
+  <a class="ink-home" href="../../">‹ InkTerminal</a>
+  <span class="ink-title">Música</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" id="open">Abrir músicas</button>
 </header>
-<p id="hint">Toque em <b>Abrir músicas</b> e escolha arquivos MP3, M4A, WAV, OGG ou FLAC do iPad. Tudo toca neste aparelho, nada é enviado.</p>
+<main class="ink-main" id="app">
+  <p id="hint">Toque em <b>Abrir músicas</b> e escolha arquivos MP3, M4A, WAV, OGG ou FLAC do iPad. Tudo toca neste aparelho, nada é enviado.</p>
+</main>
 <input id="files" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.flac,.opus" multiple hidden>
-<div id="app"></div>
 <!-- Webamp 2.3.1 (MIT), https://github.com/captbaritone/webamp -->
 <script src="webamp.bundle.min.js"></script>
 <script>
@@ -32,10 +29,7 @@
   const input = document.getElementById("files");
   document.getElementById("open").addEventListener("click", () => input.click());
   input.addEventListener("change", () => {
-    const tracks = [...input.files].map((f) => ({
-      blob: f,
-      defaultName: f.name.replace(/\.[^.]+$/, ""),
-    }));
+    const tracks = [...input.files].map((f) => ({ blob: f, defaultName: f.name.replace(/\.[^.]+$/, "") }));
     if (tracks.length) webamp.setTracksToPlay(tracks);
     input.value = "";
   });

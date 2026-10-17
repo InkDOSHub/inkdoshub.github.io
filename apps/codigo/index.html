@@ -1,53 +1,20 @@
 <!doctype html>
-<!-- Editor de código do InkTerminal: VS Code para web (MIT), compilação do pacote npm vscode-web 1.91.1 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>Código · InkTerminal</title>
 <link rel="icon" href="vscode/favicon.ico" type="image/x-icon">
-<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="vscode/out/vs/workbench/workbench.web.main.css">
+<script src="../../assets/tema.js"></script>
+<link rel="stylesheet" href="../../assets/barra.css">
 </head>
-<body aria-label=""></body>
-<script>
-  const base = new URL("./", location.href);
-  const vs = new URL("vscode/", base).href;
-  window.product = {
-    productConfiguration: {
-      nameShort: "Código (InkTerminal)",
-      nameLong: "Editor de código do InkTerminal",
-      applicationName: "inkterminal-codigo",
-      dataFolderName: ".inkterminal-codigo",
-      version: "1.91.1",
-      // Extensões do Open VSX (o catálogo aberto, o da Microsoft não pode ser usado fora do VS Code oficial)
-      extensionsGallery: {
-        serviceUrl: "https://open-vsx.org/vscode/gallery",
-        itemUrl: "https://open-vsx.org/vscode/item",
-        resourceUrlTemplate: "https://openvsxorg.blob.core.windows.net/resources/{publisher}/{name}/{version}/{path}",
-      },
-    },
-    folderUri: { scheme: "inkfs", path: "/" },
-    additionalBuiltinExtensions: [
-      { scheme: base.protocol.slice(0, -1), authority: base.host, path: new URL("ext/inkfs", base).pathname },
-    ],
-    configurationDefaults: { "workbench.colorTheme": "Default Dark Modern", "window.commandCenter": false },
-  };
-</script>
-<script src="vscode/out/vs/loader.js"></script>
-<script src="vscode/out/vs/webPackagePaths.js"></script>
-<script>
-  Object.keys(self.webPackagePaths).forEach((key) => {
-    self.webPackagePaths[key] = `${vs}node_modules/${key}/${self.webPackagePaths[key]}`;
-  });
-  require.config({
-    baseUrl: `${vs}out`,
-    trustedTypesPolicy: window.trustedTypes?.createPolicy("amdLoader", { createScriptURL: (v) => v }),
-    paths: self.webPackagePaths,
-  });
-</script>
-<script src="vscode/out/vs/workbench/workbench.web.main.nls.js"></script>
-<script src="vscode/out/vs/workbench/workbench.web.main.js"></script>
-<script src="vscode/out/vs/code/browser/workbench/workbench.js"></script>
+<body class="ink-app">
+<header class="ink-bar">
+  <a class="ink-home" href="../../">‹ InkTerminal</a>
+  <span class="ink-title">Código</span>
+  <span class="ink-spacer"></span>
+  <span class="ink-status">Arquivos guardados neste navegador. Upload e Download: botão direito no Explorer</span>
+</header>
+<main class="ink-main"><iframe src="editor.html" title="Editor de código" allow="clipboard-read; clipboard-write"></iframe></main>
+</body>
 </html>
