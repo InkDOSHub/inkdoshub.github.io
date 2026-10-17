@@ -1987,7 +1987,8 @@ function createFolder(parent, dir) {
 }
 function createFile(dir, name, buf) {
     try {
-        FS.createDataFile(dir, name, buf, true, true);
+        // canOwn=true: o arquivo usa o próprio buf em vez de uma cópia (o .zip do sistema tem 215 MB)
+        FS.createDataFile(dir, name, buf, true, true, true);
         console.log("File created:" + dir + "/" + name);
     } catch(e) {
         console.log("Unable to create file:" + dir + "/" + name + "  error:" + e);
