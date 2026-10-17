@@ -1,4 +1,4 @@
-/* Gerenciador de memória da área de trabalho.
+/* Gerenciador de memória da tela inicial (os apps abrem em tela cheia dentro dela).
 
    O Safari não deixa uma página mover a própria memória para o disco, e o iPadOS fecha a aba
    quando ela passa do limite. Então o gerenciador trabalha no nível das janelas, como o iPadOS faz
@@ -19,8 +19,8 @@
 
   var G = {
     cfg: cfg,
-    janelas: function () { return []; }, // definido por janelas.js
-    perguntar: null, // definido por desktop.js: (titulo, texto, opcoes) => Promise<id da opção>
+    janelas: function () { return []; }, // definido por inicio.js
+    perguntar: null, // definido por inicio.js: (titulo, texto, opcoes) => Promise<id da opção>
     aoMudar: function () {},
 
     definir: function (nome, valor) { cfg[nome] = Number(valor); salvarCfg(); G.aoMudar(); },
@@ -58,7 +58,7 @@
       if (!G.podeSairSemPerguntar(j) && G.perguntar) {
         pergunta = G.perguntar(explicito ? "Guardar " + j.app.nome + "?" : "Liberar memória?",
           (explicito ? "" : "Para abrir mais um app, preciso fechar \"" + j.app.nome + "\", que não salva sozinho. ") +
-          "Se houver algo não salvo nele, salve antes. A janela continua na área de trabalho e volta ao ser tocada.",
+          "Se houver algo não salvo nele, salve antes. O app continua na lista de abertos e volta ao ser tocado.",
           [{ id: "sim", texto: (explicito ? "Guardar " : "Fechar ") + j.app.nome }, { id: "nao", texto: "Manter aberto", secundario: true }]);
       }
       return pergunta.then(function (r) {

@@ -1,11 +1,11 @@
-/* Lado do app do gerenciador de memória da área de trabalho (desktop/gerenciador.js).
+/* Lado do app do gerenciador de memória da tela inicial (inicio/gerenciador.js).
 
-   Um app que inclui este arquivo avisa a área de trabalho que sabe guardar o próprio estado.
-   Quando ela precisar de memória (ou a janela for fechada), chama a função registrada:
-     - a função guarda o que precisar e devolve "pronto" (ou nada): a janela pode ser descarregada;
-     - ou devolve "manter" ou {manter: "motivo"}: a janela fica aberta (por exemplo, uma edição
+   Um app que inclui este arquivo avisa a tela inicial que sabe guardar o próprio estado.
+   Quando ela precisar de memória (ou o app for fechado), chama a função registrada:
+     - a função guarda o que precisar e devolve "pronto" (ou nada): o app pode ser descarregado;
+     - ou devolve "manter" ou {manter: "motivo"}: o app fica aberto (por exemplo, uma edição
        que não dá para salvar agora). O motivo aparece para a pessoa se ela tentar fechar.
-   A área de trabalho espera até 20 s. Fora da área de trabalho, este arquivo não faz nada.
+   A tela inicial espera até 20 s. Fora dela (app aberto direto), este arquivo não faz nada.
 
    Uso no app:
      <script src="../../assets/gerenciador-app.js"></script>

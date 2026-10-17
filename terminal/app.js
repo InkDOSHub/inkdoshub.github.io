@@ -339,7 +339,7 @@ memBtn.addEventListener("click", () => {
 });
 if (LIMITADA) document.getElementById("btn-save").title = "Neste modo a sessão não é salva (o swap é refeito a cada boot)";
 
-// Área de trabalho (desktop/): antes de descarregar esta janela, guarda a sessão.
+// Tela inicial (inicio/): antes de descarregar este app, guarda a sessão.
 // No modo de memória limitada não há como guardar (o swap recomeça a cada boot),
 // então pede para a janela continuar aberta.
 if (window.inkGerenciador) {

@@ -129,7 +129,7 @@ $("editar").onclick = () => {
 function fecharEdicao() { $("edicao").classList.add("md-hide"); $("editor").src = "about:blank"; }
 $("cancelar").onclick = fecharEdicao;
 // Guarda o que está no miniPaint como uma foto nova. Também é chamado sozinho
-// quando a área de trabalho precisa descarregar esta janela.
+// quando a tela inicial precisa descarregar este app.
 function guardarEdicao() {
   return new Promise((ok) => {
     const w = $("editor").contentWindow;

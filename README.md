@@ -12,6 +12,10 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
 | Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
+| Wine (teste) | [Boxedwine](https://github.com/danoon2/Boxedwine) (GPL-2.0) com Wine 11 e o AbiWord | `apps/wine/` |
+| Documentos, Planilhas, Apresentações, PDF, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS) (editores ONLYOFFICE), abertos numa aba nova no site do InkDOS | (outro site) |
+
+As ferramentas abrem em tela cheia dentro da tela inicial e continuam abertas quando você volta para ela, com controle de memória e cópia offline (veja [inicio/README.md](inicio/README.md)).
 
 Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas.
 

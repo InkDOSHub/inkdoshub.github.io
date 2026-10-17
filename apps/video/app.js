@@ -93,7 +93,10 @@ $("editar").onclick = () => {
   video.pause(); guardarPosicao();
   try { localStorage.setItem("inkterminal-video-editar", String(v.id)); } catch (_) {}
   const projeto = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join("");
-  location.href = "editor/#/editor/" + projeto;
+  // o editor precisa do modo isolado do navegador (coi-serviceworker), que uma página dentro da
+  // tela inicial não tem; por isso, dentro dela, ele abre numa aba própria
+  if (window.top !== window) window.open("editor/#/editor/" + projeto, "_blank");
+  else location.href = "editor/#/editor/" + projeto;
 };
 
 bib.listar().then((lst) => {

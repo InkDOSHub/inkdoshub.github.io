@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Gera desktop/manifesto.json: a lista de arquivos que o botão "Baixar tudo" guarda para uso offline.
+"""Gera inicio/manifesto.json: a lista de arquivos que o botão "Baixar tudo" guarda para uso offline.
 
-Cada grupo (área de trabalho, terminal, cada app) pode ser baixado junto; o hash de cada arquivo
+Cada grupo (tela inicial, terminal, cada app) pode ser baixado junto; o hash de cada arquivo
 permite atualizar só o que mudou. Rode na raiz do repositório depois de mudar qualquer arquivo:
     python3 tools/portal_manifesto.py
 """
@@ -9,17 +9,16 @@ import hashlib, json, os, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GRUPOS = [
-    ("mesa", "Área de trabalho e tela inicial", ["desktop", "assets", "index.html", "sw-portal.js"]),
+    ("inicio", "Tela inicial", ["inicio", "assets", "index.html", "sw-portal.js", "desktop/index.html"]),
     ("terminal", "Linux terminal", ["terminal"]),
     ("foto", "Fotos", ["apps/foto"]),
     ("video", "Vídeo", ["apps/video"]),
     ("codigo", "Código", ["apps/codigo"]),
     ("quadro", "Quadro branco", ["apps/quadro"]),
     ("musica", "Música", ["apps/musica"]),
-    ("office", "Office (LibreOffice)", ["apps/office"]),
     ("wine", "Wine (teste)", ["apps/wine"]),
 ]
-FORA = {"desktop/manifesto.json"}
+FORA = {"inicio/manifesto.json"}
 # o editor de vídeo depende do coi-serviceworker dele e não passa pelo portal, então fica de fora da cópia
 FORA_PASTAS = ("apps/video/editor/",)
 FORA_EXT = (".md", ".txt", ".map")
@@ -52,7 +51,7 @@ def main():
                 lista.append([rel, len(dados), h])
         saida["grupos"].append({"id": gid, "nome": nome, "bytes": sum(a[1] for a in lista), "arquivos": lista})
     saida["versao"] = total.hexdigest()[:16]
-    with open(os.path.join(RAIZ, "desktop", "manifesto.json"), "w") as f:
+    with open(os.path.join(RAIZ, "inicio", "manifesto.json"), "w") as f:
         json.dump(saida, f, ensure_ascii=False, separators=(",", ":"))
     for g in saida["grupos"]:
         print(f'{g["id"]:10} {len(g["arquivos"]):5} arquivos {g["bytes"]/1e6:8.1f} MB')

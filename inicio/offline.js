@@ -4,7 +4,7 @@
 (function () {
   "use strict";
   var CACHE = "inkterminal-offline";
-  var RAIZ = new URL("../", location.href);
+  var RAIZ = new URL("./", location.href);
   var CHAVE_MANIFESTO = RAIZ.origin + RAIZ.pathname + "__offline/manifesto.json";
   var estado = document.getElementById("offline-estado");
   var listaEl = document.getElementById("lista-offline");
@@ -21,11 +21,11 @@
   function urlDe(rel) { return new URL(rel, RAIZ).href; }
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("../sw-portal.js", { scope: "../" }).catch(function () {});
+    navigator.serviceWorker.register("sw-portal.js", { scope: "./" }).catch(function () {});
   }
 
   function lerManifesto() {
-    return fetch("manifesto.json", { cache: "no-store" }).then(function (r) {
+    return fetch("inicio/manifesto.json", { cache: "no-store" }).then(function (r) {
       if (!r.ok) throw new Error("manifesto");
       return r.json();
     });
