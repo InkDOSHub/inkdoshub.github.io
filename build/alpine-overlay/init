@@ -1,0 +1,31 @@
+#!/bin/sh
+# InkTerminal init: monta o sistema, liga a rede e abre o shell no console serial.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root TERM=xterm-256color
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev 2>/dev/null
+mkdir -p /dev/pts /dev/shm
+mount -t devpts devpts /dev/pts
+mount -t tmpfs shm /dev/shm
+mount -t tmpfs tmp /tmp
+mount -t tmpfs run /run
+hostname inkterminal
+ip link set lo up
+
+# Pasta compartilhada com o iPad (botões Enviar/Baixar da página)
+mkdir -p /mnt/ipad
+mount -t 9p -o trans=virtio,version=9p2000.L,cache=none host9p /mnt/ipad 2>/dev/null
+ln -sfn /mnt/ipad /root/ipad
+
+# Rede (em segundo plano, para não atrasar o boot)
+if [ -e /sys/class/net/eth0 ]; then
+  ( ip link set eth0 up; udhcpc -i eth0 -q -n -t 5 -T 2 -s /usr/share/udhcpc/default.script >/dev/null 2>&1 ) &
+fi
+
+cd /root
+cat /etc/motd
+while true; do
+  setsid -c /bin/sh -l </dev/ttyS0 >/dev/ttyS0 2>&1
+  echo "Shell encerrado, abrindo outro..."
+done
