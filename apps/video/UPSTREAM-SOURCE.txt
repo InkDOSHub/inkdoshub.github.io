@@ -1,0 +1,23 @@
+Editor de vídeo (apps/video/editor/): omniclip 1.1.3 (MIT)
+  https://github.com/omni-media/omniclip, commit cbe581a4a788d9982ffd4a10025c678f9e8707d6
+  Empacotado com tools/omniclip-build.mjs. Mudanças: bibliotecas dos CDNs copiadas para esta pasta,
+  sem PostHog e sem Google Fonts, caminhos /assets/ relativos, arrumação inicial dos painéis e
+  abertura do vídeo vindo do player (editor/inkterminal.js).
+
+Bibliotecas copiadas (cada uma com a própria licença, sem mudanças):
+  @shoelace-style/shoelace 2.20.0 (MIT)       editor/lib/shoelace/
+  pixi.js 7.4.2 (MIT)                          editor/lib/pixi.min.js
+  pixi-filters 5.3.0 (MIT)                     editor/lib/pixi-filters.js
+  @pixi/graphics-extras 7.1.4 (MIT)            editor/lib/graphics-extras.min.js
+  @pixi-essentials object-pool 1.0.1, bounds 3.0.0, transformer 3.0.2 (MIT)
+  mediainfo.js 0.3.2 (BSD-2-Clause)            dentro de main.js e editor/assets/MediaInfoModule.wasm
+  opfs-tools 0.7.0 (MIT)                       dentro de main.js
+  web-demuxer 1.0.5 (MIT; o wasm usa FFmpeg, LGPL-2.1)  editor/web-demuxer/
+  @ffmpeg/core 0.12.5 (GPL-2.0 ou posterior)   editor/ffmpeg-core/
+  ffprobe-wasm 0.3.1 (MIT; o wasm usa FFmpeg)  dentro de main.js
+  gsap 3 (licença "Standard no charge" da GSAP)
+  coi-serviceworker 0.1.7 (MIT)                editor/coi-serviceworker.js
+  Demais pacotes do omniclip (lit, @benev/*, mp4box, wavesurfer.js, zip.js, gl-transitions, sparrow-rtc):
+  MIT ou BSD, dentro de main.js.
+
+O player (index.html, app.js) é do InkTerminal.

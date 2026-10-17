@@ -6,12 +6,67 @@
 <title>Fotos · InkTerminal</title>
 <script src="../../assets/tema.js"></script>
 <link rel="stylesheet" href="../../assets/barra.css">
+<link rel="stylesheet" href="../../assets/midia.css">
+<style>
+  .grade{flex:1;overflow:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;align-content:start;-webkit-overflow-scrolling:touch}
+  .grade button{position:relative;padding:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card);aspect-ratio:1;cursor:pointer}
+  .grade img{width:100%;height:100%;object-fit:cover;display:block}
+  .grade span{position:absolute;left:0;right:0;bottom:0;padding:4px 6px;font-size:11px;color:#fff;background:rgba(0,0,0,.45);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ver{flex:1;min-height:0;overflow:auto;background:#000;display:flex;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+  .ver img{margin:auto;display:block;user-select:none;-webkit-user-select:none}
+  .ver.ajustar img{width:100%;height:100%;object-fit:contain;margin:0}
+  .ver img{flex:none}
+  .info{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card);border-top:1px solid var(--border);font-size:14px;min-height:44px;box-sizing:border-box;flex-wrap:wrap}
+  .info strong{flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .info small{color:var(--muted)}
+  #edicao{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:5}
+  #edicao .ink-bar{border-top:0}
+  #edicao iframe{flex:1;width:100%;border:0;display:block}
+</style>
 </head>
 <body class="ink-app">
 <header class="ink-bar">
   <a class="ink-home" href="../../">‹ InkTerminal</a>
   <span class="ink-title">Fotos</span>
+  <span class="ink-status" id="status"></span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" id="abrir">Abrir fotos</button>
+  <button class="ink-btn" id="bgrade">Todas</button>
 </header>
-<main class="ink-main"><iframe src="app/" title="Editor de fotos (miniPaint)"></iframe></main>
+<main class="ink-main">
+  <div class="md-wrap">
+    <section class="md-stage" id="tgrade">
+      <div class="grade" id="grade"></div>
+      <div class="md-empty" id="vazio">Toque em <b>Abrir fotos</b> para escolher fotos do iPad.<br>Elas ficam guardadas só neste aparelho.<br>Para mudar uma foto, abra e toque em <b>Editar</b>.</div>
+    </section>
+    <section class="md-stage md-hide" id="tver">
+      <div class="ver ajustar" id="ver"><img id="foto" alt=""></div>
+      <div class="info">
+        <button class="ink-btn" id="ant" title="Anterior">‹</button>
+        <button class="ink-btn" id="prox" title="Próxima">›</button>
+        <strong id="titulo"></strong><small id="sub"></small>
+        <button class="ink-btn" id="zmenos" title="Diminuir">−</button>
+        <button class="ink-btn" id="zajustar">Ajustar</button>
+        <button class="ink-btn" id="zmais" title="Aumentar">+</button>
+        <button class="ink-btn" id="girar" title="Girar">⟳</button>
+        <button class="ink-btn" id="partilhar">Salvar</button>
+        <button class="ink-btn" id="editar">Editar</button>
+        <button class="ink-btn" id="apagar" title="Tirar desta galeria">Tirar</button>
+      </div>
+    </section>
+  </div>
+  <div id="edicao" class="md-hide">
+    <header class="ink-bar">
+      <button class="ink-btn" id="cancelar">Cancelar</button>
+      <span class="ink-title">Editar foto</span>
+      <span class="ink-spacer"></span>
+      <button class="ink-btn on" id="concluir">Salvar cópia</button>
+    </header>
+    <iframe id="editor" title="Editor de fotos (miniPaint)"></iframe>
+  </div>
+</main>
+<input id="arquivos" type="file" accept="image/*" multiple hidden>
+<script src="../../assets/midia.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

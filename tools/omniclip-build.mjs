@@ -1,0 +1,85 @@
+// Empacota o omniclip (MIT, https://github.com/omni-media/omniclip) para
+// apps/video/editor/, sem nada vindo de outros sites:
+// - as bibliotecas que o original busca em CDNs (shoelace, pixi, mediainfo,
+//   opfs-tools, web-demuxer, núcleo do ffmpeg) vêm desta pasta;
+// - a análise de uso (posthog) e as fontes do Google foram retiradas;
+// - os caminhos "/assets/..." passam a ser relativos à página.
+// Uso: node omniclip-build.mjs <repo omniclip com x/ compilado> <node_modules das dependências> <saída>
+import * as esbuild from "esbuild";
+import fs from "node:fs";
+import path from "node:path";
+
+const [OMC, DEPS, OUT] = process.argv.slice(2).map((p) => path.resolve(p));
+const NM = path.join(OMC, "node_modules");
+const X = path.join(OMC, "x");
+
+const cdn = {
+  "https://cdn.jsdelivr.net/npm/mediainfo.js@0.3.2/+esm": path.join(DEPS, "mediainfo.js/dist/esm-bundle/index.js"),
+  "https://cdn.jsdelivr.net/npm/opfs-tools@0.7.0/+esm": path.join(DEPS, "opfs-tools/dist/opfs-tools.js"),
+};
+const trocas = [
+  ["`${window.location.origin}/assets/MediaInfoModule.wasm`", 'new URL("./assets/MediaInfoModule.wasm", location.href).href'],
+  ['"https://cdn.jsdelivr.net/npm/web-demuxer@1.0.5/dist/wasm-files/ffmpeg.min.js"', 'new URL("./web-demuxer/ffmpeg.js", location.href).href'],
+  ["'https://unpkg.com/@ffmpeg/core@0.12.5/dist/esm'", 'new URL("./ffmpeg-core", location.href).href'],
+  ['"../../video-export/parts/decode_worker.js"', '"./decode_worker.js"'],
+  ['"../../video-export/parts/encode_worker.js"', '"./encode_worker.js"'],
+  // InkTerminal: arrumação inicial com mídia, prévia e linha do tempo (inkterminal.js)
+  ['default: single_panel_layout("TimelinePanel")', 'default: globalThis.inkLayout || single_panel_layout("TimelinePanel")'],
+  // InkTerminal: deixa a página abrir o vídeo vindo do player
+  ["const omnislate = setupContext(projectId);", "const omnislate = setupContext(projectId); globalThis.inkOmni = omnislate;"],
+];
+const local = {
+  name: "local",
+  setup(b) {
+    b.onResolve({ filter: /^https:\/\// }, (a) => {
+      if (cdn[a.path]) return { path: cdn[a.path] };
+      throw new Error("endereço externo sem cópia local: " + a.path);
+    });
+    b.onResolve({ filter: /^posthog-js$/ }, () => ({ path: "posthog", namespace: "vazio" }));
+    b.onLoad({ filter: /.*/, namespace: "vazio" }, () => ({
+      contents: "export default { init() {}, capture() {}, identify() {} };", loader: "js",
+    }));
+    // importações de arquivos internos de pacotes (fora do "exports" deles)
+    b.onResolve({ filter: /^[@a-z][^:]*\/.*\.m?js$/ }, (a) => {
+      const f = path.join(NM, a.path);
+      if (fs.existsSync(f)) return { path: f };
+    });
+    b.onLoad({ filter: /[\\/]omc[\\/]x[\\/].*\.js$|[\\/]x[\\/].*\.js$/ }, (a) => {
+      let s = fs.readFileSync(a.path, "utf8");
+      for (const [de, para] of trocas) {
+        if (s.includes(de)) { s = s.split(de).join(para); usadas.add(de); }
+      }
+      s = s.replace(/(["'`(])\/assets\//g, "$1./assets/").split("${window.location.origin}/assets/").join("./assets/");
+      return { contents: s, loader: "js", resolveDir: path.dirname(a.path) };
+    });
+  },
+};
+
+const usadas = new Set();
+fs.mkdirSync(OUT, { recursive: true });
+await esbuild.build({
+  entryPoints: {
+    main: path.join(X, "main.js"),
+    encode_worker: path.join(X, "context/controllers/video-export/parts/encode_worker.js"),
+    decode_worker: path.join(X, "context/controllers/video-export/parts/decode_worker.js"),
+    "opfs-worker": path.join(X, "context/controllers/collaboration/parts/opfs-worker.js"),
+    worker: path.join(NM, "@ffmpeg/ffmpeg/dist/esm/worker.js"),
+  },
+  bundle: true, format: "esm", minify: true, outdir: OUT, plugins: [local],
+  define: { "process.env.NODE_ENV": '"production"' }, logLevel: "warning",
+});
+
+for (const [de] of trocas) if (!usadas.has(de)) throw new Error("troca não aplicada: " + de);
+
+// CSS: as mesmas regras do original, sem a fonte de emoji do Google.
+const css = fs.readFileSync(path.join(OMC, "s/index.css"), "utf8")
+  .replace(/@import url\('https:\/\/fonts\.googleapis\.com[^)]*\);\n?/, "");
+fs.writeFileSync(path.join(OMC, "s/_inkterminal.css"), css);
+await esbuild.build({
+  entryPoints: [path.join(OMC, "s/_inkterminal.css")],
+  bundle: true, minify: true, outfile: path.join(OUT, "index.css"),
+  loader: { ".woff": "file", ".woff2": "file", ".ttf": "file", ".otf": "file", ".eot": "file", ".svg": "file", ".png": "file" },
+  assetNames: "assets/css/[name]-[hash]", logLevel: "warning",
+});
+fs.rmSync(path.join(OMC, "s/_inkterminal.css"));
+console.log("ok");

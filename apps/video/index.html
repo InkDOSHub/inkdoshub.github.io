@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vídeo · InkTerminal</title>
+<script src="../../assets/tema.js"></script>
+<link rel="stylesheet" href="../../assets/barra.css">
+<link rel="stylesheet" href="../../assets/midia.css">
+<style>
+  .tela{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
+  video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+  .tela .md-empty{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;max-width:none;color:#aab5c3}
+  .tela .md-empty b{color:#fff}
+  .info{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card);border-top:1px solid var(--border);font-size:14px;min-height:44px;box-sizing:border-box}
+  .info strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .info small{color:var(--muted)}
+</style>
+</head>
+<body class="ink-app">
+<header class="ink-bar">
+  <a class="ink-home" href="../../">‹ InkTerminal</a>
+  <span class="ink-title">Vídeo</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" id="abrir">Abrir vídeos</button>
+  <button class="ink-btn" id="editar" disabled>Editar</button>
+  <button class="ink-btn" id="blista">Lista</button>
+</header>
+<main class="ink-main">
+  <div class="md-wrap">
+    <section class="md-stage">
+      <div class="tela">
+        <video id="video" controls playsinline preload="metadata"></video>
+        <div class="md-empty" id="vazio">Toque em <b>Abrir vídeos</b> para escolher vídeos do iPad.<br>Eles tocam no player do próprio Safari e ficam guardados neste aparelho.<br>Use <b>Editar</b> para cortar, juntar e exportar.</div>
+      </div>
+      <div class="info"><strong id="titulo">Nenhum vídeo</strong><small id="sub"></small>
+        <button class="ink-btn" id="ant" title="Anterior">⏮</button>
+        <button class="ink-btn" id="prox" title="Próximo">⏭</button>
+      </div>
+    </section>
+    <aside class="md-side" id="lado">
+      <h2><span>Vídeos</span><button class="ink-btn" id="limpar">Limpar</button></h2>
+      <ul class="md-list" id="lista"></ul>
+    </aside>
+  </div>
+</main>
+<input id="arquivos" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv" multiple hidden>
+<script src="../../assets/midia.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

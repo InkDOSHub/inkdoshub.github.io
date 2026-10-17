@@ -7,13 +7,17 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
-| Fotos | [miniPaint](https://github.com/viliusle/miniPaint) (MIT) | `apps/foto/` (o miniPaint fica em `apps/foto/app/`) |
-| Vídeo | [omniclip](https://github.com/omni-media/omniclip) (MIT), abre o site do projeto | link externo |
+| Fotos | Galeria e visualizador feitos aqui; **Editar** abre o [miniPaint](https://github.com/viliusle/miniPaint) (MIT) | `apps/foto/` (o miniPaint fica em `apps/foto/app/`) |
+| Vídeo | Player nativo do Safari feito aqui; **Editar** abre o [omniclip](https://github.com/omni-media/omniclip) (MIT) copiado para cá | `apps/video/` (o omniclip fica em `apps/video/editor/`) |
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
-| Música | [Webamp](https://github.com/captbaritone/webamp) (MIT) | `apps/musica/` |
+| Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
 
-Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas. O omniclip não é hospedado aqui porque depende de vários CDNs e de um serviço de estatísticas.
+Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas.
+
+Fotos, Vídeo e Música seguem a mesma ideia: primeiro o visualizador nativo do Safari, e a edição como segunda opção. Os arquivos abertos ficam guardados no próprio navegador (IndexedDB deste site), neste aparelho, e nada é enviado. Tudo é servido por este site; nenhuma ferramenta abre outro site nem busca código em CDNs.
+
+O editor de vídeo é o omniclip com todas as bibliotecas copiadas para `apps/video/editor/` (`tools/omniclip-build.mjs`): sem as estatísticas de uso (PostHog) do site original e sem as fontes do Google. Ele precisa de isolamento entre origens (SharedArrayBuffer), ligado pelo `coi-serviceworker.js` só dentro dessa pasta. O botão **Colaborar** do omniclip continua lá, mas usa um servidor de conexão de terceiros, só quando é tocado.
 
 Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no botão da tela inicial.
 

@@ -1,3 +1,0 @@
-Webamp 2.3.1 (MIT) https://github.com/captbaritone/webamp
-npm webamp@2.3.1, arquivo built/webamp.bundle.min.js sem mudanças.
-A página index.html é do InkTerminal.
