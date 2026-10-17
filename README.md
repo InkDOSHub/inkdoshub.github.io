@@ -12,7 +12,7 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
 | Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
-| Wine (teste) | [Boxedwine](https://github.com/danoon2/Boxedwine) (GPL-2.0) com Wine 11 e o AbiWord | `apps/wine/` |
+| Wine | [Boxedwine](https://github.com/danoon2/Boxedwine) (GPL-2.0) com Wine 11: seus programas .exe, .msi e .zip, área de trabalho e o AbiWord | `apps/wine/` |
 | Documentos, Planilhas, Apresentações, PDF, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS) (editores ONLYOFFICE), copiados para cá (`tools/copiar_inkdos.sh`); "Editar com ONLYOFFICE" abre os editores copiados em `onlyoffice/` | `inkdos/`, `onlyoffice/` |
 
 Cada ferramenta abre na própria página, só quando é pedida; um controle de memória acompanha as páginas abertas, e há cópia offline (veja [inicio/README.md](inicio/README.md)).

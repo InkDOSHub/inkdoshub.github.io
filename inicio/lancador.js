@@ -7,7 +7,7 @@
    Como o arquivo chega a cada app:
    - apps do InkDOS (inkdos/): IndexedDB "inkdos-launch-handoff" e #inkdos-launch=<id>, o mesmo
      caminho da tela inicial do InkDOS original (runtime/platform/file-launch.js de cada app);
-   - Fotos, Vídeo e Música: IndexedDB "inkterminal-entrada" e #ink-arquivos=<id>; o app recebe pelo
+   - Fotos, Vídeo, Música e Wine (.exe, .msi): IndexedDB "inkterminal-entrada" e #ink-arquivos=<id>; o app recebe pelo
      botão de abrir dele (assets/gerenciador-app.js);
    - Código: o arquivo é gravado na pasta do editor (IndexedDB "inkterminal-codigo", em /Recebidos)
      e o editor o abre (apps/codigo/ext/inkfs). */
@@ -26,6 +26,7 @@
     { app: "foto", ext: ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "avif", "bmp", "svg", "tif", "tiff"], tipo: "image/", varios: true },
     { app: "video", ext: ["mp4", "mov", "m4v", "webm", "mkv"], tipo: "video/", varios: true },
     { app: "musica", ext: ["mp3", "m4a", "aac", "wav", "ogg", "oga", "flac", "opus"], tipo: "audio/", varios: true },
+    { app: "wine", ext: ["exe", "msi"] },
     { app: "codigo", ext: ["js", "mjs", "cjs", "ts", "tsx", "jsx", "py", "html", "htm", "css", "scss", "less", "c", "h", "cpp", "hpp", "cc", "cs", "java",
       "kt", "rs", "go", "rb", "php", "sh", "bash", "zsh", "fish", "lua", "sql", "swift", "r", "pl", "vue", "svelte", "dart", "bat", "ps1", "gradle",
       "dockerfile", "make", "mk", "cmake", "ipynb", "tex", "diff", "patch", "env", "gitignore"], varios: true },

@@ -12,7 +12,8 @@ Wine (teste) do InkTerminal
   sha256 do .zip inteiro: 27797aa3d063f840389901349006f628e67a6e7d811a16cfb455b101e697a1ec
 - AbiWord (2015) para Windows, de http://www.boxedwine.org/demos/abiword.zip, licença GPL-2.0+,
   código-fonte em https://gitlab.gnome.org/World/AbiWord
-- index.html e partes.js: feitos aqui.
+- index.html, wine.js, partes.js e inkterminal-wine.js: feitos aqui (programas da pessoa no D:,
+  teclado e clique direito no iPad). emulador.html carrega inkterminal-wine.js depois do shell.
 
 sha256 dos arquivos guardados:
   dd7f8b64b7455e9ec906c93372f1a8c5084255f58494430abfee4711509c62e9  boxedwine.js

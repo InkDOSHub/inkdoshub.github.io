@@ -18,29 +18,30 @@
   var script = document.currentScript;
   var RAIZ = new URL("../", script ? script.src : location.href).href;
 
-  /* Apps do site. peso: memória estimada em MB com o app carregado.
+  /* Apps do site. peso: memória estimada em MB com o app carregado (calibrada com o Monitor de
+     Atividade do XeOS em 2026-10-17: uma página do InkDOS parada usa de 40 a 110 MB).
      salvaSozinho: guarda o estado o tempo todo, então pode sair da memória sem perguntar. */
   var APPS = [
     { id: "terminal", nome: "Linux terminal", url: "terminal/",
       // o modo "limitada" do terminal (640 MB + swap) deixa a página perto de 1 GB
       peso: function () { var m; try { m = localStorage.getItem("inkterminal-memoria"); } catch (_) {} return m === "limitada" ? 900 : 350; } },
-    { id: "foto", nome: "Fotos", url: "apps/foto/", peso: 180 },
+    { id: "foto", nome: "Fotos", url: "apps/foto/", peso: 120 },
     { id: "videoeditor", nome: "Editar vídeo", url: "apps/video/editor/", peso: 500 },
-    { id: "video", nome: "Vídeo", url: "apps/video/", peso: 350 },
-    { id: "codigo", nome: "Código", url: "apps/codigo/", peso: 300 },
-    { id: "quadro", nome: "Quadro branco", url: "apps/quadro/", peso: 150, salvaSozinho: true },
+    { id: "video", nome: "Vídeo", url: "apps/video/", peso: 150 },
+    { id: "codigo", nome: "Código", url: "apps/codigo/", peso: 250 },
+    { id: "quadro", nome: "Quadro branco", url: "apps/quadro/", peso: 120, salvaSozinho: true },
     { id: "musica", nome: "Música", url: "apps/musica/", peso: 60, salvaSozinho: true },
     // Boxedwine: começa com 512 MB e cresce, mais o sistema do Wine (~220 MB)
-    { id: "wine", nome: "Wine (teste)", url: "apps/wine/", peso: 950 },
+    { id: "wine", nome: "Wine", url: "apps/wine/", peso: 950 },
     // cópia dos apps do InkDOS (inkdos/); suite=1 mostra o botão Home, que volta para a tela inicial
-    { id: "documentos", nome: "Documentos", url: "inkdos/apps/documents/index.html?suite=1", peso: 200 },
-    { id: "planilhas", nome: "Planilhas", url: "inkdos/apps/spreadsheets/index.html?suite=1", peso: 220 },
-    { id: "apresentacoes", nome: "Apresentações", url: "inkdos/apps/presentations/index.html?suite=1", peso: 220 },
-    { id: "pdf", nome: "PDF", url: "inkdos/apps/pdf/index.html?suite=1", peso: 250 },
-    { id: "texto", nome: "Texto simples", url: "inkdos/apps/txt/index.html?suite=1", peso: 60 },
-    { id: "epub", nome: "Leitor EPUB", url: "inkdos/apps/epub/index.html?suite=1", peso: 120 },
+    { id: "documentos", nome: "Documentos", url: "inkdos/apps/documents/index.html?suite=1", peso: 120 },
+    { id: "planilhas", nome: "Planilhas", url: "inkdos/apps/spreadsheets/index.html?suite=1", peso: 120 },
+    { id: "apresentacoes", nome: "Apresentações", url: "inkdos/apps/presentations/index.html?suite=1", peso: 120 },
+    { id: "pdf", nome: "PDF", url: "inkdos/apps/pdf/index.html?suite=1", peso: 150 },
+    { id: "texto", nome: "Texto simples", url: "inkdos/apps/txt/index.html?suite=1", peso: 50 },
+    { id: "epub", nome: "Leitor EPUB", url: "inkdos/apps/epub/index.html?suite=1", peso: 80 },
     // editores ONLYOFFICE (onlyoffice/), abertos pelo "Editar com ONLYOFFICE" dos apps do InkDOS
-    { id: "office", nome: "ONLYOFFICE", url: "onlyoffice/editor.html", peso: 500, oculto: true },
+    { id: "office", nome: "ONLYOFFICE", url: "onlyoffice/editor.html", peso: 400, oculto: true },
     { id: "guardada", nome: "Página guardada", url: "inicio/guardada.html", peso: 0, oculto: true },
   ];
   function pesoDe(a) { return typeof a.peso === "function" ? a.peso() : a.peso || 0; }
@@ -131,8 +132,17 @@
       if (canal) { canal.addEventListener("message", ouvir); canal.postMessage({ tipo: "quem" }); }
       setTimeout(function () {
         if (canal) canal.removeEventListener("message", ouvir);
-        var l = lerLista(), r = [];
-        Object.keys(l).forEach(function (k) { if (k !== aba && !vistos[k]) r.push(Object.assign({}, l[k], { respondeu: false })); });
+        var r = [];
+        // quem respondeu está viva: renova o "visto em". Quem não responde há mais de 3 min foi fechada
+        // pelo iPad (ou está congelada; nesse caso ela volta para a lista quando aparecer de novo).
+        gravarLista(function (l) {
+          Object.keys(vistos).forEach(function (k) { l[k] = Object.assign({}, vistos[k], { vistoEm: Date.now() }); });
+          Object.keys(l).forEach(function (k) {
+            if (k === aba || vistos[k]) return;
+            if (Date.now() - (l[k].vistoEm || 0) > 180000) { delete l[k]; return; }
+            r.push(Object.assign({}, l[k], { respondeu: false }));
+          });
+        });
         Object.keys(vistos).forEach(function (k) { r.push(Object.assign({}, vistos[k], { respondeu: true })); });
         ok(r);
       }, espera || 600);

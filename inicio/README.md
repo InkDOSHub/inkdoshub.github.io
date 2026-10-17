@@ -73,14 +73,26 @@ Os pesos são estimativas: o Safari não informa quanta memória cada página us
 - O editor de vídeo tem o service worker próprio dele (`coi-serviceworker`), que vence o do portal naquela pasta; por enquanto ele precisa de internet.
 - `manifesto.json` é a lista de arquivos com tamanho e hash. Ele é recriado por `python3 tools/portal_manifesto.py`, e o workflow `.github/workflows/manifesto-offline.yml` faz isso sozinho a cada push no `main`.
 
-## Wine (teste)
+## Wine (`../apps/wine/`)
 
-`apps/wine/` roda programas do Windows com o Boxedwine (emulador x86 compilado para WebAssembly, alvo
-"jit" de uma thread só, então funciona sem modo isolado). O sistema do
-Wine (~215 MB) fica em pedaços em `apps/wine/fs/` e `partes.js` junta as partes quando o emulador
-pede o .zip. Precisa de exceções WebAssembly no formato novo (Safari 18.4+); a página testa isso
-antes de liberar os botões. Pesa ~950 MB no controle de memória, então ao abrir ele guarda as
-páginas paradas. Origem e licenças em `apps/wine/UPSTREAM-SOURCE.txt`.
+Roda programas do Windows com o Boxedwine (emulador x86 compilado para WebAssembly, alvo "jit" de
+uma thread só, então funciona sem modo isolado). O sistema do Wine (~215 MB) fica em pedaços em
+`apps/wine/fs/`, e `partes.js` junta as partes e guarda no Cache Storage. Precisa de exceções
+WebAssembly no formato novo (Safari 18.4+). Pesa ~950 MB no controle de memória.
+
+- Todos os programas usam os mesmos discos (`storageKey=default`): o C: guarda o que for instalado
+  e o D: guarda arquivos e programas da pessoa, os dois no IndexedDB do site.
+- **Adicionar programa** (`wine.js`): um .exe, .msi ou .zip vai para o IndexedDB `inkterminal-wine`
+  (loja `entrada`). O emulador (`inkterminal-wine.js`) grava em `D:\Programas\<pasta>` (extrai o
+  .zip), apaga a entrada e abre o programa. A lista "Meus programas" fica no localStorage
+  `inkterminal-wine-meus` e abre direto do D: depois.
+- **Área de trabalho**: o Wine sem programa abre `explorer /desktop=shell`, com menu Iniciar.
+- No iPad: **Teclado** foca um campo escondido dentro do emulador (o iPad mostra o teclado e as
+  teclas chegam ao SDL), **Clique direito** faz o próximo toque valer como botão direito (segurar o
+  dedo meio segundo também), **Enviar para D:** e **Baixar de D:** trocam arquivos com o aparelho.
+- A tela inicial manda .exe e .msi para cá (`#ink-arquivos`, o mesmo caminho de Fotos e Música).
+
+Origem e licenças em `apps/wine/UPSTREAM-SOURCE.txt`.
 
 ## Editores ONLYOFFICE (`../onlyoffice/`)
 

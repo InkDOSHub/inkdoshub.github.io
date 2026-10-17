@@ -103,8 +103,10 @@
     });
 
     // Memória
-    var uso = paginas.reduce(function (s, p) { return s + (p.guardada ? 0 : p.peso || 0); }, 0), lim = P.cfg.limite;
-    var carregadas = paginas.filter(function (p) { return !p.guardada; }).length;
+    // só contam as páginas que responderam: as em segundo plano o iPad já pausou ou fechou
+    var vivas = paginas.filter(function (p) { return !p.guardada && p.respondeu; });
+    var uso = vivas.reduce(function (s, p) { return s + (p.peso || 0); }, 0), lim = P.cfg.limite;
+    var carregadas = vivas.length;
     $("memoria-texto").textContent = textoMb(uso) + " / " + textoMb(lim);
     var barra = $("medidor-barra");
     barra.style.width = Math.min(100, Math.round(uso / lim * 100)) + "%";
@@ -122,7 +124,7 @@
       li.innerHTML = "<span></span><small></small>";
       li.firstChild.textContent = p.nome;
       li.lastChild.textContent = p.guardando ? "guardando…" : p.guardada ? "guardado, 0 MB" :
-        "~" + p.peso + " MB" + (p.salva ? ", salva sozinho" : "") + (p.respondeu ? "" : ", em segundo plano");
+        (p.respondeu ? "~" + p.peso + " MB" + (p.salva ? ", salva sozinho" : "") : "em segundo plano, não conta");
       if (!p.guardada && p.respondeu && !p.guardando) {
         var b = document.createElement("button");
         b.type = "button";

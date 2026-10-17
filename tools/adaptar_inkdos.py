@@ -33,7 +33,7 @@ function openInOfficeOriginal(file,light,win){"""
 
 TROCAS = [("function openInOffice(file,light,win){", FUNCAO)]
 
-SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=3"></script>'
+SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=4"></script>'
 
 def main():
     arquivos = sorted(glob.glob(os.path.join(RAIZ, "inkdos/apps/*/runtime/platform/file-launch.js")))
