@@ -46,18 +46,19 @@ function handOff(file,url){
 }
 function webEdition(){return !g.InkDOSDesktop&&doc?.documentElement.dataset.inkdosHost!=='tauri'}
 /* InkTerminal: editor ONLYOFFICE local */
-function inkTerminal(){try{return g.top!==g.self&&g.top.location.origin===g.location.origin&&g.top.InkInicio?g.top.InkInicio:null}catch(_){return null}}
-function toInkTerminal(it,file){
+function inkTerminal(){return g.InkPaginas&&g.InkPaginas.abrirEditor?g.InkPaginas:null}
+function toInkTerminal(it,file,win){
  const id=g.crypto?.randomUUID?g.crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2,10);
  const lang=String(g.InkDOSLocalization?.currentLanguage||doc.documentElement.lang||g.navigator?.language||'en');
  const LOCALE={pt:'pt',es:'es',de:'de',ja:'ja',zh:'zh-CN',fr:'fr',ru:'ru'}[lang.toLowerCase().split('-')[0]];
  return file.arrayBuffer().then(bytes=>new Promise((resolve,reject)=>{const req=g.indexedDB.open('inkdos-tool-handoff',1);req.onupgradeneeded=()=>req.result.createObjectStore('files');req.onerror=()=>reject(req.error);
-  req.onsuccess=()=>{const db=req.result,tx=db.transaction('files','readwrite');tx.objectStore('files').put({bytes,type:file.type||'',name:file.name,at:Date.now()},id);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=tx.onabort=()=>reject(tx.error)}}))
-  .then(()=>{it.abrirEditor({id,nome:file.name,locale:LOCALE||''});return true});
+  req.onsuccess=()=>{const db=req.result,tx=db.transaction('files','readwrite'),st=tx.objectStore('files');st.put({bytes,type:file.type||'',name:file.name,at:Date.now()},id);
+  /* documentos passados ao editor há mais de 7 dias */const c=st.openCursor();c.onsuccess=()=>{const k=c.result;if(!k)return;if(k.key!==id&&Date.now()-(k.value?.at||0)>7*864e5)k.delete();k.continue()};tx.oncomplete=()=>{db.close();resolve()};tx.onerror=tx.onabort=()=>reject(tx.error)}}))
+  .then(()=>{it.abrirEditor({id,nome:file.name,locale:LOCALE||''},win);return true});
 }
 function openInOffice(file,light,win){
  const it=inkTerminal();
- if(it){win?.close?.();toInkTerminal(it,file).catch(error=>console.error('InkDOS: could not hand the document to ONLYOFFICE',error));return true}
+ if(it){toInkTerminal(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
  return openInOfficeOriginal(file,light,win);
 }
 function openInOfficeOriginal(file,light,win){
@@ -119,7 +120,7 @@ async function currentDocument(){
 }
 function officeStatus(text){const live=doc.getElementById('statusText')||doc.querySelector('[role=status]');if(live)live.textContent=text}
 // the new tab opens at the click (Safari blocks one opened after the document is prepared) and gets the editor after
-async function editInOffice(pt){let win=null;if(webEdition()&&!inkTerminal()){try{win=g.open('','_blank')}catch(_){win=null}}let file=null;try{file=await currentDocument()}catch(error){console.error('InkDOS: could not prepare the document for ONLYOFFICE',error)}if(!file){win?.close();officeStatus(pt?'Abra ou crie um documento primeiro.':'Open or create a document first.');return}openInOffice(file,null,win)}
+async function editInOffice(pt){let win=null;if(webEdition()){try{win=g.open('','_blank')}catch(_){win=null}}let file=null;try{file=await currentDocument()}catch(error){console.error('InkDOS: could not prepare the document for ONLYOFFICE',error)}if(!file){win?.close();officeStatus(pt?'Abra ou crie um documento primeiro.':'Open or create a document first.');return}openInOffice(file,null,win)}
 // The button joins the header in the same moment as the Settings (sun) button (no shift under a finger or a click)
 function whenSun(run){const find=()=>doc.querySelector('[data-frame-action="sun"]');const sun=find();if(sun)return run(sun);const watch=new MutationObserver(()=>{const s=find();if(s){watch.disconnect();run(s)}});watch.observe(doc.documentElement,{childList:true,subtree:true});setTimeout(()=>watch.disconnect(),15000)}
 function installOfficeButton(){

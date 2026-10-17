@@ -1,4 +1,4 @@
-/* Tela inicial: botões do topo, apps abertos, apps em tela cheia, painéis e diálogo.
+/* Tela inicial: botões do topo, páginas abertas, painéis e diálogo.
    Usa as cores de assets/home.css. */
 :root{--accent-ok:#3fb950;--warn:#d29922;--danger:#da3633;--btn:#f0f2f5;--btn-active:#e3e8ef}
 html[data-theme="dark"]{--btn:#252d37;--btn-active:#323c49}
@@ -28,22 +28,6 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent;touch-
 .aberto .fechar{display:inline-flex;align-items:center;justify-content:center;width:38px;height:100%;background:none;border:0;color:var(--muted)}
 .aberto .fechar svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 .aberto .fechar:active{background:var(--btn)}
-
-/* Apps em tela cheia. O iframe nunca muda de lugar no DOM (isso recarregaria o app): só display muda. */
-.telas{position:fixed;inset:0;z-index:50;background:var(--bg);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-.telas[hidden]{display:none}
-.tela{position:relative;width:100%;height:100%}
-.tela[hidden]{display:none}
-.tela iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:var(--bg)}
-body.com-app{overflow:hidden}
-.tela.com-barra{display:flex;flex-direction:column}
-.tela.com-barra[hidden]{display:none}
-.tela-barra{flex:0 0 auto;display:flex;align-items:center;gap:10px;height:44px;padding:0 10px;background:var(--card);border-bottom:1px solid var(--border);font-size:14px}
-.tela-barra button{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--btn);font-size:14px;font-weight:600}
-.tela-barra .tela-voltar{border-color:transparent;background:none;padding-left:2px}
-.tela-barra svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.tela-titulo{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-weight:600}
-.tela-corpo{position:relative;flex:1;min-height:0}
 
 /* Painéis */
 .painel{position:fixed;top:calc(env(safe-area-inset-top) + 92px);right:max(16px,calc((100vw - 1180px)/2));z-index:60;width:min(380px,calc(100vw - 32px));max-height:calc(100dvh - 110px);overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Adapta a cópia dos apps do InkDOS (inkdos/) ao InkTerminal. Rode depois de tools/copiar_inkdos.sh.
 
-Única mudança: "Editar com ONLYOFFICE". No InkDOS original o botão abre os editores do site
-inkdos-tools.github.io numa aba nova. Aqui, dentro da tela inicial do InkTerminal, o documento vai
-para a cópia dos editores em onlyoffice/, aberta em tela cheia pela tela inicial (InkInicio).
-Fora da tela inicial (app aberto direto), o comportamento original continua.
+Duas mudanças:
+1. Cada app (index.html) carrega assets/gerenciador-app.js, o controle de memória entre as páginas
+   abertas do InkTerminal.
+2. "Editar com ONLYOFFICE": no InkDOS original o botão abre os editores do site inkdos-tools.github.io
+   numa aba nova. Aqui o documento vai para a cópia dos editores em onlyoffice/, na aba nova que o
+   botão já abre (InkPaginas.abrirEditor, em assets/gerenciador-app.js).
 """
 import glob, os, sys
 
@@ -12,27 +14,26 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MARCA = "/* InkTerminal: editor ONLYOFFICE local */"
 
 FUNCAO = MARCA + r"""
-function inkTerminal(){try{return g.top!==g.self&&g.top.location.origin===g.location.origin&&g.top.InkInicio?g.top.InkInicio:null}catch(_){return null}}
-function toInkTerminal(it,file){
+function inkTerminal(){return g.InkPaginas&&g.InkPaginas.abrirEditor?g.InkPaginas:null}
+function toInkTerminal(it,file,win){
  const id=g.crypto?.randomUUID?g.crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2,10);
  const lang=String(g.InkDOSLocalization?.currentLanguage||doc.documentElement.lang||g.navigator?.language||'en');
  const LOCALE={pt:'pt',es:'es',de:'de',ja:'ja',zh:'zh-CN',fr:'fr',ru:'ru'}[lang.toLowerCase().split('-')[0]];
  return file.arrayBuffer().then(bytes=>new Promise((resolve,reject)=>{const req=g.indexedDB.open('inkdos-tool-handoff',1);req.onupgradeneeded=()=>req.result.createObjectStore('files');req.onerror=()=>reject(req.error);
-  req.onsuccess=()=>{const db=req.result,tx=db.transaction('files','readwrite');tx.objectStore('files').put({bytes,type:file.type||'',name:file.name,at:Date.now()},id);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=tx.onabort=()=>reject(tx.error)}}))
-  .then(()=>{it.abrirEditor({id,nome:file.name,locale:LOCALE||''});return true});
+  req.onsuccess=()=>{const db=req.result,tx=db.transaction('files','readwrite'),st=tx.objectStore('files');st.put({bytes,type:file.type||'',name:file.name,at:Date.now()},id);
+  /* documentos passados ao editor há mais de 7 dias */const c=st.openCursor();c.onsuccess=()=>{const k=c.result;if(!k)return;if(k.key!==id&&Date.now()-(k.value?.at||0)>7*864e5)k.delete();k.continue()};tx.oncomplete=()=>{db.close();resolve()};tx.onerror=tx.onabort=()=>reject(tx.error)}}))
+  .then(()=>{it.abrirEditor({id,nome:file.name,locale:LOCALE||''},win);return true});
 }
 function openInOffice(file,light,win){
  const it=inkTerminal();
- if(it){win?.close?.();toInkTerminal(it,file).catch(error=>console.error('InkDOS: could not hand the document to ONLYOFFICE',error));return true}
+ if(it){toInkTerminal(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
  return openInOfficeOriginal(file,light,win);
 }
 function openInOfficeOriginal(file,light,win){"""
 
-TROCAS = [
-    ("function openInOffice(file,light,win){", FUNCAO),
-    ("async function editInOffice(pt){let win=null;if(webEdition()){",
-     "async function editInOffice(pt){let win=null;if(webEdition()&&!inkTerminal()){"),
-]
+TROCAS = [("function openInOffice(file,light,win){", FUNCAO)]
+
+SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=3"></script>'
 
 def main():
     arquivos = sorted(glob.glob(os.path.join(RAIZ, "inkdos/apps/*/runtime/platform/file-launch.js")))
@@ -48,6 +49,14 @@ def main():
             s = s.replace(velho, novo)
         open(p, "w", encoding="utf-8").write(s)
         print("adaptado:", os.path.relpath(p, RAIZ))
+    for p in sorted(glob.glob(os.path.join(RAIZ, "inkdos/apps/*/index.html"))):
+        s = open(p, encoding="utf-8").read()
+        if "assets/gerenciador-app.js" in s:
+            continue
+        if s.count("</head>") != 1:
+            sys.exit(f"{os.path.relpath(p, RAIZ)}: </head> não encontrado")
+        open(p, "w", encoding="utf-8").write(s.replace("</head>", SCRIPT + "</head>"))
+        print("controle de memória:", os.path.relpath(p, RAIZ))
 
 if __name__ == "__main__":
     main()

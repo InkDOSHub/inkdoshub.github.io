@@ -7,7 +7,7 @@ changes: see build.py on the source branch of https://github.com/inkdos-tools/in
 Cópia no InkTerminal (onlyoffice/)
 - Copiado de https://github.com/inkdos-tools/inkdos-tools.github.io, branch main, commit ea7e09d
   (o site publicado em https://inkdos-tools.github.io/), a pedido do Paulo (2026-10-17), para os
-  editores abrirem dentro da tela inicial do InkTerminal sem depender de outro site.
+  editores abrirem pelo InkTerminal sem depender de outro site.
 - Fora da cópia: páginas de apresentação e de outros idiomas, help/, convert/, open/ e o editor de
   Visio (sdkjs/visio, web-apps/apps/visioeditor).
 - Mudanças:
@@ -16,4 +16,5 @@ Cópia no InkTerminal (onlyoffice/)
     editor funciona no modo embed quando o documento veio do InkDOS (inkdos-handoff);
   - assets/editor-Cs5INJPw.js: manifest.json relativo;
   - inkdos-handoff.js: lê o documento direto do IndexedDB deste site;
-  - sw.js: usa o service worker do InkTerminal (../sw-portal.js).
+  - sw.js: usa o service worker do InkTerminal (../sw-portal.js);
+  - editor.html carrega ../assets/gerenciador-app.js (controle de memória entre páginas).

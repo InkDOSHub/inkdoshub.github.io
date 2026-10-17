@@ -1,280 +1,41 @@
-/* Tela inicial do InkTerminal: os cartões abrem as ferramentas em tela cheia dentro desta página.
+/* Tela inicial do InkTerminal: cada cartão abre a ferramenta na própria página (aba ou janela),
+   carregada só quando é pedida. Tocar de novo num app já aberto volta para a página dele.
 
-   Ao voltar para a tela inicial (botão "InkTerminal" da barra do app, ou o gesto de voltar do
-   Safari), o app continua carregado e aparece em "Abertos". O gerenciador de memória
-   (gerenciador.js) mantém a soma estimada abaixo do limite: quando falta espaço, o app parado há
-   mais tempo é guardado e sai da memória. Ele volta quando é tocado.
-
-   Cada app roda num iframe do próprio site. O iframe nunca muda de lugar no DOM (isso recarregaria
-   o app); só o display muda. */
+   "Abertos" e o painel de memória mostram as páginas abertas, que se conhecem por
+   assets/gerenciador-app.js. Ele mantém a soma estimada abaixo do limite: quando uma página nova
+   abre e falta espaço, a página parada há mais tempo é guardada (sai da memória e volta com um
+   toque). As que não salvam sozinhas só são guardadas depois de a pessoa confirmar. */
 (function () {
   "use strict";
-  var G = window.InkGerenciador;
+  var P = window.InkPaginas;
   var $ = function (id) { return document.getElementById(id); };
-  var telas = $("telas");
-  var SESSAO = "inkterminal-inicio";
-  var TITULO = document.title;
-  var RAIZ = new URL("./", location.href).href;
-  // endereços que voltam para esta tela: a raiz e a tela inicial do InkDOS copiado (botão Home dele)
-  var INICIOS = [RAIZ, RAIZ + "index.html", RAIZ + "inkdos/", RAIZ + "inkdos/index.html"];
-  function ehInicio(u) { return INICIOS.indexOf(u.split("#")[0].split("?")[0]) >= 0; }
-  var lista = [];
-  var ativo = null;
+  var paginas = [];
 
-  G.janelas = function () { return lista; };
-
-  // editores ONLYOFFICE abertos pelos apps do InkDOS: um "app" por documento (veja abrirEditor)
-  var extras = [];
-  function app(id) { return window.INK_APPS.concat(extras).filter(function (a) { return a.id === id; })[0]; }
-  function aberto(id) { return lista.filter(function (j) { return j.app.id === id; })[0]; }
   function icone(id) {
     var s = document.querySelector('[data-app="' + id + '"] .app-icon svg') ||
-      (id.indexOf("office-") === 0 ? document.querySelector('[data-app="documentos"] .app-icon svg') : null);
+      (id === "office" ? document.querySelector('[data-app="documentos"] .app-icon svg') : null) ||
+      (id === "videoeditor" ? document.querySelector('[data-app="video"] .app-icon svg') : null);
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (s ? s.innerHTML : "") + "</svg>";
   }
-
-  function salvarSessao() {
-    try {
-      localStorage.setItem(SESSAO, JSON.stringify({ abertos: lista.map(function (j) { return j.app.id; }), ativo: ativo ? ativo.app.id : null,
-        extras: lista.filter(function (j) { return j.app.handoff; }).map(function (j) { return j.app; }) }));
-    } catch (_) {}
+  function textoMb(v) { return v >= 1000 ? (v / 1000).toFixed(1).replace(".", ",").replace(",0", "") + " GB" : v + " MB"; }
+  function situacao(p) {
+    if (p.guardando) return "guardando…";
+    if (p.guardada) return "guardado";
+    if (!p.respondeu) return "em segundo plano";
+    return "";
   }
-
-  function Aberto(a) {
-    this.app = a;
-    this.carregada = false;
-    this.suportaAviso = false;
-    this.rascunhosInkdos = null;
-    this.guardando = false;
-    this.usadoEm = Date.now();
-    this.el = document.createElement("div");
-    this.el.className = "tela";
-    this.el.hidden = true;
-    this.corpo = this.el;
-    // o editor ONLYOFFICE não tem barra própria: ganha uma com Voltar (para o app do InkDOS de onde veio) e Fechar
-    if (a.handoff) {
-      var j = this;
-      this.el.classList.add("com-barra");
-      this.el.innerHTML = '<header class="tela-barra"><button type="button" class="tela-voltar">' +
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>' +
-        '<span class="tela-titulo"></span><button type="button" class="tela-fechar">Fechar</button></header><div class="tela-corpo"></div>';
-      this.el.querySelector(".tela-titulo").textContent = a.nome;
-      this.corpo = this.el.querySelector(".tela-corpo");
-      this.el.querySelector(".tela-voltar").addEventListener("click", function () { voltarInicio(); });
-      this.el.querySelector(".tela-fechar").addEventListener("click", function () { fechar(j); });
-    }
-    telas.appendChild(this.el);
-  }
-
-  Aberto.prototype.carregar = function () {
-    var j = this;
-    if (j.carregada) return;
-    var f = document.createElement("iframe");
-    f.title = j.app.nome;
-    f.allow = "clipboard-read; clipboard-write; fullscreen; autoplay";
-    f.addEventListener("load", function () { ajustar(j, f); });
-    f.src = j.app.url;
-    j.iframe = f;
-    j.suportaAviso = false;
-    j.corpo.appendChild(f);
-    j.carregada = true;
-  };
-
-  Aberto.prototype.descarregar = function () {
-    var j = this;
-    if (!j.carregada) return;
-    // about:blank antes de remover ajuda o WebKit a soltar a memória do documento
-    try { j.iframe.src = "about:blank"; } catch (_) {}
-    j.iframe.remove();
-    j.iframe = null;
-    j.carregada = false;
-    j.suportaAviso = false;
-    j.rascunhosInkdos = null;
-    // um app guardado enquanto aparece na tela volta para a tela inicial
-    if (ativo === j) esconder();
-  };
-
-  function remover(j) {
-    if (j.app.handoff) apagarHandoff(j.app.handoff);
-    j.descarregar();
-    j.el.remove();
-    lista.splice(lista.indexOf(j), 1);
-    if (ativo === j) esconder();
-    salvarSessao();
-    G.aoMudar();
-  }
-
-  function mostrar(j, semHistorico) {
-    ativo = j;
-    j.usadoEm = Date.now();
-    lista.forEach(function (x) { x.el.hidden = x !== j; });
-    telas.hidden = false;
-    document.body.classList.add("com-app");
-    document.title = j.app.nome + " · InkTerminal";
-    fecharPaineis();
-    if (!semHistorico && location.hash !== "#" + j.app.id) history.pushState({ app: j.app.id }, "", "#" + j.app.id);
-    if (!j.carregada) {
-      G.abrirEspaco(j).then(function () {
-        if (lista.indexOf(j) >= 0 && !j.carregada) j.carregar();
-        G.aoMudar();
-      });
-    }
-    salvarSessao();
-    G.aoMudar();
-  }
-
-  function esconder() {
-    ativo = null;
-    lista.forEach(function (x) { x.el.hidden = true; });
-    telas.hidden = true;
-    document.body.classList.remove("com-app");
-    document.title = TITULO;
-    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
-    salvarSessao();
-    G.aoMudar();
-  }
-
-  /* Volta para a tela inicial pelo histórico quando dá, para o gesto de voltar do Safari continuar certo. */
-  function voltarInicio() {
-    if (history.state && history.state.app) history.back();
-    else esconder();
-  }
-
-  function abrir(id, semHistorico) {
-    var a = app(id);
-    if (!a) return;
-    var j = aberto(id);
-    if (!j) { j = new Aberto(a); lista.push(j); }
-    mostrar(j, semHistorico);
-  }
-
-  function fechar(j) {
-    if (!j.carregada) { remover(j); return; }
-    function confirmar(texto) {
-      return G.perguntar("Fechar " + j.app.nome + "?", texto,
-        [{ id: "sim", texto: "Fechar" }, { id: "nao", texto: "Cancelar", secundario: true }]);
-    }
-    if (j.suportaAviso) {
-      // o app guarda o que puder; se ele pedir para ficar aberto, a pessoa decide
-      j.guardando = true; G.aoMudar();
-      G.avisar(j).then(function (resp) {
-        j.guardando = false; G.aoMudar();
-        if (resp !== "manter") { remover(j); return; }
-        confirmar((j.motivoManter ? j.motivoManter + " " : "") + "Fechar agora pode perder o que está aberto nele.")
-          .then(function (r) { if (r === "sim") remover(j); });
-      });
-    } else if (!j.app.salvaSozinho) {
-      confirmar("Se houver algo não salvo nele, salve antes de fechar.").then(function (r) { if (r === "sim") remover(j); });
-    } else remover(j);
-  }
-
-  /* Depois de cada carregamento do app: o botão "InkTerminal" da barra dele volta para esta tela
-     (sem descarregar o app), e um app que navegou para a própria tela inicial é fechado. */
-  function ajustar(j, f) {
-    var doc, win;
-    j.rascunhosInkdos = null;
-    try { doc = f.contentDocument; win = f.contentWindow; } catch (_) { return; }
-    if (!doc || !doc.documentElement || !win) return;
-    var url = "";
-    try { url = win.location.href; } catch (_) {}
-    if (ehInicio(url)) {
-      remover(j);
-      return;
-    }
-    doc.addEventListener("click", function (e) {
-      var a = e.target && e.target.closest && e.target.closest("a[href]");
-      if (!a) return;
-      if (!ehInicio(a.href)) return;
-      // o app continua aberto: o clique não chega aos handlers dele (alguns navegariam para fora)
-      e.preventDefault();
-      e.stopPropagation();
-      voltarInicio();
-    }, true);
-    try { win.addEventListener("pointerdown", function () { j.usadoEm = Date.now(); }, true); } catch (_) {}
-    // Os apps do InkDOS guardam rascunhos de recuperação (inkdos/shared/work-safety.js). Com eles
-    // ligados, o app pode sair da memória sem perguntar: antes, a tela inicial grava o rascunho, e o
-    // InkDOS oferece "Recuperar" quando o app abre de novo.
-    setTimeout(function () {
-      try {
-        var ws = win.InkDOSWorkSafety;
-        if (ws && ws.draftsEnabled && ws.draftsMode !== "password" && ws._test && ws._test.handles) { j.rascunhosInkdos = ws; j.suportaAviso = true; G.aoMudar(); }
-      } catch (_) {}
-    }, 1500);
-  }
-
-  var avisarOriginal = G.avisar;
-  G.avisar = function (j) {
-    if (!j.rascunhosInkdos) return avisarOriginal(j);
-    var ws = j.rascunhosInkdos;
-    return Promise.all(ws._test.handles.map(function (h) { return Promise.resolve(h.snapshotNow()).catch(function () {}); }))
-      .then(function () { return "pronto"; }, function () { return "sem-resposta"; });
-  };
-
-  addEventListener("popstate", function () {
-    var id = location.hash.slice(1);
-    if (aberto(id)) mostrar(aberto(id), true);
-    else if (app(id)) abrir(id, true);
-    else esconder();
-  });
 
   // Cartões
   Array.prototype.forEach.call(document.querySelectorAll("[data-app]"), function (c) {
     c.addEventListener("click", function (e) {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
-      abrir(c.dataset.app);
+      P.abrir(c.dataset.app);
     });
-  });
-
-  // Apps abertos
-  function desenharAbertos() {
-    var sec = $("abertos"), el = $("abertos-lista");
-    sec.hidden = !lista.length;
-    el.innerHTML = "";
-    lista.forEach(function (j) {
-      var d = document.createElement("div");
-      d.className = "aberto " + j.app.id + (j.carregada ? "" : " guardado");
-      d.innerHTML = '<button type="button" class="abrir">' + icone(j.app.id) + '<span class="nome"></span><span class="estado"></span></button>' +
-        '<button type="button" class="fechar" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
-      d.querySelector(".nome").textContent = j.app.nome;
-      d.querySelector(".estado").textContent = j.guardando ? "guardando…" : j.carregada ? "" : "guardado";
-      d.querySelector(".fechar").title = "Fechar " + j.app.nome;
-      d.querySelector(".abrir").addEventListener("click", function () { mostrar(j); });
-      d.querySelector(".fechar").addEventListener("click", function () { fechar(j); });
-      el.appendChild(d);
-    });
-  }
-
-  // Painéis do topo
-  var paineis = { "btn-memoria": $("painel-memoria"), "btn-offline": $("painel-offline") };
-  function fecharPaineis(exceto) {
-    Object.keys(paineis).forEach(function (b) {
-      if (paineis[b] !== exceto) { paineis[b].hidden = true; $(b).setAttribute("aria-expanded", "false"); }
-    });
-  }
-  Object.keys(paineis).forEach(function (b) {
-    $(b).addEventListener("click", function (e) {
-      e.stopPropagation();
-      var p = paineis[b], abrirP = p.hidden;
-      fecharPaineis(p);
-      p.hidden = !abrirP;
-      $(b).setAttribute("aria-expanded", String(abrirP));
-      if (abrirP && b === "btn-offline" && window.InkOffline) InkOffline.atualizar();
-    });
-    paineis[b].addEventListener("click", function (e) { e.stopPropagation(); });
-  });
-  document.addEventListener("click", function () { fecharPaineis(); });
-
-  // Tema: troca aqui e nos apps abertos sem recarregar, para não perder o que está aberto neles
-  $("tema").addEventListener("click", function () {
-    var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem("inkterminal-tema", n); } catch (_) {}
-    [document].concat(lista.map(function (j) { try { return j.iframe && j.iframe.contentDocument; } catch (_) { return null; } }))
-      .forEach(function (d) { if (d && d.documentElement) { d.documentElement.dataset.theme = n; d.documentElement.style.colorScheme = n; } });
   });
 
   // Diálogo próprio (os alertas do Safari travam a página e não combinam com o visual)
-  G.perguntar = function (titulo, texto, opcoes) {
+  function perguntar(titulo, texto, opcoes) {
     return new Promise(function (ok) {
       var fundo = $("dialogo"), acoes = $("dialogo-acoes");
       $("dialogo-titulo").textContent = titulo;
@@ -291,98 +52,151 @@
       fundo.hidden = false;
       acoes.firstChild.focus();
     });
-  };
+  }
+
+  /* Guardar (sai da memória, volta com um toque) ou fechar a página de um app. */
+  function agir(p, acao) {
+    if (!p.respondeu && !p.guardada) {
+      // a página está congelada pelo iPad: o pedido fica na fila dela; na lista, some agora
+      if (acao === "fechar") { P.pedir("fechar", p.aba, false); P.esquecer(p.aba); atualizar(); }
+      return;
+    }
+    var pergunta = Promise.resolve("sim");
+    if (!p.salva && !p.guardada) {
+      pergunta = perguntar((acao === "fechar" ? "Fechar " : "Guardar ") + p.nome + "?",
+        "Este app não salva sozinho. Se houver algo não salvo nele, salve antes." +
+        (acao === "guardar" ? " Ele continua na lista e volta ao ser tocado." : ""),
+        [{ id: "sim", texto: acao === "fechar" ? "Fechar" : "Guardar" }, { id: "nao", texto: "Cancelar", secundario: true }]);
+    }
+    pergunta.then(function (r) {
+      if (r !== "sim") return;
+      p.guardando = true; desenhar();
+      P.pedir(acao, p.aba, !p.salva).then(function (resp) {
+        p.guardando = false;
+        if (resp.r === "manter") {
+          perguntar(p.nome + " precisa ficar aberto", (resp.motivo || "O app pediu para não ser fechado agora.") +
+            " Abra a página dele para terminar.", [{ id: "ok", texto: "OK" }]);
+        }
+        if (acao === "fechar" && resp.r === "pronto") P.esquecer(p.aba);
+        atualizar();
+      });
+    });
+  }
+
+  function desenhar() {
+    var lista = paginas.slice().sort(function (a, b) { return b.usadoEm - a.usadoEm; });
+    // Abertos
+    var sec = $("abertos"), el = $("abertos-lista");
+    sec.hidden = !lista.length;
+    el.innerHTML = "";
+    lista.forEach(function (p) {
+      var d = document.createElement("div");
+      d.className = "aberto " + p.app + (p.guardada ? " guardado" : "");
+      d.innerHTML = '<button type="button" class="abrir">' + icone(p.app) + '<span class="nome"></span><span class="estado"></span></button>' +
+        '<button type="button" class="fechar" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
+      d.querySelector(".nome").textContent = p.nome;
+      d.querySelector(".estado").textContent = situacao(p);
+      d.querySelector(".fechar").title = "Fechar " + p.nome;
+      d.querySelector(".abrir").addEventListener("click", function () { P.focar(p); });
+      d.querySelector(".fechar").addEventListener("click", function () { agir(p, "fechar"); });
+      el.appendChild(d);
+    });
+
+    // Memória
+    var uso = paginas.reduce(function (s, p) { return s + (p.guardada ? 0 : p.peso || 0); }, 0), lim = P.cfg.limite;
+    var carregadas = paginas.filter(function (p) { return !p.guardada; }).length;
+    $("memoria-texto").textContent = textoMb(uso) + " / " + textoMb(lim);
+    var barra = $("medidor-barra");
+    barra.style.width = Math.min(100, Math.round(uso / lim * 100)) + "%";
+    barra.className = uso > lim || carregadas > P.cfg.maxJanelas ? "cheio" : uso > lim * 0.8 ? "quase" : "";
+    Array.prototype.forEach.call(document.querySelectorAll(".opcoes"), function (grupo) {
+      Array.prototype.forEach.call(grupo.children, function (b) {
+        b.setAttribute("aria-pressed", String(Number(b.value) === Number(P.cfg[grupo.dataset.nome])));
+      });
+    });
+    var ul = $("lista-memoria");
+    ul.innerHTML = "";
+    if (!lista.length) ul.innerHTML = "<li><span>Nenhuma página aberta.</span></li>";
+    lista.forEach(function (p) {
+      var li = document.createElement("li");
+      li.innerHTML = "<span></span><small></small>";
+      li.firstChild.textContent = p.nome;
+      li.lastChild.textContent = p.guardando ? "guardando…" : p.guardada ? "guardado, 0 MB" :
+        "~" + p.peso + " MB" + (p.salva ? ", salva sozinho" : "") + (p.respondeu ? "" : ", em segundo plano");
+      if (!p.guardada && p.respondeu && !p.guardando) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "botao secundario pequeno";
+        b.textContent = "Guardar";
+        b.addEventListener("click", function () { agir(p, "guardar"); });
+        li.appendChild(b);
+      }
+      ul.appendChild(li);
+    });
+  }
+
+  var pedindo = false, deNovo = false;
+  function atualizar() {
+    if (pedindo) { deNovo = true; return; }
+    pedindo = true;
+    P.listar(500).then(function (l) {
+      pedindo = false;
+      var guardando = {};
+      paginas.forEach(function (p) { if (p.guardando) guardando[p.aba] = true; });
+      paginas = l.filter(function (p) { return !p.inicio && p.app; });
+      paginas.forEach(function (p) { if (guardando[p.aba]) p.guardando = true; });
+      desenhar();
+      if (deNovo) { deNovo = false; atualizar(); }
+    });
+  }
+  var espera = null;
+  P.aoMudar = function () { clearTimeout(espera); espera = setTimeout(atualizar, 150); };
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") atualizar(); });
+  addEventListener("focus", atualizar);
+
+  // Painéis do topo
+  var paineis = { "btn-memoria": $("painel-memoria"), "btn-offline": $("painel-offline") };
+  function fecharPaineis(exceto) {
+    Object.keys(paineis).forEach(function (b) {
+      if (paineis[b] !== exceto) { paineis[b].hidden = true; $(b).setAttribute("aria-expanded", "false"); }
+    });
+  }
+  Object.keys(paineis).forEach(function (b) {
+    $(b).addEventListener("click", function (e) {
+      e.stopPropagation();
+      var p = paineis[b], abrirP = p.hidden;
+      fecharPaineis(p);
+      p.hidden = !abrirP;
+      $(b).setAttribute("aria-expanded", String(abrirP));
+      if (abrirP && b === "btn-offline" && window.InkOffline) InkOffline.atualizar();
+      if (abrirP && b === "btn-memoria") atualizar();
+    });
+    paineis[b].addEventListener("click", function (e) { e.stopPropagation(); });
+  });
+  document.addEventListener("click", function () { fecharPaineis(); });
+
+  // Tema: troca aqui e nas páginas abertas, sem recarregar
+  $("tema").addEventListener("click", function () {
+    var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("inkterminal-tema", n); } catch (_) {}
+    document.documentElement.dataset.theme = n;
+    document.documentElement.style.colorScheme = n;
+    P.tema(n);
+  });
 
   // Memória (botões em vez de <select>, que o XeOS redesenha)
   Array.prototype.forEach.call(document.querySelectorAll(".opcoes"), function (grupo) {
     grupo.addEventListener("click", function (e) {
       var b = e.target.closest("button"); if (!b) return;
-      G.definir(grupo.dataset.nome, b.value);
+      P.definir(grupo.dataset.nome, b.value);
     });
   });
 
-  function textoMb(v) { return v >= 1000 ? (v / 1000).toFixed(1).replace(".", ",").replace(",0", "") + " GB" : v + " MB"; }
-
-  G.aoMudar = function () {
-    var uso = G.emUso(), lim = G.cfg.limite;
-    $("memoria-texto").textContent = uso + " MB / " + textoMb(lim);
-    var barra = $("medidor-barra");
-    barra.style.width = Math.min(100, Math.round(uso / lim * 100)) + "%";
-    barra.className = uso > lim ? "cheio" : uso > lim * 0.8 ? "quase" : "";
-    Array.prototype.forEach.call(document.querySelectorAll(".opcoes"), function (grupo) {
-      Array.prototype.forEach.call(grupo.children, function (b) {
-        b.setAttribute("aria-pressed", String(Number(b.value) === Number(G.cfg[grupo.dataset.nome])));
-      });
-    });
-    var ul = $("lista-memoria");
-    ul.innerHTML = "";
-    if (!lista.length) ul.innerHTML = "<li><span>Nenhum app aberto.</span></li>";
-    lista.slice().sort(function (a, b) { return b.usadoEm - a.usadoEm; }).forEach(function (j) {
-      var li = document.createElement("li");
-      li.innerHTML = "<span></span><small></small>";
-      li.firstChild.textContent = j.app.nome;
-      li.lastChild.textContent = j.guardando ? "guardando…" : j.carregada ? "carregado, ~" + G.peso(j.app) + " MB" + (G.podeSairSemPerguntar(j) ? ", salva sozinho" : "") : "guardado, 0 MB";
-      if (j.carregada) {
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "botao secundario pequeno";
-        b.textContent = "Guardar";
-        b.addEventListener("click", function () { G.suspender(j, true); });
-        li.appendChild(b);
-      }
-      ul.appendChild(li);
-    });
-    desenharAbertos();
-  };
-
-  // Antes de sair do site com um app que não salva sozinho carregado, o navegador pergunta
-  addEventListener("beforeunload", function (e) {
-    if (lista.some(function (j) { return j.carregada && !j.app.salvaSozinho; })) { e.preventDefault(); e.returnValue = ""; }
-  });
-
-  // Sessão: depois de uma queda da aba, os apps voltam guardados; só o que estava na tela carrega
-  /* O documento que o app do InkDOS passou para o editor fica no IndexedDB "inkdos-tool-handoff"
-     até o editor ser fechado (assim ele reabre o mesmo documento se sair da memória). */
-  function apagarHandoff(id) {
-    try {
-      var req = indexedDB.open("inkdos-tool-handoff", 1);
-      req.onupgradeneeded = function () { req.result.createObjectStore("files"); };
-      req.onsuccess = function () {
-        var db = req.result, tx = db.transaction("files", "readwrite"), st = tx.objectStore("files");
-        st.delete(id);
-        // e as entradas esquecidas há mais de 7 dias
-        var c = st.openCursor();
-        c.onsuccess = function () { var k = c.result; if (!k) return; if (!k.value || Date.now() - (k.value.at || 0) > 7 * 864e5) k.delete(); k.continue(); };
-        tx.oncomplete = function () { db.close(); };
-      };
-    } catch (_) {}
-  }
-
-  // Chamado pelos apps do InkDOS (inkdos/, "Editar com ONLYOFFICE"); veja tools/adaptar_inkdos.py
-  window.InkInicio = Object.freeze({
-    abrirEditor: function (info) {
-      var id = "office-" + String(info.id).replace(/[^A-Za-z0-9-]/g, "");
-      var a = {
-        id: id, nome: "ONLYOFFICE · " + String(info.nome || "documento"), peso: 500, salvaSozinho: false, handoff: String(info.id),
-        url: "onlyoffice/editor.html?embed=1&embedOrigin=" + encodeURIComponent(location.origin) +
-          "&inkdos-handoff=" + encodeURIComponent(info.id) + (info.locale ? "&locale=" + encodeURIComponent(info.locale) : ""),
-      };
-      extras.push(a);
-      abrir(id);
-    },
-  });
-
-  var dados = {};
-  try { dados = JSON.parse(localStorage.getItem(SESSAO) || "{}") || {}; } catch (_) {}
-  (dados.extras || []).forEach(function (a) { if (a && a.id && a.handoff && a.url && !app(a.id)) extras.push(a); });
-  (dados.abertos || []).forEach(function (id) { var a = app(id); if (a && !aberto(id)) lista.push(new Aberto(a)); });
-  var pedido = location.hash.slice(1);
-  if (app(pedido)) {
-    // a entrada da tela inicial fica antes no histórico, para o gesto de voltar levar até ela
-    history.replaceState(null, "", location.pathname + location.search);
-    abrir(pedido);
-  } else {
-    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
-    G.aoMudar();
-  }
+  // endereços antigos (#terminal), da versão em que os apps abriam dentro desta página
+  var pedido = location.hash.slice(1), cartao = pedido && document.querySelector('[data-app="' + pedido.replace(/[^a-z]/g, "") + '"]');
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  try { localStorage.removeItem("inkterminal-inicio"); } catch (_) {}
+  if (cartao) { location.href = cartao.href; return; }
+  desenhar();
+  atualizar();
 })();
