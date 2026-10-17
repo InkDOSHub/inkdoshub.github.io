@@ -1,0 +1,21 @@
+# Pacotes do Alpine (x86) copiados para este site, para o "apk add" funcionar
+# no modo "Rede: navegador". As dependências entram sozinhas.
+# Depois de mudar esta lista, o GitHub Actions atualiza a cópia.
+python3
+py3-pip
+git
+nano
+vim
+bash
+htop
+curl
+jq
+sqlite
+less
+tree
+file
+make
+lua5.4
+nodejs
+npm
+openssh-client

@@ -1,0 +1,36 @@
+name: Espelho de pacotes Alpine
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - alpine-packages.txt
+      - tools/mirror.sh
+      - tools/sort_apks.py
+      - .github/workflows/mirror.yml
+  schedule:
+    - cron: '17 5 * * 1' # toda segunda, para acompanhar as correções do Alpine
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Baixar os pacotes
+        run: ./tools/mirror.sh
+      - name: Publicar a cópia
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A alpine
+          if git diff --cached --quiet; then echo "Nada mudou"; exit 0; fi
+          git commit -m "Atualiza a cópia dos pacotes Alpine"
+          git push
