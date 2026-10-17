@@ -1,0 +1,29 @@
+HTTP/2 200 
+date: Sat, 17 Oct 2026 14:59:53 GMT
+content-type: application/javascript
+content-length: 22298
+vary: Accept-Encoding
+server: BunnyCDN-MSP1-1084
+cdn-pullzone: 2971103
+cdn-requestcountrycode: US
+vary: Accept-Encoding
+access-control-allow-origin: *
+access-control-allow-headers: Server, x-goog-meta-frames, Content-Length, Content-Type, Range, X-Requested-With, If-Modified-Since, If-None-Match
+access-control-expose-headers: Server, x-goog-meta-frames, Content-Length, Content-Type, Range, X-Requested-With, If-Modified-Since, If-None-Match
+cache-control: public, max-age=1200
+etag: "682362ad-571a"
+last-modified: Tue, 13 May 2025 15:18:05 GMT
+cdn-storageserver: DE-635
+cdn-fileserver: 1069
+cdn-proxyver: 1.71
+cdn-requestpullsuccess: True
+cdn-requestpullcode: 200
+cdn-cachedat: 10/17/2026 14:59:52
+cdn-edgestorageid: 1084
+cross-origin-resource-policy: cross-origin
+cdn-requestid: 51b93ce7542d9b7b523c0ad3291ba800
+cdn-cache: MISS
+cdn-status: 200
+cdn-requesttime: 0
+accept-ranges: bytes
+

@@ -1,0 +1,2 @@
+vendor-staging/office/soffice.wasm: data
+vendor-staging/office/soffice.data: data
