@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wine (teste) · InkTerminal</title>
+<script src="../../assets/tema.js"></script>
+<script src="../../assets/icones.js" defer></script>
+<link rel="stylesheet" href="../../assets/barra.css?v=2">
+<style>
+  .ink-bar{overflow-x:auto;scrollbar-width:none}
+  .ink-bar::-webkit-scrollbar{display:none}
+  #inicio{position:absolute;inset:0;overflow:auto;padding:24px 16px;box-sizing:border-box}
+  #inicio .caixa{max-width:560px;margin:0 auto;font-size:14px;line-height:1.55;color:var(--muted)}
+  #inicio h1{font-size:18px;color:var(--text);margin:0 0 8px}
+  #inicio .programas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:18px 0}
+  #inicio .programas button{text-align:left;padding:12px;border-radius:10px;line-height:1.35}
+  #inicio .programas small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  #inicio .erro{color:#d1242f}
+  #tela{display:none}
+  .rodando #inicio{display:none}
+  .rodando #tela{display:block}
+</style>
+</head>
+<body class="ink-app">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
+  <span class="ink-title">Wine (teste)</span>
+  <span class="ink-spacer"></span>
+  <span class="ink-status" id="status"></span>
+  <button class="ink-btn" id="b-arquivos" type="button" hidden>Baixar arquivos</button>
+  <button class="ink-btn" id="b-parar" type="button" hidden>Parar</button>
+</header>
+<main class="ink-main">
+  <div id="inicio"><div class="caixa">
+    <h1>Programas do Windows no navegador</h1>
+    <p>Este é um teste do <strong>Boxedwine</strong>: ele imita um PC x86 dentro da página e roda o Wine, que abre programas do Windows. Nada é instalado no aparelho.</p>
+    <div class="programas" id="programas"></div>
+    <p>Na primeira vez são cerca de 220 MB e o Wine leva uns minutos preparando o "Windows". Depois fica mais rápido. Salve seus arquivos no disco D:: eles continuam lá e o botão "Baixar arquivos" traz uma cópia para o aparelho.</p>
+    <p>Ele usa bastante memória (perto de 1 GB). No iPad, feche os outros apps pesados antes. Precisa do Safari 18.4 ou mais novo.</p>
+    <p id="aviso" class="erro" hidden></p>
+  </div></div>
+  <iframe id="tela" title="Wine" allow="fullscreen; autoplay"></iframe>
+</main>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var PROGRAMAS = [
+    { id: "abiword", nome: "AbiWord", sobre: "Editor de texto", p: "ABIWORD.EXE", app: "abiword" },
+    { id: "notepad", nome: "Bloco de notas", sobre: "Do próprio Wine", p: "notepad" },
+    { id: "winemine", nome: "Campo minado", sobre: "Do próprio Wine", p: "winemine" },
+    { id: "explorer", nome: "Arquivos", sobre: "Ver os discos C: e D:", p: "explorer" }
+  ];
+
+  /* Teste do formato de exceções novo (exnref), que o Boxedwine exige: Safari 18.4+, Chrome 137+. */
+  var temExnref = false;
+  try { temExnref = WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,8,1,6,0,31,64,0,11,11])); } catch (_) {}
+
+  PROGRAMAS.forEach(function (prog) {
+    var b = document.createElement("button");
+    b.className = "ink-btn"; b.type = "button";
+    b.innerHTML = "<strong></strong><small></small>";
+    b.querySelector("strong").textContent = prog.nome;
+    b.querySelector("small").textContent = prog.sobre;
+    b.onclick = function () { abrir(prog); };
+    b.disabled = !temExnref;
+    $("programas").appendChild(b);
+  });
+  if (!temExnref) {
+    $("aviso").hidden = false;
+    $("aviso").textContent = "Este navegador ainda não roda o Boxedwine. Atualize o iPadOS (Safari 18.4 ou mais novo).";
+  }
+
+  function abrir(prog) {
+    var q = "root=TinyCore15Wine11.0&rootBase=fs&p=" + encodeURIComponent(prog.p) +
+      "&env=%22WINEDLLOVERRIDES:mscoree,mshtml=%22";
+    if (prog.app) q += "&app=" + prog.app + "&appBase=programas";
+    $("status").textContent = "Abrindo " + prog.nome + "…";
+    $("tela").src = "emulador.html?" + q;
+    document.body.classList.add("rodando");
+    $("b-parar").hidden = false; $("b-arquivos").hidden = false;
+  }
+
+  $("b-parar").onclick = function () {
+    $("tela").src = "about:blank";
+    document.body.classList.remove("rodando");
+    $("b-parar").hidden = true; $("b-arquivos").hidden = true;
+    $("status").textContent = "";
+  };
+
+  $("b-arquivos").onclick = function () {
+    var w = $("tela").contentWindow;
+    if (w && typeof w.buildGetFilesModal === "function") w.buildGetFilesModal();
+  };
+
+  window.addEventListener("message", function (e) {
+    if (e.origin !== location.origin || !e.data) return;
+    if (e.data.tipo === "wine:progresso") {
+      var d = e.data;
+      $("status").textContent = d.recebido < d.total ?
+        "Baixando o Wine… " + Math.round(d.recebido / 1e6) + " de " + Math.round(d.total / 1e6) + " MB" :
+        "Wine ligado. Na primeira vez o Windows leva uns minutos para aparecer.";
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -25,6 +25,10 @@ window.INK_APPS = [
   { id: "musica", nome: "Música", url: "../apps/musica/", peso: 60, salvaSozinho: true,
     descricao: "Player com lista e equalizador.",
     icone: '<path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>' },
+  { id: "wine", nome: "Wine (teste)", url: "../apps/wine/", peso: 950, salvaSozinho: false,
+    // Boxedwine: começa com 512 MB de memória e cresce; mais o sistema do Wine (~220 MB) carregado
+    descricao: "Programas do Windows (AbiWord) num PC x86 imitado.",
+    icone: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 8.5l2 4 1.5-3 1.5 3 2-4"/>' },
   { id: "office", nome: "Office", url: "../apps/office/", externo: true, peso: 0,
     descricao: "LibreOffice: textos, planilhas e apresentações (abre numa aba nova).",
     icone: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>' },
