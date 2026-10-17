@@ -37,8 +37,7 @@ o arquivo para ela (`launchQueue`), e ela escolhe o app pela extensão:
 | Código | js, ts, py, html, css, c, cpp, java, rs, go, sh, sql e outras linguagens |
 
 Um arquivo (ou vários do mesmo app de mídia ou do Código) abre o app nesta mesma página. Arquivos
-de apps diferentes aparecem em "Arquivos recebidos", com um botão para cada app. O botão "Abrir
-arquivo" da tela inicial faz o mesmo com um arquivo escolhido. A lista de extensões fica em
+de apps diferentes aparecem em "Arquivos recebidos", com um botão para cada app. A lista de extensões fica em
 `ROTAS` (lancador.js); o manifesto tem que ter as mesmas.
 
 ## Abas e memória (`../assets/gerenciador-app.js`)

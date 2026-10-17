@@ -2,7 +2,7 @@
 
    Com o InkTerminal instalado (manifest.webmanifest, "file_handlers"), abrir um arquivo no XeOS
    manda o arquivo para esta página (launchQueue). Ela escolhe o app pela extensão e abre o app
-   com o arquivo. O botão "Abrir arquivo" da tela inicial faz o mesmo com um arquivo escolhido.
+   com o arquivo.
 
    Como o arquivo chega a cada app:
    - apps do InkDOS (inkdos/): IndexedDB "inkdos-launch-handoff" e #inkdos-launch=<id>, o mesmo
@@ -155,10 +155,6 @@
         .then(abrirArquivos);
     });
   }
-
-  var entrada = document.getElementById("abrir-arquivo");
-  document.getElementById("btn-abrir-arquivo").addEventListener("click", function () { entrada.click(); });
-  entrada.addEventListener("change", function () { var f = [].slice.call(entrada.files); entrada.value = ""; abrirArquivos(f); });
 
   window.InkLancador = { rotaDe: rotaDe, abrirArquivos: abrirArquivos };
 })();

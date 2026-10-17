@@ -37,8 +37,6 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent;touch-
 
 /* Lançador de arquivos */
 .intro{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
-.abrir-arquivo{display:inline-flex;align-items:center;gap:8px}
-.abrir-arquivo svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .recebidos[hidden]{display:none}
 .recebidos-lista{display:flex;flex-wrap:wrap;gap:8px}
 html.abrindo-arquivo .home-shell{visibility:hidden}
