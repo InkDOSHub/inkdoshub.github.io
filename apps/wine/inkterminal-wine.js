@@ -73,6 +73,15 @@
       l.forEach(function (x) { if (x.pasta) gravar(base, x.nome, null); else gravar(base, x.nome, x.dados); });
     }) : Promise.resolve(gravar(base, e.exe, bytes));
     return feito.then(function () {
+      // o Boxedwine só roda programas de 32 bits: avisa logo se o .exe escolhido é de 64
+      try {
+        var b = FS.readFile(base + "/" + e.exe.split("/").filter(Boolean).join("/"), { encoding: "binary" });
+        var v = new DataView(b.buffer, b.byteOffset, b.byteLength), pe = v.getUint32(0x3c, true);
+        var m = b[0] === 0x4d && b[1] === 0x5a && v.getUint32(pe, true) === 0x4550 ? v.getUint16(pe + 4, true) : 0;
+        if ((m === 0x8664 || m === 0xaa64) && window.parent !== window) {
+          window.parent.postMessage({ tipo: "wine:erro", texto: "\"" + e.exe.split("/").pop() + "\" é de 64 bits, e o Wine daqui só roda programas de 32 bits. Procure a versão de 32 bits (x86)." }, location.origin);
+        }
+      } catch (_) {}
       // grava no IndexedDB já (o IDBFS também grava sozinho, mas sem pressa)
       return new Promise(function (ok) { FS.syncfs(false, function () { ok(); }); });
     });

@@ -2,7 +2,10 @@ Editor de vídeo (apps/video/editor/): omniclip 1.1.3 (MIT)
   https://github.com/omni-media/omniclip, commit cbe581a4a788d9982ffd4a10025c678f9e8707d6
   Empacotado com tools/omniclip-build.mjs. Mudanças: bibliotecas dos CDNs copiadas para esta pasta,
   sem PostHog e sem Google Fonts, caminhos /assets/ relativos, arrumação inicial dos painéis e
-  abertura do vídeo vindo do player (editor/inkterminal.js).
+  abertura do vídeo vindo do player (editor/inkterminal.js). Para abrir rápido e sem modo isolado
+  (XeOS): o ffprobe só é criado se usado (o editor não usa), o hash do vídeo importado lê só o
+  tamanho e 4 MB do começo e do fim, o núcleo do ffmpeg carrega 8 s depois da abertura e as prévias
+  dos filtros são de 160x160, uma por vez (o original fazia 39 de 1024x1024 de uma vez).
 
 Bibliotecas copiadas (cada uma com a própria licença, sem mudanças):
   @shoelace-style/shoelace 2.20.0 (MIT)       editor/lib/shoelace/

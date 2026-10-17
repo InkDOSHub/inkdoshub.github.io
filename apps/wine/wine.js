@@ -130,6 +130,31 @@
     });
   }
 
+  /* O Boxedwine roda só programas de 32 bits (x86). Devolve "x64"/"arm64" quando o programa é de
+     outro tipo. .exe: campo Machine do cabeçalho PE. .msi: a plataforma do pacote ("x64;1033"). */
+  function arquitetura(bytes, ext) {
+    try {
+      if (ext === "exe") {
+        if (bytes[0] !== 0x4d || bytes[1] !== 0x5a) return null;
+        var v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), pe = v.getUint32(0x3c, true);
+        if (pe + 6 > bytes.length || v.getUint32(pe, true) !== 0x4550) return null;
+        var m = v.getUint16(pe + 4, true);
+        return m === 0x8664 ? "x64" : m === 0xaa64 ? "arm64" : m === 0x14c ? "x86" : null;
+      }
+      if (ext === "msi") {
+        var t = new TextDecoder("latin1").decode(bytes.subarray(0, Math.min(bytes.length, 64e6)));
+        var r = /(?:^|[^A-Za-z0-9])(x64|Intel64|AMD64|Arm64)[,;]\d{1,5}(?:,\d{1,5})*(?![A-Za-z0-9])/.exec(t);
+        if (r) return /arm/i.test(r[1]) ? "arm64" : "x64";
+      }
+    } catch (_) {}
+    return null;
+  }
+  function recusar64(nome, arq) {
+    $("aviso").hidden = false;
+    $("aviso").textContent = "\"" + nome + "\" é um programa de 64 bits" + (arq === "arm64" ? " para ARM" : "") +
+      ". O Wine daqui só roda programas de 32 bits: procure no site do programa a versão de 32 bits (x86, \"win32\").";
+  }
+
   function adicionar(file) {
     if (!file) return;
     var ext = (file.name.match(/\.([^.]+)$/) || [])[1];
@@ -140,7 +165,11 @@
     }
     $("aviso").hidden = true;
     file.arrayBuffer().then(function (dados) {
-      if (ext !== "zip") return concluir(file, dados, ext, file.name);
+      if (ext !== "zip") {
+        var arq = arquitetura(new Uint8Array(dados), ext);
+        if (arq === "x64" || arq === "arm64") return recusar64(file.name, arq);
+        return concluir(file, dados, ext, file.name);
+      }
       var nomes = nomesNoZip(new Uint8Array(dados));
       var exes = (nomes || []).filter(function (n) { return /\.(exe|msi)$/i.test(n) && !/\/$/.test(n); });
       if (!exes.length) {

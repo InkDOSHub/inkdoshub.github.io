@@ -31,7 +31,9 @@
       var t = setInterval(function () { var v = fn(); if (v) { clearInterval(t); ok(v); } }, 200);
     });
   }
-  new Promise(function (ok) { setTimeout(ok, globalThis.crossOriginIsolated ? 0 : 2500); }).then(function () {
+  new Promise(function (ok) { var sw = navigator.serviceWorker;
+    // só espera quando o coi-serviceworker ainda pode recarregar a página (1ª visita com service worker)
+    setTimeout(ok, globalThis.crossOriginIsolated || !sw || sw.controller || !window.isSecureContext ? 0 : 2500); }).then(function () {
     return InkBiblioteca("inkterminal-video").listar();
   }).then(function (itens) {
     var item = itens.filter(function (i) { return String(i.id) === pendente; })[0];

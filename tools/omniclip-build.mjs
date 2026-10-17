@@ -77,8 +77,24 @@ for (const [de] of trocas) if (!usadas.has(de)) throw new Error("troca não apli
 {
   const f = path.join(OUT, "main.js");
   const s = fs.readFileSync(f, "utf8");
-  const n = s.replace(/ffprobe=new (\w+);/, "#inkFp=null;get ffprobe(){return this.#inkFp??=new $1};");
+  let n = s.replace(/ffprobe=new (\w+);/, "#inkFp=null;get ffprobe(){return this.#inkFp??=new $1};");
   if (n === s) throw new Error("troca não aplicada: ffprobe preguiçoso");
+  // Identificação do arquivo importado: o original lê o vídeo inteiro na memória para o SHA-256,
+  // o que trava o iPad com vídeos grandes. Aqui o hash usa o tamanho, os 4 MB do começo e os do fim.
+  let m = n.replace(/(async function \w+\((\w)\)\{let (\w)=)await \2\.arrayBuffer\(\)(,\w=await crypto\.subtle\.digest\("SHA-256",\3\))/,
+    "$1$2.size<=8388608?await $2.arrayBuffer():await new Blob([String($2.size),$2.slice(0,4194304),$2.slice($2.size-4194304)]).arrayBuffer()$4");
+  if (m === n) throw new Error("troca não aplicada: hash parcial");
+  // O núcleo do ffmpeg (31 MB) só serve para exportar: carrega 8 s depois, para não disputar com a
+  // abertura do editor e a importação do vídeo.
+  n = m.replace(/(this\.isLoading=this\.is_loading\.load\(async\(\)=>\{)(await this\.#\w+\(\)\}\))/,
+    "$1await new Promise(r=>setTimeout(r,8e3)),$2");
+  if (n === m) throw new Error("troca não aplicada: ffmpeg depois");
+  // Prévias dos filtros: o original desenha 39 prévias de 1024x1024 de uma vez (cada uma lida da
+  // GPU pixel a pixel), o que trava a abertura por vários segundos. Aqui são 160x160, uma por vez.
+  m = n.replace(/(for\(let (\w) in \w+\)\{)(let \w=await PIXI\.Assets\.load\([^)]*\),(\w)=new PIXI\.Sprite\(\w\);)/,
+    "$1await new Promise(r=>setTimeout(r,0));$3$4.width=$4.height=160;");
+  if (m === n) throw new Error("troca não aplicada: prévias dos filtros");
+  n = m;
   fs.writeFileSync(f, n);
 }
 
