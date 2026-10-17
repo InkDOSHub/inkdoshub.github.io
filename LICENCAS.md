@@ -14,6 +14,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | omniclip (editor de Vídeo) | MIT | copiado para `apps/video/editor/`, com as bibliotecas listadas em `apps/video/UPSTREAM-SOURCE.txt` |
 | Bibliotecas do omniclip: Shoelace, PixiJS, pixi-filters, opfs-tools, web-demuxer (código), lit, mp4box, wavesurfer.js, zip.js, coi-serviceworker | MIT ou BSD | |
 | mediainfo.js (leitura de dados do vídeo) | BSD-2-Clause | |
+| Apps do InkDOS (`inkdos/`) | MIT | cópia sem mudanças; as bibliotecas que vêm junto têm as licenças em `inkdos/licenses/`. O botão "Edit with ONLYOFFICE" abre os editores do site inkdos-tools.github.io, que não foram copiados |
 | v86 (emulador do terminal) | BSD-2-Clause | |
 | xterm.js | MIT | |
 

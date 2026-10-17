@@ -1,7 +1,7 @@
 # Tela inicial (index.html e inicio/)
 
-A tela inicial do InkTerminal é o único ponto de entrada. As ferramentas abrem em tela cheia
-dentro dela; os documentos do InkDOS abrem numa aba nova, no site do InkDOS.
+A tela inicial do InkTerminal é o único ponto de entrada. As ferramentas e os apps do InkDOS
+(cópia em `inkdos/`, veja `inkdos/UPSTREAM-SOURCE.txt`) abrem em tela cheia dentro dela.
 
 A antiga área de trabalho (`desktop/`) foi juntada aqui em 2026-10-17: `desktop/` só redireciona
 para a raiz.
@@ -25,8 +25,11 @@ O Safari não deixa uma página mandar a própria memória para o disco, e o iPa
 - Apps que salvam sozinhos (`salvaSozinho` em `apps.js`) são guardados sem perguntar. Os outros só depois de uma confirmação.
 - Um app pode avisar que sabe guardar o próprio estado incluindo `assets/gerenciador-app.js` e chamando `inkGerenciador.aoGuardar(fn)`. Antes de descarregar, a tela inicial manda `{tipo:"inkterminal:suspender"}`, espera `{tipo:"inkterminal:pronto"}` (até 20 s) e não pergunta mais nada. Se o app responder `{tipo:"inkterminal:manter", motivo}`, ele fica carregado; ao fechar, a pessoa vê o motivo e decide.
 
-Os pesos são estimativas: o Safari não informa quanta memória cada página usa. Os documentos do
-InkDOS ficam em outra aba e não entram na conta.
+Os pesos são estimativas: o Safari não informa quanta memória cada página usa.
+
+Os apps do InkDOS não usam `gerenciador-app.js`: quando os rascunhos de recuperação deles estão
+ligados (sem senha), a tela inicial grava o rascunho (`InkDOSWorkSafety`) antes de descarregar, e o
+InkDOS oferece "Recuperar" quando o app abre de novo. O botão Home deles volta para a tela inicial.
 
 ## Cópia offline (`offline.js`, `../sw-portal.js`, `manifesto.json`)
 

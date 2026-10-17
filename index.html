@@ -10,7 +10,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230d1117%22/%3E%3Cpath d=%22M8 10l6 6-6 6M16 22h8%22 stroke=%22%233fb950%22 stroke-width=%223%22 fill=%22none%22/%3E%3C/svg%3E">
 <script src="assets/tema.js"></script>
 <link rel="stylesheet" href="assets/home.css?v=6">
-<link rel="stylesheet" href="inicio/inicio.css?v=1">
+<link rel="stylesheet" href="inicio/inicio.css?v=2">
 </head>
 <body>
 <main class="home-shell">
@@ -60,24 +60,24 @@
       <span class="workspace-copy"><strong>Wine (teste)</strong><small>Programas de Windows no navegador, com o AbiWord para começar (Boxedwine).</small></span><span class="chevron">›</span></a>
   </section>
 
-  <h2 class="grupo">Documentos do InkDOS <small>editores ONLYOFFICE, abrem numa aba nova</small></h2>
-  <section class="workspace-grid" aria-label="Documentos do InkDOS">
-    <a class="workspace-card documentos" href="https://vfydr2m9wk-ops.github.io/InkDOS/apps/documents/index.html" target="_blank" rel="noopener"><span class="accent"></span>
+  <h2 class="grupo">Documentos <small>apps do InkDOS, com editores ONLYOFFICE</small></h2>
+  <section class="workspace-grid" aria-label="Documentos">
+    <a class="workspace-card documentos" data-app="documentos" href="inkdos/apps/documents/index.html?suite=1"><span class="accent"></span>
       <span class="app-icon"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span>
       <span class="workspace-copy"><strong>Documentos</strong><small>Textos do Word (DOCX); abre RTF e mostra DOC, ODT e Pages.</small></span><span class="chevron">›</span></a>
-    <a class="workspace-card planilhas" href="https://vfydr2m9wk-ops.github.io/InkDOS/apps/spreadsheets/index.html" target="_blank" rel="noopener"><span class="accent"></span>
+    <a class="workspace-card planilhas" data-app="planilhas" href="inkdos/apps/spreadsheets/index.html?suite=1"><span class="accent"></span>
       <span class="app-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg></span>
       <span class="workspace-copy"><strong>Planilhas</strong><small>Planilhas do Excel (XLSX); mostra XLS, ODS e Numbers.</small></span><span class="chevron">›</span></a>
-    <a class="workspace-card apresentacoes" href="https://vfydr2m9wk-ops.github.io/InkDOS/apps/presentations/index.html" target="_blank" rel="noopener"><span class="accent"></span>
+    <a class="workspace-card apresentacoes" data-app="apresentacoes" href="inkdos/apps/presentations/index.html?suite=1"><span class="accent"></span>
       <span class="app-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8M7 12l3-3 2 2 4-4"/></svg></span>
       <span class="workspace-copy"><strong>Apresentações</strong><small>Slides do PowerPoint (PPTX); mostra PPT, ODP e Keynote.</small></span><span class="chevron">›</span></a>
-    <a class="workspace-card pdf" href="https://vfydr2m9wk-ops.github.io/InkDOS/apps/pdf/index.html" target="_blank" rel="noopener"><span class="accent"></span>
+    <a class="workspace-card pdf" data-app="pdf" href="inkdos/apps/pdf/index.html?suite=1"><span class="accent"></span>
       <span class="app-icon"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17l2-2 2 2 2-3"/></svg></span>
       <span class="workspace-copy"><strong>PDF</strong><small>Ler, anotar e exportar cópias de PDF.</small></span><span class="chevron">›</span></a>
-    <a class="workspace-card texto" href="https://vfydr2m9wk-ops.github.io/InkDOS/apps/txt/index.html" target="_blank" rel="noopener"><span class="accent"></span>
+    <a class="workspace-card texto" data-app="texto" href="inkdos/apps/txt/index.html?suite=1"><span class="accent"></span>
       <span class="app-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h10M4 18h7"/></svg></span>
       <span class="workspace-copy"><strong>Texto simples</strong><small>Criar e editar arquivos de texto (TXT).</small></span><span class="chevron">›</span></a>
-    <a class="workspace-card epub" href="https://vfydr2m9wk-ops.github.io/InkDOS/apps/epub/index.html" target="_blank" rel="noopener"><span class="accent"></span>
+    <a class="workspace-card epub" data-app="epub" href="inkdos/apps/epub/index.html?suite=1"><span class="accent"></span>
       <span class="app-icon"><svg viewBox="0 0 24 24"><path d="M2.5 5.5C5 4 8.5 4 12 6c3.5-2 7-2 9.5-.5V19c-2.5-1.5-6-1.5-9.5.5-3.5-2-7-2-9.5-.5z"/><path d="M12 6v13.5"/></svg></span>
       <span class="workspace-copy"><strong>Leitor EPUB</strong><small>Livros EPUB com sumário, temas e anotações.</small></span><span class="chevron">›</span></a>
   </section>
@@ -96,7 +96,7 @@
   <div class="linha"><span>Limite</span><span class="opcoes" id="limite" data-nome="limite"><button type="button" value="600">600 MB</button><button type="button" value="800">800 MB</button><button type="button" value="1000">1 GB</button><button type="button" value="1300">1,3 GB</button><button type="button" value="1600">1,6 GB</button></span></div>
   <div class="linha"><span>Apps carregados ao mesmo tempo</span><span class="opcoes" id="max-janelas" data-nome="maxJanelas"><button type="button" value="1">1</button><button type="button" value="2">2</button><button type="button" value="3">3</button><button type="button" value="4">4</button><button type="button" value="6">6</button></span></div>
   <ul class="lista" id="lista-memoria"></ul>
-  <p class="nota">Os valores são estimativas por app: o Safari não informa quanto cada página usa de verdade. Os documentos do InkDOS abrem em outra aba e não entram nesta conta.</p>
+  <p class="nota">Os valores são estimativas por app: o Safari não informa quanto cada página usa de verdade.</p>
 </div>
 
 <div class="painel" id="painel-offline" hidden>
@@ -107,7 +107,7 @@
     <button class="botao" id="baixar-tudo" type="button">Baixar tudo</button>
     <button class="botao secundario" id="apagar-offline" type="button">Apagar cópia</button>
   </div>
-  <p class="nota">Tudo fica guardado neste aparelho, no armazenamento do site. Depois de baixar, a tela inicial e as ferramentas abrem mesmo sem rede. O Linux só acessa a internet quando há rede. Os documentos do InkDOS ficam fora desta cópia.</p>
+  <p class="nota">Tudo fica guardado neste aparelho, no armazenamento do site. Depois de baixar, a tela inicial e as ferramentas abrem mesmo sem rede. O Linux só acessa a internet quando há rede.</p>
 </div>
 
 <div class="dialogo-fundo" id="dialogo" hidden>
@@ -118,9 +118,9 @@
   </div>
 </div>
 
-<script src="inicio/apps.js?v=1"></script>
+<script src="inicio/apps.js?v=2"></script>
 <script src="inicio/gerenciador.js?v=2"></script>
 <script src="inicio/offline.js?v=2"></script>
-<script src="inicio/inicio.js?v=1"></script>
+<script src="inicio/inicio.js?v=2"></script>
 </body>
 </html>

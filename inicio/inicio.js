@@ -15,6 +15,9 @@
   var SESSAO = "inkterminal-inicio";
   var TITULO = document.title;
   var RAIZ = new URL("./", location.href).href;
+  // endereços que voltam para esta tela: a raiz e a tela inicial do InkDOS copiado (botão Home dele)
+  var INICIOS = [RAIZ, RAIZ + "index.html", RAIZ + "inkdos/", RAIZ + "inkdos/index.html"];
+  function ehInicio(u) { return INICIOS.indexOf(u.split("#")[0].split("?")[0]) >= 0; }
   var lista = [];
   var ativo = null;
 
@@ -37,6 +40,7 @@
     this.app = a;
     this.carregada = false;
     this.suportaAviso = false;
+    this.rascunhosInkdos = null;
     this.guardando = false;
     this.usadoEm = Date.now();
     this.el = document.createElement("div");
@@ -68,6 +72,7 @@
     j.iframe = null;
     j.carregada = false;
     j.suportaAviso = false;
+    j.rascunhosInkdos = null;
     // um app guardado enquanto aparece na tela volta para a tela inicial
     if (ativo === j) esconder();
   };
@@ -149,24 +154,43 @@
      (sem descarregar o app), e um app que navegou para a própria tela inicial é fechado. */
   function ajustar(j, f) {
     var doc, win;
+    j.rascunhosInkdos = null;
     try { doc = f.contentDocument; win = f.contentWindow; } catch (_) { return; }
     if (!doc || !doc.documentElement || !win) return;
     var url = "";
-    try { url = win.location.href.split("#")[0].split("?")[0]; } catch (_) {}
-    if (url === RAIZ || url === RAIZ + "index.html") {
+    try { url = win.location.href; } catch (_) {}
+    if (ehInicio(url)) {
       remover(j);
       return;
     }
     doc.addEventListener("click", function (e) {
       var a = e.target && e.target.closest && e.target.closest("a[href]");
       if (!a) return;
-      var destino = a.href.split("#")[0].split("?")[0];
-      if (destino !== RAIZ && destino !== RAIZ + "index.html") return;
+      if (!ehInicio(a.href)) return;
+      // o app continua aberto: o clique não chega aos handlers dele (alguns navegariam para fora)
       e.preventDefault();
+      e.stopPropagation();
       voltarInicio();
     }, true);
     try { win.addEventListener("pointerdown", function () { j.usadoEm = Date.now(); }, true); } catch (_) {}
+    // Os apps do InkDOS guardam rascunhos de recuperação (inkdos/shared/work-safety.js). Com eles
+    // ligados, o app pode sair da memória sem perguntar: antes, a tela inicial grava o rascunho, e o
+    // InkDOS oferece "Recuperar" quando o app abre de novo.
+    setTimeout(function () {
+      try {
+        var ws = win.InkDOSWorkSafety;
+        if (ws && ws.draftsEnabled && ws.draftsMode !== "password" && ws._test && ws._test.handles) { j.rascunhosInkdos = ws; j.suportaAviso = true; G.aoMudar(); }
+      } catch (_) {}
+    }, 1500);
   }
+
+  var avisarOriginal = G.avisar;
+  G.avisar = function (j) {
+    if (!j.rascunhosInkdos) return avisarOriginal(j);
+    var ws = j.rascunhosInkdos;
+    return Promise.all(ws._test.handles.map(function (h) { return Promise.resolve(h.snapshotNow()).catch(function () {}); }))
+      .then(function () { return "pronto"; }, function () { return "sem-resposta"; });
+  };
 
   addEventListener("popstate", function () {
     var id = location.hash.slice(1);
@@ -175,7 +199,7 @@
     else esconder();
   });
 
-  // Cartões das ferramentas (os do InkDOS são links normais para outra aba)
+  // Cartões
   Array.prototype.forEach.call(document.querySelectorAll("[data-app]"), function (c) {
     c.addEventListener("click", function (e) {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
