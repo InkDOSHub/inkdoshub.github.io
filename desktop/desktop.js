@@ -94,7 +94,7 @@
       var li = document.createElement("li");
       li.innerHTML = "<span></span><small></small>";
       li.firstChild.textContent = j.app.nome;
-      li.lastChild.textContent = j.carregada ? "carregada, ~" + j.app.peso + " MB" + (G.podeSairSemPerguntar(j) ? ", salva sozinha" : "") : "guardada, 0 MB";
+      li.lastChild.textContent = j.carregada ? "carregada, ~" + G.peso(j.app) + " MB" + (G.podeSairSemPerguntar(j) ? ", salva sozinha" : "") : "guardada, 0 MB";
       if (j.carregada) {
         var b = document.createElement("button");
         b.type = "button";

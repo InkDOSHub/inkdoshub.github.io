@@ -3,7 +3,9 @@
    salvaSozinho: o app guarda o próprio estado o tempo todo, então pode ser descarregado sem perguntar.
    externo: abre numa aba nova e nunca dentro de uma janela (o InkDOS fica isolado em outro site). */
 window.INK_APPS = [
-  { id: "terminal", nome: "Linux terminal", url: "../terminal/?embed=1", peso: 350, salvaSozinho: false,
+  { id: "terminal", nome: "Linux terminal", url: "../terminal/?embed=1", salvaSozinho: false,
+    // o modo "limitada" do terminal (640 MB + swap) deixa a aba perto de 1 GB; o normal usa 256 MB no Linux
+    peso: function () { var m; try { m = localStorage.getItem("inkterminal-memoria"); } catch (_) {} return m === "limitada" ? 900 : 350; },
     descricao: "Alpine Linux no navegador.",
     icone: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 9l3 3-3 3M12.5 15H17"/>' },
   { id: "foto", nome: "Fotos", url: "../apps/foto/", peso: 180, salvaSozinho: false,

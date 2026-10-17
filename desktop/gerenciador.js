@@ -11,7 +11,7 @@
    usam esse aviso e não salvam sozinhos só são descarregados depois de você confirmar. */
 (function () {
   "use strict";
-  var CHAVE = "inkterminal-memoria";
+  var CHAVE = "inkterminal-desktop-memoria"; // "inkterminal-memoria" é do terminal (modo normal/limitada)
   var cfg = { limite: 1000, maxJanelas: 3 };
   try { Object.assign(cfg, JSON.parse(localStorage.getItem(CHAVE) || "{}")); } catch (_) {}
 
@@ -26,7 +26,9 @@
     definir: function (nome, valor) { cfg[nome] = Number(valor); salvarCfg(); G.aoMudar(); },
 
     carregadas: function () { return G.janelas().filter(function (j) { return j.carregada; }); },
-    emUso: function () { return G.carregadas().reduce(function (s, j) { return s + j.app.peso; }, 0); },
+    emUso: function () { return G.carregadas().reduce(function (s, j) { return s + G.peso(j.app); }, 0); },
+
+    peso: function (a) { return typeof a.peso === "function" ? a.peso() : a.peso; },
 
     podeSairSemPerguntar: function (j) { return !!(j.app.salvaSozinho || j.suportaAviso); },
 
@@ -66,7 +68,7 @@
       var self = this;
       function falta() {
         var carregadas = G.carregadas().filter(function (j) { return j !== nova; });
-        var total = carregadas.reduce(function (s, j) { return s + j.app.peso; }, 0) + nova.app.peso;
+        var total = carregadas.reduce(function (s, j) { return s + G.peso(j.app); }, 0) + G.peso(nova.app);
         return total > cfg.limite || carregadas.length + 1 > cfg.maxJanelas;
       }
       function candidatas(pular) {

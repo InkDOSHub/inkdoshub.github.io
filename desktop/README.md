@@ -14,7 +14,7 @@ Portal em forma de desktop para o iPad (Safari e XeOS): os apps do InkTerminal a
 
 O Safari não deixa uma página mandar a própria memória para o disco, e o iPadOS fecha a aba quando ela passa do limite. Por isso o gerenciador controla janelas inteiras:
 
-- Cada app tem um peso estimado em MB (`apps.js`). A soma dos apps carregados fica abaixo do **limite** (padrão 1 GB) e do número máximo de **janelas carregadas** (padrão 3); os dois se ajustam no botão de memória do topo.
+- Cada app tem um peso estimado em MB (`apps.js`). A soma dos apps carregados fica abaixo do **limite** (padrão 1 GB; o terminal no modo de memória limitada conta como ~900 MB) e do número máximo de **janelas carregadas** (padrão 3); os dois se ajustam no botão de memória do topo.
 - Quando falta espaço, a janela parada há mais tempo é guardada: o iframe sai da página (o único jeito garantido de o Safari devolver a memória) e a janela mostra "Abrir de novo".
 - Apps que salvam sozinhos (`salvaSozinho` em `apps.js`) são guardados sem perguntar. Os outros só depois de uma confirmação.
 - Um app pode avisar que sabe guardar o próprio estado incluindo `assets/gerenciador-app.js` e chamando `inkGerenciador.aoGuardar(fn)`. Antes de descarregar, a área de trabalho manda `{tipo:"inkterminal:suspender"}`, espera `{tipo:"inkterminal:pronto"}` (até 3 s) e não pergunta mais nada.
