@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Música · InkTerminal</title>
 <script src="../../assets/tema.js"></script>
-<link rel="stylesheet" href="../../assets/barra.css">
-<link rel="stylesheet" href="../../assets/midia.css">
+<link rel="stylesheet" href="../../assets/barra.css?v=2">
+<link rel="stylesheet" href="../../assets/midia.css?v=2">
 <style>
   .agora{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:20px clamp(16px,4vw,48px);min-height:0}
   .capa{width:min(220px,36vh);aspect-ratio:1;border-radius:18px;background:color-mix(in srgb,#7655c7 14%,var(--card));border:1px solid var(--border);display:grid;place-items:center;align-self:center;overflow:hidden}
@@ -17,7 +17,8 @@
   .faixa small{display:block;margin-top:4px;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   audio{width:100%;max-width:720px;align-self:center}
   .ctl{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
-  .ctl .ink-btn{min-width:46px;font-size:16px}
+  .ctl .ink-btn{min-width:48px;min-height:40px}
+  .ctl #tocar{min-width:64px}
   #eq{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;align-items:end;margin:6px 0 4px}
   #eq div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
   #eq input{writing-mode:vertical-lr;direction:rtl;width:26px;height:120px;accent-color:var(--accent)}
@@ -27,7 +28,7 @@
 </head>
 <body class="ink-app">
 <header class="ink-bar">
-  <a class="ink-home" href="../../">‹ InkTerminal</a>
+  <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
   <span class="ink-title">Música</span>
   <span class="ink-spacer"></span>
   <button class="ink-btn" id="abrir">Abrir músicas</button>
@@ -41,11 +42,11 @@
         <div class="faixa"><strong id="titulo">Nenhuma música</strong><small id="sub">Toque em Abrir músicas para escolher arquivos do iPad</small></div>
         <audio id="audio" controls preload="metadata"></audio>
         <div class="ctl">
-          <button class="ink-btn" id="ant" title="Anterior">⏮</button>
-          <button class="ink-btn" id="tocar" title="Tocar ou pausar">▶</button>
-          <button class="ink-btn" id="prox" title="Próxima">⏭</button>
-          <button class="ink-btn" id="aleat" title="Ordem aleatória">🔀</button>
-          <button class="ink-btn" id="rep" title="Repetir">🔁</button>
+          <button class="ink-btn" id="ant" title="Anterior" aria-label="Anterior" data-icone="faixa-anterior"></button>
+          <button class="ink-btn" id="tocar" title="Tocar ou pausar" aria-label="Tocar ou pausar" data-icone="play"></button>
+          <button class="ink-btn" id="prox" title="Próxima" aria-label="Próxima" data-icone="faixa-proxima"></button>
+          <button class="ink-btn" id="aleat" title="Ordem aleatória" aria-label="Ordem aleatória" data-icone="aleatorio"></button>
+          <button class="ink-btn" id="rep" title="Repetir" aria-label="Repetir" data-icone="repetir"></button>
         </div>
       </div>
       <section class="md-panel ajustes md-hide" id="ajustes">
@@ -66,6 +67,7 @@
 </main>
 <input id="arquivos" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.flac,.opus" multiple hidden>
 <script src="../../assets/midia.js"></script>
-<script src="app.js"></script>
+<script src="../../assets/icones.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

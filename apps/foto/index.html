@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Fotos · InkTerminal</title>
 <script src="../../assets/tema.js"></script>
-<link rel="stylesheet" href="../../assets/barra.css">
-<link rel="stylesheet" href="../../assets/midia.css">
+<link rel="stylesheet" href="../../assets/barra.css?v=2">
+<link rel="stylesheet" href="../../assets/midia.css?v=2">
 <style>
   .grade{flex:1;overflow:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;align-content:start;-webkit-overflow-scrolling:touch}
   .grade button{position:relative;padding:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card);aspect-ratio:1;cursor:pointer}
@@ -26,7 +26,7 @@
 </head>
 <body class="ink-app">
 <header class="ink-bar">
-  <a class="ink-home" href="../../">‹ InkTerminal</a>
+  <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
   <span class="ink-title">Fotos</span>
   <span class="ink-status" id="status"></span>
   <span class="ink-spacer"></span>
@@ -42,13 +42,13 @@
     <section class="md-stage md-hide" id="tver">
       <div class="ver ajustar" id="ver"><img id="foto" alt=""></div>
       <div class="info">
-        <button class="ink-btn" id="ant" title="Anterior">‹</button>
-        <button class="ink-btn" id="prox" title="Próxima">›</button>
+        <button class="ink-btn" id="ant" title="Anterior" aria-label="Anterior" data-icone="anterior"></button>
+        <button class="ink-btn" id="prox" title="Próxima" aria-label="Próxima" data-icone="proxima"></button>
         <strong id="titulo"></strong><small id="sub"></small>
-        <button class="ink-btn" id="zmenos" title="Diminuir">−</button>
+        <button class="ink-btn" id="zmenos" title="Diminuir" aria-label="Diminuir" data-icone="zoom-menos"></button>
         <button class="ink-btn" id="zajustar">Ajustar</button>
-        <button class="ink-btn" id="zmais" title="Aumentar">+</button>
-        <button class="ink-btn" id="girar" title="Girar">⟳</button>
+        <button class="ink-btn" id="zmais" title="Aumentar" aria-label="Aumentar" data-icone="zoom-mais"></button>
+        <button class="ink-btn" id="girar" title="Girar" aria-label="Girar" data-icone="girar"></button>
         <button class="ink-btn" id="partilhar">Salvar</button>
         <button class="ink-btn" id="editar">Editar</button>
         <button class="ink-btn" id="apagar" title="Tirar desta galeria">Tirar</button>
@@ -67,6 +67,7 @@
 </main>
 <input id="arquivos" type="file" accept="image/*" multiple hidden>
 <script src="../../assets/midia.js"></script>
-<script src="app.js"></script>
+<script src="../../assets/icones.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

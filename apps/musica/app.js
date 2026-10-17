@@ -32,8 +32,8 @@ function desenhar() {
   faixas.forEach((f, i) => {
     const li = document.createElement("li");
     if (i === atual) li.className = "atual";
-    li.innerHTML = '<span class="n"></span><span class="t"></span><span class="d"></span><button class="x" title="Tirar da lista">×</button>';
-    li.querySelector(".n").textContent = i === atual ? "▶" : i + 1;
+    li.innerHTML = '<span class="n"></span><span class="t"></span><span class="d"></span><button class="x" title="Tirar da lista" aria-label="Tirar da lista">' + inkIcone("fechar") + '</button>';
+    if (i === atual) li.querySelector(".n").innerHTML = inkIcone("tocando"); else li.querySelector(".n").textContent = i + 1;
     li.querySelector(".t").textContent = nomeLimpo(f.nome);
     li.querySelector(".d").textContent = f.duracao ? inkTempo(f.duracao) : "";
     li.addEventListener("click", (e) => {
@@ -120,10 +120,10 @@ $("aleat").onclick = () => { aleat = !aleat; $("aleat").classList.toggle("on", a
 $("rep").onclick = () => {
   rep = rep === "nao" ? "todas" : rep === "todas" ? "uma" : "nao";
   $("rep").classList.toggle("on", rep !== "nao");
-  $("rep").textContent = rep === "uma" ? "🔂" : "🔁";
+  $("rep").innerHTML = inkIcone(rep === "uma" ? "repetir-uma" : "repetir");
 };
-audio.addEventListener("play", () => ($("tocar").textContent = "⏸"));
-audio.addEventListener("pause", () => ($("tocar").textContent = "▶"));
+audio.addEventListener("play", () => ($("tocar").innerHTML = inkIcone("pause")));
+audio.addEventListener("pause", () => ($("tocar").innerHTML = inkIcone("play")));
 audio.addEventListener("ended", () => proxima(false));
 audio.addEventListener("ratechange", () => { if (Math.abs(audio.playbackRate - cfg.vel) > 0.001) { cfg.vel = audio.playbackRate; mostrarAjustes(); salvar(); } });
 if ("mediaSession" in navigator) {

@@ -15,8 +15,8 @@ function desenhar() {
   itens.forEach((v, i) => {
     const li = document.createElement("li");
     if (i === atual) li.className = "atual";
-    li.innerHTML = '<span class="n"></span><span class="t"></span><span class="d"></span><button class="x" title="Tirar da lista">×</button>';
-    li.querySelector(".n").textContent = i === atual ? "▶" : i + 1;
+    li.innerHTML = '<span class="n"></span><span class="t"></span><span class="d"></span><button class="x" title="Tirar da lista" aria-label="Tirar da lista">' + inkIcone("fechar") + '</button>';
+    if (i === atual) li.querySelector(".n").innerHTML = inkIcone("play"); else li.querySelector(".n").textContent = i + 1;
     li.querySelector(".t").textContent = v.nome;
     li.querySelector(".d").textContent = v.duracao ? inkTempo(v.duracao) : inkTamanho(v.tamanho);
     li.onclick = (e) => (e.target.classList.contains("x") ? tirar(i) : abrir(i, true));
