@@ -10,10 +10,11 @@ Wine (teste) do InkTerminal
   https://gitlab.winehq.org/wine/wine; TinyCore: http://tinycorelinux.net).
   Dividido em fs/*.partNN (o GitHub não aceita arquivos acima de 100 MB); partes.js junta as partes.
   sha256 do .zip inteiro: 27797aa3d063f840389901349006f628e67a6e7d811a16cfb455b101e697a1ec
-- AbiWord (2015) para Windows, de http://www.boxedwine.org/demos/abiword.zip, licença GPL-2.0+,
-  código-fonte em https://gitlab.gnome.org/World/AbiWord
 - index.html, wine.js, partes.js e inkterminal-wine.js: feitos aqui (programas da pessoa no D:,
   teclado e clique direito no iPad). emulador.html carrega inkterminal-wine.js depois do shell.
+- area/area.exe: área de trabalho feita aqui (area/area.c, compilada com mingw-w64 por
+  tools/wine-area.sh). inkterminal-wine.js troca o "-mount_drive" por "-mount ... /home/username/d"
+  porque o Boxedwine só deixa o usuário do Wine gravar em /home, /tmp e /var.
 
 sha256 dos arquivos guardados:
   dd7f8b64b7455e9ec906c93372f1a8c5084255f58494430abfee4711509c62e9  boxedwine.js
@@ -21,7 +22,6 @@ sha256 dos arquivos guardados:
   a89bb2624a114005675c85a12af52cdd0d4a4156fa501e478afa4545071d45bf  boxedwine-shell.js
   45b4658ca0666203c08ce1c55022702a03a7355a4134b8d23bc95cee5beb8e1e  fsfs.js
   f3548956400f61c2d7f400e34166a5119c5167f4a3215e07c95c5cf95eea69a3  boxedwine.css
-  84c0ca13d545fdd5b3458f92371371bb16b5dda33dcfd77bceed1f013d388ab7  programas/abiword.zip
   4c7cb6764f5080fad005d28cac9e42699a9e029a2da91b90f80bc898b83efe30  fs/TinyCore15Wine11.0.zip.part00
   e2239a9f92e97a833e29595aa17a4553fe39865c9a422b83c325c627d3884ca6  fs/TinyCore15Wine11.0.zip.part01
   a1537b1a084a4ea939e962f6cbcdd83d3e762e28f6d24d1c5a008e51ff6933fc  fs/TinyCore15Wine11.0.zip.part02

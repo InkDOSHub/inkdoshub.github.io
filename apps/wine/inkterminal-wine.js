@@ -1,30 +1,18 @@
 /* Partes do InkTerminal dentro do emulador (emulador.html), carregadas depois do boxedwine-shell.js.
 
-   1. Programas da pessoa: index.html guarda o .exe, .msi ou .zip no IndexedDB "inkterminal-wine"
-      (loja "entrada") e abre o emulador com ?ink-programa=<id>. Antes de o Wine ligar, o arquivo é
-      gravado no disco D: (D:\Programas\<pasta>, que fica guardado no aparelho) e vira o programa a
-      abrir. Um .zip é extraído ali. Depois disso a entrada é apagada: o programa mora no D:.
-   2. Toque no iPad: index.html manda {tipo:"wine:teclado"} para abrir o teclado do iPad e
-      {tipo:"wine:direito", ligado} para o próximo toque valer como clique com o botão direito. */
+   1. Área de trabalho: o Wine sempre abre numa área de trabalho do tamanho da tela (?ink-tela=LxA),
+      com a nossa área de trabalho (area/area.exe, guardada em D:\.inkterminal) por baixo das
+      janelas: fundo azul e um ícone por programa instalado. Ela grava D:\.inkterminal\pronto quando
+      aparece; esta página avisa a de fora para tirar o aviso de carregamento.
+   2. Arquivos recebidos (instaladores): index.html guarda o .exe, .msi ou .zip no IndexedDB
+      "inkterminal-wine" (loja "entrada") e abre o emulador com ?ink-entrada=<id>, ou, com o Wine já
+      aberto, manda {tipo:"wine:arquivo"}. O arquivo vai para o D: e o caminho dele para
+      D:\.inkterminal\abrir.txt, que a área de trabalho abre.
+   3. Toque no iPad: {tipo:"wine:teclado"} mostra o teclado e {tipo:"wine:direito", ligado} faz o
+      próximo toque valer como clique com o botão direito. */
 (function () {
   "use strict";
   var q = new URLSearchParams(location.search);
-  var D = "/home/username/.wine/dosdevices/d:";
-
-  function lerEntrada(id) {
-    return new Promise(function (ok) {
-      var req = indexedDB.open("inkterminal-wine", 1);
-      req.onupgradeneeded = function () { req.result.createObjectStore("entrada"); };
-      req.onerror = function () { ok(null); };
-      req.onsuccess = function () {
-        var db = req.result, tx = db.transaction("entrada", "readwrite"), st = tx.objectStore("entrada"), get = st.get(id);
-        get.onsuccess = function () { ok(get.result || null); st.delete(id); };
-        get.onerror = function () { ok(null); };
-        tx.oncomplete = function () { db.close(); };
-      };
-    });
-  }
-
   /* Lê um .zip (só "guardado" e "deflate", os dois que os .zip comuns usam). */
   function extrair(bytes) {
     var v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), fim = -1;
@@ -60,60 +48,186 @@
     var dir = base;
     partes.forEach(function (x) { try { FS.mkdir(dir + "/" + x); } catch (_) {} dir += "/" + x; });
     if (arq) { try { FS.unlink(dir + "/" + arq); } catch (_) {} FS.writeFile(dir + "/" + arq, dados); }
+    marcar(dir);
+  }
+  /* O Boxedwine guarda a lista de cada pasta do D: que já leu e não vê arquivos que a página
+     grava depois. Cada pasta mexida fica marcada, e avisarWine() manda o Boxedwine reler. */
+  var marcadas = {};
+  function marcar(dir) {
+    var raiz = Config.d_drive;
+    if (dir.indexOf(raiz) !== 0) return;
+    var rel = dir.slice(raiz.length).replace(/^\/+|\/+$/g, "");
+    marcadas["."] = 1;
+    var partes = rel ? rel.split("/") : [];
+    for (var i = 1; i <= partes.length; i++) marcadas[partes.slice(0, i).join("/")] = 1;
+  }
+  function avisarWine() {
+    var l = Object.keys(marcadas).sort();
+    marcadas = {};
+    if (!l.length || typeof Module === "undefined" || typeof Module.ccall !== "function") return;
+    try { Module.ccall("boxedwineHostFolderSyncDirectories", null, ["string", "string"], [D_GUEST, l.join("\n")]); }
+    catch (e) { console.error("InkTerminal: reler D:", e); }
+  }
+  function existe(c) { try { return FS.analyzePath(c).exists; } catch (_) { return false; } }
+  function pasta(c) { try { FS.mkdirTree(c); } catch (_) {} marcar(c); }
+  function nomeLivre(base, nome) {
+    var n = nome, i = 2, ponto = nome.lastIndexOf(".");
+    while (existe(base + "/" + n)) n = (ponto > 0 ? nome.slice(0, ponto) : nome) + " (" + i++ + ")" + (ponto > 0 ? nome.slice(ponto) : "");
+    return n;
+  }
+  function limpo(nome) { return String(nome).replace(/[\\/:*?"<>|]+/g, "_").replace(/^[ .]+|[ .]+$/g, "").slice(0, 80) || "programa"; }
+  function ehInstalador(nome) { return /(^|[\/_ .-])(setup|install|instal|installer|instalador)[^\/]*\.(exe|msi)$/i.test(nome) || /\.msi$/i.test(nome); }
+  function arquitetura(b) {
+    try {
+      var v = new DataView(b.buffer, b.byteOffset, b.byteLength), pe = v.getUint32(0x3c, true);
+      if (b[0] !== 0x4d || b[1] !== 0x5a || v.getUint32(pe, true) !== 0x4550) return null;
+      var m = v.getUint16(pe + 4, true);
+      return m === 0x8664 ? "x64" : m === 0xaa64 ? "arm64" : null;
+    } catch (_) { return null; }
   }
 
-  function instalar(e) {
-    // e: {nome, pasta, exe (caminho dentro da pasta), tipo: "exe"|"msi"|"zip", dados: ArrayBuffer}
-    var base = Config.d_drive + "/Programas";
-    try { FS.mkdir(base); } catch (_) {}
-    base += "/" + e.pasta;
-    try { FS.mkdir(base); } catch (_) {}
-    var bytes = new Uint8Array(e.dados);
-    var feito = e.tipo === "zip" ? extrair(bytes).then(function (l) {
-      l.forEach(function (x) { if (x.pasta) gravar(base, x.nome, null); else gravar(base, x.nome, x.dados); });
-    }) : Promise.resolve(gravar(base, e.exe, bytes));
-    return feito.then(function () {
-      // o Boxedwine só roda programas de 32 bits: avisa logo se o .exe escolhido é de 64
-      try {
-        var b = FS.readFile(base + "/" + e.exe.split("/").filter(Boolean).join("/"), { encoding: "binary" });
-        var v = new DataView(b.buffer, b.byteOffset, b.byteLength), pe = v.getUint32(0x3c, true);
-        var m = b[0] === 0x4d && b[1] === 0x5a && v.getUint32(pe, true) === 0x4550 ? v.getUint16(pe + 4, true) : 0;
-        if ((m === 0x8664 || m === 0xaa64) && window.parent !== window) {
-          window.parent.postMessage({ tipo: "wine:erro", texto: "\"" + e.exe.split("/").pop() + "\" é de 64 bits, e o Wine daqui só roda programas de 32 bits. Procure a versão de 32 bits (x86)." }, location.origin);
+  /* Atalho .lnk mínimo (MS-SHLLINK): cabeçalho, LinkInfo com o caminho local e a pasta de trabalho. */
+  function criarLnk(alvo, pastaTrabalho) {
+    var enc = function (s) { var b = []; for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i); b.push(c < 256 ? c : 63); } return b; };
+    var u16 = function (s) { var b = []; for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i); b.push(c & 255, c >> 8); } return b; };
+    var le = function (n, bytes) { var b = []; for (var i = 0; i < bytes; i++) { b.push(n & 255); n = Math.floor(n / 256); } return b; };
+    var cab = [].concat(le(0x4c, 4), [0x01, 0x14, 0x02, 0, 0, 0, 0, 0, 0xc0, 0, 0, 0, 0, 0, 0, 0x46],
+      le(0x02 | 0x10 | 0x80, 4), le(0x20, 4), le(0, 8), le(0, 8), le(0, 8), le(0, 4), le(0, 4), le(1, 4), le(0, 2), le(0, 2), le(0, 4), le(0, 4));
+    var volume = [].concat(le(0x11, 4), le(3, 4), le(0, 4), le(0x10, 4), [0]);
+    var base = enc(alvo).concat([0]), offBase = 0x1c + volume.length, offSuf = offBase + base.length;
+    var info = [].concat(le(offSuf + 1, 4), le(0x1c, 4), le(1, 4), le(0x1c, 4), le(offBase, 4), le(0, 4), le(offSuf, 4), volume, base, [0]);
+    return new Uint8Array([].concat(cab, info, le(pastaTrabalho.length, 2), u16(pastaTrabalho), le(0, 4)));
+  }
+
+  var INK = function () { return Config.d_drive + "/.inkterminal"; };
+  function pedirAbertura(caminhoWin) {
+    pasta(INK());
+    var antes = existe(INK() + "/abrir.txt") ? new TextDecoder().decode(FS.readFile(INK() + "/abrir.txt")) : "";
+    FS.writeFile(INK() + "/abrir.txt", new TextEncoder().encode(antes + caminhoWin + "\r\n"));
+    marcar(INK());
+  }
+
+  /* Guarda um arquivo recebido no D: e pede para a área de trabalho abri-lo.
+     e: {nome, dados: ArrayBuffer}. Devolve uma frase para o aviso da página de fora. */
+  function receberArquivo(e) {
+    var bytes = new Uint8Array(e.dados), nome = limpo(e.nome), ext = (nome.match(/\.([^.]+)$/) || [])[1];
+    ext = ext ? ext.toLowerCase() : "";
+    if (ext === "exe" && arquitetura(bytes)) return Promise.resolve("\"" + nome + "\" é de 64 bits, e o Wine daqui só roda programas de 32 bits. Procure a versão de 32 bits (x86).");
+    if (ext === "zip") {
+      var base = Config.d_drive + "/Programas", dir = nomeLivre(base, nome.replace(/\.zip$/i, ""));
+      pasta(base + "/" + dir);
+      return extrair(bytes).then(function (l) {
+        var exes = [];
+        l.forEach(function (x) { if (x.pasta) gravar(base + "/" + dir, x.nome, null); else { gravar(base + "/" + dir, x.nome, x.dados); if (/\.(exe|msi)$/i.test(x.nome)) exes.push(x.nome); } });
+        var win = "D:\\Programas\\" + dir;
+        var inst = exes.filter(ehInstalador).sort(function (a, b) { return a.split("/").length - b.split("/").length; })[0];
+        if (inst) { pedirAbertura(win + "\\" + inst.replace(/\//g, "\\")); return "Abrindo o instalador de " + nome + "…"; }
+        var programas = exes.filter(function (x) { return /\.exe$/i.test(x); });
+        if (programas.length === 1) {
+          var alvo = win + "\\" + programas[0].replace(/\//g, "\\");
+          criarAtalho(programas[0].split("/").pop().replace(/\.exe$/i, ""), alvo);
+          pedirAbertura(alvo);
+          return nome + " está em D:\\Programas, com um atalho na área de trabalho.";
         }
-      } catch (_) {}
-      // grava no IndexedDB já (o IDBFS também grava sozinho, mas sem pressa)
-      return new Promise(function (ok) { FS.syncfs(false, function () { ok(); }); });
+        criarAtalho(dir, win);
+        pedirAbertura(win);
+        return nome + " foi extraído em D:\\Programas\\" + dir + ".";
+      });
+    }
+    if (ext !== "exe" && ext !== "msi") return Promise.resolve("\"" + nome + "\" não é um programa do Windows.");
+    var instalador = ehInstalador(nome) || ext === "msi";
+    var raiz = instalador ? "Recebidos" : "Programas";
+    var destino = Config.d_drive + "/" + raiz;
+    pasta(destino);
+    var arq = nomeLivre(destino, nome);
+    FS.writeFile(destino + "/" + arq, bytes);
+    marcar(destino);
+    var caminho = "D:\\" + raiz + "\\" + arq;
+    if (!instalador) criarAtalho(arq.replace(/\.exe$/i, ""), caminho);
+    pedirAbertura(caminho);
+    return Promise.resolve(instalador ? "Abrindo o instalador " + arq + "…" : arq + " está em D:\\Programas, com um atalho na área de trabalho.");
+  }
+  function criarAtalho(nome, alvoWin) {
+    pasta(INK() + "/atalhos");
+    var dirTrab = /\.\w{2,4}$/.test(alvoWin) ? alvoWin.slice(0, alvoWin.lastIndexOf("\\")) : alvoWin;
+    FS.writeFile(INK() + "/atalhos/" + limpo(nome) + ".lnk", criarLnk(alvoWin, dirTrab));
+    marcar(INK() + "/atalhos");
+  }
+
+  function lerEntrada(id) {
+    return new Promise(function (ok) {
+      var req = indexedDB.open("inkterminal-wine", 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore("entrada"); };
+      req.onerror = function () { ok(null); };
+      req.onsuccess = function () {
+        var db = req.result, tx = db.transaction("entrada", "readwrite"), st = tx.objectStore("entrada"), get = st.get(id);
+        get.onsuccess = function () { ok(get.result || null); st.delete(id); };
+        get.onerror = function () { ok(null); };
+        tx.oncomplete = function () { db.close(); };
+      };
     });
   }
+  function avisarFora(m) { if (window.parent !== window) window.parent.postMessage(m, location.origin); }
 
-  function definirPrograma(pasta, exe, tipo) {
-    var rel = exe.split("/"), arq = rel.pop();
-    Config.WorkingDir = D + "/Programas/" + pasta + (rel.length ? "/" + rel.join("/") : "");
-    if (tipo === "msi" || /\.msi$/i.test(arq)) { Config.Program = "msiexec"; Config.ProgramArgs = ["/i", arq]; }
-    else { Config.Program = arq; Config.ProgramArgs = []; }
-  }
-
-  var id = q.get("ink-programa");
-  if (id && /^[A-Za-z0-9-]{4,64}$/.test(id) && typeof buildBrowserFileSystem === "function") {
+  /* ---------- Área de trabalho ---------- */
+  var tela = /^\d{3,4}x\d{3,4}$/.test(q.get("ink-tela") || "") ? q.get("ink-tela") : "1024x768";
+  if (typeof buildBrowserFileSystem === "function") {
     var original = buildBrowserFileSystem;
     // initBrowserFilesystem chama buildBrowserFileSystem pelo nome global, então esta troca vale
     buildBrowserFileSystem = function () {
       var args = arguments, self = this;
-      Module.setStatus && Module.setStatus("Guardando o programa no disco D:…");
-      lerEntrada(id).then(function (e) {
-        if (!e) return;
-        return instalar(e).then(function () { definirPrograma(e.pasta, e.exe, e.tipo); });
-      }).catch(function (err) {
-        console.error("InkTerminal: não consegui gravar o programa no D:", err);
-        if (window.parent !== window) window.parent.postMessage({ tipo: "wine:erro", texto: String(err && err.message || err) }, location.origin);
-      }).then(function () { original.apply(self, args); });
+      var primeira = !existe(ROOT + "/home/username/.wine/system.reg");
+      pasta(INK());
+      try { FS.unlink(INK() + "/pronto"); } catch (_) {}
+      try { FS.unlink(INK() + "/abrir.txt"); } catch (_) {} // pedidos de uma sessão anterior
+      var passos = fetch("area/area.exe?v=1").then(function (r) {
+        if (!r.ok) throw new Error("area.exe " + r.status);
+        return r.arrayBuffer();
+      }).then(function (b) { FS.writeFile(INK() + "/area.exe", new Uint8Array(b)); });
+      var id = q.get("ink-entrada");
+      if (id && /^[A-Za-z0-9-]{4,64}$/.test(id)) {
+        passos = passos.then(function () { return lerEntrada(id); }).then(function (e) {
+          if (e) return receberArquivo(e).then(function (t) { avisarFora({ tipo: "wine:aviso", texto: t }); });
+        });
+      }
+      passos.catch(function (err) {
+        console.error("InkTerminal:", err);
+        avisarFora({ tipo: "wine:erro", texto: String(err && err.message || err) });
+      }).then(function () {
+        Config.resolution = tela;
+        Config.Program = "explorer";
+        Config.ProgramArgs = ["/desktop=shell," + tela, "D:\\.inkterminal\\area.exe"];
+        Config.WorkingDir = "";
+        ligarD();
+        avisarFora({ tipo: "wine:fase", fase: "ligando", primeira: primeira });
+        var t = setInterval(function () {
+          if (existe(INK() + "/pronto")) { clearInterval(t); avisarFora({ tipo: "wine:fase", fase: "pronto" }); }
+        }, 1000);
+        original.apply(self, args);
+      });
     };
-  } else if (q.get("ink-pasta") && q.get("ink-exe")) {
-    // programa já guardado no D:
-    var pasta = q.get("ink-pasta"), exe = q.get("ink-exe"), tipo = q.get("ink-tipo") || "exe";
-    var orig2 = buildBrowserFileSystem;
-    buildBrowserFileSystem = function () { definirPrograma(pasta, exe, tipo); return orig2.apply(this, arguments); };
+  }
+
+  /* ---------- Disco D: com gravação ----------
+     O "-mount_drive" do Boxedwine põe o D: em /mnt/drive_d, e o Boxedwine só deixa o usuário
+     do Wine gravar em /home, /tmp e /var: lá dentro os programas recebem "acesso negado".
+     Por isso a pasta do D: entra em /home/username/d ("-mount") e o link d: do Wine
+     (dosdevices/d:, gravado como "d(_colon_).link" no disco do Boxedwine) aponta para ela. */
+  var D_GUEST = "/home/username/d";
+  function ligarD() {
+    var dir = ROOT + "/home/username/.wine/dosdevices";
+    try { FS.mkdirTree(dir); } catch (_) {}
+    try { FS.writeFile(dir + "/d(_colon_).link", D_GUEST); } catch (e) { console.error("InkTerminal: link d:", e); }
+  }
+  if (typeof getEmulatorParams === "function") {
+    var paramsOriginal = getEmulatorParams;
+    getEmulatorParams = function () {
+      var p = paramsOriginal.apply(this, arguments);
+      var i = p.indexOf("-mount_drive");
+      if (i >= 0 && p[i + 2] === "d") p.splice(i, 3, "-mount", p[i + 1], D_GUEST);
+      console.log("InkTerminal params: " + p.join(" "));
+      return p;
+    };
   }
 
   /* ---------- Toque no iPad ---------- */
@@ -166,10 +280,14 @@
     if (e.origin !== location.origin || e.source !== window.parent || !e.data) return;
     if (e.data.tipo === "wine:teclado") { campo.focus(); }
     if (e.data.tipo === "wine:direito") { direito = !!e.data.ligado; avisar(); }
+    if (e.data.tipo === "wine:arquivo" && e.data.arquivo) {
+      receberArquivo(e.data.arquivo).then(function (t) { avisarWine(); avisarFora({ tipo: "wine:aviso", texto: t }); },
+        function (err) { avisarWine(); avisarFora({ tipo: "wine:erro", texto: String(err && err.message || err) }); });
+    }
     if (e.data.tipo === "wine:enviar" && e.data.arquivos && typeof startWithFiles === "function") {
       // arquivos vão para a raiz do D:
       startWithFiles(e.data.arquivos);
-      setTimeout(function () { try { FS.syncfs(false, function () {}); } catch (_) {} }, 1500);
+      setTimeout(function () { marcar(Config.d_drive); avisarWine(); try { FS.syncfs(false, function () {}); } catch (_) {} }, 1500);
       window.parent.postMessage({ tipo: "wine:enviado", n: e.data.arquivos.length }, location.origin);
     }
   });

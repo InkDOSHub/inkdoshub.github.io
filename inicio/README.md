@@ -68,11 +68,20 @@ WebAssembly no formato novo (Safari 18.4+). Pesa ~950 MB.
 
 - Todos os programas usam os mesmos discos (`storageKey=default`): o C: guarda o que for instalado
   e o D: guarda arquivos e programas da pessoa, os dois no IndexedDB do site.
-- **Adicionar programa** (`wine.js`): um .exe, .msi ou .zip vai para o IndexedDB `inkterminal-wine`
-  (loja `entrada`). O emulador (`inkterminal-wine.js`) grava em `D:\Programas\<pasta>` (extrai o
-  .zip), apaga a entrada e abre o programa. A lista "Meus programas" fica no localStorage
-  `inkterminal-wine-meus` e abre direto do D: depois.
-- **Área de trabalho**: o Wine sem programa abre `explorer /desktop=shell`, com menu Iniciar.
+- **Iniciar o Wine** abre sempre a área de trabalho, do tamanho da tela: `explorer /desktop=shell,LxA`
+  rodando `D:\.inkterminal\area.exe` (código em `apps/wine/area/area.c`, compilado por
+  `tools/wine-area.sh`). Ela pinta o fundo azul, mostra um ícone por atalho (área de trabalho e menu
+  Iniciar do Wine, mais `D:\.inkterminal\atalhos`) e abre com um toque. Ao aparecer grava
+  `D:\.inkterminal\pronto`, e a página tira o aviso de carregamento (com barra e tempo).
+- **Instalar programa** (`wine.js`): com o Wine fechado, o .exe, .msi ou .zip vai para o IndexedDB
+  `inkterminal-wine` (loja `entrada`) e o Wine abre; com ele aberto, vai direto por mensagem.
+  `inkterminal-wine.js` grava em `D:\Recebidos` (instaladores) ou `D:\Programas` (extrai o .zip, cria
+  atalho) e escreve o caminho em `D:\.inkterminal\abrir.txt`, que a área de trabalho abre. Programas
+  de 64 bits são recusados com um aviso.
+- **Disco D:**: o `-mount_drive` do Boxedwine põe o D: em `/mnt`, onde o Wine não pode gravar. Por isso
+  `inkterminal-wine.js` troca por `-mount /d_drive /home/username/d` e grava o link `dosdevices/d:`.
+  Arquivos que a página grava com o Wine aberto só aparecem depois de
+  `boxedwineHostFolderSyncDirectories` (feito por `avisarWine()`).
 - No iPad: **Teclado** foca um campo escondido dentro do emulador (o iPad mostra o teclado e as
   teclas chegam ao SDL), **Clique direito** faz o próximo toque valer como botão direito (segurar o
   dedo meio segundo também), **Enviar para D:** e **Baixar de D:** trocam arquivos com o aparelho.
