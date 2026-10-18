@@ -45,18 +45,40 @@
   }
 
   /* ---------- Arrastar as alças ---------- */
+  /* Prévia ao arrastar: mostra o quadro do ponto (fastSeek no Safari, um pulo por vez para não
+     acumular pedidos) e, ao soltar, toca dali: do início, ou os últimos segundos até o fim. */
+  var alvo = null, buscando = false;
+  function pular(t) {
+    alvo = t;
+    if (buscando) return;
+    buscando = true;
+    if (video.fastSeek) video.fastSeek(t); else video.currentTime = t;
+  }
+  video.addEventListener("seeked", function () {
+    buscando = false;
+    if (alvo != null && Math.abs(video.currentTime - alvo) > 0.15) pular(alvo); else alvo = null;
+  });
+  function tocarDe(t) {
+    alvo = null; buscando = false;
+    video.currentTime = Math.max(ini, Math.min(fim - 0.05, t));
+    var p = video.play(); if (p && p.catch) p.catch(function () {});
+  }
   function arrastar(alca, qual) {
     alca.addEventListener("pointerdown", function (e) {
       e.preventDefault();
+      e.stopPropagation();
       alca.setPointerCapture(e.pointerId);
       video.pause();
       var mover = function (ev) {
         var r = faixa.getBoundingClientRect(), t = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * dur;
-        if (qual === "ini") { ini = Math.min(t, fim - MIN); video.currentTime = ini; }
-        else { fim = Math.max(t, ini + MIN); video.currentTime = fim; }
+        if (qual === "ini") { ini = Math.min(t, fim - MIN); pular(ini); }
+        else { fim = Math.max(t, ini + MIN); pular(fim); }
         desenhar();
       };
-      var soltar = function () { alca.removeEventListener("pointermove", mover); alca.removeEventListener("pointerup", soltar); alca.removeEventListener("pointercancel", soltar); };
+      var soltar = function () {
+        alca.removeEventListener("pointermove", mover); alca.removeEventListener("pointerup", soltar); alca.removeEventListener("pointercancel", soltar);
+        tocarDe(qual === "ini" ? ini : fim - 3);
+      };
       alca.addEventListener("pointermove", mover);
       alca.addEventListener("pointerup", soltar);
       alca.addEventListener("pointercancel", soltar);
@@ -68,7 +90,7 @@
   faixa.addEventListener("pointerdown", function (e) {
     if (e.target.classList.contains("alca")) return;
     var r = faixa.getBoundingClientRect(), t = (e.clientX - r.left) / r.width * dur;
-    video.currentTime = Math.max(ini, Math.min(fim, t));
+    tocarDe(t);
     desenhar();
   });
 
