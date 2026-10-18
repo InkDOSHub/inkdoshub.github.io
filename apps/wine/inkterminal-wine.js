@@ -290,6 +290,35 @@
     };
   }
 
+  /* ---------- Pausa em segundo plano ----------
+     Com a página oculta, o Wine pausa (Module.pauseMainLoop) quando está parado: nada gravado no
+     disco há 1 minuto. Instalações e cópias gravam o tempo todo, então seguem rodando. A barra da
+     página tem "Segundo plano: continua" para nunca pausar. Volta na hora quando a página aparece. */
+  var ultimaGravacao = Date.now(), pausado = false, manterLigado = false;
+  try { manterLigado = localStorage.getItem("inkterminal-wine-fundo") === "continua"; } catch (_) {}
+  function marcarGravacao() {
+    if (typeof FS === "undefined" || !FS.write || FS.write.inkMarcado) return;
+    var w = FS.write;
+    // só arquivos de verdade: o texto do console do Boxedwine também passa por FS.write
+    FS.write = function (st) {
+      try { if (st && st.node && FS.isFile(st.node.mode)) ultimaGravacao = Date.now(); } catch (_) {}
+      return w.apply(this, arguments);
+    };
+    FS.write.inkMarcado = true;
+  }
+  function oculta() { try { return window.top.document.visibilityState === "hidden"; } catch (_) { return document.visibilityState === "hidden"; } }
+  function rever() {
+    marcarGravacao();
+    if (typeof Module === "undefined" || !Module.pauseMainLoop) return;
+    var pausar = oculta() && !manterLigado && Date.now() - ultimaGravacao > 60000;
+    if (pausar && !pausado) { Module.pauseMainLoop(); pausado = true; avisarFora({ tipo: "wine:pausa", pausado: true }); }
+    else if (!pausar && pausado) { Module.resumeMainLoop(); pausado = false; ultimaGravacao = Date.now(); avisarFora({ tipo: "wine:pausa", pausado: false }); }
+  }
+  setInterval(rever, 5000);
+  window.inkPausa = function () { return { pausado: pausado, semGravar: Date.now() - ultimaGravacao, oculta: oculta(), manter: manterLigado, marcado: typeof FS !== "undefined" && !!FS.write.inkMarcado }; };
+  document.addEventListener("visibilitychange", rever);
+  try { window.top.document.addEventListener("visibilitychange", rever); } catch (_) {}
+
   /* ---------- Toque no iPad ---------- */
   var direito = false;
   var campo = document.createElement("textarea");
@@ -337,6 +366,7 @@
     if (window.parent !== window) window.parent.postMessage({ tipo: "wine:direito", ligado: direito }, location.origin);
   }
   addEventListener("message", function (e) {
+    if (e.origin === location.origin && e.data && e.data.tipo === "wine:fundo") { manterLigado = !!e.data.manter; rever(); return; }
     if (e.origin === location.origin && e.data && e.data.tipo === "wine:sessao-salvar") {
       try {
         // o Wine grava o registro de tempos em tempos; o que estiver no disco agora é o que vai

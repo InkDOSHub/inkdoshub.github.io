@@ -204,6 +204,19 @@
   $("b-sessao").onclick = menuSessao;
   $("b-abrir-sessao").onclick = abrirSessao;
 
+  /* ---------- Segundo plano ----------
+     "pausa": oculto e parado, o Wine pausa para não gastar bateria (veja inkterminal-wine.js).
+     "continua": nunca pausa, para deixar algo rodando com a página escondida. */
+  function fundo() { try { return localStorage.getItem("inkterminal-wine-fundo") || "pausa"; } catch (_) { return "pausa"; } }
+  function mostrarFundo() { $("b-fundo").textContent = fundo() === "continua" ? "Segundo plano: continua" : "Segundo plano: pausa"; }
+  $("b-fundo").onclick = function () {
+    var v = fundo() === "continua" ? "pausa" : "continua";
+    try { localStorage.setItem("inkterminal-wine-fundo", v); } catch (_) {}
+    mostrarFundo();
+    var w = janela(); if (w) w.postMessage({ tipo: "wine:fundo", manter: v === "continua" }, location.origin);
+  };
+  mostrarFundo();
+
   /* ---------- Barra com o Wine aberto ---------- */
   $("b-arquivos").onclick = function () {
     var w = janela();
@@ -250,6 +263,7 @@
       if (d.fase === "pronto") pronto();
     }
     if (d.tipo === "wine:aviso") recado(d.texto);
+    if (d.tipo === "wine:pausa") document.title = (d.pausado ? "Wine pausado (oculto) · " : "Wine · ") + "InkTerminal";
     if (d.tipo === "wine:direito") marcarDireito(d.ligado);
     if (d.tipo === "wine:erro") recado("Erro: " + d.texto, true);
   });

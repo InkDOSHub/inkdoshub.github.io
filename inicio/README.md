@@ -94,6 +94,9 @@ WebAssembly no formato novo (Safari 18.4+). Pesa ~950 MB.
   `inkterminal-wine.js` troca por `-mount /d_drive /home/username/d` e grava o link `dosdevices/d:`.
   Arquivos que a página grava com o Wine aberto só aparecem depois de
   `boxedwineHostFolderSyncDirectories` (feito por `avisarWine()`).
+- **Segundo plano**: com a página oculta e nada gravado no disco há 1 minuto, o Wine pausa
+  (`Module.pauseMainLoop`) e volta quando a página aparece; instalações seguem rodando porque gravam
+  o tempo todo. "Segundo plano: continua" nunca pausa (localStorage `inkterminal-wine-fundo`).
 - No iPad: **Teclado** foca um campo escondido dentro do emulador (o iPad mostra o teclado e as
   teclas chegam ao SDL), **Clique direito** faz o próximo toque valer como botão direito (segurar o
   dedo meio segundo também), **Enviar para D:** e **Baixar de D:** trocam arquivos com o aparelho.
