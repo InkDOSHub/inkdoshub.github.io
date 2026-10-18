@@ -17,4 +17,8 @@ Cópia no InkTerminal (onlyoffice/)
   - assets/editor-Cs5INJPw.js: manifest.json relativo;
   - inkdos-handoff.js: lê o documento direto do IndexedDB deste site;
   - sw.js: usa o service worker do InkTerminal (../sw-portal.js);
+  - fonts/: só as fontes do alfabeto latino (inglês e português), símbolos, matemática e emoji (2026-10-18,
+    a pedido do Paulo). Saíram as de chinês, japonês, coreano, árabe, hebraico, línguas indianas e
+    outros alfabetos (~146 MB). O AllFonts.js não mudou: como no site original, que já não traz
+    várias fontes da lista, uma fonte ausente só não carrega.
   - editor.html carrega ../assets/gerenciador-app.js (abre os apps em abas nomeadas).
