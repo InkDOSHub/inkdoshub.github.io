@@ -21,4 +21,6 @@ Cópia no InkTerminal (onlyoffice/)
     a pedido do Paulo). Saíram as de chinês, japonês, coreano, árabe, hebraico, línguas indianas e
     outros alfabetos (~146 MB). O AllFonts.js não mudou: como no site original, que já não traz
     várias fontes da lista, uma fonte ausente só não carrega.
+  - web-apps: sem as versões para Internet Explorer (main/ie) e para celular (mobile); o editor
+    abre sempre a versão main (2026-10-18, ~30 MB).
   - editor.html carrega ../assets/gerenciador-app.js (abre os apps em abas nomeadas).
