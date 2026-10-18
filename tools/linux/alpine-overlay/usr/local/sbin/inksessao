@@ -1,0 +1,70 @@
+#!/bin/sh
+# inksessao: guarda e devolve a "receita" deste Linux para o botão Sessão da página.
+# A página escreve /mnt/ipad/.inkterminal/pedido ("salvar" ou "restaurar") e lê "estado".
+#   salvar:    receita.tar.gz com a lista de pacotes (etc/apk/world), os repositórios,
+#              /root (sem ~/ipad nem caches), /home e /usr/local
+#   restaurar: instala os pacotes da lista (apk add, precisa de internet) e põe os arquivos de volta
+D=/mnt/ipad/.inkterminal
+ITENS="etc/apk/world etc/apk/repositories root home usr/local"
+
+estado() { echo "$*" > "$D/estado.tmp" && mv -f "$D/estado.tmp" "$D/estado"; }
+
+salvar() {
+  estado "trabalhando juntando os arquivos"
+  rm -f "$D/receita.tmp" "$D/receita.tar.gz"
+  L=""
+  for i in $ITENS; do [ -e "/$i" ] && L="$L $i"; done
+  # shellcheck disable=SC2086
+  if (cd / && tar -czf "$D/receita.tmp" --exclude=root/ipad --exclude=root/.cache --exclude=usr/local/sbin/inksessao $L) 2>"$D/erro.log" \
+     && mv -f "$D/receita.tmp" "$D/receita.tar.gz"; then
+    estado "ok $(wc -c < "$D/receita.tar.gz") $(grep -c . /etc/apk/world)"
+  else
+    rm -f "$D/receita.tmp"
+    estado "erro $(tail -n 1 "$D/erro.log")"
+  fi
+}
+
+restaurar() {
+  T=/tmp/inksessao
+  rm -rf "$T" && mkdir -p "$T"
+  estado "trabalhando abrindo o arquivo"
+  if ! tar -xzf "$D/receita.tar.gz" -C "$T" 2>"$D/erro.log"; then
+    estado "erro $(tail -n 1 "$D/erro.log")"; rm -rf "$T"; return
+  fi
+  rm -f "$D/receita.tar.gz"
+  [ -f "$T/etc/apk/repositories" ] && cp -f "$T/etc/apk/repositories" /etc/apk/repositories
+  FALTAM=""
+  if [ -f "$T/etc/apk/world" ]; then
+    for p in $(cat "$T/etc/apk/world"); do grep -qx "$p" /etc/apk/world || FALTAM="$FALTAM $p"; done
+  fi
+  APK=ok
+  if [ -n "$FALTAM" ]; then
+    N=$(echo $FALTAM | wc -w)
+    [ "$N" = 1 ] && W=pacote || W=pacotes
+    estado "trabalhando instalando $N $W da internet"
+    # shellcheck disable=SC2086
+    if ! { apk update && apk add $FALTAM; } >"$D/apk.log" 2>&1; then
+      APK=falhou
+      echo $FALTAM > /root/pacotes-da-sessao.txt
+    fi
+  fi
+  estado "trabalhando pondo os arquivos de volta"
+  for i in root home usr/local; do
+    [ -d "$T/$i" ] && mkdir -p "/$i" && cp -a "$T/$i/." "/$i/"
+  done
+  ln -sfn /mnt/ipad /root/ipad
+  rm -rf "$T"
+  if [ "$APK" = ok ]; then estado "ok restaurado"; else estado "aviso $(tail -n 1 "$D/apk.log")"; fi
+}
+
+mkdir -p "$D"
+while :; do
+  if [ -f "$D/pedido" ]; then
+    P=$(cat "$D/pedido"); rm -f "$D/pedido"
+    case "$P" in
+      salvar) salvar ;;
+      restaurar) restaurar ;;
+    esac
+  fi
+  sleep 2
+done

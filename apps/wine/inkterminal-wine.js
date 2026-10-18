@@ -175,25 +175,29 @@
     var original = buildBrowserFileSystem;
     // initBrowserFilesystem chama buildBrowserFileSystem pelo nome global, então esta troca vale
     buildBrowserFileSystem = function () {
-      var args = arguments, self = this;
-      var primeira = !existe(ROOT + "/home/username/.wine/system.reg");
+      var args = arguments, self = this, primeira = false;
       pasta(INK());
       try { FS.unlink(INK() + "/pronto"); } catch (_) {}
       try { FS.unlink(INK() + "/abrir.txt"); } catch (_) {} // pedidos de uma sessão anterior
-      var passos = fetch("area/area.exe?v=1").then(function (r) {
+      var id = q.get("ink-entrada"), entrada = null;
+      var passos = (id && /^[A-Za-z0-9-]{4,64}$/.test(id) ? lerEntrada(id) : Promise.resolve(null)).then(function (e) {
+        entrada = e;
+        // a sessão troca os discos inteiros, então vem antes de gravar a área de trabalho no D:
+        if (e && e.sessao) restaurarSessao(e.partes);
+        return fetch("area/area.exe?v=1");
+      }).then(function (r) {
         if (!r.ok) throw new Error("area.exe " + r.status);
         return r.arrayBuffer();
-      }).then(function (b) { FS.writeFile(INK() + "/area.exe", new Uint8Array(b)); });
-      var id = q.get("ink-entrada");
-      if (id && /^[A-Za-z0-9-]{4,64}$/.test(id)) {
-        passos = passos.then(function () { return lerEntrada(id); }).then(function (e) {
-          if (e) return receberArquivo(e).then(function (t) { avisarFora({ tipo: "wine:aviso", texto: t }); });
-        });
-      }
+      }).then(function (b) {
+        FS.writeFile(INK() + "/area.exe", new Uint8Array(b));
+        if (entrada && entrada.sessao) avisarFora({ tipo: "wine:aviso", texto: "Sessão aberta: programas e disco D: de volta." });
+        else if (entrada) return receberArquivo(entrada).then(function (t) { avisarFora({ tipo: "wine:aviso", texto: t }); });
+      });
       passos.catch(function (err) {
         console.error("InkTerminal:", err);
         avisarFora({ tipo: "wine:erro", texto: String(err && err.message || err) });
       }).then(function () {
+        primeira = !existe(ROOT + "/home/username/.wine/system.reg");
         Config.resolution = tela;
         Config.Program = "explorer";
         Config.ProgramArgs = ["/desktop=shell," + tela, "D:\\.inkterminal\\area.exe"];
@@ -206,6 +210,62 @@
         original.apply(self, args);
       });
     };
+  }
+
+  /* ---------- Sessão em arquivo (botão Sessão, assets/sessao.js) ----------
+     Guarda tudo o que o Wine mudou: o disco do Boxedwine em /root (o C: com os programas
+     instalados e o registro, por cima do sistema que vem no .zip) e o disco D:.
+     Pacote: tamanho do índice (4 bytes) + índice JSON [[caminho, tipo, tamanho]] + os dados.
+     tipo: "d" pasta, "f" arquivo, "l" link (o destino vai nos dados). */
+  var FORA_C = /^tmp\//, FORA_D = /^\.inkterminal\/(area\.exe|pronto|abrir\.txt)$/;
+  function empacotar(base, FORA) {
+    var lista = [], dados = [], total = 0;
+    (function andar(rel) {
+      var nomes; try { nomes = FS.readdir(base + (rel ? "/" + rel : "")); } catch (_) { return; }
+      nomes.forEach(function (n) {
+        if (n === "." || n === "..") return;
+        var r = rel ? rel + "/" + n : n, c = base + "/" + r, st;
+        if (FORA.test(r)) return;
+        try { st = FS.lstat(c); } catch (_) { return; }
+        if (FS.isLink(st.mode)) { var b = new TextEncoder().encode(FS.readlink(c)); lista.push([r, "l", b.length]); dados.push(b); total += b.length; }
+        else if (FS.isDir(st.mode)) { lista.push([r, "d", 0]); andar(r); }
+        else if (FS.isFile(st.mode)) { var f = FS.readFile(c); lista.push([r, "f", f.length]); dados.push(f); total += f.length; }
+      });
+    })("");
+    var j = new TextEncoder().encode(JSON.stringify(lista)), out = new Uint8Array(4 + j.length + total), p = 4 + j.length;
+    new DataView(out.buffer).setUint32(0, j.length, true);
+    out.set(j, 4);
+    dados.forEach(function (d) { out.set(d, p); p += d.length; });
+    return out;
+  }
+  function apagarTudo(base) {
+    var nomes; try { nomes = FS.readdir(base); } catch (_) { return; }
+    nomes.forEach(function (n) {
+      if (n === "." || n === "..") return;
+      var c = base + "/" + n, st;
+      try { st = FS.lstat(c); } catch (_) { return; }
+      if (FS.isDir(st.mode) && !FS.isLink(st.mode)) { apagarTudo(c); try { FS.rmdir(c); } catch (_) {} }
+      else { try { FS.unlink(c); } catch (_) {} }
+    });
+  }
+  function desempacotar(base, b) {
+    var n = new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(0, true);
+    var lista = JSON.parse(new TextDecoder().decode(b.subarray(4, 4 + n))), p = 4 + n;
+    lista.forEach(function (x) {
+      var c = base + "/" + x[0], d = b.subarray(p, p + x[2]); p += x[2];
+      if (x[1] === "d") pasta(c);
+      else if (x[1] === "f") { pasta(c.slice(0, c.lastIndexOf("/"))); FS.writeFile(c, d); }
+      else if (x[1] === "l") { try { FS.symlink(new TextDecoder().decode(d), c); } catch (_) {} }
+    });
+  }
+  function restaurarSessao(partes) {
+    if (!partes || !partes["c.pacote"] || !partes["d.pacote"]) throw new Error("o arquivo não tem os discos do Wine");
+    apagarTudo(ROOT);
+    apagarTudo(Config.d_drive);
+    desempacotar(ROOT, partes["c.pacote"]);
+    desempacotar(Config.d_drive, partes["d.pacote"]);
+    pasta(INK());
+    try { FS.syncfs(false, function () {}); } catch (_) {}
   }
 
   /* ---------- Disco D: com gravação ----------
@@ -277,6 +337,16 @@
     if (window.parent !== window) window.parent.postMessage({ tipo: "wine:direito", ligado: direito }, location.origin);
   }
   addEventListener("message", function (e) {
+    if (e.origin === location.origin && e.data && e.data.tipo === "wine:sessao-salvar") {
+      try {
+        // o Wine grava o registro de tempos em tempos; o que estiver no disco agora é o que vai
+        var c = empacotar(ROOT, FORA_C), d = empacotar(Config.d_drive, FORA_D);
+        e.source.postMessage({ tipo: "wine:sessao-dados", partes: { "c.pacote": c, "d.pacote": d } }, location.origin, [c.buffer, d.buffer]);
+      } catch (err) {
+        e.source.postMessage({ tipo: "wine:sessao-dados", erro: String(err && err.message || err) }, location.origin);
+      }
+      return;
+    }
     if (e.origin !== location.origin || e.source !== window.parent || !e.data) return;
     if (e.data.tipo === "wine:teclado") { campo.focus(); }
     if (e.data.tipo === "wine:direito") { direito = !!e.data.ligado; avisar(); }

@@ -118,7 +118,7 @@ const config = {
   vga_memory_size: 2 * 1024 * 1024,
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
-  bzimage: { url: "images/inkterminal-bzImage.bin?v=5" },
+  bzimage: { url: "images/inkterminal-bzImage.bin?v=7" },
   cmdline: "console=ttyS0 quiet tsc=reliable mitigations=off random.trust_cpu=on" +
     (LIMITADA ? " inkzram=192M" + (swap ? " inkswap=1" : "") : ""),
   hda: swap || undefined,
@@ -279,7 +279,7 @@ function listFiles(dir) {
   for (const name of fs.read_dir(dir) || []) {
     const path = (dir === "/" ? "" : dir) + "/" + name;
     const p = fs.SearchPath(path);
-    if (p.id === -1) continue;
+    if (p.id === -1 || path === "/.inkterminal") continue; // pasta do botão Sessão
     if (fs.IsDirectory(p.id)) out.push(...listFiles(path));
     else out.push(path);
   }
@@ -349,5 +349,95 @@ if (window.inkGerenciador) {
     await saveStateDb(await emulator.save_state());
   });
 }
+
+// ---------- Sessão em arquivo (assets/sessao.js) ----------
+// O Linux roda /usr/local/sbin/inksessao (tools/linux/), que conversa pela pasta /mnt/ipad/.inkterminal:
+// a página escreve "pedido" (salvar ou restaurar) e lê "estado" ("trabalhando ...", "ok ...",
+// "aviso ..." ou "erro ..."). A receita é um .tar.gz com a lista de pacotes do apk, /root, /home e /usr/local.
+const SESSAO = "/.inkterminal";
+const fs9 = () => emulator.fs9p;
+function pastaSessao() {
+  if (fs9().SearchPath(SESSAO).id === -1) fs9().CreateDirectory(SESSAO.slice(1), 0);
+}
+async function gravar9p(caminho, dados) {
+  pastaSessao();
+  const p = fs9().SearchPath(caminho);
+  if (p.id !== -1) fs9().Unlink(p.parentid, caminho.split("/").pop());
+  await emulator.create_file(caminho, dados);
+}
+async function ler9p(caminho) {
+  if (fs9().SearchPath(caminho).id === -1) return null;
+  // arquivo vazio ou apagado pelo Linux no meio da leitura
+  return emulator.read_file(caminho).catch(() => null);
+}
+const texto9p = async (c) => { const b = await ler9p(c); return b ? new TextDecoder().decode(b).trim() : null; };
+const espera = (ms) => new Promise((ok) => setTimeout(ok, ms));
+
+// Um Linux restaurado de um "Salvar" antigo (antes desta função) não tem o inksessao rodando.
+// Nesse caso a página manda o mesmo programa pela pasta e digita o comando que o liga.
+async function pedirAoLinux(pedido, aviso) {
+  await gravar9p(SESSAO + "/estado", new TextEncoder().encode("esperando"));
+  await gravar9p(SESSAO + "/pedido", new TextEncoder().encode(pedido));
+  let ligou = false;
+  for (let i = 0; ; i++) {
+    await espera(1000);
+    const e = await texto9p(SESSAO + "/estado");
+    if (e && e !== "esperando") {
+      if (!e.startsWith("trabalhando")) return e;
+      const log = pedido === "restaurar" ? await texto9p(SESSAO + "/apk.log") : null;
+      const ultima = log ? log.split("\n").pop() : "";
+      aviso.texto(e.replace(/^trabalhando /, "").replace(/^./, (c) => c.toUpperCase()) + "…" + (ultima ? "\n" + ultima : ""));
+      continue;
+    }
+    if (i === 6 && !ligou && await texto9p(SESSAO + "/pedido")) {
+      ligou = true;
+      if (!await InkSessao.perguntar("Ligar o salvamento de sessão", "Este Linux foi salvo antes de existir o botão Sessão. Para continuar, vou digitar um comando no terminal. Saia de programas abertos (como nano ou vi) antes.", "Digitar o comando")) {
+        throw new Error("Cancelado.");
+      }
+      const r = await fetch("../tools/linux/alpine-overlay/usr/local/sbin/inksessao?v=2");
+      if (!r.ok) throw new Error("não consegui baixar o inksessao (" + r.status + ")");
+      await gravar9p(SESSAO + "/inksessao", new Uint8Array(await r.arrayBuffer()));
+      send("(sh /mnt/ipad/.inkterminal/inksessao </dev/null >/dev/null 2>&1 &)\n");
+    }
+    if (i > 40 && !ligou) throw new Error("o Linux não respondeu. Espere ele terminar de ligar e tente de novo.");
+    if (i > 60) throw new Error("o Linux não respondeu.");
+  }
+}
+
+const sessaoDialog = document.getElementById("sessao-dialog");
+document.getElementById("btn-sessao").addEventListener("click", () => sessaoDialog.showModal());
+document.getElementById("sessao-fechar").addEventListener("click", () => sessaoDialog.close());
+document.getElementById("sessao-salvar").addEventListener("click", () => {
+  sessaoDialog.close();
+  InkSessao.salvar("linux", "Linux", async (aviso) => {
+    aviso.texto("Pedindo ao Linux a lista de pacotes e a pasta pessoal…");
+    const e = await pedirAoLinux("salvar", aviso);
+    if (!e.startsWith("ok")) throw new Error(e.replace(/^erro ?/, "") || "erro no Linux");
+    const receita = await ler9p(SESSAO + "/receita.tar.gz");
+    if (!receita) throw new Error("o Linux não gerou o arquivo");
+    const pacotes = Number(e.split(" ")[2]) || 0;
+    gravar9p(SESSAO + "/receita.tar.gz", new Uint8Array(0)).catch(() => {});
+    return { meta: { versao: 1, pacotes }, partes: { "receita.tar.gz": receita } };
+  }).finally(() => term.focus());
+});
+document.getElementById("sessao-abrir").addEventListener("click", async () => {
+  sessaoDialog.close();
+  const r = await InkSessao.abrir("linux", "Linux");
+  if (!r) { term.focus(); return; }
+  const receita = r.partes["receita.tar.gz"];
+  const aviso = InkSessao.aviso("Abrindo a sessão", "Mandando o arquivo para o Linux…");
+  try {
+    if (!receita) throw new Error("o arquivo não tem a receita do Linux");
+    await gravar9p(SESSAO + "/receita.tar.gz", receita);
+    const e = await pedirAoLinux("restaurar", aviso);
+    if (e.startsWith("ok")) aviso.fim("Pronto: pacotes instalados e arquivos de volta. Toque em Salvar para guardar este Linux no navegador.");
+    else if (e.startsWith("aviso")) aviso.fim("Os arquivos voltaram, mas não consegui instalar os pacotes (sem internet?). A lista ficou em ~/pacotes-da-sessao.txt. Com a rede ligada, rode: apk add $(cat ~/pacotes-da-sessao.txt)", true);
+    else throw new Error(e.replace(/^erro ?/, ""));
+  } catch (err) {
+    console.error("sessão:", err);
+    aviso.fim("Não foi possível abrir a sessão: " + (err && err.message || err), true);
+  }
+  term.focus();
+});
 
 window.inkterminal = { emulator, term, swap };

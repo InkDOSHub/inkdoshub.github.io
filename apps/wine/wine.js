@@ -14,6 +14,7 @@
     $("aviso").textContent = "Este navegador ainda não roda o Boxedwine. Atualize o iPadOS (Safari 18.4 ou mais novo).";
     $("b-iniciar").disabled = true;
     $("b-instalar").disabled = true;
+    $("b-abrir-sessao").disabled = true;
   }
 
   function rodando() { return document.body.classList.contains("rodando"); }
@@ -152,6 +153,56 @@
   $("b-instalar").onclick = $("b-instalar2").onclick = function () { $("arquivos").click(); };
   // também recebe arquivos da tela inicial (abrir um .exe no XeOS): veja assets/gerenciador-app.js
   $("arquivos").onchange = function () { var f = $("arquivos").files[0]; $("arquivos").value = ""; instalar(f); };
+
+  /* ---------- Sessão em arquivo (assets/sessao.js) ----------
+     Salvar pede ao emulador os discos C: (o que o Wine mudou) e D: e cifra num arquivo.
+     Abrir guarda os discos no IndexedDB e liga o Wine de novo com ?ink-entrada: inkterminal-wine.js
+     troca os discos antes do Windows começar. */
+  function pedirDiscos() {
+    return new Promise(function (ok, erro) {
+      var w = janela();
+      if (!w || !rodando()) { erro(new Error("abra o Wine antes de salvar")); return; }
+      var t = setTimeout(function () { removeEventListener("message", ouvir); erro(new Error("o Wine não respondeu")); }, 120000);
+      function ouvir(e) {
+        if (e.origin !== location.origin || !e.data || e.data.tipo !== "wine:sessao-dados") return;
+        clearTimeout(t); removeEventListener("message", ouvir);
+        if (e.data.erro) erro(new Error(e.data.erro)); else ok(e.data.partes);
+      }
+      addEventListener("message", ouvir);
+      w.postMessage({ tipo: "wine:sessao-salvar" }, location.origin);
+    });
+  }
+  function salvarSessao() {
+    InkSessao.salvar("wine", "Wine", function (aviso) {
+      aviso.texto("Juntando o disco C: (programas instalados) e o disco D:…");
+      return pedirDiscos().then(function (partes) { return { meta: { versao: 1 }, partes: partes }; });
+    }, "O arquivo leva os programas instalados e o disco D:, então pode ficar grande.");
+  }
+  function abrirSessao() {
+    InkSessao.abrir("wine", "Wine").then(function (r) {
+      if (!r) return;
+      var partes = {};
+      // cópias soltas: o IndexedDB guarda só o pedaço de cada parte, não o arquivo inteiro
+      Object.keys(r.partes).forEach(function (k) { partes[k] = r.partes[k].slice(); });
+      return InkSessao.perguntar("Abrir sessão do Wine", "Os programas instalados e o disco D: deste aparelho vão ser trocados pelos do arquivo" +
+        (r.meta.criado ? " (salvo em " + new Date(r.meta.criado).toLocaleString() + ")" : "") + ".", "Trocar e abrir").then(function (sim) {
+        if (!sim) return;
+        if (rodando()) parar();
+        return guardarEntrada({ sessao: true, partes: partes, at: Date.now() }).then(function (id) { iniciar(id); });
+      });
+    }).catch(function (e) { avisar("Não foi possível abrir a sessão: " + (e && e.message || e)); });
+  }
+  function menuSessao() {
+    var d = InkSessao.janela("<form method='dialog'><h2>Sessão em arquivo</h2><p>Guarda num arquivo com senha os programas instalados (disco C:) e o disco D:. " +
+      "Abrir põe tudo de volta, mesmo em outro aparelho ou depois de apagar os dados do site.</p><div class='botoes'>" +
+      "<button class='ink-btn' value=''>Fechar</button><button class='ink-btn' value='abrir'>Abrir arquivo</button>" +
+      "<button class='ink-btn principal' value='salvar'>Salvar em arquivo</button></div></form>");
+    // direto no toque (o iPad só abre o seletor de arquivos dentro do toque da pessoa)
+    d.querySelector("[value=salvar]").onclick = function (e) { e.preventDefault(); d.close(); salvarSessao(); };
+    d.querySelector("[value=abrir]").onclick = function (e) { e.preventDefault(); d.close(); abrirSessao(); };
+  }
+  $("b-sessao").onclick = menuSessao;
+  $("b-abrir-sessao").onclick = abrirSessao;
 
   /* ---------- Barra com o Wine aberto ---------- */
   $("b-arquivos").onclick = function () {

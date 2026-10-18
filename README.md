@@ -30,6 +30,8 @@ Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`ass
 - Roda Alpine Linux 3.22 com kernel Linux 6.6 (i386), emulado pelo [v86](https://github.com/copy/v86) em WebAssembly.
 - Instala qualquer programa do Alpine com `apk add` (por exemplo `apk add python3 git nano`).
 - Tem internet de verdade dentro do Linux, com http e https (veja "Rede" abaixo).
+- **Sessão:** guarda num arquivo com senha a lista de pacotes instalados e a pasta pessoal, e no outro aparelho (ou depois de apagar os dados) reinstala os pacotes e devolve os arquivos. O Wine tem o mesmo botão, que guarda os discos C: e D:. Detalhes em `inicio/README.md`.
+- O kernel e o Alpine embutido são recompilados por `tools/linux/build.sh`.
 - A pasta `~/ipad` troca arquivos com o aparelho. **Enviar** coloca arquivos do iPad nela, e **Baixar** salva arquivos dela no app Arquivos.
 - **Salvar** guarda a máquina inteira (arquivos, programas instalados e a pasta `~/ipad`) no navegador. Na próxima visita ela volta do mesmo ponto. **Reiniciar** apaga tudo e começa do zero.
 - **Memória:** o botão alterna entre 256 MB (padrão, a sessão pode ser salva) e **640 MB + swap**. No segundo modo o Linux tem 640 MB de RAM, 192 MB de zram (memória comprimida) e 1 GB de swap num arquivo do armazenamento privado do site (OPFS), gravado aos pedaços por um worker (`terminal/swap-worker.js`) sem passar pela RAM da página. A aba fica abaixo de 1 GB mesmo com o Linux usando mais memória do que tem. Nesse modo a sessão não é salva, porque o swap recomeça a cada boot.

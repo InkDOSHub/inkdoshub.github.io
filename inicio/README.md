@@ -59,6 +59,23 @@ em `../legado/`, fora de uso.
 - O editor de vídeo tem o service worker próprio dele (`coi-serviceworker`), que vence o do portal naquela pasta; por enquanto ele precisa de internet.
 - `manifesto.json` é a lista de arquivos com tamanho e hash. Ele é recriado por `python3 tools/portal_manifesto.py`, e o workflow `.github/workflows/manifesto-offline.yml` faz isso sozinho a cada push no `main`.
 
+## Sessão em arquivo (`../assets/sessao.js`)
+
+O botão **Sessão** do Linux e do Wine guarda o trabalho num arquivo `.inksessao` no aparelho (Arquivos,
+iCloud Drive), para recuperar mesmo se o site apagar os dados. Sempre com senha: AES-GCM com chave
+PBKDF2-SHA256 (310 mil rodadas); sem a senha o arquivo não abre. A entrega usa a folha de compartilhar do
+iOS ("Salvar em Arquivos") ou um download.
+
+- **Linux** (`../terminal/app.js`): guarda a receita, não a memória. O `inksessao` do Linux
+  (`../tools/linux/alpine-overlay/usr/local/sbin/inksessao`, ligado pelo `init`) faz um .tar.gz com
+  `etc/apk/world`, os repositórios, `/root` (sem `~/ipad` e `~/.cache`), `/home` e `/usr/local`. Para abrir,
+  instala pela internet os pacotes que faltam (`apk add`) e põe os arquivos de volta. A conversa é pela
+  pasta `/mnt/ipad/.inkterminal` (`pedido`, `estado`). Num Linux restaurado de um Salvar antigo, sem o
+  `inksessao`, a página manda o programa pela pasta e digita o comando que o liga (pede antes).
+- **Wine** (`../apps/wine/`): guarda os discos inteiros, porque não há como reinstalar os programas
+  sozinho: o que o Wine mudou em `/root` (o C:, com programas e registro) e o D:. Abrir troca os dois
+  discos antes do Windows ligar (`?ink-entrada` com `{sessao: true}`).
+
 ## Wine (`../apps/wine/`)
 
 Roda programas do Windows com o Boxedwine (emulador x86 compilado para WebAssembly, alvo "jit" de

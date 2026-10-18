@@ -13,3 +13,6 @@ dialog h2 { font-size: 16px; margin: 0 0 12px; }
 #download-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 50vh; overflow-y: auto; }
 #download-list button { text-align: left; font-family: ui-monospace, Menlo, monospace; }
 #download-list code { color: var(--accent); }
+
+dialog .nota { color: var(--muted); font-size: 14px; line-height: 1.4; margin: 0 0 14px; }
+.sessao-botoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }

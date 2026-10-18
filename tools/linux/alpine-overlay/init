@@ -1,0 +1,47 @@
+#!/bin/sh
+# InkTerminal init: monta o sistema, liga a rede e abre o shell no console serial.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root TERM=xterm-256color
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev 2>/dev/null
+mkdir -p /dev/pts /dev/shm
+mount -t devpts devpts /dev/pts
+mount -t tmpfs shm /dev/shm
+mount -t tmpfs tmp /tmp
+mount -t tmpfs run /run
+hostname inkterminal
+ip link set lo up
+
+# Pasta compartilhada com o iPad (botões Enviar/Baixar da página)
+mkdir -p /mnt/ipad
+mount -t 9p -o trans=virtio,version=9p2000.L,cache=none host9p /mnt/ipad 2>/dev/null
+ln -sfn /mnt/ipad /root/ipad
+
+# Modo de memória limitada (opção "Memória" da página): zram e swap no disco do v86
+for a in $(cat /proc/cmdline); do
+  case "$a" in inkzram=*) ZRAM=${a#inkzram=} ;; inkswap=1) SWAPDISK=1 ;; esac
+done
+if [ -n "$ZRAM" ] && [ -e /sys/block/zram0 ]; then
+  echo lz4 > /sys/block/zram0/comp_algorithm 2>/dev/null
+  echo "$ZRAM" > /sys/block/zram0/disksize && mkswap /dev/zram0 >/dev/null && swapon -p 100 /dev/zram0
+  echo 100 > /proc/sys/vm/swappiness
+fi
+if [ -n "$SWAPDISK" ] && [ -b /dev/sda ]; then
+  mkswap /dev/sda >/dev/null && swapon -p 10 /dev/sda
+fi
+
+# Rede (em segundo plano, para não atrasar o boot)
+if [ -e /sys/class/net/eth0 ]; then
+  ( ip link set eth0 up; udhcpc -i eth0 -q -n -t 5 -T 2 -s /usr/share/udhcpc/default.script >/dev/null 2>&1 ) &
+fi
+
+# Botão Sessão da página: salvar e abrir a "receita" deste Linux num arquivo
+/usr/local/sbin/inksessao </dev/null >/dev/null 2>&1 &
+
+cd /root
+cat /etc/motd
+while true; do
+  setsid -c /bin/sh -l </dev/ttyS0 >/dev/ttyS0 2>&1
+  echo "Shell encerrado, abrindo outro..."
+done
