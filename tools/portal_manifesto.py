@@ -22,7 +22,7 @@ GRUPOS = [
 ]
 FORA = {"inicio/manifesto.json"}
 # o editor de vídeo depende do coi-serviceworker dele e não passa pelo portal, então fica de fora da cópia
-FORA_PASTAS = ("apps/video/editor/",)
+FORA_PASTAS = ()
 FORA_EXT = (".md", ".txt", ".map")
 
 def arquivos(caminho):

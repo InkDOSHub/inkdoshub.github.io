@@ -3,10 +3,7 @@
    Ele é registrado pela tela inicial. A cópia offline é
    baixada pela própria página (inicio/offline.js) para o cache "inkterminal-offline"; este arquivo
    apenas serve essa cópia quando não há rede. Com rede, tudo vem do site normalmente, então uma
-   versão nova do site nunca se mistura com arquivos antigos da cópia.
-
-   O editor de vídeo (apps/video/editor/) tem o coi-serviceworker dele; este service worker nunca
-   intercepta essa pasta. */
+   versão nova do site nunca se mistura com arquivos antigos da cópia. */
 "use strict";
 var CACHE = "inkterminal-offline";
 var RAIZ = new URL("./", self.location.href).pathname; // "/" no GitHub Pages
@@ -37,7 +34,6 @@ self.addEventListener("fetch", function (e) {
   if (req.method !== "GET") return;
   var u = new URL(req.url);
   if (u.origin !== self.location.origin) return;
-  if (u.pathname.indexOf(RAIZ + "apps/video/editor/") === 0) return; // tem o coi-serviceworker dele (COOP/COEP)
   if (req.headers.has("range")) return; // vídeo e áudio pedem pedaços; o navegador cuida disso
 
   e.respondWith(daRedeOuCopia(req));

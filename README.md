@@ -8,7 +8,7 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 |---|---|---|
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
 | Fotos | Galeria e visualizador feitos aqui; **Editar** abre o [miniPaint](https://github.com/viliusle/miniPaint) (MIT) | `apps/foto/` (o miniPaint fica em `apps/foto/app/`) |
-| Vídeo | Player nativo do Safari feito aqui; **Editar** abre o [omniclip](https://github.com/omni-media/omniclip) (MIT) copiado para cá | `apps/video/` (o omniclip fica em `apps/video/editor/`) |
+| Vídeo | Player nativo do Safari e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
 | Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
@@ -21,7 +21,7 @@ Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licen
 
 Fotos, Vídeo e Música seguem a mesma ideia: primeiro o visualizador nativo do Safari, e a edição como segunda opção. Os arquivos abertos ficam guardados no próprio navegador (IndexedDB deste site), neste aparelho, e nada é enviado. Tudo é servido por este site; nenhuma ferramenta abre outro site nem busca código em CDNs.
 
-O editor de vídeo é o omniclip com todas as bibliotecas copiadas para `apps/video/editor/` (`tools/omniclip-build.mjs`): sem as estatísticas de uso (PostHog) do site original e sem as fontes do Google. Ele precisa de isolamento entre origens (SharedArrayBuffer), ligado pelo `coi-serviceworker.js` só dentro dessa pasta. O botão **Colaborar** do omniclip continua lá, mas usa um servidor de conexão de terceiros, só quando é tocado.
+O editor de vídeo (`apps/video/cortar/`) corta o trecho, tira ou deixa o som e exporta no original (só corta, sem converter) ou em 1080p, 720p ou 480p, com o ffmpeg.wasm 0.12.5 de uma thread só (não precisa de isolamento entre origens). O resultado vira um vídeo novo na lista do Vídeo.
 
 Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no botão da tela inicial.
 

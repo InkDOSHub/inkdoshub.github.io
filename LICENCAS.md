@@ -11,8 +11,6 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | miniPaint (Fotos) | MIT | |
 | Excalidraw (Quadro branco) | MIT | as fontes embutidas são OFL-1.1 ou MIT, que também permitem uso comercial |
 | VS Code para web (Código) | MIT (código do VS Code, "Code - OSS") | veja "Cuidados" sobre o nome |
-| omniclip (editor de Vídeo) | MIT | copiado para `apps/video/editor/`, com as bibliotecas listadas em `apps/video/UPSTREAM-SOURCE.txt` |
-| Bibliotecas do omniclip: Shoelace, PixiJS, pixi-filters, opfs-tools, web-demuxer (código), lit, mp4box, wavesurfer.js, zip.js, coi-serviceworker | MIT ou BSD | |
 | mediainfo.js (leitura de dados do vídeo) | BSD-2-Clause | |
 | Apps do InkDOS (`inkdos/`) | MIT | cópia sem mudanças; as bibliotecas que vêm junto têm as licenças em `inkdos/licenses/`. O botão "Editar com ONLYOFFICE" abre a cópia dos editores em `onlyoffice/` |
 | v86 (emulador do terminal) | BSD-2-Clause | |
@@ -29,7 +27,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | Wine 11.0 e TinyCore Linux 15 (dentro de `apps/wine/`) | Wine LGPL-2.1+, TinyCore GPL | pacotes oficiais sem mudanças, com o código-fonte público nos projetos; origem e sha256 em `apps/wine/UPSTREAM-SOURCE.txt` |
 | Editores ONLYOFFICE (`onlyoffice/`, "Editar com ONLYOFFICE" nos documentos) | AGPL-3.0 | oferecer o código-fonte correspondente, inclusive das mudanças: origem e lista de mudanças em `onlyoffice/UPSTREAM-SOURCE.txt` (ranuts/document e o branch source de inkdos-tools/inkdos-tools.github.io). A AGPL vale também para quem usa pela rede, então num produto pago estas pastas precisam continuar com o código aberto |
 | jschardet (dentro do VS Code) | LGPL-2.1 | manter a licença; o arquivo não foi alterado |
-| ffmpeg.wasm 0.12.5 (`apps/video/editor/ffmpeg-core/`, usado ao exportar) | GPL-2.0 ou posterior | oferecer o código-fonte: é o pacote `@ffmpeg/core@0.12.5` sem mudanças, com o código em https://github.com/ffmpegwasm/ffmpeg.wasm |
+| ffmpeg.wasm 0.12.5 (`apps/video/cortar/ffmpeg-core/`, usado ao exportar) | GPL-2.0 ou posterior | oferecer o código-fonte: é o pacote `@ffmpeg/core@0.12.5` sem mudanças, com o código em https://github.com/ffmpegwasm/ffmpeg.wasm |
 | FFmpeg dentro do web-demuxer e do ffprobe-wasm | LGPL-2.1 | manter a licença e indicar o código-fonte (pacotes npm sem mudanças) |
 
 A GPL não "contamina" o resto do XeOS: o Linux roda como um programa separado dentro do emulador, o que conta como
@@ -43,12 +41,6 @@ agregação, e não como uma obra derivada.
 - **Nome "VS Code":** "Visual Studio Code" e o logotipo são marcas da Microsoft. Num produto comercial, chame de
   "Editor de código" (como o cartão já faz) e não use o logotipo. A loja de extensões configurada é a Open VSX, que é
   permitida. A loja da Microsoft não é permitida fora dos produtos dela.
-- **GSAP (animações do omniclip):** não é MIT. A licença "Standard no charge" permite uso gratuito, inclusive
-  comercial, mas proíbe usar a GSAP num produto que concorra com as ferramentas visuais de animação da Webflow.
-  Um editor de vídeo dentro do XeOS não parece ser esse caso, mas vale ler https://gsap.com/standard-license.
-- **omniclip, privacidade:** a cópia daqui não tem as estatísticas de uso (PostHog) do site original. Só o botão
-  **Colaborar** fala com fora (o servidor de conexão `signaller.sparrow.benev.gg` e servidores STUN), e só quando é
-  tocado.
 - **Música:** o player antigo (Webamp, com o visual do Winamp) foi trocado por um player próprio, então a questão da
   marca "Winamp" deixou de existir.
 

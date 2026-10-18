@@ -1,5 +1,5 @@
 // Player de vídeo do InkTerminal: <video> nativo do Safari, com lista guardada
-// neste aparelho. "Editar" abre o vídeo atual no editor (omniclip, em editor/).
+// neste aparelho. "Editar" abre o vídeo atual no editor simples (cortar/).
 const $ = (id) => document.getElementById(id);
 const video = $("video"), lista = $("lista");
 const bib = InkBiblioteca("inkterminal-video");
@@ -91,12 +91,7 @@ $("editar").onclick = () => {
   const v = itens[atual];
   if (!v) return;
   video.pause(); guardarPosicao();
-  try { localStorage.setItem("inkterminal-video-editar", String(v.id)); } catch (_) {}
-  const projeto = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join("");
-  // o editor precisa do modo isolado do navegador (coi-serviceworker), que uma página dentro da
-  // tela inicial não tem; por isso, dentro dela, ele abre numa aba própria
-  if (window.top !== window) window.open("editor/#/editor/" + projeto, "_blank");
-  else location.href = "editor/#/editor/" + projeto;
+  location.href = "cortar/?id=" + v.id;
 };
 
 bib.listar().then((lst) => {

@@ -15,7 +15,7 @@
       // o modo "limitada" do terminal (640 MB + swap) deixa a aba perto de 1 GB
       peso: function () { var m; try { m = localStorage.getItem("inkterminal-memoria"); } catch (_) {} return m === "limitada" ? 900 : 350; } },
     { id: "foto", nome: "Fotos", url: "apps/foto/", peso: 120 },
-    { id: "videoeditor", nome: "Editar vídeo", url: "apps/video/editor/", peso: 500 },
+    { id: "videoeditor", nome: "Editar vídeo", url: "apps/video/cortar/", peso: 300 },
     { id: "video", nome: "Vídeo", url: "apps/video/", peso: 150 },
     { id: "codigo", nome: "Código", url: "apps/codigo/", peso: 250 },
     { id: "quadro", nome: "Quadro branco", url: "apps/quadro/", peso: 120 },

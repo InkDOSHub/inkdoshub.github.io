@@ -1,26 +1,8 @@
-Editor de vídeo (apps/video/editor/): omniclip 1.1.3 (MIT)
-  https://github.com/omni-media/omniclip, commit cbe581a4a788d9982ffd4a10025c678f9e8707d6
-  Empacotado com tools/omniclip-build.mjs. Mudanças: bibliotecas dos CDNs copiadas para esta pasta,
-  sem PostHog e sem Google Fonts, caminhos /assets/ relativos, arrumação inicial dos painéis e
-  abertura do vídeo vindo do player (editor/inkterminal.js). Para abrir rápido e sem modo isolado
-  (XeOS): o ffprobe só é criado se usado (o editor não usa), o hash do vídeo importado lê só o
-  tamanho e 4 MB do começo e do fim, o núcleo do ffmpeg carrega 8 s depois da abertura e as prévias
-  dos filtros são de 160x160, uma por vez (o original fazia 39 de 1024x1024 de uma vez).
+Vídeo do InkTerminal: o player (index.html, app.js) e o editor (cortar/) são feitos aqui.
 
-Bibliotecas copiadas (cada uma com a própria licença, sem mudanças):
-  @shoelace-style/shoelace 2.20.0 (MIT)       editor/lib/shoelace/
-  pixi.js 7.4.2 (MIT)                          editor/lib/pixi.min.js
-  pixi-filters 5.3.0 (MIT)                     editor/lib/pixi-filters.js
-  @pixi/graphics-extras 7.1.4 (MIT)            editor/lib/graphics-extras.min.js
-  @pixi-essentials object-pool 1.0.1, bounds 3.0.0, transformer 3.0.2 (MIT)
-  mediainfo.js 0.3.2 (BSD-2-Clause)            dentro de main.js e editor/assets/MediaInfoModule.wasm
-  opfs-tools 0.7.0 (MIT)                       dentro de main.js
-  web-demuxer 1.0.5 (MIT; o wasm usa FFmpeg, LGPL-2.1)  editor/web-demuxer/
-  @ffmpeg/core 0.12.5 (GPL-2.0 ou posterior)   editor/ffmpeg-core/
-  ffprobe-wasm 0.3.1 (MIT; o wasm usa FFmpeg)  dentro de main.js
-  gsap 3 (licença "Standard no charge" da GSAP)
-  coi-serviceworker 0.1.7 (MIT)                editor/coi-serviceworker.js
-  Demais pacotes do omniclip (lit, @benev/*, mp4box, wavesurfer.js, zip.js, gl-transitions, sparrow-rtc):
-  MIT ou BSD, dentro de main.js.
+ffmpeg.wasm: @ffmpeg/core 0.12.5 (GPL-2.0 ou posterior), versão de uma thread só, em cortar/ffmpeg-core/
+  (dist/esm do pacote npm, sem mudanças). Código-fonte: https://github.com/ffmpegwasm/ffmpeg.wasm
+  (tag v0.12.5) e as bibliotecas listadas no configure do próprio .wasm (x264, x265, libvpx, lame, opus...).
+  Copiado por tools/build_apps.sh.
 
-O player (index.html, app.js) é do InkTerminal.
+Até 2026-10-18 o editor era o omniclip (MIT); o Paulo pediu um editor simples, como o do iPhone.
