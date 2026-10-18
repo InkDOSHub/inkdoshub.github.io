@@ -1,6 +1,0 @@
-Bem-vindo ao InkTerminal!
-Este é um Alpine Linux de verdade (kernel 6.6) emulado em WebAssembly.
-
-- Instale programas com: apk add python3 git nano
-- A pasta ~/ipad troca arquivos com o iPad (botões Enviar e Baixar).
-- Toque em Salvar para guardar tudo neste aparelho.

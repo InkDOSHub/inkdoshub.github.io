@@ -1,6 +1,6 @@
 /* Tela inicial do InkTerminal: cada cartão abre a ferramenta na própria aba, carregada só quando é
    pedida. Tocar de novo num app já aberto volta para a aba dele (assets/gerenciador-app.js).
-   Cada app cuida da própria memória; o controle que somava as abas abertas está em legado/. */
+   Cada app cuida da própria memória. */
 (function () {
   "use strict";
   var P = window.InkPaginas;

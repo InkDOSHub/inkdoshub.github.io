@@ -2,7 +2,6 @@
 
    Cada ferramenta abre na própria aba e só carrega quando é pedida. O site não aplica limite de
    memória: as abas não se coordenam e o sistema (iOS, XeOS, navegador) decide o que fecha.
-   (O controle que somava a memória das páginas abertas ficou em legado/, fora de uso.)
 
    Compatibilidade: inkGerenciador.aoGuardar(fn) continua existindo, mas não faz nada. */
 (function () {

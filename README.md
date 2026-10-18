@@ -80,14 +80,14 @@ Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou for
 | `terminal/vendor/xterm/` | xterm.js 6.0.0 + addon-fit (licença MIT) |
 | `terminal/bios/` | SeaBIOS e VGA BIOS (LGPL-3) |
 | `terminal/images/inkterminal-bzImage.bin` | Kernel Linux 6.6 com o Alpine embutido (GPL-2 e licenças do Alpine) |
-| `build/` | Script e configurações para recompilar a imagem |
+| `tools/linux/` | Script e configurações para recompilar a imagem |
 
 ### Recompilar a imagem do Linux
 
 Precisa de uma máquina Linux (ou um runner de CI) com `gcc make flex bison bc cpio libelf-dev git`:
 
 ```sh
-./build/build.sh
+./tools/linux/build.sh
 ```
 
-O kernel vem de `torvalds/linux` na tag `v6.6`, sem modificações. O Alpine vem do minirootfs oficial x86 (`alpinelinux/docker-alpine`, branch `v3.22`), com o checksum conferido. Os arquivos próprios do InkTerminal ficam em `build/alpine-overlay/`.
+O kernel vem de `torvalds/linux` na tag `v6.6`, sem modificações. O Alpine vem do minirootfs oficial x86 (`alpinelinux/docker-alpine`, branch `v3.22`), com o checksum conferido. Os arquivos próprios do InkTerminal ficam em `tools/linux/alpine-overlay/`.

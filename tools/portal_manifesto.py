@@ -16,7 +16,7 @@ GRUPOS = [
     ("codigo", "Código", ["apps/codigo"]),
     ("quadro", "Quadro branco", ["apps/quadro"]),
     ("musica", "Música", ["apps/musica"]),
-    ("wine", "Wine (teste)", ["apps/wine"]),
+    ("wine", "Wine", ["apps/wine"]),
     ("inkdos", "Documentos (InkDOS)", ["inkdos"]),
     ("onlyoffice", "Editores ONLYOFFICE", ["onlyoffice"]),
 ]

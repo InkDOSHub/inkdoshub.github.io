@@ -1,6 +1,6 @@
-Wine (teste) do InkTerminal
+Wine do InkTerminal
 
-- Boxedwine (emulador x86 + Linux que roda o Wine), licença GPL-2.0 (BOXEDWINE-LICENSE.txt).
+- Boxedwine (emulador x86 + Linux que roda o Wine), licença GPL-2.0 (UPSTREAM-LICENSE.txt).
   Compilado aqui a partir do código-fonte em https://github.com/danoon2/Boxedwine
   commit cc787bf2d3062220a14d87c7e66b66407c9ba78a (2026-10-16), alvo "jit" de project/emscripten
   (uma thread só, sem SharedArrayBuffer), com Emscripten 5.0.7: cd project/emscripten && make jit

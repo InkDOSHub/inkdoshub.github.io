@@ -7,7 +7,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 
 | Parte | Licença | Observação |
 |---|---|---|
-| Código do InkTerminal (páginas, players de Fotos, Vídeo e Música, extensão `inkfs`, `build/`) | do próprio projeto | o repositório não traz um arquivo LICENSE; para outros reutilizarem, falta escolher uma (MIT, por exemplo) |
+| Código do InkTerminal (páginas, players de Fotos, Vídeo e Música, extensão `inkfs`, `tools/linux/`) | do próprio projeto | o repositório não traz um arquivo LICENSE; para outros reutilizarem, falta escolher uma (MIT, por exemplo) |
 | miniPaint (Fotos) | MIT | |
 | Excalidraw (Quadro branco) | MIT | as fontes embutidas são OFL-1.1 ou MIT, que também permitem uso comercial |
 | VS Code para web (Código) | MIT (código do VS Code, "Code - OSS") | veja "Cuidados" sobre o nome |
@@ -22,11 +22,11 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 
 | Parte | Licença | O que precisa |
 |---|---|---|
-| Kernel Linux 6.6 | GPL-2.0 | oferecer o código-fonte correspondente. Usamos a tag `v6.6` sem mudanças, mais `build/kernel-extra.config` e `build/build.sh`, então basta apontar para eles |
+| Kernel Linux 6.6 | GPL-2.0 | oferecer o código-fonte correspondente. Usamos a tag `v6.6` sem mudanças, mais `tools/linux/kernel-extra.config` e `tools/linux/build.sh`, então basta apontar para eles |
 | Programas do Alpine dentro da imagem (BusyBox, musl, apk-tools etc.) | GPL-2.0, MIT e outras | mesmo caso: são os pacotes oficiais do Alpine 3.22 sem mudanças, com o código-fonte público no Alpine |
 | SeaBIOS / VGA BIOS | LGPL-3.0 | manter a licença (`terminal/bios/COPYING.LESSER`) e indicar onde está o código-fonte |
-| Boxedwine (Wine, `apps/wine/`) | GPL-2.0 | oferecer o código-fonte: compilado sem mudanças do commit `cc787bf` de https://github.com/danoon2/Boxedwine; licença em `apps/wine/BOXEDWINE-LICENSE.txt` |
-| Wine 11.0, TinyCore Linux 15 e AbiWord (dentro de `apps/wine/`) | Wine LGPL-2.1+, TinyCore GPL, AbiWord GPL-2.0+ | pacotes oficiais sem mudanças, com o código-fonte público nos projetos; origem e sha256 em `apps/wine/UPSTREAM-SOURCE.txt` |
+| Boxedwine (Wine, `apps/wine/`) | GPL-2.0 | oferecer o código-fonte: compilado sem mudanças do commit `cc787bf` de https://github.com/danoon2/Boxedwine; licença em `apps/wine/UPSTREAM-LICENSE.txt` |
+| Wine 11.0 e TinyCore Linux 15 (dentro de `apps/wine/`) | Wine LGPL-2.1+, TinyCore GPL | pacotes oficiais sem mudanças, com o código-fonte público nos projetos; origem e sha256 em `apps/wine/UPSTREAM-SOURCE.txt` |
 | Editores ONLYOFFICE (`onlyoffice/`, "Editar com ONLYOFFICE" nos documentos) | AGPL-3.0 | oferecer o código-fonte correspondente, inclusive das mudanças: origem e lista de mudanças em `onlyoffice/UPSTREAM-SOURCE.txt` (ranuts/document e o branch source de inkdos-tools/inkdos-tools.github.io). A AGPL vale também para quem usa pela rede, então num produto pago estas pastas precisam continuar com o código aberto |
 | jschardet (dentro do VS Code) | LGPL-2.1 | manter a licença; o arquivo não foi alterado |
 | ffmpeg.wasm 0.12.5 (`apps/video/editor/ffmpeg-core/`, usado ao exportar) | GPL-2.0 ou posterior | oferecer o código-fonte: é o pacote `@ffmpeg/core@0.12.5` sem mudanças, com o código em https://github.com/ffmpegwasm/ffmpeg.wasm |
