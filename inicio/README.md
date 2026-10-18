@@ -14,8 +14,6 @@ para a raiz.
   o app abre na mesma.
 - O botão "InkTerminal" da barra do app e o Home dos apps do InkDOS vão para a página da tela inicial
   (`inkterminal-inicio`) sem fechar o app.
-- **Abertos** mostra as páginas abertas; o X fecha a página (o navegador só deixa fechar as que a
-  tela inicial abriu; as outras viram a tela inicial).
 
 ## Lançador de arquivos (`lancador.js`, `../manifest.webmanifest`)
 
@@ -48,9 +46,6 @@ app cuida da própria memória (o terminal, por exemplo, tem o botão de memóri
 
 O site não aplica limite de memória: o sistema (iOS, XeOS, navegador) decide quais abas fecha.
 Os pesos da lista `APPS` são só estimativas informativas.
-
-O controle anterior, que somava a memória de todas as páginas abertas e guardava as paradas, está
-em `../legado/`, fora de uso.
 
 ## Cópia offline (`offline.js`, `../sw-portal.js`, `manifesto.json`)
 

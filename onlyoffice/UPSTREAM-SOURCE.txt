@@ -17,4 +17,4 @@ Cópia no InkTerminal (onlyoffice/)
   - assets/editor-Cs5INJPw.js: manifest.json relativo;
   - inkdos-handoff.js: lê o documento direto do IndexedDB deste site;
   - sw.js: usa o service worker do InkTerminal (../sw-portal.js);
-  - editor.html carrega ../assets/gerenciador-app.js (controle de memória entre páginas).
+  - editor.html carrega ../assets/gerenciador-app.js (abre os apps em abas nomeadas).

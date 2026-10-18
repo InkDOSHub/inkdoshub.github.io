@@ -1,15 +1,15 @@
 Cópia dos apps do InkDOS dentro do InkTerminal
 
 - Origem: https://github.com/vfydr2m9wk-ops/InkDOS, commit 70317a8 (2026-10-17), pastas apps/,
-  shared/, assets/, licenses/, LICENSE e VERSION.json, sem mudanças.
+  shared/, assets/icons/, licenses/, LICENSE e VERSION.json, sem mudanças.
 - Feita a pedido do Paulo (2026-10-17) para os apps do InkDOS abrirem pela tela inicial do
-  InkTerminal, cada um na própria página, com o controle de memória entre páginas.
+  InkTerminal, cada um na própria página.
 - Não foi copiado: service-worker.js do InkDOS (a cópia offline daqui é a do InkTerminal) nem a
   tela inicial do InkDOS (inkdos/index.html só volta para a tela inicial do InkTerminal).
 - Os arquivos guardados por esta cópia ficam no site do InkTerminal, separados dos do InkDOS
   aberto em https://vfydr2m9wk-ops.github.io/InkDOS/.
 - Para atualizar: copie de novo as mesmas pastas de um commit novo do InkDOS (tools/copiar_inkdos.sh).
 - Mudanças, todas feitas por tools/adaptar_inkdos.py:
-  - index.html de cada app carrega ../../../assets/gerenciador-app.js (controle de memória);
+  - index.html de cada app carrega ../../../assets/gerenciador-app.js (abre os apps em abas nomeadas);
   - "Editar com ONLYOFFICE" abre a cópia dos editores em onlyoffice/ numa página nova
     (runtime/platform/file-launch.js de cada app).
