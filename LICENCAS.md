@@ -7,7 +7,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 
 | Parte | Licença | Observação |
 |---|---|---|
-| Código do InkTerminal (páginas, players de Fotos, Vídeo e Música, extensão `inkfs`, `tools/linux/`) | do próprio projeto | o repositório não traz um arquivo LICENSE; para outros reutilizarem, falta escolher uma (MIT, por exemplo) |
+| Código do InkTerminal (páginas, players de Fotos, Vídeo e Música, extensão `inkfs`, `tools/linux/`) | MIT | arquivo `LICENSE` na raiz |
 | miniPaint (Fotos) | MIT | |
 | Excalidraw (Quadro branco) | MIT | as fontes embutidas são OFL-1.1 ou MIT, que também permitem uso comercial |
 | VS Code para web (Código) | MIT (código do VS Code, "Code - OSS") | veja "Cuidados" sobre o nome |
