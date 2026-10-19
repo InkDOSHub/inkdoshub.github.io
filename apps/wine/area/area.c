@@ -92,12 +92,12 @@ static void montarLista(int forcar) {
   varrer(L"D:\\.inkterminal\\atalhos", 0);
   qsort(itens, nItens, sizeof(Item), comparar);
   int fixos = nItens;
-  adicionar(L"Disco D: (seus arquivos)", L"explorer.exe", L"D:\\");
-  adicionar(L"Disco C:", L"explorer.exe", L"C:\\");
+  adicionar(L"Drive D: (your files)", L"explorer.exe", L"D:\\");
+  adicionar(L"Drive C:", L"explorer.exe", L"C:\\");
   WCHAR sis[MAX_PATH], cam[MAX_PATH];
   GetSystemDirectoryW(sis, MAX_PATH);
-  wsprintfW(cam, L"%s\\notepad.exe", sis); adicionar(L"Bloco de notas", cam, L"");
-  wsprintfW(cam, L"%s\\wineconsole.exe", sis); adicionar(L"Prompt de comando", cam, L"cmd");
+  wsprintfW(cam, L"%s\\notepad.exe", sis); adicionar(L"Notepad", cam, L"");
+  wsprintfW(cam, L"%s\\wineconsole.exe", sis); adicionar(L"Command prompt", cam, L"cmd");
   (void)fixos;
 
   /* só redesenha se algo mudou */
@@ -230,7 +230,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE ant, LPWSTR linha, int mostrar) {
   wc.lpfnWndProc = proc; wc.hInstance = inst; wc.lpszClassName = L"InkTerminalArea";
   wc.hCursor = LoadCursorW(NULL, (LPCWSTR)IDC_ARROW);
   RegisterClassW(&wc);
-  janela = CreateWindowExW(WS_EX_TOOLWINDOW, L"InkTerminalArea", L"Área de trabalho", WS_POPUP | WS_CLIPCHILDREN,
+  janela = CreateWindowExW(WS_EX_TOOLWINDOW, L"InkTerminalArea", L"Desktop", WS_POPUP | WS_CLIPCHILDREN,
                            0, 0, 800, 600, NULL, NULL, inst, NULL);
   lista = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_ICON | LVS_AUTOARRANGE | LVS_SINGLESEL,
                           0, 0, 800, 600, janela, NULL, inst, NULL);

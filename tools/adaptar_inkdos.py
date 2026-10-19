@@ -36,7 +36,7 @@ function openInOfficeOriginal(file,light,win){"""
 
 TROCAS = [("function openInOffice(file,light,win){", FUNCAO)]
 
-SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=6"></script>'
+SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=7"></script>'
 IDIOMA = '<script src="../../../assets/idioma.js?v=1"></script>'
 
 # (arquivo, trecho original, trecho novo); a marca no trecho novo evita aplicar duas vezes
