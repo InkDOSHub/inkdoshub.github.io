@@ -1,12 +1,13 @@
 // Editor de vídeo simples, como o da Fotos do iPhone: escolher o trecho, tirar ou deixar o som e
 // exportar no original (só corta, rápido) ou em 1080p, 720p ou 480p. O resultado vira um vídeo novo
-// na lista do Vídeo. O vídeo chega pelo ?id= (o "Editar" do player).
+// na lista do Vídeo. "Só o som" guarda só o áudio (.m4a) na lista da Música (por exemplo, o som de
+// uma gravação de tela). O vídeo chega pelo ?id= (o "Editar" do player).
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var t = InkIdioma.t;
   var video = $("video"), faixa = $("faixa"), bib = InkBiblioteca("inkterminal-video");
-  var item = null, dur = 0, ini = 0, fim = 0, som = true, altura = 0, url = null;
+  var item = null, dur = 0, ini = 0, fim = 0, som = "com", altura = 0, url = null;
   var MIN = 0.5; // trecho mínimo, em segundos
 
   function hms(s) {
@@ -109,12 +110,14 @@
     desenhar();
   });
 
-  $("som").onclick = function () {
-    som = !som;
-    video.muted = !som;
-    $("som").textContent = som ? t("With sound") : t("Without sound");
-    $("som").setAttribute("aria-pressed", String(som));
-  };
+  $("som").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    som = b.dataset.som;
+    video.muted = som === "sem";
+    [].forEach.call($("som").children, function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    $("linha-qualidade").style.display = som === "so" ? "none" : "";
+  });
   $("qualidade").addEventListener("click", function (e) {
     var b = e.target.closest("button");
     if (!b) return;
@@ -144,21 +147,21 @@
     if (!item) return;
     video.pause();
     var t0 = Date.now(), arquivo = item.blob instanceof File ? item.blob : new File([item.blob], item.nome, { type: item.tipo || item.blob.type });
-    var qual = altura + "p";
-    painel(t("Exporting"), altura ? t("Preparing ({quality})…", { quality: qual }) : t("Preparing (original quality)…"), 0, [{ texto: t("Cancel"), acao: cancelar }]);
-    worker = new Worker("cortar-worker.js?v=2", { type: "module" });
+    var qual = altura + "p", audio = som === "so";
+    painel(t("Exporting"), audio ? t("Preparing (sound only)…") : altura ? t("Preparing ({quality})…", { quality: qual }) : t("Preparing (original quality)…"), 0, [{ texto: t("Cancel"), acao: cancelar }]);
+    worker = new Worker("cortar-worker.js?v=3", { type: "module" });
     worker.onmessage = function (e) {
       var d = e.data;
       if (d.tipo === "progresso") {
         var s = Math.round((Date.now() - t0) / 1000);
         var pct = Math.round(d.parte * 100).toLocaleString(InkIdioma.atual), seg = s.toLocaleString(InkIdioma.atual);
-        painel(t("Exporting"), altura ? t("Converting to {quality} · {percent}% · {seconds} s", { quality: qual, percent: pct, seconds: seg }) : t("Trimming · {percent}% · {seconds} s", { percent: pct, seconds: seg }), d.parte, [{ texto: t("Cancel"), acao: cancelar }]);
+        painel(t("Exporting"), audio ? t("Extracting the sound · {percent}% · {seconds} s", { percent: pct, seconds: seg }) : altura ? t("Converting to {quality} · {percent}% · {seconds} s", { quality: qual, percent: pct, seconds: seg }) : t("Trimming · {percent}% · {seconds} s", { percent: pct, seconds: seg }), d.parte, [{ texto: t("Cancel"), acao: cancelar }]);
       }
-      if (d.tipo === "erro") { worker.terminate(); worker = null; painel(t("Could not export"), d.codigo === "vazio" ? t("ffmpeg did not produce the video.") : d.texto, null, [{ texto: t("OK"), acao: fecharPainel }]); }
-      if (d.tipo === "pronto") { worker.terminate(); worker = null; guardar(d.blob, d.ext); }
+      if (d.tipo === "erro") { worker.terminate(); worker = null; painel(t("Could not export"), d.codigo === "vazio" ? t("ffmpeg did not produce the video.") : d.codigo === "semaudio" ? t("This video has no sound, or its sound could not be read.") : d.texto, null, [{ texto: t("OK"), acao: fecharPainel }]); }
+      if (d.tipo === "pronto") { worker.terminate(); worker = null; (audio ? guardarSom : guardar)(d.blob, d.ext); }
     };
     worker.onerror = function (e) { painel(t("Could not export"), e.message || t("ffmpeg error"), null, [{ texto: t("OK"), acao: fecharPainel }]); };
-    worker.postMessage({ arquivo: arquivo, ini: ini, fim: fim, som: som, altura: altura });
+    worker.postMessage({ arquivo: arquivo, ini: ini, fim: fim, som: som !== "sem", soSom: audio, altura: audio ? 0 : altura });
   };
   function cancelar() { if (worker) { worker.terminate(); worker = null; } fecharPainel(); }
 
@@ -171,6 +174,17 @@
       painel(t("Done"), t("{name} ({size}) is in the Video list.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
         { texto: t("Save to device"), acao: function () { partilhar(arq); } },
         { texto: t("View in Video"), principal: true, acao: function () { location.href = "../"; } },
+      ]);
+    });
+  }
+  // só o som: vai para a lista da Música
+  function guardarSom(blob, ext) {
+    var arq = new File([blob], item.nome.replace(/\.[^.]+$/, "") + ext, { type: blob.type });
+    InkBiblioteca("inkterminal-musica").adicionar([arq]).then(function (novos) {
+      try { localStorage.setItem("inkterminal-musica-atual", String(novos[0].id)); } catch (_) {}
+      painel(t("Done"), t("{name} ({size}) is in the Music list.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
+        { texto: t("Save to device"), acao: function () { partilhar(arq); } },
+        { texto: t("Open in Music"), principal: true, acao: function () { location.href = "../../musica/"; } },
       ]);
     });
   }

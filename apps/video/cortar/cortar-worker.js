@@ -1,5 +1,5 @@
 // Exporta o trecho escolhido com o ffmpeg.wasm (versão de uma thread só, sem modo isolado).
-// Pedido: {arquivo: File, ini, fim (segundos), som (bool), altura (0 = original)}.
+// Pedido: {arquivo: File, ini, fim (segundos), som (bool), soSom (bool: só o áudio, em .m4a), altura (0 = original)}.
 // Resposta: {tipo: "progresso", parte} ... {tipo: "pronto", blob} ou {tipo: "erro", texto, codigo}.
 // O texto do erro é técnico (em inglês); codigo "vazio" = o ffmpeg não gerou nada (a página traduz).
 import createFFmpegCore from "./ffmpeg-core/ffmpeg-core.js";
@@ -22,7 +22,7 @@ async function carregar() {
 const f3 = (n) => Math.max(0, n).toFixed(3);
 
 onmessage = async ({ data }) => {
-  const { arquivo, ini, fim, som, altura } = data;
+  const { arquivo, ini, fim, som, soSom, altura } = data;
   try {
     const c = await carregar();
     duracao = Math.max(0.1, fim - ini);
@@ -30,6 +30,24 @@ onmessage = async ({ data }) => {
     // o vídeo é lido direto do arquivo (WORKERFS), sem uma cópia inteira na memória
     c.FS.mount(c.FS.filesystems.WORKERFS, { files: [arquivo] }, "/in");
     const ext = (/\.[a-z0-9]+$/i.exec(arquivo.name) || [".mp4"])[0].toLowerCase();
+    if (soSom) {
+      // só o som: copia o AAC como está (rápido, sem perda); se não der (outro formato), converte para AAC
+      const base = ["-hide_banner", "-ss", f3(ini), "-i", "/in/" + arquivo.name, "-t", f3(duracao), "-vn", "-sn", "-dn", "-map", "0:a:0"];
+      const saidaArgs = ["-map_metadata", "0", "-movflags", "+faststart", "-y", "/saida.m4a"];
+      let dados = new Uint8Array(0);
+      for (const codec of [["-c:a", "copy"], ["-c:a", "aac", "-b:a", "128k"]]) {
+        try { c.FS.unlink("/saida.m4a"); } catch (_) {}
+        const ret = c.exec(...base, ...codec, ...saidaArgs);
+        c.reset && c.reset();
+        try { dados = c.FS.readFile("/saida.m4a"); } catch (_) { dados = new Uint8Array(0); }
+        if (!ret && dados.length > 1024) break;
+      }
+      try { c.FS.unlink("/saida.m4a"); } catch (_) {}
+      c.FS.unmount("/in");
+      if (!dados.length) throw Object.assign(new Error("ffmpeg did not produce the audio"), { codigo: "semaudio" });
+      postMessage({ tipo: "pronto", blob: new Blob([dados], { type: "audio/mp4" }), ext: ".m4a" });
+      return;
+    }
     const saida = "/saida" + (!altura && [".mov", ".m4v", ".webm", ".mkv"].includes(ext) ? ext : ".mp4");
     const args = ["-hide_banner", "-ss", f3(ini), "-i", "/in/" + arquivo.name, "-t", f3(duracao)];
     if (altura) {

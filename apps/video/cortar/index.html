@@ -61,9 +61,13 @@
     <div class="linha">
       <span class="tempos" id="tempos" data-idioma-nao></span>
       <span class="ink-spacer" style="flex:1"></span>
-      <button class="ink-btn" id="som" aria-pressed="true">With sound</button>
+      <div class="grupo" id="som">
+        <button class="ink-btn" data-som="com" aria-pressed="true">With sound</button>
+        <button class="ink-btn" data-som="sem">Without sound</button>
+        <button class="ink-btn" data-som="so" title="Saves only the audio (.m4a) in Music">Only sound</button>
+      </div>
     </div>
-    <div class="linha">
+    <div class="linha" id="linha-qualidade">
       <span class="rotulo">Quality</span>
       <div class="grupo" id="qualidade">
         <button class="ink-btn" data-h="0" aria-pressed="true" title="Same quality as the original, only trims (fast)">Original</button>
@@ -82,6 +86,6 @@
 </div></div>
 <script src="../../../assets/midia.js?v=2"></script>
 <script src="../../../assets/icones.js?v=2"></script>
-<script src="cortar.js?v=3"></script>
+<script src="cortar.js?v=4"></script>
 </body>
 </html>
