@@ -2,6 +2,7 @@
 // Os ajustes (equalizador, volume extra, balanço) só ligam o Web Audio quando
 // usados, para o player nativo continuar simples e leve.
 const $ = (id) => document.getElementById(id);
+const t = InkIdioma.t;
 const audio = $("audio"), lista = $("lista");
 const bib = InkBiblioteca("inkterminal-musica");
 const FREQS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
@@ -12,6 +13,7 @@ const PRESETS = {
   Agudos: [0, 0, 0, 0, 0, 1, 2, 4, 5, 6],
   Rock: [4, 3, 1, -1, -1, 1, 2, 3, 4, 4],
 };
+const NOMES_PRESETS = { Normal: t("Normal"), Graves: t("Bass"), Voz: t("Vocal"), Agudos: t("Treble"), Rock: t("Rock") };
 let faixas = [], atual = -1, url = null, aleat = false, rep = "nao";
 let cfg = { eq: PRESETS.Normal.slice(), ganho: 0, bal: 0, vel: 1 };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem("inkterminal-musica-ajustes") || "{}")); } catch (_) {}
@@ -26,13 +28,16 @@ function partes(n) {
 function desenhar() {
   lista.innerHTML = "";
   if (!faixas.length) {
-    lista.innerHTML = '<li style="cursor:default;color:var(--muted)">A lista está vazia.</li>';
+    lista.innerHTML = '<li style="cursor:default;color:var(--muted)"></li>';
+    lista.firstChild.textContent = t("The list is empty.");
     return;
   }
   faixas.forEach((f, i) => {
     const li = document.createElement("li");
     if (i === atual) li.className = "atual";
-    li.innerHTML = '<span class="n"></span><span class="t"></span><span class="d"></span><button class="x" title="Tirar da lista" aria-label="Tirar da lista">' + inkIcone("fechar") + '</button>';
+    li.innerHTML = '<span class="n"></span><span class="t"></span><span class="d"></span><button class="x">' + inkIcone("fechar") + '</button>';
+    li.querySelector(".x").title = t("Remove from list");
+    li.querySelector(".x").setAttribute("aria-label", t("Remove from list"));
     if (i === atual) li.querySelector(".n").innerHTML = inkIcone("tocando"); else li.querySelector(".n").textContent = i + 1;
     li.querySelector(".t").textContent = nomeLimpo(f.nome);
     li.querySelector(".d").textContent = f.duracao ? inkTempo(f.duracao) : "";
@@ -55,8 +60,9 @@ function carregar(i, comecar) {
   audio.preservesPitch = true;
   const p = partes(f.nome);
   $("titulo").textContent = p.titulo;
-  $("sub").textContent = (p.artista ? p.artista + " · " : "") + "Faixa " + (i + 1) + " de " + faixas.length;
-  document.title = p.titulo + " · Música";
+  const faixa = t("Track {n} of {total}", { n: (i + 1).toLocaleString(InkIdioma.atual), total: faixas.length.toLocaleString(InkIdioma.atual) });
+  $("sub").textContent = (p.artista ? p.artista + " · " : "") + faixa;
+  document.title = t("{name} · Music", { name: p.titulo });
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({ title: p.titulo, artist: p.artista, album: "InkTerminal" });
   }
@@ -84,7 +90,7 @@ async function tirar(i) {
   const f = faixas[i];
   await bib.remover(f.id);
   faixas.splice(i, 1);
-  if (i === atual) { audio.pause(); audio.removeAttribute("src"); audio.load(); atual = -1; $("titulo").textContent = "Nenhuma música"; $("sub").textContent = ""; }
+  if (i === atual) { audio.pause(); audio.removeAttribute("src"); audio.load(); atual = -1; $("titulo").textContent = t("No music"); $("sub").textContent = ""; }
   else if (i < atual) atual--;
   desenhar();
 }
@@ -110,7 +116,7 @@ $("limpar").onclick = async () => {
   if (!faixas.length) return;
   await bib.limpar();
   faixas = []; atual = -1; audio.pause(); audio.removeAttribute("src"); audio.load();
-  $("titulo").textContent = "Nenhuma música"; $("sub").textContent = "Toque em Abrir músicas para escolher arquivos do iPad";
+  $("titulo").textContent = t("No music"); $("sub").textContent = t("Tap Open music to choose files from the iPad");
   desenhar();
 };
 $("tocar").onclick = () => { if (atual < 0) return faixas.length && tocar(0); audio.paused ? audio.play() : audio.pause(); };
@@ -173,7 +179,7 @@ FREQS.forEach((f, i) => {
 });
 Object.keys(PRESETS).forEach((nome) => {
   const b = document.createElement("button");
-  b.className = "ink-btn"; b.textContent = nome;
+  b.className = "ink-btn"; b.textContent = NOMES_PRESETS[nome];
   b.onclick = () => { cfg.eq = PRESETS[nome].slice(); if (precisaWebAudio()) ligarAudio(); aplicar(); mostrarAjustes(); salvar(); };
   $("presets").appendChild(b);
 });
@@ -183,8 +189,9 @@ $("vel").oninput = (e) => { cfg.vel = +e.target.value; aplicar(); mostrarAjustes
 function mostrarAjustes() {
   [...eq.querySelectorAll("input")].forEach((r, i) => (r.value = cfg.eq[i]));
   $("ganho").value = cfg.ganho; $("oganho").textContent = (cfg.ganho > 0 ? "+" : "") + cfg.ganho + " dB";
-  $("bal").value = cfg.bal; $("obal").textContent = Math.abs(cfg.bal) < 0.05 ? "centro" : (cfg.bal < 0 ? "esq. " : "dir. ") + Math.round(Math.abs(cfg.bal) * 100) + "%";
-  $("vel").value = cfg.vel; $("ovel").textContent = cfg.vel.toFixed(2).replace(".", ",") + "×";
+  $("bal").value = cfg.bal; const pct = Math.round(Math.abs(cfg.bal) * 100).toLocaleString(InkIdioma.atual);
+  $("obal").textContent = Math.abs(cfg.bal) < 0.05 ? t("center") : cfg.bal < 0 ? t("left {percent}%", { percent: pct }) : t("right {percent}%", { percent: pct });
+  $("vel").value = cfg.vel; $("ovel").textContent = cfg.vel.toLocaleString(InkIdioma.atual, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "×";
 }
 $("bajustes").onclick = () => {
   const ab = $("ajustes").classList.toggle("md-hide");
@@ -195,6 +202,7 @@ $("bajustes").onclick = () => {
 audio.addEventListener("play", () => { if (precisaWebAudio()) ligarAudio(); });
 mostrarAjustes();
 
+$("titulo").textContent = t("No music"); $("sub").textContent = t("Tap Open music to choose files from the iPad");
 bib.listar().then((itens) => {
   faixas = itens;
   let ultimo = null;

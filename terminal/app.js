@@ -3,10 +3,12 @@ import { Terminal } from "./vendor/xterm/xterm.mjs";
 import { FitAddon } from "./vendor/xterm/addon-fit.mjs";
 
 const params = new URLSearchParams(location.search);
+const t = window.InkIdioma ? InkIdioma.t : (s, p) => s.replace(/\{(\w+)\}/g, (m, k) => (p && k in p ? String(p[k]) : m));
+const local = window.InkIdioma ? InkIdioma.atual : undefined;
 if (params.has("embed")) document.body.classList.add("embed");
 
 const statusEl = document.getElementById("status");
-const setStatus = (t) => { statusEl.textContent = t; };
+const setStatus = (s) => { statusEl.textContent = s; };
 
 // ---------- Terminal (xterm.js) ----------
 const term = new Terminal({
@@ -118,7 +120,7 @@ const config = {
   vga_memory_size: 2 * 1024 * 1024,
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
-  bzimage: { url: "images/inkterminal-bzImage.bin?v=7" },
+  bzimage: { url: "images/inkterminal-bzImage.bin?v=8" },
   cmdline: "console=ttyS0 quiet tsc=reliable mitigations=off random.trust_cpu=on" +
     (LIMITADA ? " inkzram=192M" + (swap ? " inkswap=1" : "") : ""),
   hda: swap || undefined,
@@ -131,7 +133,7 @@ const config = {
 };
 if (saved) config.initial_state = { buffer: saved };
 
-setStatus(saved ? "Restaurando sessão salva…" : LIMITADA && !swap ? "Iniciando (sem swap no armazenamento, só zram)…" : "Iniciando Linux…");
+setStatus(saved ? t("Restoring saved session…") : LIMITADA && !swap ? t("Starting (no swap in storage, zram only)…") : t("Starting Linux…"));
 const emulator = new V86(config);
 
 // Serial output -> terminal, batched per frame so it stays fast.
@@ -140,7 +142,7 @@ let scheduled = false;
 let booted = !!saved;
 emulator.add_listener("serial0-output-byte", (byte) => {
   pending.push(byte);
-  if (!booted) { booted = true; setStatus("Pronto"); }
+  if (!booted) { booted = true; setStatus(t("Ready")); }
   if (!scheduled) {
     scheduled = true;
     requestAnimationFrame(() => {
@@ -151,7 +153,7 @@ emulator.add_listener("serial0-output-byte", (byte) => {
   }
 });
 emulator.add_listener("emulator-ready", () => {
-  if (saved) { setStatus("Pronto (sessão restaurada)"); emulator.serial0_send("\n"); }
+  if (saved) { setStatus(t("Ready (session restored)")); emulator.serial0_send("\n"); }
 });
 
 // ---------- Input ----------
@@ -187,15 +189,15 @@ document.getElementById("key-colar").addEventListener("click", async () => {
     // No Safari aparece a bolha "Colar" para confirmar; é o jeito do iOS liberar a área de transferência.
     colar(await navigator.clipboard.readText());
   } catch (_) {
-    const t = prompt("O navegador não deixou ler a área de transferência. Cole o texto aqui:");
-    colar(t);
+    const colado = prompt(t("The browser did not allow reading the clipboard. Paste the text here:"));
+    colar(colado);
   }
 });
 // Colar pelo menu do toque longo ou pelo Cmd+V em qualquer lugar do terminal.
 document.getElementById("term").addEventListener("paste", (e) => {
   if (e.defaultPrevented) return; // o xterm.js já tratou
-  const t = e.clipboardData && e.clipboardData.getData("text/plain");
-  if (t) { e.preventDefault(); colar(t); }
+  const txt = e.clipboardData && e.clipboardData.getData("text/plain");
+  if (txt) { e.preventDefault(); colar(txt); }
 });
 
 term.onData((data) => {
@@ -241,15 +243,15 @@ refit();
 
 // ---------- Buttons ----------
 document.getElementById("btn-save").addEventListener("click", async () => {
-  if (LIMITADA) { setStatus("No modo Memória limitada a sessão não é salva"); term.focus(); return; }
+  if (LIMITADA) { setStatus(t("The session is not saved in limited memory mode")); term.focus(); return; }
   try {
-    setStatus("Salvando…");
+    setStatus(t("Saving…"));
     const buf = await emulator.save_state();
     await saveStateDb(buf);
-    setStatus(`Salvo (${(buf.byteLength / 1048576).toFixed(1)} MB)`);
+    setStatus(t("Saved ({size} MB)", { size: (buf.byteLength / 1048576).toLocaleString(local, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }));
   } catch (err) {
     console.error(err);
-    setStatus("Não foi possível salvar");
+    setStatus(t("Could not save"));
   }
   term.focus();
 });
@@ -266,7 +268,7 @@ picker.addEventListener("change", async () => {
     const data = new Uint8Array(await file.arrayBuffer());
     await emulator.create_file("/" + file.name, data);
   }
-  setStatus(picker.files.length === 1 ? `Enviado: ~/ipad/${picker.files[0].name}` : `Enviados ${picker.files.length} arquivos para ~/ipad`);
+  setStatus(picker.files.length === 1 ? t("Uploaded: ~/ipad/{name}", { name: picker.files[0].name }) : t("Uploaded {n} files to ~/ipad", { n: picker.files.length.toLocaleString(local) }));
   picker.value = "";
   term.focus();
 });
@@ -289,7 +291,10 @@ document.getElementById("btn-download").addEventListener("click", () => {
   const files = listFiles("/");
   list.innerHTML = "";
   if (!files.length) {
-    list.innerHTML = "<p>A pasta ~/ipad está vazia. No terminal, copie um arquivo para lá, por exemplo:<br><code>cp notas.txt ~/ipad/</code></p>";
+    const p = document.createElement("p");
+    p.textContent = t("The ~/ipad folder is empty. In the terminal, copy a file there, for example:");
+    p.insertAdjacentHTML("beforeend", "<br><code>cp notes.txt ~/ipad/</code>");
+    list.appendChild(p);
   }
   for (const path of files) {
     const b = document.createElement("button");
@@ -316,9 +321,9 @@ document.getElementById("download-close").addEventListener("click", () => dialog
 // ---------- Escolha da rede ----------
 // Um botão (o XeOS redesenha os <select>): cada toque passa para a próxima opção e liga de novo.
 const redeBtn = document.getElementById("rede");
-const NOMES = { wisp: "Rede: wisp", relay: "Rede: relay", off: "Sem rede" };
+const NOMES = { wisp: t("Network: {name}", { name: "wisp" }), relay: t("Network: {name}", { name: "relay" }), off: t("No network") };
 const atualRede = REDE in REDES ? REDE : "wisp";
-redeBtn.textContent = REDE in NOMES ? NOMES[REDE] : "Rede: própria";
+redeBtn.textContent = REDE in NOMES ? NOMES[REDE] : t("Network: custom");
 redeBtn.addEventListener("click", () => {
   const ordem = ["wisp", "relay", "off"];
   const prox = ordem[(ordem.indexOf(atualRede) + 1) % ordem.length];
@@ -330,22 +335,22 @@ redeBtn.addEventListener("click", () => {
 
 // ---------- Escolha da memória ----------
 const memBtn = document.getElementById("memoria");
-memBtn.textContent = LIMITADA ? "Memória: 640 MB + swap" : "Memória: 256 MB";
+memBtn.textContent = t("Memory: {size}", { size: LIMITADA ? "640 MB + swap" : "256 MB" });
 memBtn.addEventListener("click", () => {
   try { localStorage.setItem("inkterminal-memoria", LIMITADA ? "normal" : "limitada"); } catch {}
   const q = new URLSearchParams(location.search);
   q.delete("memoria");
   location.search = q.toString();
 });
-if (LIMITADA) document.getElementById("btn-save").title = "Neste modo a sessão não é salva (o swap é refeito a cada boot)";
+if (LIMITADA) document.getElementById("btn-save").title = t("The session is not saved in this mode (swap is rebuilt on every boot)");
 
 // Tela inicial (inicio/): antes de descarregar este app, guarda a sessão.
 // No modo de memória limitada não há como guardar (o swap recomeça a cada boot),
 // então pede para a janela continuar aberta.
 if (window.inkGerenciador) {
   inkGerenciador.aoGuardar(async () => {
-    if (LIMITADA) return { manter: "O terminal está no modo 640 MB + swap, que não pode ser salvo. Fechar apaga a sessão." };
-    setStatus("Salvando antes de fechar…");
+    if (LIMITADA) return { manter: t("The terminal is in 640 MB + swap mode, which cannot be saved. Closing it erases the session.") };
+    setStatus(t("Saving before closing…"));
     await saveStateDb(await emulator.save_state());
   });
 }
@@ -391,16 +396,16 @@ async function pedirAoLinux(pedido, aviso) {
     }
     if (i === 6 && !ligou && await texto9p(SESSAO + "/pedido")) {
       ligou = true;
-      if (!await InkSessao.perguntar("Ligar o salvamento de sessão", "Este Linux foi salvo antes de existir o botão Sessão. Para continuar, vou digitar um comando no terminal. Saia de programas abertos (como nano ou vi) antes.", "Digitar o comando")) {
-        throw new Error("Cancelado.");
+      if (!await InkSessao.perguntar(t("Turn on session saving"), t("This Linux was saved before the Session button existed. To continue, a command will be typed in the terminal. Quit any open programs (such as nano or vi) first."), t("Type the command"))) {
+        throw new Error(t("Canceled."));
       }
-      const r = await fetch("../tools/linux/alpine-overlay/usr/local/sbin/inksessao?v=2");
-      if (!r.ok) throw new Error("não consegui baixar o inksessao (" + r.status + ")");
+      const r = await fetch("../tools/linux/alpine-overlay/usr/local/sbin/inksessao?v=3");
+      if (!r.ok) throw new Error(t("could not download inksessao ({status})", { status: r.status }));
       await gravar9p(SESSAO + "/inksessao", new Uint8Array(await r.arrayBuffer()));
       send("(sh /mnt/ipad/.inkterminal/inksessao </dev/null >/dev/null 2>&1 &)\n");
     }
-    if (i > 40 && !ligou) throw new Error("o Linux não respondeu. Espere ele terminar de ligar e tente de novo.");
-    if (i > 60) throw new Error("o Linux não respondeu.");
+    if (i > 40 && !ligou) throw new Error(t("Linux did not respond. Wait for it to finish starting and try again."));
+    if (i > 60) throw new Error(t("Linux did not respond."));
   }
 }
 
@@ -410,11 +415,11 @@ document.getElementById("sessao-fechar").addEventListener("click", () => sessaoD
 document.getElementById("sessao-salvar").addEventListener("click", () => {
   sessaoDialog.close();
   InkSessao.salvar("linux", "Linux", async (aviso) => {
-    aviso.texto("Pedindo ao Linux a lista de pacotes e a pasta pessoal…");
+    aviso.texto(t("Asking Linux for the package list and the home folder…"));
     const e = await pedirAoLinux("salvar", aviso);
-    if (!e.startsWith("ok")) throw new Error(e.replace(/^erro ?/, "") || "erro no Linux");
+    if (!e.startsWith("ok")) throw new Error(e.replace(/^erro ?/, "") || t("error in Linux"));
     const receita = await ler9p(SESSAO + "/receita.tar.gz");
-    if (!receita) throw new Error("o Linux não gerou o arquivo");
+    if (!receita) throw new Error(t("Linux did not create the file"));
     const pacotes = Number(e.split(" ")[2]) || 0;
     gravar9p(SESSAO + "/receita.tar.gz", new Uint8Array(0)).catch(() => {});
     return { meta: { versao: 1, pacotes }, partes: { "receita.tar.gz": receita } };
@@ -425,17 +430,17 @@ document.getElementById("sessao-abrir").addEventListener("click", async () => {
   const r = await InkSessao.abrir("linux", "Linux");
   if (!r) { term.focus(); return; }
   const receita = r.partes["receita.tar.gz"];
-  const aviso = InkSessao.aviso("Abrindo a sessão", "Mandando o arquivo para o Linux…");
+  const aviso = InkSessao.aviso(t("Opening the session"), t("Sending the file to Linux…"));
   try {
-    if (!receita) throw new Error("o arquivo não tem a receita do Linux");
+    if (!receita) throw new Error(t("the file does not contain the Linux recipe"));
     await gravar9p(SESSAO + "/receita.tar.gz", receita);
     const e = await pedirAoLinux("restaurar", aviso);
-    if (e.startsWith("ok")) aviso.fim("Pronto: pacotes instalados e arquivos de volta. Toque em Salvar para guardar este Linux no navegador.");
-    else if (e.startsWith("aviso")) aviso.fim("Os arquivos voltaram, mas não consegui instalar os pacotes (sem internet?). A lista ficou em ~/pacotes-da-sessao.txt. Com a rede ligada, rode: apk add $(cat ~/pacotes-da-sessao.txt)", true);
+    if (e.startsWith("ok")) aviso.fim(t("Done: packages installed and files restored. Tap Save to keep this Linux in the browser."));
+    else if (e.startsWith("aviso")) aviso.fim(t("Your files were restored, but the packages could not be installed (no internet?). The list was saved to {file}. With the network on, run: {command}", { file: "~/session-packages.txt", command: "apk add $(cat ~/session-packages.txt)" }), true);
     else throw new Error(e.replace(/^erro ?/, ""));
   } catch (err) {
     console.error("sessão:", err);
-    aviso.fim("Não foi possível abrir a sessão: " + (err && err.message || err), true);
+    aviso.fim(t("Could not open the session: {error}", { error: err && err.message || err }), true);
   }
   term.focus();
 });

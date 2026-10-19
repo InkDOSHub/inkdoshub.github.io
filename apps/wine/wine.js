@@ -5,13 +5,14 @@
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
+  var t = InkIdioma.t;
 
   /* Teste do formato de exceções novo (exnref), que o Boxedwine exige: Safari 18.4+, Chrome 137+. */
   var temExnref = false;
   try { temExnref = WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,8,1,6,0,31,64,0,11,11])); } catch (_) {}
   if (!temExnref) {
     $("aviso").hidden = false;
-    $("aviso").textContent = "Este navegador ainda não roda o Boxedwine. Atualize o iPadOS (Safari 18.4 ou mais novo).";
+    $("aviso").textContent = t("This browser can't run Boxedwine yet. Update iPadOS (Safari 18.4 or newer).");
     $("b-iniciar").disabled = true;
     $("b-instalar").disabled = true;
     $("b-abrir-sessao").disabled = true;
@@ -42,8 +43,9 @@
   }
   function tempo() {
     var s = Math.round((Date.now() - inicioEm) / 1000);
-    var t = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-    $("c-tempo").textContent = "Tempo: " + t + (primeira ? " · na primeira vez leva alguns minutos" : "") + ". Não feche a página.";
+    var hm = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    $("c-tempo").textContent = primeira ? t("Time: {time} · the first time takes a few minutes. Don't close the page.", { time: hm })
+      : t("Time: {time}. Don't close the page.", { time: hm });
   }
   function pronto() {
     document.body.classList.remove("carregando");
@@ -68,10 +70,10 @@
     if (entrada) q += "&ink-entrada=" + encodeURIComponent(entrada);
     document.body.classList.add("rodando");
     inicioEm = Date.now(); primeira = false;
-    carregando("Abrindo o Wine", "Carregando o emulador…", null);
+    carregando(t("Opening Wine"), t("Loading the emulator…"), null);
     clearInterval(relogio); relogio = setInterval(tempo, 1000); tempo();
     $("tela").src = "emulador.html?" + q;
-    document.title = "Wine · InkTerminal";
+    document.title = t("Wine · InkTerminal");
   }
   $("b-iniciar").onclick = function () { iniciar(null); };
 
@@ -97,8 +99,8 @@
         return m === 0x8664 ? "x64" : m === 0xaa64 ? "arm64" : null;
       }
       if (ext === "msi") {
-        var t = new TextDecoder("latin1").decode(bytes.subarray(0, Math.min(bytes.length, 64e6)));
-        var r = /(?:^|[^A-Za-z0-9])(x64|Intel64|AMD64|Arm64)[,;]\d{1,5}(?:,\d{1,5})*(?![A-Za-z0-9])/.exec(t);
+        var txt = new TextDecoder("latin1").decode(bytes.subarray(0, Math.min(bytes.length, 64e6)));
+        var r = /(?:^|[^A-Za-z0-9])(x64|Intel64|AMD64|Arm64)[,;]\d{1,5}(?:,\d{1,5})*(?![A-Za-z0-9])/.exec(txt);
         if (r) return /arm/i.test(r[1]) ? "arm64" : "x64";
       }
     } catch (_) {}
@@ -131,24 +133,25 @@
   function instalar(file) {
     if (!file) return;
     var ext = ((file.name.match(/\.([^.]+)$/) || [])[1] || "").toLowerCase();
-    if (["exe", "msi", "zip"].indexOf(ext) < 0) { avisar("\"" + file.name + "\" não é um programa do Windows (.exe, .msi ou .zip)."); return; }
+    if (["exe", "msi", "zip"].indexOf(ext) < 0) { avisar(t("\"{name}\" is not a Windows program (.exe, .msi or .zip).", { name: file.name })); return; }
     $("aviso").hidden = true;
     file.arrayBuffer().then(function (dados) {
       var arq = arquitetura(new Uint8Array(dados), ext);
       if (arq) {
-        avisar("\"" + file.name + "\" é um programa de 64 bits" + (arq === "arm64" ? " para ARM" : "") +
-          ". O Wine daqui só roda programas de 32 bits: procure no site do programa a versão de 32 bits (x86, \"win32\").");
+        avisar(arq === "arm64"
+          ? t("\"{name}\" is a 64-bit program for ARM. Wine here only runs 32-bit programs: look for the 32-bit version (x86, \"win32\") on the program's website.", { name: file.name })
+          : t("\"{name}\" is a 64-bit program. Wine here only runs 32-bit programs: look for the 32-bit version (x86, \"win32\") on the program's website.", { name: file.name }));
         return;
       }
       var w = janela();
       if (rodando() && prontoParaReceber && w) {
         // Wine já aberto: o arquivo vai direto para o D: e a área de trabalho abre o instalador
         w.postMessage({ tipo: "wine:arquivo", arquivo: { nome: file.name, dados: dados } }, location.origin, [dados]);
-        recado("Abrindo " + file.name + " no Wine…");
+        recado(t("Opening {name} in Wine…", { name: file.name }));
         return;
       }
       return guardarEntrada({ nome: file.name, dados: dados, at: Date.now() }).then(function (id) { iniciar(id); });
-    }).catch(function (e) { avisar("Não consegui abrir \"" + file.name + "\": " + (e && e.message || e)); });
+    }).catch(function (e) { avisar(t("Couldn't open \"{name}\": {error}", { name: file.name, error: (e && e.message || e) })); });
   }
   $("b-instalar").onclick = $("b-instalar2").onclick = function () { $("arquivos").click(); };
   // também recebe arquivos da tela inicial (abrir um .exe no XeOS): veja assets/gerenciador-app.js
@@ -161,11 +164,11 @@
   function pedirDiscos() {
     return new Promise(function (ok, erro) {
       var w = janela();
-      if (!w || !rodando()) { erro(new Error("abra o Wine antes de salvar")); return; }
-      var t = setTimeout(function () { removeEventListener("message", ouvir); erro(new Error("o Wine não respondeu")); }, 120000);
+      if (!w || !rodando()) { erro(new Error(t("Start Wine before saving"))); return; }
+      var espera = setTimeout(function () { removeEventListener("message", ouvir); erro(new Error(t("Wine didn't respond"))); }, 120000);
       function ouvir(e) {
         if (e.origin !== location.origin || !e.data || e.data.tipo !== "wine:sessao-dados") return;
-        clearTimeout(t); removeEventListener("message", ouvir);
+        clearTimeout(espera); removeEventListener("message", ouvir);
         if (e.data.erro) erro(new Error(e.data.erro)); else ok(e.data.partes);
       }
       addEventListener("message", ouvir);
@@ -174,9 +177,9 @@
   }
   function salvarSessao() {
     InkSessao.salvar("wine", "Wine", function (aviso) {
-      aviso.texto("Juntando o disco C: (programas instalados) e o disco D:…");
+      aviso.texto(t("Gathering drive C: (installed programs) and drive D:…"));
       return pedirDiscos().then(function (partes) { return { meta: { versao: 1 }, partes: partes }; });
-    }, "O arquivo leva os programas instalados e o disco D:, então pode ficar grande.");
+    }, t("The file includes the installed programs and drive D:, so it can be large."));
   }
   function abrirSessao() {
     InkSessao.abrir("wine", "Wine").then(function (r) {
@@ -184,19 +187,21 @@
       var partes = {};
       // cópias soltas: o IndexedDB guarda só o pedaço de cada parte, não o arquivo inteiro
       Object.keys(r.partes).forEach(function (k) { partes[k] = r.partes[k].slice(); });
-      return InkSessao.perguntar("Abrir sessão do Wine", "Os programas instalados e o disco D: deste aparelho vão ser trocados pelos do arquivo" +
-        (r.meta.criado ? " (salvo em " + new Date(r.meta.criado).toLocaleString() + ")" : "") + ".", "Trocar e abrir").then(function (sim) {
+      return InkSessao.perguntar(t("Open Wine session"), r.meta.criado
+        ? t("The installed programs and drive D: on this device will be replaced by the ones in the file (saved {date}).", { date: new Date(r.meta.criado).toLocaleString(InkIdioma.atual) })
+        : t("The installed programs and drive D: on this device will be replaced by the ones in the file."), t("Replace and open")).then(function (sim) {
         if (!sim) return;
         if (rodando()) parar();
         return guardarEntrada({ sessao: true, partes: partes, at: Date.now() }).then(function (id) { iniciar(id); });
       });
-    }).catch(function (e) { avisar("Não foi possível abrir a sessão: " + (e && e.message || e)); });
+    }).catch(function (e) { avisar(t("Couldn't open the session: {error}", { error: (e && e.message || e) })); });
   }
   function menuSessao() {
-    var d = InkSessao.janela("<form method='dialog'><h2>Sessão em arquivo</h2><p>Guarda num arquivo com senha os programas instalados (disco C:) e o disco D:. " +
-      "Abrir põe tudo de volta, mesmo em outro aparelho ou depois de apagar os dados do site.</p><div class='botoes'>" +
-      "<button class='ink-btn' value=''>Fechar</button><button class='ink-btn' value='abrir'>Abrir arquivo</button>" +
-      "<button class='ink-btn principal' value='salvar'>Salvar em arquivo</button></div></form>");
+    var d = InkSessao.janela("<form method='dialog'><h2>" + t("Session file") + "</h2><p>" +
+      t("Saves the installed programs (drive C:) and drive D: to a password-protected file. Opening it brings everything back, even on another device or after the site data is cleared.") +
+      "</p><div class='botoes'>" +
+      "<button class='ink-btn' value=''>" + t("Close") + "</button><button class='ink-btn' value='abrir'>" + t("Open file") + "</button>" +
+      "<button class='ink-btn principal' value='salvar'>" + t("Save to file") + "</button></div></form>");
     // direto no toque (o iPad só abre o seletor de arquivos dentro do toque da pessoa)
     d.querySelector("[value=salvar]").onclick = function (e) { e.preventDefault(); d.close(); salvarSessao(); };
     d.querySelector("[value=abrir]").onclick = function (e) { e.preventDefault(); d.close(); abrirSessao(); };
@@ -208,7 +213,7 @@
      "pausa": oculto e parado, o Wine pausa para não gastar bateria (veja inkterminal-wine.js).
      "continua": nunca pausa, para deixar algo rodando com a página escondida. */
   function fundo() { try { return localStorage.getItem("inkterminal-wine-fundo") || "pausa"; } catch (_) { return "pausa"; } }
-  function mostrarFundo() { $("b-fundo").textContent = fundo() === "continua" ? "Segundo plano: continua" : "Segundo plano: pausa"; }
+  function mostrarFundo() { $("b-fundo").textContent = fundo() === "continua" ? t("Background: keep running") : t("Background: pause"); }
   $("b-fundo").onclick = function () {
     var v = fundo() === "continua" ? "pausa" : "continua";
     try { localStorage.setItem("inkterminal-wine-fundo", v); } catch (_) {}
@@ -229,12 +234,12 @@
     if (w && f.length) {
       // inkterminal-wine.js grava no D: e avisa o Wine para ver os arquivos novos
       w.postMessage({ tipo: "wine:enviar", arquivos: f }, location.origin);
-      recado((f.length === 1 ? f[0].name : f.length + " arquivos") + " no disco D:");
+      recado(f.length === 1 ? t("{name} on drive D:", { name: f[0].name }) : t("{n} files on drive D:", { n: f.length.toLocaleString(InkIdioma.atual) }));
     }
   };
   // o teclado do iPad só aparece com o foco dado no próprio toque, então o campo é focado daqui
   $("b-teclado").onclick = function () {
-    try { var c = $("tela").contentDocument.querySelector("textarea[aria-label='Teclado']"); if (c) c.focus(); } catch (_) {}
+    try { var c = $("tela").contentDocument.getElementById("ink-teclado"); if (c) c.focus(); } catch (_) {}
   };
   function marcarDireito(v) { $("b-direito").setAttribute("aria-pressed", String(!!v)); }
   $("b-direito").onclick = function () {
@@ -248,23 +253,24 @@
     var d = e.data;
     if (d.tipo === "wine:progresso") {
       if (d.recebido < d.total) {
-        carregando(d.disco ? "Abrindo o Wine" : "Baixando o Wine",
-          (d.disco ? "Lendo o Wine guardado neste aparelho: " : "Só na primeira vez: ") + Math.round(d.recebido / 1e6) + " de " + Math.round(d.total / 1e6) + " MB",
+        var mb = { done: Math.round(d.recebido / 1e6).toLocaleString(InkIdioma.atual), total: Math.round(d.total / 1e6).toLocaleString(InkIdioma.atual) };
+        carregando(d.disco ? t("Opening Wine") : t("Downloading Wine"),
+          d.disco ? t("Reading the Wine saved on this device: {done} of {total} MB", mb) : t("First time only: {done} of {total} MB", mb),
           d.total ? d.recebido / d.total : null);
-      } else carregando("Abrindo o Wine", "Ligando o emulador…", null);
+      } else carregando(t("Opening Wine"), t("Starting the emulator…"), null);
     }
     if (d.tipo === "wine:fase") {
       if (d.fase === "ligando") {
         primeira = !!d.primeira; prontoParaReceber = true;
-        carregando(primeira ? "Preparando o Windows" : "Ligando o Windows",
-          primeira ? "Na primeira vez o Wine monta o disco C:. Isso leva alguns minutos e só acontece uma vez." : "A área de trabalho aparece em instantes.", null);
+        carregando(primeira ? t("Setting up Windows") : t("Starting Windows"),
+          primeira ? t("The first time, Wine builds drive C:. This takes a few minutes and only happens once.") : t("The desktop will appear in a moment."), null);
         tempo();
       }
       if (d.fase === "pronto") pronto();
     }
     if (d.tipo === "wine:aviso") recado(d.texto);
-    if (d.tipo === "wine:pausa") document.title = (d.pausado ? "Wine pausado (oculto) · " : "Wine · ") + "InkTerminal";
+    if (d.tipo === "wine:pausa") document.title = d.pausado ? t("Wine paused (hidden) · InkTerminal") : t("Wine · InkTerminal");
     if (d.tipo === "wine:direito") marcarDireito(d.ligado);
-    if (d.tipo === "wine:erro") recado("Erro: " + d.texto, true);
+    if (d.tipo === "wine:erro") recado(t("Error: {error}", { error: d.texto }), true);
   });
 })();

@@ -1,7 +1,7 @@
 {
   "name": "inkfs",
-  "displayName": "Pasta do InkTerminal",
-  "description": "Guarda os arquivos do editor neste navegador (IndexedDB).",
+  "displayName": "InkTerminal Folder",
+  "description": "Keeps the editor's files in this browser (IndexedDB).",
   "version": "1.0.0",
   "publisher": "inkterminal",
   "license": "MIT",

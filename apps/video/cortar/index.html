@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Editar vídeo · InkTerminal</title>
+<title>Edit video · InkTerminal</title>
 <script src="../../../assets/tema.js?v=1"></script>
-<script src="../../../assets/gerenciador-app.js?v=6"></script>
+<script src="../../../assets/idioma.js?v=1"></script>
+<script src="../../../assets/gerenciador-app.js?v=7"></script>
 <link rel="stylesheet" href="../../../assets/barra.css?v=2">
 <style>
   .tela{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center}
@@ -36,35 +37,36 @@
   #progresso p{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
 </style>
 </head>
-<body class="ink-app">
+<body class="ink-app" data-idioma>
 <header class="ink-bar">
-  <a class="ink-home" href="../" data-icone="voltar">Vídeo</a>
-  <span class="ink-title" id="nome">Editar</span>
+  <a class="ink-home" href="../" data-icone="voltar">Video</a>
+  <span class="ink-title" id="nome" data-idioma-nao>Edit</span>
   <span class="ink-spacer"></span>
-  <button class="ink-btn principal" id="exportar" disabled>Exportar</button>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn principal" id="exportar" disabled>Export</button>
 </header>
 <main class="ink-main" style="display:flex;flex-direction:column">
   <div class="tela"><video id="video" playsinline preload="auto"></video></div>
   <div class="painel">
     <div class="linha">
-      <button class="ink-btn tocar" id="tocar" aria-label="Tocar">▶</button>
+      <button class="ink-btn tocar" id="tocar" aria-label="Play">▶</button>
       <div class="faixa" id="faixa">
         <canvas id="miniaturas"></canvas>
         <div class="fora" id="fora-ini" style="left:0"></div><div class="fora" id="fora-fim" style="right:0"></div>
         <div class="janela" id="janela"></div>
         <div class="cursor" id="cursor"></div>
-        <div class="alca" id="alca-ini" aria-label="Início"></div><div class="alca" id="alca-fim" aria-label="Fim"></div>
+        <div class="alca" id="alca-ini" aria-label="Start"></div><div class="alca" id="alca-fim" aria-label="End"></div>
       </div>
     </div>
     <div class="linha">
-      <span class="tempos" id="tempos"></span>
+      <span class="tempos" id="tempos" data-idioma-nao></span>
       <span class="ink-spacer" style="flex:1"></span>
-      <button class="ink-btn" id="som" aria-pressed="true">Com som</button>
+      <button class="ink-btn" id="som" aria-pressed="true">With sound</button>
     </div>
     <div class="linha">
-      <span class="rotulo">Qualidade</span>
+      <span class="rotulo">Quality</span>
       <div class="grupo" id="qualidade">
-        <button class="ink-btn" data-h="0" aria-pressed="true" title="Mesma qualidade do original, só corta (rápido)">Original</button>
+        <button class="ink-btn" data-h="0" aria-pressed="true" title="Same quality as the original, only trims (fast)">Original</button>
         <button class="ink-btn" data-h="1080">1080p</button>
         <button class="ink-btn" data-h="720">720p</button>
         <button class="ink-btn" data-h="480">480p</button>
@@ -72,14 +74,14 @@
     </div>
   </div>
 </main>
-<div id="progresso" role="dialog" aria-live="polite"><div class="caixa">
-  <strong id="p-titulo">Exportando</strong>
+<div id="progresso" role="dialog" aria-live="polite" data-idioma-nao><div class="caixa">
+  <strong id="p-titulo">Exporting</strong>
   <p id="p-texto"></p>
   <div class="barra" id="p-barra"><span></span></div>
   <div class="botoes" id="p-botoes"></div>
 </div></div>
-<script src="../../../assets/midia.js?v=1"></script>
-<script src="../../../assets/icones.js?v=1"></script>
-<script src="cortar.js?v=2"></script>
+<script src="../../../assets/midia.js?v=2"></script>
+<script src="../../../assets/icones.js?v=2"></script>
+<script src="cortar.js?v=3"></script>
 </body>
 </html>

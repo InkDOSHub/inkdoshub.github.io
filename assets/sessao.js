@@ -12,6 +12,7 @@
   "use strict";
   var MAGICO = "INKSESSAO", VERSAO = 1, RODADAS = 310000;
   var enc = new TextEncoder(), dec = new TextDecoder();
+  function t(s, p) { return window.InkIdioma ? InkIdioma.t(s, p) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return p && k in p ? String(p[k]) : m; }); }
 
   function chave(senha, sal) {
     return crypto.subtle.importKey("raw", enc.encode(senha), "PBKDF2", false, ["deriveKey"]).then(function (base) {
@@ -48,13 +49,13 @@
     });
   }
   function decifrar(bytes, senha) {
-    if (dec.decode(bytes.subarray(0, MAGICO.length)) !== MAGICO) return Promise.reject(new Error("Este arquivo não é uma sessão do InkTerminal."));
-    if (bytes[MAGICO.length] !== VERSAO) return Promise.reject(new Error("Sessão de uma versão mais nova do InkTerminal."));
+    if (dec.decode(bytes.subarray(0, MAGICO.length)) !== MAGICO) return Promise.reject(new Error(t("This file is not an InkTerminal session.")));
+    if (bytes[MAGICO.length] !== VERSAO) return Promise.reject(new Error(t("This session is from a newer version of InkTerminal.")));
     var i = MAGICO.length + 1, sal = bytes.slice(i, i + 16), iv = bytes.slice(i + 16, i + 28);
     return chave(senha, sal).then(function (k) {
       return crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, k, bytes.subarray(i + 28));
     }).then(function (b) { return desempacotar(new Uint8Array(b)); },
-      function (e) { if (e && e.name === "OperationError") throw new Error("Senha errada."); throw e; });
+      function (e) { if (e && e.name === "OperationError") { var s = new Error(t("Wrong password.")); s.senhaErrada = true; throw s; } throw e; });
   }
 
   /* ---------- Janelas ---------- */
@@ -83,21 +84,21 @@
     d.showModal();
     return d;
   }
-  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function esc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   /* confirmar: pede a senha duas vezes (para salvar). Devolve a senha ou null. */
   function pedirSenha(titulo, texto, confirmar) {
     return new Promise(function (ok) {
       var d = janela("<form method='dialog'><h2>" + esc(titulo) + "</h2><p>" + esc(texto) + "</p>" +
-        "<input type='password' name='s1' autocomplete='" + (confirmar ? "new-password" : "current-password") + "' placeholder='Senha' required>" +
-        (confirmar ? "<input type='password' name='s2' autocomplete='new-password' placeholder='Repita a senha' required>" : "") +
-        "<p class='erro' hidden></p><div class='botoes'><button class='ink-btn' value='nao' formnovalidate>Cancelar</button>" +
-        "<button class='ink-btn principal' value='sim'>Continuar</button></div></form>");
+        "<input type='password' name='s1' autocomplete='" + (confirmar ? "new-password" : "current-password") + "' placeholder='" + esc(t("Password")) + "' required>" +
+        (confirmar ? "<input type='password' name='s2' autocomplete='new-password' placeholder='" + esc(t("Repeat password")) + "' required>" : "") +
+        "<p class='erro' hidden></p><div class='botoes'><button class='ink-btn' value='nao' formnovalidate>" + esc(t("Cancel")) + "</button>" +
+        "<button class='ink-btn principal' value='sim'>" + esc(t("Continue")) + "</button></div></form>");
       var f = d.querySelector("form"), erro = d.querySelector(".erro"), resposta = null;
       f.addEventListener("submit", function (e) {
         if (e.submitter && e.submitter.value === "nao") return;
         var s1 = f.s1.value, s2 = confirmar ? f.s2.value : s1;
-        var falha = s1.length < 6 ? "Use pelo menos 6 caracteres." : s1 !== s2 ? "As senhas não são iguais." : "";
+        var falha = s1.length < 6 ? t("Use at least 6 characters.") : s1 !== s2 ? t("The passwords do not match.") : "";
         if (falha) { e.preventDefault(); erro.textContent = falha; erro.hidden = false; return; }
         resposta = s1;
       });
@@ -108,10 +109,10 @@
   function aviso(titulo, texto) {
     var d = janela("<h2>" + esc(titulo) + "</h2><p class='texto'>" + esc(texto) + "</p><div class='botoes'></div>");
     return {
-      texto: function (t) { d.querySelector(".texto").textContent = t; },
-      fim: function (t, erro) {
-        var p = d.querySelector(".texto"); p.textContent = t; p.classList.toggle("erro", !!erro);
-        var b = document.createElement("button"); b.className = "ink-btn principal"; b.textContent = "OK";
+      texto: function (x) { d.querySelector(".texto").textContent = x; },
+      fim: function (x, erro) {
+        var p = d.querySelector(".texto"); p.textContent = x; p.classList.toggle("erro", !!erro);
+        var b = document.createElement("button"); b.className = "ink-btn principal"; b.textContent = t("OK");
         b.onclick = function () { d.close(); };
         d.querySelector(".botoes").appendChild(b);
       },
@@ -123,7 +124,7 @@
   function perguntar(titulo, texto, sim) {
     return new Promise(function (ok) {
       var d = janela("<form method='dialog'><h2>" + esc(titulo) + "</h2><p>" + esc(texto) + "</p><div class='botoes'>" +
-        "<button class='ink-btn' value='nao'>Cancelar</button><button class='ink-btn principal' value='sim'>" + esc(sim || "Continuar") + "</button></div></form>");
+        "<button class='ink-btn' value='nao'>" + esc(t("Cancel")) + "</button><button class='ink-btn principal' value='sim'>" + esc(sim || t("Continue")) + "</button></div></form>");
       d.addEventListener("close", function () { ok(d.returnValue === "sim"); });
     });
   }
@@ -132,8 +133,8 @@
      ou baixa o arquivo onde a folha não existe. O toque precisa ser da pessoa, por isso o botão. */
   function entregar(blob, nome, texto) {
     var arquivo = new File([blob], nome, { type: "application/octet-stream" });
-    var d = janela("<h2>Sessão pronta</h2><p>" + esc(texto) + "</p><div class='botoes'>" +
-      "<button class='ink-btn' value='fechar'>Fechar</button><button class='ink-btn principal' id='ink-guardar'>Guardar arquivo</button></div>");
+    var d = janela("<h2>" + esc(t("Session ready")) + "</h2><p>" + esc(texto) + "</p><div class='botoes'>" +
+      "<button class='ink-btn' value='fechar'>" + esc(t("Close")) + "</button><button class='ink-btn principal' id='ink-guardar'>" + esc(t("Save file")) + "</button></div>");
     d.querySelector("[value=fechar]").onclick = function () { d.close(); };
     d.querySelector("#ink-guardar").onclick = function () {
       var podeCompartilhar = false;
@@ -162,25 +163,28 @@
       i.click();
     });
   }
-  function mb(n) { return n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
+  function mb(n) {
+    var l = window.InkIdioma ? InkIdioma.atual : undefined;
+    return n < 1048576 ? Math.max(1, Math.round(n / 1024)).toLocaleString(l) + " KB" : (n / 1048576).toLocaleString(l, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " MB";
+  }
   function data() { var d = new Date(), z = function (n) { return String(n).padStart(2, "0"); }; return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); }
 
   window.InkSessao = {
     cifrar: cifrar, decifrar: decifrar, pedirSenha: pedirSenha, perguntar: perguntar, aviso: aviso, janela: janela, entregar: entregar, mb: mb,
     /* preparar(): Promise<{meta, partes}>. nomeApp: "Linux", "Wine" */
     salvar: function (app, nomeApp, preparar, avisoTexto) {
-      return pedirSenha("Salvar sessão do " + nomeApp,
-        "Escolha uma senha. Ela é pedida para abrir o arquivo e não dá para recuperá-la. " + (avisoTexto || ""), true).then(function (senha) {
+      return pedirSenha(t("Save {app} session", { app: nomeApp }),
+        t("Choose a password. It is required to open the file and cannot be recovered.") + (avisoTexto ? " " + avisoTexto : ""), true).then(function (senha) {
         if (!senha) return;
-        var a = aviso("Salvando a sessão", "Juntando os arquivos…");
+        var a = aviso(t("Saving the session"), t("Gathering the files…"));
         return Promise.resolve().then(function () { return preparar(a); }).then(function (r) {
-          a.texto("Protegendo com a senha…");
+          a.texto(t("Protecting with the password…"));
           return cifrar(Object.assign({ app: app }, r.meta), r.partes, senha);
         }).then(function (blob) {
           a.fechar();
           entregar(blob, "InkTerminal " + nomeApp + " " + data() + ".inksessao",
-            "O arquivo tem " + mb(blob.size) + ". Guarde em Arquivos ou no iCloud Drive. Para usar, toque em Sessão e Abrir arquivo.");
-        }).catch(function (e) { a.fim("Não foi possível salvar: " + (e && e.message || e), true); });
+            t("The file is {size}. Keep it in Files or iCloud Drive. To use it, tap Session and then Open file.", { size: mb(blob.size) }));
+        }).catch(function (e) { a.fim(t("Could not save: {error}", { error: e && e.message || e }), true); });
       });
     },
     /* Devolve {meta, partes, aviso} ou null. */
@@ -190,20 +194,20 @@
         return f.arrayBuffer().then(function (buf) {
           var bytes = new Uint8Array(buf);
           var tentar = function (texto) {
-            return pedirSenha("Abrir sessão do " + nomeApp, texto, false).then(function (senha) {
+            return pedirSenha(t("Open {app} session", { app: nomeApp }), texto, false).then(function (senha) {
               if (!senha) return null;
               return decifrar(bytes, senha).then(function (r) {
-                if (r.meta.app !== app) throw new Error("Esta sessão é do " + (r.meta.app === "wine" ? "Wine" : r.meta.app === "linux" ? "Linux" : r.meta.app) + ". Abra no app certo.");
+                if (r.meta.app !== app) throw new Error(t("This session belongs to {app}. Open it in the right app.", { app: r.meta.app === "wine" ? "Wine" : r.meta.app === "linux" ? "Linux" : r.meta.app }));
                 return r;
               }, function (e) {
-                if (/Senha errada/.test(e.message)) return tentar("Senha errada. Tente de novo.");
+                if (e && e.senhaErrada) return tentar(t("Wrong password. Try again."));
                 throw e;
               });
             });
           };
-          return tentar("Digite a senha usada ao salvar \"" + f.name + "\".");
+          return tentar(t("Enter the password used to save \"{file}\".", { file: f.name }));
         });
-      }).catch(function (e) { aviso("Abrir sessão", "").fim(String(e && e.message || e), true); return null; });
+      }).catch(function (e) { aviso(t("Open session"), "").fim(String(e && e.message || e), true); return null; });
     },
   };
 })();

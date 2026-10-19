@@ -36,6 +36,12 @@
     document.documentElement.style.colorScheme = n;
   });
 
+  // Idioma: o botão abre o aviso de pacotes (assets/idioma.js) e mostra o idioma atual
+  if (window.InkIdioma) {
+    $("idioma-texto").textContent = InkIdioma.nome();
+    setTimeout(InkIdioma.conferirAtualizacao, 3000);
+  }
+
   // endereços antigos (#terminal), da versão em que os apps abriam dentro desta página
   var pedido = location.hash.slice(1), cartao = pedido && document.querySelector('[data-app="' + pedido.replace(/[^a-z]/g, "") + '"]');
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);

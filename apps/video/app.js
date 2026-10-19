@@ -1,6 +1,7 @@
 // Player de vídeo do InkTerminal: <video> nativo do Safari, com lista guardada
 // neste aparelho. "Editar" abre o vídeo atual no editor simples (cortar/).
 const $ = (id) => document.getElementById(id);
+const t = InkIdioma.t;
 const video = $("video"), lista = $("lista");
 const bib = InkBiblioteca("inkterminal-video");
 let itens = [], atual = -1, url = null;
@@ -11,11 +12,13 @@ function desenhar() {
   lista.innerHTML = "";
   $("vazio").classList.toggle("md-hide", atual >= 0);
   $("editar").disabled = atual < 0;
-  if (!itens.length) { lista.innerHTML = '<li style="cursor:default;color:var(--muted)">Nenhum vídeo.</li>'; return; }
+  if (!itens.length) { lista.innerHTML = '<li style="cursor:default;color:var(--muted)"></li>'; lista.firstChild.textContent = t("No videos."); return; }
   itens.forEach((v, i) => {
     const li = document.createElement("li");
     if (i === atual) li.className = "atual";
-    li.innerHTML = '<span class="n"></span><span class="t"></span><span class="d"></span><button class="x" title="Tirar da lista" aria-label="Tirar da lista">' + inkIcone("fechar") + '</button>';
+    li.innerHTML = '<span class="n"></span><span class="t"></span><span class="d"></span><button class="x">' + inkIcone("fechar") + '</button>';
+    li.querySelector(".x").title = t("Remove from list");
+    li.querySelector(".x").setAttribute("aria-label", t("Remove from list"));
     if (i === atual) li.querySelector(".n").innerHTML = inkIcone("play"); else li.querySelector(".n").textContent = i + 1;
     li.querySelector(".t").textContent = v.nome;
     li.querySelector(".d").textContent = v.duracao ? inkTempo(v.duracao) : inkTamanho(v.tamanho);
@@ -40,7 +43,7 @@ function abrir(i, tocar) {
   });
   $("titulo").textContent = v.nome;
   $("sub").textContent = inkTamanho(v.tamanho);
-  document.title = v.nome + " · Vídeo";
+  document.title = t("{name} · Video", { name: v.nome });
   try { localStorage.setItem("inkterminal-video-atual", String(v.id)); } catch (_) {}
   desenhar();
   if (tocar) video.play().catch(() => {});
@@ -62,7 +65,7 @@ async function tirar(i) {
   await bib.remover(v.id);
   delete posicoes[v.id];
   itens.splice(i, 1);
-  if (i === atual) { video.pause(); video.removeAttribute("src"); video.load(); atual = -1; $("titulo").textContent = "Nenhum vídeo"; $("sub").textContent = ""; }
+  if (i === atual) { video.pause(); video.removeAttribute("src"); video.load(); atual = -1; $("titulo").textContent = t("No video"); $("sub").textContent = ""; }
   else if (i < atual) atual--;
   desenhar();
 }
@@ -79,7 +82,7 @@ $("limpar").onclick = async () => {
   if (!itens.length) return;
   await bib.limpar();
   itens = []; atual = -1; posicoes = {}; video.pause(); video.removeAttribute("src"); video.load();
-  $("titulo").textContent = "Nenhum vídeo"; $("sub").textContent = "";
+  $("titulo").textContent = t("No video"); $("sub").textContent = "";
   try { localStorage.removeItem("inkterminal-video-posicoes"); } catch (_) {}
   desenhar();
 };
@@ -94,6 +97,7 @@ $("editar").onclick = () => {
   location.href = "cortar/?id=" + v.id;
 };
 
+$("titulo").textContent = t("No video");
 bib.listar().then((lst) => {
   itens = lst;
   let ultimo = null;

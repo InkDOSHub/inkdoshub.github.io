@@ -47,7 +47,9 @@
     };
   };
   window.inkTamanho = function (n) {
-    return n > 1e9 ? (n / 1e9).toFixed(1) + " GB" : n > 1e6 ? (n / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " kB";
+    var loc = window.InkIdioma ? InkIdioma.atual : undefined;
+    function um(v) { return v.toLocaleString(loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+    return n > 1e9 ? um(n / 1e9) + " GB" : n > 1e6 ? um(n / 1e6) + " MB" : Math.max(1, Math.round(n / 1e3)).toLocaleString(loc) + " kB";
   };
   window.inkTempo = function (s) {
     if (!isFinite(s)) return "--:--";

@@ -7,7 +7,7 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
-| Fotos | Galeria e visualizador feitos aqui; **Editar** abre o [miniPaint](https://github.com/viliusle/miniPaint) (MIT) | `apps/foto/` (o miniPaint fica em `apps/foto/app/`) |
+| Fotos | Galeria, visualizador e editor simples (recortar, girar, espelhar, endireitar, exposição, brilho, contraste, saturação, calor e tom) feitos aqui | `apps/foto/` (o editor é `apps/foto/editor.js`) |
 | Vídeo | Player nativo do Safari e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
@@ -24,6 +24,14 @@ Fotos, Vídeo e Música seguem a mesma ideia: primeiro o visualizador nativo do 
 O editor de vídeo (`apps/video/cortar/`) corta o trecho, tira ou deixa o som e exporta no original (só corta, sem converter) ou em 1080p, 720p ou 480p, com o ffmpeg.wasm 0.12.5 de uma thread só (não precisa de isolamento entre origens). O resultado vira um vídeo novo na lista do Vídeo.
 
 Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no botão da tela inicial.
+
+## Idiomas
+
+O site vem só em inglês. Os outros idiomas (português, espanhol, alemão, francês, chinês simplificado, japonês e russo) são pacotes opcionais: o botão de idioma, na tela inicial e na barra de cada app, abre o mesmo aviso, que diz o que o pacote traduz, o que continua em inglês e quantos MB ele ocupa a mais ou a menos. Fica um pacote por vez no aparelho; escolher outro apaga o anterior.
+
+- Cada pacote traz a tradução da tela inicial e dos apps (`idiomas/<código>.json`), os textos dos editores ONLYOFFICE e os nomes das fórmulas, o idioma do Quadro e o dos apps do InkDOS. A lista de arquivos e tamanhos é gerada por `tools/portal_manifesto.py` (chave `idiomas` de `inicio/manifesto.json`); a cópia offline leva só o inglês.
+- Código (VS Code), o sistema Linux e os programas do Wine ficam em inglês; só a barra do topo deles é traduzida.
+- Como funciona: `assets/idioma.js`. Textos novos na interface são escritos em inglês (no HTML dentro de `<body data-idioma>`, ou no JavaScript com `InkIdioma.t("...")`); `python3 tools/idiomas_textos.py` lista os textos e mostra o que falta traduzir em cada pacote.
 
 ## Linux terminal
 

@@ -1,6 +1,7 @@
 // Fotos do InkTerminal: visualizador com <img> nativo (zoom, giro, lista) e
-// edição como segunda opção, no miniPaint (app/), que devolve uma cópia nova.
+// edição como segunda opção, no editor simples daqui (editor.js), que devolve uma cópia nova.
 const $ = (id) => document.getElementById(id);
+const t = InkIdioma.t;
 const bib = InkBiblioteca("inkterminal-fotos");
 let fotos = [], atual = -1, urls = new Map(), zoom = 0, giro = 0; // zoom 0 = ajustar à tela
 
@@ -11,7 +12,7 @@ function grade() {
   const g = $("grade");
   g.innerHTML = "";
   $("vazio").classList.toggle("md-hide", fotos.length > 0);
-  $("status").textContent = fotos.length ? fotos.length + (fotos.length === 1 ? " foto" : " fotos") : "";
+  $("status").textContent = fotos.length ? (fotos.length === 1 ? t("1 photo") : t("{n} photos", { n: fotos.length.toLocaleString(InkIdioma.atual) })) : "";
   fotos.forEach((f, i) => {
     const b = document.createElement("button");
     const img = document.createElement("img");
@@ -43,10 +44,10 @@ function aplicar() {
   const img = $("foto"), v = $("ver");
   v.classList.toggle("ajustar", zoom === 0);
   img.style.transform = giro ? "rotate(" + giro + "deg)" : "";
-  if (zoom === 0) { img.style.width = img.style.height = ""; $("zajustar").textContent = "Ajustar"; return; }
+  if (zoom === 0) { img.style.width = img.style.height = ""; $("zajustar").textContent = t("Fit"); return; }
   img.style.width = Math.round(img.naturalWidth * zoom) + "px";
   img.style.height = Math.round(img.naturalHeight * zoom) + "px";
-  $("zajustar").textContent = Math.round(zoom * 100) + "%";
+  $("zajustar").textContent = Math.round(zoom * 100).toLocaleString(InkIdioma.atual) + "%";
 }
 function escalaAjustada() {
   const img = $("foto"), v = $("ver");
@@ -119,39 +120,24 @@ $("partilhar").onclick = async () => {
   a.href = urlDe(f); a.download = f.nome; a.click();
 };
 
-// ---- Edição (miniPaint) ----
+// ---- Edição (editor.js) ----
 $("editar").onclick = () => {
-  const f = fotos[atual];
-  if (!f) return;
-  $("edicao").classList.remove("md-hide");
-  $("editor").src = "app/?image=" + urlDe(f); // o miniPaint não decodifica o parâmetro
-};
-function fecharEdicao() { $("edicao").classList.add("md-hide"); $("editor").src = "about:blank"; }
-$("cancelar").onclick = fecharEdicao;
-// Guarda o que está no miniPaint como uma foto nova. Também é chamado sozinho
-// quando a tela inicial precisa descarregar este app.
-function guardarEdicao() {
-  return new Promise((ok) => {
-    const w = $("editor").contentWindow;
-    const orig = fotos[atual];
-    if ($("edicao").classList.contains("md-hide") || !orig || !w || !w.Layers || !w.AppConfig) return ok(false);
-    const c = document.createElement("canvas");
-    c.width = w.AppConfig.WIDTH; c.height = w.AppConfig.HEIGHT;
-    w.Layers.convert_layers_to_canvas(c.getContext("2d"), null, false);
-    const jpeg = /jpe?g/i.test(orig.tipo || "");
-    c.toBlob(async (blob) => {
-      if (!blob) return ok(false);
-      const nome = orig.nome.replace(/\.[^.]+$/, "") + " (editada)." + (jpeg ? "jpg" : "png");
+  const orig = fotos[atual];
+  if (!orig) return;
+  InkEditorFoto.abrir(urlDe(orig), (canvas) => {
+    if (!canvas) return;
+    const jpeg = /jpe?g|heic|heif/i.test(orig.tipo || orig.nome || "");
+    canvas.toBlob(async (blob) => {
+      if (!blob) { alert(t("The photo could not be saved.")); return; }
+      const nome = t("{name} (edited)", { name: orig.nome.replace(/\.[^.]+$/, "") }) + "." + (jpeg ? "jpg" : "png");
       const [novo] = await bib.adicionar([new File([blob], nome, { type: blob.type })]);
-      fotos.splice(atual + 1, 0, novo);
-      fecharEdicao();
+      const i = fotos.indexOf(orig) + 1;
+      fotos.splice(i, 0, novo);
       grade();
-      ver(atual + 1);
-      ok(true);
+      ver(i);
     }, jpeg ? "image/jpeg" : "image/png", 0.92);
   });
-}
-$("concluir").onclick = guardarEdicao;
-if (window.inkGerenciador) inkGerenciador.aoGuardar(guardarEdicao);
+};
 
+$("zajustar").textContent = t("Fit");
 bib.listar().then((lst) => { fotos = lst; grade(); modo(false); });

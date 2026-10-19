@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
@@ -9,36 +9,38 @@
 <title>InkTerminal</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230d1117%22/%3E%3Cpath d=%22M8 10l6 6-6 6M16 22h8%22 stroke=%22%233fb950%22 stroke-width=%223%22 fill=%22none%22/%3E%3C/svg%3E">
 <script src="../assets/tema.js?v=1"></script>
-<script src="../assets/icones.js?v=1" defer></script>
-<script src="../assets/gerenciador-app.js?v=6"></script>
+<script src="../assets/idioma.js?v=1"></script>
+<script src="../assets/icones.js?v=2" defer></script>
+<script src="../assets/gerenciador-app.js?v=7"></script>
 <link rel="stylesheet" href="../assets/barra.css?v=2">
 <link rel="stylesheet" href="vendor/xterm/xterm.css">
 <link rel="stylesheet" href="style.css?v=6">
 </head>
-<body class="ink-app">
+<body class="ink-app" data-idioma>
 <header class="ink-bar" id="topbar">
   <a class="ink-home" href="../" data-icone="voltar">InkTerminal</a>
   <span class="ink-title">Linux</span>
-  <span class="ink-status" id="status">Carregando…</span>
+  <span class="ink-status" id="status">Loading…</span>
   <span class="ink-spacer"></span>
-  <button class="ink-btn" id="rede" title="Como o Linux acessa a internet (toque para trocar)">Rede: wisp</button>
-  <button class="ink-btn" id="memoria" title="Quanta RAM o Linux usa (toque para trocar e ligar de novo)">Memória: 256 MB</button>
-  <button class="ink-btn" id="btn-upload" title="Enviar arquivos do iPad para ~/ipad">Enviar</button>
-  <button class="ink-btn" id="btn-download" title="Baixar arquivos de ~/ipad">Baixar</button>
-  <button class="ink-btn" id="btn-save" title="Salvar o estado da máquina neste navegador">Salvar</button>
-  <button class="ink-btn" id="btn-sessao" title="Salvar ou abrir um arquivo de sessão no aparelho (pacotes e pasta pessoal, com senha)">Sessão</button>
-  <button class="ink-btn" id="btn-reset" title="Apagar o estado salvo e reiniciar do zero">Reiniciar</button>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn" id="rede" title="How Linux reaches the internet (tap to switch)">Network: wisp</button>
+  <button class="ink-btn" id="memoria" title="How much RAM Linux uses (tap to switch and restart)">Memory: 256 MB</button>
+  <button class="ink-btn" id="btn-upload" title="Send files from the iPad to ~/ipad">Upload</button>
+  <button class="ink-btn" id="btn-download" title="Download files from ~/ipad">Download</button>
+  <button class="ink-btn" id="btn-save" title="Save the machine state in this browser">Save</button>
+  <button class="ink-btn" id="btn-sessao" title="Save or open a session file on the device (packages and home folder, password-protected)">Session</button>
+  <button class="ink-btn" id="btn-reset" title="Erase the saved state and start over from scratch">Restart</button>
 </header>
 <main class="ink-main" id="term"></main>
-<nav id="keys" class="ink-keys" aria-label="Teclas extras">
-  <button class="ink-btn" id="key-colar" title="Colar o texto copiado">Colar</button>
+<nav id="keys" class="ink-keys" aria-label="Extra keys">
+  <button class="ink-btn" id="key-colar" title="Paste the copied text">Paste</button>
   <button class="ink-btn" data-key="esc">Esc</button>
   <button class="ink-btn" data-key="tab">Tab</button>
   <button class="ink-btn" data-key="ctrl" id="key-ctrl">Ctrl</button>
-  <button class="ink-btn" data-key="up" aria-label="Seta para cima" data-icone="cima"></button>
-  <button class="ink-btn" data-key="down" aria-label="Seta para baixo" data-icone="baixo"></button>
-  <button class="ink-btn" data-key="left" aria-label="Seta para a esquerda" data-icone="anterior"></button>
-  <button class="ink-btn" data-key="right" aria-label="Seta para a direita" data-icone="proxima"></button>
+  <button class="ink-btn" data-key="up" aria-label="Up arrow" data-icone="cima"></button>
+  <button class="ink-btn" data-key="down" aria-label="Down arrow" data-icone="baixo"></button>
+  <button class="ink-btn" data-key="left" aria-label="Left arrow" data-icone="anterior"></button>
+  <button class="ink-btn" data-key="right" aria-label="Right arrow" data-icone="proxima"></button>
   <button class="ink-btn" data-text="|">|</button>
   <button class="ink-btn" data-text="/">/</button>
   <button class="ink-btn" data-text="-">-</button>
@@ -47,20 +49,20 @@
 </nav>
 <input type="file" id="file-picker" multiple hidden>
 <dialog id="download-dialog">
-  <h2>Baixar da pasta ~/ipad</h2>
-  <div id="download-list"></div>
-  <button class="ink-btn" id="download-close">Fechar</button>
+  <h2>Download from the ~/ipad folder</h2>
+  <div id="download-list" data-idioma-nao></div>
+  <button class="ink-btn" id="download-close">Close</button>
 </dialog>
 <dialog id="sessao-dialog">
-  <h2>Sessão em arquivo</h2>
-  <p class="nota">Guarda num arquivo com senha a lista de pacotes que você instalou e a pasta pessoal (~, sem a ~/ipad). Ao abrir em outro aparelho ou depois de apagar os dados, o Linux reinstala os pacotes pela internet e devolve os arquivos.</p>
+  <h2>Session file</h2>
+  <p class="nota">Saves the list of packages you installed and your home folder (~, without ~/ipad) to a password-protected file. When you open it on another device or after clearing site data, Linux reinstalls the packages from the internet and restores your files.</p>
   <div class="sessao-botoes">
-    <button class="ink-btn" id="sessao-fechar">Fechar</button>
-    <button class="ink-btn" id="sessao-abrir">Abrir arquivo</button>
-    <button class="ink-btn" id="sessao-salvar">Salvar em arquivo</button>
+    <button class="ink-btn" id="sessao-fechar">Close</button>
+    <button class="ink-btn" id="sessao-abrir">Open file</button>
+    <button class="ink-btn" id="sessao-salvar">Save to file</button>
   </div>
 </dialog>
-<script src="../assets/sessao.js?v=1"></script>
-<script type="module" src="app.js?v=9"></script>
+<script src="../assets/sessao.js?v=2"></script>
+<script type="module" src="app.js?v=10"></script>
 </body>
 </html>

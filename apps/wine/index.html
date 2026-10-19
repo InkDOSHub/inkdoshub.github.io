@@ -1,12 +1,13 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wine · InkTerminal</title>
 <script src="../../assets/tema.js?v=1"></script>
-<script src="../../assets/gerenciador-app.js?v=6"></script>
-<script src="../../assets/icones.js?v=1" defer></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<script src="../../assets/gerenciador-app.js?v=7"></script>
+<script src="../../assets/icones.js?v=2" defer></script>
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
 <style>
   .ink-bar{overflow-x:auto;scrollbar-width:none}
@@ -40,43 +41,44 @@
   #recado.erro{background:#8b1d1d}
 </style>
 </head>
-<body class="ink-app">
+<body class="ink-app" data-idioma>
 <header class="ink-bar">
   <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
   <span class="ink-title">Wine</span>
   <span class="ink-spacer"></span>
   <span class="ink-status" id="status"></span>
-  <button class="ink-btn so-rodando" id="b-teclado" type="button" title="Mostrar o teclado do iPad">Teclado</button>
-  <button class="ink-btn so-rodando" id="b-direito" type="button" aria-pressed="false" title="O próximo toque vale como botão direito do mouse (ou segure o dedo)">Clique direito</button>
-  <button class="ink-btn so-rodando" id="b-instalar2" type="button" title="Instalar um programa do aparelho">Instalar</button>
-  <button class="ink-btn so-rodando" id="b-enviar" type="button" title="Copiar arquivos do aparelho para o disco D:">Enviar para D:</button>
-  <button class="ink-btn so-rodando" id="b-arquivos" type="button" title="Copiar arquivos do disco D: para o aparelho">Baixar de D:</button>
-  <button class="ink-btn so-rodando" id="b-fundo" type="button" title="Com a página escondida e o Wine parado há 1 minuto, ele pausa para poupar bateria. Toque para deixar sempre rodando.">Segundo plano: pausa</button>
-  <button class="ink-btn so-rodando" id="b-sessao" type="button" title="Salvar ou abrir um arquivo de sessão no aparelho (programas e disco D:, com senha)">Sessão</button>
-  <button class="ink-btn so-rodando" id="b-parar" type="button">Parar</button>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn so-rodando" id="b-teclado" type="button" title="Show the iPad keyboard">Keyboard</button>
+  <button class="ink-btn so-rodando" id="b-direito" type="button" aria-pressed="false" title="The next tap counts as a right mouse click (or press and hold)">Right click</button>
+  <button class="ink-btn so-rodando" id="b-instalar2" type="button" title="Install a program from this device">Install</button>
+  <button class="ink-btn so-rodando" id="b-enviar" type="button" title="Copy files from this device to drive D:">Send to D:</button>
+  <button class="ink-btn so-rodando" id="b-arquivos" type="button" title="Copy files from drive D: to this device">Get from D:</button>
+  <button class="ink-btn so-rodando" id="b-fundo" type="button" title="When the page is hidden and Wine has been idle for 1 minute, it pauses to save battery. Tap to keep it always running.">Background: pause</button>
+  <button class="ink-btn so-rodando" id="b-sessao" type="button" title="Save or open a session file on this device (programs and drive D:, password-protected)">Session</button>
+  <button class="ink-btn so-rodando" id="b-parar" type="button">Stop</button>
 </header>
 <main class="ink-main">
   <div id="inicio"><div class="caixa">
-    <h1>Programas do Windows</h1>
-    <p>O Wine roda programas do Windows dentro da página, numa área de trabalho própria. Tudo fica neste aparelho: o disco C: guarda o que for instalado e o disco D: guarda os seus arquivos.</p>
+    <h1>Windows programs</h1>
+    <p>Wine runs Windows programs inside the page, on a desktop of its own. Everything stays on this device: drive C: holds what you install and drive D: holds your files.</p>
     <div class="acoes">
-      <button class="ink-btn principal" id="b-iniciar" type="button">Iniciar o Wine</button>
-      <button class="ink-btn" id="b-instalar" type="button">Instalar programa</button>
-      <button class="ink-btn" id="b-abrir-sessao" type="button">Abrir sessão</button>
+      <button class="ink-btn principal" id="b-iniciar" type="button">Start Wine</button>
+      <button class="ink-btn" id="b-instalar" type="button">Install program</button>
+      <button class="ink-btn" id="b-abrir-sessao" type="button">Open session</button>
     </div>
     <ul>
-      <li>Para instalar, toque em <strong>Instalar programa</strong> e escolha um <strong>.exe</strong>, <strong>.msi</strong> ou <strong>.zip</strong>. Abrir um .exe pelo XeOS também traz o arquivo para cá.</li>
-      <li>Os programas instalados aparecem como ícones na área de trabalho. Um toque abre.</li>
-      <li>Só programas de 32 bits (x86) funcionam. Os mais antigos funcionam melhor.</li>
-      <li><strong>Sessão</strong> (com o Wine aberto) guarda os programas instalados e o disco D: num arquivo com senha. <strong>Abrir sessão</strong> põe tudo de volta, mesmo depois de apagar os dados do site.</li>
-      <li>A primeira abertura baixa cerca de 220 MB e prepara o Windows por alguns minutos. Depois fica bem mais rápido.</li>
+      <li>To install, tap Install program and choose an .exe, .msi or .zip file. Opening an .exe from XeOS also brings the file here.</li>
+      <li>Installed programs appear as icons on the desktop. One tap opens them.</li>
+      <li>Only 32-bit (x86) programs work. Older programs work best.</li>
+      <li>The Session button (while Wine is open) saves the installed programs and drive D: to a password-protected file. Open session brings everything back, even after the site data is cleared.</li>
+      <li>The first start downloads about 220 MB and spends a few minutes setting up Windows. After that it is much faster.</li>
     </ul>
     <p id="aviso" class="erro" hidden></p>
   </div></div>
-  <iframe id="tela" title="Área de trabalho do Wine" allow="fullscreen; autoplay"></iframe>
+  <iframe id="tela" title="Wine desktop" allow="fullscreen; autoplay"></iframe>
   <div id="carregando" role="status" aria-live="polite"><div class="caixa">
-    <strong id="c-titulo">Abrindo o Wine</strong>
-    <span id="c-texto">Preparando…</span>
+    <strong id="c-titulo">Opening Wine</strong>
+    <span id="c-texto">Preparing…</span>
     <div class="barra" id="c-barra"><span></span></div>
     <small id="c-tempo"></small>
   </div></div>
@@ -84,7 +86,7 @@
   <input id="arquivos" type="file" accept=".exe,.msi,.zip,application/x-msdownload,application/zip" hidden>
   <input id="enviar" type="file" multiple hidden>
 </main>
-<script src="../../assets/sessao.js?v=1"></script>
-<script src="wine.js?v=6"></script>
+<script src="../../assets/sessao.js?v=2"></script>
+<script src="wine.js?v=7"></script>
 </body>
 </html>

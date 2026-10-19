@@ -14,21 +14,21 @@
     { id: "terminal", nome: "Linux terminal", url: "terminal/",
       // o modo "limitada" do terminal (640 MB + swap) deixa a aba perto de 1 GB
       peso: function () { var m; try { m = localStorage.getItem("inkterminal-memoria"); } catch (_) {} return m === "limitada" ? 900 : 350; } },
-    { id: "foto", nome: "Fotos", url: "apps/foto/", peso: 120 },
-    { id: "videoeditor", nome: "Editar vídeo", url: "apps/video/cortar/", peso: 300 },
-    { id: "video", nome: "Vídeo", url: "apps/video/", peso: 150 },
-    { id: "codigo", nome: "Código", url: "apps/codigo/", peso: 250 },
-    { id: "quadro", nome: "Quadro branco", url: "apps/quadro/", peso: 120 },
-    { id: "musica", nome: "Música", url: "apps/musica/", peso: 60 },
+    { id: "foto", nome: "Photos", url: "apps/foto/", peso: 120 },
+    { id: "videoeditor", nome: "Edit video", url: "apps/video/cortar/", peso: 300 },
+    { id: "video", nome: "Video", url: "apps/video/", peso: 150 },
+    { id: "codigo", nome: "Code", url: "apps/codigo/", peso: 250 },
+    { id: "quadro", nome: "Whiteboard", url: "apps/quadro/", peso: 120 },
+    { id: "musica", nome: "Music", url: "apps/musica/", peso: 60 },
     // Boxedwine: começa com 512 MB e cresce, mais o sistema do Wine (~220 MB)
     { id: "wine", nome: "Wine", url: "apps/wine/", peso: 950 },
     // cópia dos apps do InkDOS (inkdos/); suite=1 mostra o botão Home, que volta para a tela inicial
-    { id: "documentos", nome: "Documentos", url: "inkdos/apps/documents/index.html?suite=1", peso: 120 },
-    { id: "planilhas", nome: "Planilhas", url: "inkdos/apps/spreadsheets/index.html?suite=1", peso: 120 },
-    { id: "apresentacoes", nome: "Apresentações", url: "inkdos/apps/presentations/index.html?suite=1", peso: 120 },
+    { id: "documentos", nome: "Documents", url: "inkdos/apps/documents/index.html?suite=1", peso: 120 },
+    { id: "planilhas", nome: "Spreadsheets", url: "inkdos/apps/spreadsheets/index.html?suite=1", peso: 120 },
+    { id: "apresentacoes", nome: "Presentations", url: "inkdos/apps/presentations/index.html?suite=1", peso: 120 },
     { id: "pdf", nome: "PDF", url: "inkdos/apps/pdf/index.html?suite=1", peso: 150 },
-    { id: "texto", nome: "Texto simples", url: "inkdos/apps/txt/index.html?suite=1", peso: 50 },
-    { id: "epub", nome: "Leitor EPUB", url: "inkdos/apps/epub/index.html?suite=1", peso: 80 },
+    { id: "texto", nome: "Plain text", url: "inkdos/apps/txt/index.html?suite=1", peso: 50 },
+    { id: "epub", nome: "EPUB reader", url: "inkdos/apps/epub/index.html?suite=1", peso: 80 },
     // editores ONLYOFFICE (onlyoffice/), abertos pelo "Editar com ONLYOFFICE" dos apps do InkDOS
     { id: "office", nome: "ONLYOFFICE", url: "onlyoffice/editor.html", peso: 400, oculto: true },
   ];
@@ -135,6 +135,13 @@
     };
   }
 
+  /* O editor abre sempre no idioma do pacote escolhido (assets/idioma.js), ou em inglês. Sem o
+     locale na URL, o ONLYOFFICE seguiria o idioma do aparelho e baixaria um idioma não escolhido. */
+  function idiomaEditor(info) {
+    if (window.InkIdioma) return InkIdioma.onlyoffice();
+    return info.locale || "en";
+  }
+
   /* Usado pela tela inicial (inicio/) e pelos apps do InkDOS (editor ONLYOFFICE). */
   window.InkPaginas = {
     raiz: RAIZ,
@@ -145,8 +152,8 @@
        tools/adaptar_inkdos.py). win: a aba aberta no toque, antes de ler o documento. */
     abrirEditor: function (info, win) {
       var url = new URL("onlyoffice/editor.html?embed=1&embedOrigin=" + encodeURIComponent(location.origin) +
-        "&inkdos-handoff=" + encodeURIComponent(info.id) + (info.locale ? "&locale=" + encodeURIComponent(info.locale) : "") +
-        "&ink-nome=" + encodeURIComponent(String(info.nome || "documento").slice(0, 80)), RAIZ).href;
+        "&inkdos-handoff=" + encodeURIComponent(info.id) + "&locale=" + encodeURIComponent(idiomaEditor(info)) +
+        "&ink-nome=" + encodeURIComponent(String(info.nome || "document").slice(0, 80)), RAIZ).href;
       if (win && !win.closed) {
         win.location.replace(url);
         try { win.focus(); } catch (_) {}

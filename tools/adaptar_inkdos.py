@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Adapta a cópia dos apps do InkDOS (inkdos/) ao InkTerminal. Rode depois de tools/copiar_inkdos.sh.
 
-Duas mudanças:
+Três mudanças:
 1. Cada app (index.html) carrega assets/gerenciador-app.js (abas dos apps, aviso de memória no
    Safari e o editor ONLYOFFICE local).
 2. "Editar com ONLYOFFICE": no InkDOS original o botão abre os editores do site inkdos-tools.github.io
    numa aba nova. Aqui o documento vai para a cópia dos editores em onlyoffice/, na aba nova que o
    botão já abre (InkPaginas.abrirEditor, em assets/gerenciador-app.js).
+3. Idioma: os apps seguem o pacote de idioma do InkTerminal (assets/idioma.js, carregado no começo
+   de cada app). Os menus de idioma do InkDOS abrem o aviso de pacotes do InkTerminal, em vez de
+   trocar só aquele app.
 """
 import glob, os, sys
 
@@ -33,7 +36,21 @@ function openInOfficeOriginal(file,light,win){"""
 
 TROCAS = [("function openInOffice(file,light,win){", FUNCAO)]
 
-SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=6"></script>'
+SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=7"></script>'
+IDIOMA = '<script src="../../../assets/idioma.js?v=1"></script>'
+
+# (arquivo, trecho original, trecho novo); a marca no trecho novo evita aplicar duas vezes
+IDIOMA_TROCAS = [
+    ("inkdos/shared/localization/ui-localization.js",
+     "function readLanguage(key,legacyKeys=legacyStorageKeys){storageKey=typeof key==='string'?key:storageKey;",
+     "function readLanguage(key,legacyKeys=legacyStorageKeys){storageKey=typeof key==='string'?key:storageKey;/* InkTerminal: pacote de idioma */if(root.InkIdioma)return normalizeLanguage(root.InkIdioma.atual);"),
+    ("inkdos/shared/localization/settings-strip.js",
+     "function showLanguage(anchor){",
+     "function showLanguage(anchor){/* InkTerminal: pacote de idioma */if(root.InkIdioma){closePopover();root.InkIdioma.escolher();return}"),
+    ("inkdos/shared/localization/settings-strip.js",
+     "const api=root.InkDOSLocalization;if(api){section('Language');for(const language of api.languages){",
+     "const api=root.InkDOSLocalization;if(api&&root.InkIdioma){/* InkTerminal: pacote de idioma */section('Language');const o=option(root.InkIdioma.nome(),'idioma',()=>{closePopover();root.InkIdioma.escolher()});o.classList.add('active');popover.appendChild(o)}else if(api){section('Language');for(const language of api.languages){"),
+]
 
 def main():
     arquivos = sorted(glob.glob(os.path.join(RAIZ, "inkdos/apps/*/runtime/platform/file-launch.js")))
@@ -57,6 +74,23 @@ def main():
             sys.exit(f"{os.path.relpath(p, RAIZ)}: </head> não encontrado")
         open(p, "w", encoding="utf-8").write(s.replace("</head>", SCRIPT + "</head>"))
         print("controle de memória:", os.path.relpath(p, RAIZ))
+    for rel, velho, novo in IDIOMA_TROCAS:
+        p = os.path.join(RAIZ, rel)
+        s = open(p, encoding="utf-8").read()
+        if novo in s:
+            continue
+        if s.count(velho) != 1:
+            sys.exit(f"{rel}: trecho não encontrado (o InkDOS mudou?): {velho[:50]}")
+        open(p, "w", encoding="utf-8").write(s.replace(velho, novo))
+        print("idioma:", rel)
+    for p in sorted(glob.glob(os.path.join(RAIZ, "inkdos/apps/*/index.html"))):
+        s = open(p, encoding="utf-8").read()
+        if "assets/idioma.js" in s:
+            continue
+        if s.count("<head>") != 1:
+            sys.exit(f"{os.path.relpath(p, RAIZ)}: <head> não encontrado")
+        open(p, "w", encoding="utf-8").write(s.replace("<head>", "<head>" + IDIOMA))
+        print("idioma:", os.path.relpath(p, RAIZ))
 
 if __name__ == "__main__":
     main()

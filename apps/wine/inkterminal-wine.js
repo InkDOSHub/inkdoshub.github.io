@@ -13,13 +13,18 @@
 (function () {
   "use strict";
   var q = new URLSearchParams(location.search);
+  /* Textos: traduzidos pelo assets/idioma.js da página de fora (mesma origem). */
+  var t = function (s, p) {
+    try { var I = window.parent.InkIdioma; if (I) return I.t(s, p); } catch (_) {}
+    return p ? s.replace(/\{(\w+)\}/g, function (m, k) { return Object.prototype.hasOwnProperty.call(p, k) ? String(p[k]) : m; }) : s;
+  };
   /* Lê um .zip (só "guardado" e "deflate", os dois que os .zip comuns usam). */
   function extrair(bytes) {
     var v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), fim = -1;
     for (var i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 0xffff); i--) {
       if (v.getUint32(i, true) === 0x06054b50) { fim = i; break; }
     }
-    if (fim < 0) return Promise.reject(new Error("zip sem diretório central"));
+    if (fim < 0) return Promise.reject(new Error(t("The .zip file has no central directory")));
     var n = v.getUint16(fim + 10, true), p = v.getUint32(fim + 16, true), lista = [];
     for (var k = 0; k < n; k++) {
       if (v.getUint32(p, true) !== 0x02014b50) break;
@@ -34,7 +39,7 @@
       return cadeia.then(function (saida) {
         if (/\/$/.test(e.nome)) { saida.push({ nome: e.nome, pasta: true }); return saida; }
         if (e.metodo === 0) { saida.push({ nome: e.nome, dados: e.dados }); return saida; }
-        if (e.metodo !== 8) throw new Error("compressão não suportada em " + e.nome);
+        if (e.metodo !== 8) throw new Error(t("Unsupported compression in {file}", { file: e.nome }));
         var s = new Blob([e.dados]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
         return new Response(s).arrayBuffer().then(function (b) { saida.push({ nome: e.nome, dados: new Uint8Array(b) }); return saida; });
       });
@@ -112,7 +117,7 @@
   function receberArquivo(e) {
     var bytes = new Uint8Array(e.dados), nome = limpo(e.nome), ext = (nome.match(/\.([^.]+)$/) || [])[1];
     ext = ext ? ext.toLowerCase() : "";
-    if (ext === "exe" && arquitetura(bytes)) return Promise.resolve("\"" + nome + "\" é de 64 bits, e o Wine daqui só roda programas de 32 bits. Procure a versão de 32 bits (x86).");
+    if (ext === "exe" && arquitetura(bytes)) return Promise.resolve(t("\"{name}\" is 64-bit, and Wine here only runs 32-bit programs. Look for the 32-bit (x86) version.", { name: nome }));
     if (ext === "zip") {
       var base = Config.d_drive + "/Programas", dir = nomeLivre(base, nome.replace(/\.zip$/i, ""));
       pasta(base + "/" + dir);
@@ -121,20 +126,20 @@
         l.forEach(function (x) { if (x.pasta) gravar(base + "/" + dir, x.nome, null); else { gravar(base + "/" + dir, x.nome, x.dados); if (/\.(exe|msi)$/i.test(x.nome)) exes.push(x.nome); } });
         var win = "D:\\Programas\\" + dir;
         var inst = exes.filter(ehInstalador).sort(function (a, b) { return a.split("/").length - b.split("/").length; })[0];
-        if (inst) { pedirAbertura(win + "\\" + inst.replace(/\//g, "\\")); return "Abrindo o instalador de " + nome + "…"; }
+        if (inst) { pedirAbertura(win + "\\" + inst.replace(/\//g, "\\")); return t("Opening the installer from {name}…", { name: nome }); }
         var programas = exes.filter(function (x) { return /\.exe$/i.test(x); });
         if (programas.length === 1) {
           var alvo = win + "\\" + programas[0].replace(/\//g, "\\");
           criarAtalho(programas[0].split("/").pop().replace(/\.exe$/i, ""), alvo);
           pedirAbertura(alvo);
-          return nome + " está em D:\\Programas, com um atalho na área de trabalho.";
+          return t("{name} is in {folder}, with a shortcut on the desktop.", { name: nome, folder: "D:\\Programas" });
         }
         criarAtalho(dir, win);
         pedirAbertura(win);
-        return nome + " foi extraído em D:\\Programas\\" + dir + ".";
+        return t("{name} was extracted to {folder}.", { name: nome, folder: win });
       });
     }
-    if (ext !== "exe" && ext !== "msi") return Promise.resolve("\"" + nome + "\" não é um programa do Windows.");
+    if (ext !== "exe" && ext !== "msi") return Promise.resolve(t("\"{name}\" is not a Windows program.", { name: nome }));
     var instalador = ehInstalador(nome) || ext === "msi";
     var raiz = instalador ? "Recebidos" : "Programas";
     var destino = Config.d_drive + "/" + raiz;
@@ -145,7 +150,7 @@
     var caminho = "D:\\" + raiz + "\\" + arq;
     if (!instalador) criarAtalho(arq.replace(/\.exe$/i, ""), caminho);
     pedirAbertura(caminho);
-    return Promise.resolve(instalador ? "Abrindo o instalador " + arq + "…" : arq + " está em D:\\Programas, com um atalho na área de trabalho.");
+    return Promise.resolve(instalador ? t("Opening the installer {name}…", { name: arq }) : t("{name} is in {folder}, with a shortcut on the desktop.", { name: arq, folder: "D:\\Programas" }));
   }
   function criarAtalho(nome, alvoWin) {
     pasta(INK() + "/atalhos");
@@ -184,13 +189,13 @@
         entrada = e;
         // a sessão troca os discos inteiros, então vem antes de gravar a área de trabalho no D:
         if (e && e.sessao) restaurarSessao(e.partes);
-        return fetch("area/area.exe?v=1");
+        return fetch("area/area.exe?v=2");
       }).then(function (r) {
         if (!r.ok) throw new Error("area.exe " + r.status);
         return r.arrayBuffer();
       }).then(function (b) {
         FS.writeFile(INK() + "/area.exe", new Uint8Array(b));
-        if (entrada && entrada.sessao) avisarFora({ tipo: "wine:aviso", texto: "Sessão aberta: programas e disco D: de volta." });
+        if (entrada && entrada.sessao) avisarFora({ tipo: "wine:aviso", texto: t("Session opened: programs and drive D: are back.") });
         else if (entrada) return receberArquivo(entrada).then(function (t) { avisarFora({ tipo: "wine:aviso", texto: t }); });
       });
       passos.catch(function (err) {
@@ -259,7 +264,7 @@
     });
   }
   function restaurarSessao(partes) {
-    if (!partes || !partes["c.pacote"] || !partes["d.pacote"]) throw new Error("o arquivo não tem os discos do Wine");
+    if (!partes || !partes["c.pacote"] || !partes["d.pacote"]) throw new Error(t("The file doesn't contain the Wine drives"));
     apagarTudo(ROOT);
     apagarTudo(Config.d_drive);
     desempacotar(ROOT, partes["c.pacote"]);
@@ -326,7 +331,8 @@
   campo.setAttribute("autocorrect", "off");
   campo.setAttribute("autocomplete", "off");
   campo.setAttribute("spellcheck", "false");
-  campo.setAttribute("aria-label", "Teclado");
+  campo.id = "ink-teclado";
+  campo.setAttribute("aria-label", t("Keyboard"));
   campo.style.cssText = "position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;font-size:16px;z-index:-1";
   addEventListener("DOMContentLoaded", function () { document.body.appendChild(campo); });
   // as teclas chegam ao SDL pelo window (o campo só existe para o iPad mostrar o teclado)
