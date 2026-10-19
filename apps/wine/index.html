@@ -20,14 +20,19 @@
   #inicio .acoes .principal{background:#3fb950;border-color:#3fb950;color:#0d1117;font-weight:600}
   #inicio .erro{color:#d1242f}
   #inicio ul{padding-left:18px;margin:8px 0}
-  #tela{display:none;background:#3a6ea5}
+  #tela{display:none;background:#163254}
   .rodando #inicio{display:none}
   .rodando #tela{display:block}
   .so-rodando{display:none}
   .rodando .so-rodando{display:inline-flex}
+  /* menus da barra (Arquivos, Mais): fixos, porque a barra rola na horizontal e cortaria um menu dentro dela */
+  .menu{position:fixed;z-index:20;min-width:200px;padding:6px;border:1px solid var(--border);border-radius:10px;background:var(--card);box-sizing:border-box}
+  .menu[hidden]{display:none}
+  .menu button{display:block;width:100%;text-align:left;font:inherit;font-size:15px;color:var(--text);background:none;border:0;border-radius:6px;padding:10px 12px;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .menu button:active,.menu button:hover{background:var(--btn)}
   #b-direito[aria-pressed="true"]{border-color:#3fb950;color:#3fb950}
   /* aviso de carregamento, por cima da tela do Wine */
-  #carregando{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:16px;background:#3a6ea5;color:#fff;z-index:5}
+  #carregando{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:16px;background:#163254;color:#fff;z-index:5}
   .carregando #carregando{display:flex}
   #carregando .caixa{width:min(420px,100%);text-align:center;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
   #carregando strong{display:block;font-size:18px;margin-bottom:6px}
@@ -50,12 +55,18 @@
   <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
   <button class="ink-btn so-rodando" id="b-teclado" type="button" title="Show the iPad keyboard">Keyboard</button>
   <button class="ink-btn so-rodando" id="b-direito" type="button" aria-pressed="false" title="The next tap counts as a right mouse click (or press and hold)">Right click</button>
-  <button class="ink-btn so-rodando" id="b-instalar2" type="button" title="Install a program from this device">Install</button>
-  <button class="ink-btn so-rodando" id="b-enviar" type="button" title="Copy files from this device to drive D:">Send to D:</button>
-  <button class="ink-btn so-rodando" id="b-arquivos" type="button" title="Copy files from drive D: to this device">Get from D:</button>
-  <button class="ink-btn so-rodando" id="b-fundo" type="button" title="When the page is hidden and Wine has been idle for 1 minute, it pauses to save battery. Tap to keep it always running.">Background: pause</button>
-  <button class="ink-btn so-rodando" id="b-sessao" type="button" title="Save or open a session file on this device (programs and drive D:, password-protected)">Session</button>
+  <button class="ink-btn so-rodando" id="b-menu-arquivos" type="button" aria-haspopup="true" aria-expanded="false" data-menu="m-arquivos">Files</button>
+  <button class="ink-btn so-rodando" id="b-menu-mais" type="button" aria-haspopup="true" aria-expanded="false" data-menu="m-mais">More</button>
   <button class="ink-btn so-rodando" id="b-parar" type="button">Stop</button>
+  <div class="menu" id="m-arquivos" role="menu" hidden>
+    <button type="button" role="menuitem" id="b-instalar2">Install program</button>
+    <button type="button" role="menuitem" id="b-enviar">Send to D:</button>
+    <button type="button" role="menuitem" id="b-arquivos">Get from D:</button>
+  </div>
+  <div class="menu" id="m-mais" role="menu" hidden>
+    <button type="button" role="menuitem" id="b-sessao">Session file</button>
+    <button type="button" role="menuitem" id="b-fundo">Background: pause</button>
+  </div>
 </header>
 <main class="ink-main">
   <div id="inicio"><div class="caixa">
@@ -87,6 +98,6 @@
   <input id="enviar" type="file" multiple hidden>
 </main>
 <script src="../../assets/sessao.js?v=2"></script>
-<script src="wine.js?v=7"></script>
+<script src="wine.js?v=8"></script>
 </body>
 </html>

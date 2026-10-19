@@ -26,7 +26,7 @@
 #include <shlobj.h>
 #include <wchar.h>
 
-#define FUNDO RGB(58, 110, 165)
+#define FUNDO RGB(22, 50, 84) /* azul-escuro: o texto branco dos ícones fica legível */
 #define MAX_ITENS 400
 
 typedef struct { WCHAR nome[MAX_PATH]; WCHAR alvo[MAX_PATH]; WCHAR args[MAX_PATH]; } Item;
@@ -36,6 +36,7 @@ static int nItens = 0;
 static WCHAR assinatura[65536];
 static HWND janela, lista;
 static HIMAGELIST icones;
+static HFONT fonte;
 static DWORD ultimoToque = 0;
 static int ultimoItem = -1;
 
@@ -239,7 +240,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE ant, LPWSTR linha, int mostrar) {
   ListView_SetBkColor(lista, FUNDO);
   ListView_SetTextBkColor(lista, FUNDO);
   ListView_SetTextColor(lista, RGB(255, 255, 255));
-  ListView_SetIconSpacing(lista, 96, 84);
+  /* nomes maiores e em negrito: a imagem do Wine é reduzida para caber na tela do iPad */
+  fonte = CreateFontW(-17, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+                      CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Tahoma");
+  if (fonte) SendMessageW(lista, WM_SETFONT, (WPARAM)fonte, FALSE);
+  ListView_SetIconSpacing(lista, 120, 100);
   ajustar();
   montarLista(1);
   ShowWindow(janela, SW_SHOWNOACTIVATE);
@@ -252,7 +257,6 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE ant, LPWSTR linha, int mostrar) {
   HANDLE f = CreateFileW(L"D:\\.inkterminal\\pronto", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
   if (f != INVALID_HANDLE_VALUE) CloseHandle(f);
   lerPedidos();
-
   /* programa pedido na abertura (instalador recebido da tela inicial) */
   int argc = 0;
   LPWSTR *argv = linha && linha[0] ? CommandLineToArgvW(linha, &argc) : NULL;
