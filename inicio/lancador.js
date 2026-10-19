@@ -9,7 +9,7 @@
      caminho da tela inicial do InkDOS original (runtime/platform/file-launch.js de cada app);
    - Fotos, Vídeo, Música e Wine (.exe, .msi): IndexedDB "inkterminal-entrada" e #ink-arquivos=<id>; o app recebe pelo
      botão de abrir dele (assets/gerenciador-app.js);
-   - Código: o arquivo é gravado na pasta do editor (IndexedDB "inkterminal-codigo", em /Recebidos)
+   - Código: o arquivo é gravado na pasta do editor (IndexedDB "inkterminal-codigo", em /Received)
      e o editor o abre (apps/codigo/ext/inkfs). */
 (function () {
   "use strict";
@@ -82,9 +82,9 @@
       return bytes(files).then(function (l) {
         var p = Promise.resolve();
         // FileType do VS Code: 1 = arquivo, 2 = pasta
-        p = p.then(function () { return gravar("inkterminal-codigo", "files", { type: 2, ctime: agora, mtime: agora }, "/Recebidos"); });
+        p = p.then(function () { return gravar("inkterminal-codigo", "files", { type: 2, ctime: agora, mtime: agora }, "/Received"); });
         l.forEach(function (v) {
-          var nome = v.name.replace(/[\/\\]/g, "_") || "arquivo", caminho = "/Recebidos/" + nome;
+          var nome = v.name.replace(/[\/\\]/g, "_") || "arquivo", caminho = "/Received/" + nome;
           caminhos.push(caminho);
           p = p.then(function () { return gravar("inkterminal-codigo", "files", { type: 1, ctime: agora, mtime: agora, data: new Uint8Array(v.data) }, caminho); });
         });
@@ -107,7 +107,12 @@
     });
     return { grupos: g, semApp: semApp };
   }
-  function nomeApp(id) { var a = P.apps.filter(function (x) { return x.id === id; })[0]; return a ? a.nome : id; }
+  var t = window.InkIdioma ? InkIdioma.t : function (s, p) { return s.replace(/\{(\w+)\}/g, function (m, k) { return p && k in p ? p[k] : m; }); };
+  function nomeApp(id) {
+    var n = { documentos: t("Documents"), planilhas: t("Spreadsheets"), apresentacoes: t("Presentations"), pdf: t("PDF"), texto: t("Plain text"),
+      epub: t("EPUB reader"), foto: t("Photos"), video: t("Video"), musica: t("Music"), wine: t("Wine"), codigo: t("Code") }[id];
+    return n || id;
+  }
 
   var sec = document.getElementById("recebidos"), lista = document.getElementById("recebidos-lista"), nota = document.getElementById("recebidos-nota");
 
@@ -117,20 +122,20 @@
       var b = document.createElement("button");
       b.type = "button";
       b.className = "botao";
-      b.textContent = (x.files.length === 1 ? x.files[0].name : x.files.length + " arquivos") + " em " + nomeApp(x.rota.app);
+      b.textContent = x.files.length === 1 ? t("{file} in {app}", { file: x.files[0].name, app: nomeApp(x.rota.app) }) : t("{n} files in {app}", { n: x.files.length, app: nomeApp(x.rota.app) });
       b.addEventListener("click", function () {
         // a página nova abre no toque; o endereço chega depois de o arquivo ser guardado
         var w = null;
         try { w = window.open("", "_blank"); } catch (_) {}
         b.disabled = true;
         preparar(x.rota, x.files).then(function (url) {
-          if (w) { w.location.replace(url); b.textContent = "Aberto: " + b.textContent; }
+          if (w) { w.location.replace(url); b.textContent = t("Opened: {name}", { name: b.textContent }); }
           else location.href = url;
-        }, function () { if (w) w.close(); b.disabled = false; nota.textContent = "Não consegui guardar o arquivo para o app. Tente de novo."; });
+        }, function () { if (w) w.close(); b.disabled = false; nota.textContent = t("Could not keep the file for the app. Try again."); });
       });
       lista.appendChild(b);
     });
-    nota.textContent = r.semApp.length ? "Nenhum app daqui abre: " + r.semApp.map(function (f) { return f.name; }).join(", ") + "." : "";
+    nota.textContent = r.semApp.length ? t("No app here opens: {files}.", { files: r.semApp.map(function (f) { return f.name; }).join(", ") }) : "";
     sec.hidden = false;
     sec.scrollIntoView({ block: "nearest" });
   }

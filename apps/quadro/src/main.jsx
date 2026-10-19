@@ -25,8 +25,8 @@ function onChange(elements, appState, files) {
 function App() {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      {/* O tema segue o do InkTerminal (assets/tema.js) */}
-      <Excalidraw initialData={initialData} onChange={onChange} langCode="pt-BR" theme={window.inkTema ? inkTema.atual() : "light"}>
+      {/* O tema segue o do InkTerminal (assets/tema.js) e o idioma, o pacote escolhido (assets/idioma.js) */}
+      <Excalidraw initialData={initialData} onChange={onChange} langCode={window.InkIdioma ? InkIdioma.excalidraw() : "en"} theme={window.inkTema ? inkTema.atual() : "light"}>
         <MainMenu>
           <MainMenu.DefaultItems.LoadScene />
           <MainMenu.DefaultItems.SaveToActiveFile />

@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fotos · InkTerminal</title>
+<title>Photos · InkTerminal</title>
 <script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
 <link rel="stylesheet" href="../../assets/midia.css?v=2">
 <style>
@@ -24,51 +25,52 @@
   #edicao iframe{flex:1;width:100%;border:0;display:block}
 </style>
 </head>
-<body class="ink-app">
+<body class="ink-app" data-idioma>
 <header class="ink-bar">
   <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
-  <span class="ink-title">Fotos</span>
-  <span class="ink-status" id="status"></span>
+  <span class="ink-title">Photos</span>
+  <span class="ink-status" id="status" data-idioma-nao></span>
   <span class="ink-spacer"></span>
-  <button class="ink-btn" id="abrir">Abrir fotos</button>
-  <button class="ink-btn" id="bgrade">Todas</button>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn" id="abrir">Open photos</button>
+  <button class="ink-btn" id="bgrade">All</button>
 </header>
 <main class="ink-main">
   <div class="md-wrap">
     <section class="md-stage" id="tgrade">
-      <div class="grade" id="grade"></div>
-      <div class="md-empty" id="vazio">Toque em <b>Abrir fotos</b> para escolher fotos do iPad.<br>Elas ficam guardadas só neste aparelho.<br>Para mudar uma foto, abra e toque em <b>Editar</b>.</div>
+      <div class="grade" id="grade" data-idioma-nao></div>
+      <div class="md-empty" id="vazio">Tap “Open photos” to choose photos from the iPad.<br>They are kept only on this device.<br>To change a photo, open it and tap “Edit”.</div>
     </section>
     <section class="md-stage md-hide" id="tver">
-      <div class="ver ajustar" id="ver"><img id="foto" alt=""></div>
+      <div class="ver ajustar" id="ver" data-idioma-nao><img id="foto" alt=""></div>
       <div class="info">
-        <button class="ink-btn" id="ant" title="Anterior" aria-label="Anterior" data-icone="anterior"></button>
-        <button class="ink-btn" id="prox" title="Próxima" aria-label="Próxima" data-icone="proxima"></button>
-        <strong id="titulo"></strong><small id="sub"></small>
-        <button class="ink-btn" id="zmenos" title="Diminuir" aria-label="Diminuir" data-icone="zoom-menos"></button>
-        <button class="ink-btn" id="zajustar">Ajustar</button>
-        <button class="ink-btn" id="zmais" title="Aumentar" aria-label="Aumentar" data-icone="zoom-mais"></button>
-        <button class="ink-btn" id="girar" title="Girar" aria-label="Girar" data-icone="girar"></button>
-        <button class="ink-btn" id="partilhar">Salvar</button>
-        <button class="ink-btn" id="editar">Editar</button>
-        <button class="ink-btn" id="apagar" title="Tirar desta galeria">Tirar</button>
+        <button class="ink-btn" id="ant" title="Previous" aria-label="Previous" data-icone="anterior"></button>
+        <button class="ink-btn" id="prox" title="Next" aria-label="Next" data-icone="proxima"></button>
+        <strong id="titulo" data-idioma-nao></strong><small id="sub" data-idioma-nao></small>
+        <button class="ink-btn" id="zmenos" title="Zoom out" aria-label="Zoom out" data-icone="zoom-menos"></button>
+        <button class="ink-btn" id="zajustar" data-idioma-nao>Fit</button>
+        <button class="ink-btn" id="zmais" title="Zoom in" aria-label="Zoom in" data-icone="zoom-mais"></button>
+        <button class="ink-btn" id="girar" title="Rotate" aria-label="Rotate" data-icone="girar"></button>
+        <button class="ink-btn" id="partilhar">Save</button>
+        <button class="ink-btn" id="editar">Edit</button>
+        <button class="ink-btn" id="apagar" title="Remove from this gallery">Remove</button>
       </div>
     </section>
   </div>
   <div id="edicao" class="md-hide">
     <header class="ink-bar">
-      <button class="ink-btn" id="cancelar">Cancelar</button>
-      <span class="ink-title">Editar foto</span>
+      <button class="ink-btn" id="cancelar">Cancel</button>
+      <span class="ink-title">Edit photo</span>
       <span class="ink-spacer"></span>
-      <button class="ink-btn on" id="concluir">Salvar cópia</button>
+      <button class="ink-btn on" id="concluir">Save copy</button>
     </header>
-    <iframe id="editor" title="Editor de fotos (miniPaint)"></iframe>
+    <iframe id="editor" title="Photo editor (miniPaint)"></iframe>
   </div>
 </main>
 <input id="arquivos" type="file" accept="image/*" multiple hidden>
-<script src="../../assets/midia.js?v=1"></script>
+<script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=1"></script>
 <script src="../../assets/gerenciador-app.js?v=6"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

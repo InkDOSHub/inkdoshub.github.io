@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Música · InkTerminal</title>
+<title>Music · InkTerminal</title>
 <script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
 <script src="../../assets/gerenciador-app.js?v=6"></script>
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
 <link rel="stylesheet" href="../../assets/midia.css?v=2">
@@ -27,48 +28,49 @@
   .ajustes{max-height:46%}
 </style>
 </head>
-<body class="ink-app">
+<body class="ink-app" data-idioma>
 <header class="ink-bar">
   <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
-  <span class="ink-title">Música</span>
+  <span class="ink-title">Music</span>
   <span class="ink-spacer"></span>
-  <button class="ink-btn" id="abrir">Abrir músicas</button>
-  <button class="ink-btn" id="bajustes">Ajustes de áudio</button>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn" id="abrir">Open music</button>
+  <button class="ink-btn" id="bajustes">Audio settings</button>
 </header>
 <main class="ink-main">
   <div class="md-wrap">
     <section class="md-stage">
       <div class="agora">
         <div class="capa" id="capa"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
-        <div class="faixa"><strong id="titulo">Nenhuma música</strong><small id="sub">Toque em Abrir músicas para escolher arquivos do iPad</small></div>
+        <div class="faixa" data-idioma-nao><strong id="titulo">No music</strong><small id="sub">Tap Open music to choose files from the iPad</small></div>
         <audio id="audio" controls preload="metadata"></audio>
         <div class="ctl">
-          <button class="ink-btn" id="ant" title="Anterior" aria-label="Anterior" data-icone="faixa-anterior"></button>
-          <button class="ink-btn" id="tocar" title="Tocar ou pausar" aria-label="Tocar ou pausar" data-icone="play"></button>
-          <button class="ink-btn" id="prox" title="Próxima" aria-label="Próxima" data-icone="faixa-proxima"></button>
-          <button class="ink-btn" id="aleat" title="Ordem aleatória" aria-label="Ordem aleatória" data-icone="aleatorio"></button>
-          <button class="ink-btn" id="rep" title="Repetir" aria-label="Repetir" data-icone="repetir"></button>
+          <button class="ink-btn" id="ant" title="Previous" aria-label="Previous" data-icone="faixa-anterior"></button>
+          <button class="ink-btn" id="tocar" title="Play or pause" aria-label="Play or pause" data-icone="play"></button>
+          <button class="ink-btn" id="prox" title="Next" aria-label="Next" data-icone="faixa-proxima"></button>
+          <button class="ink-btn" id="aleat" title="Shuffle" aria-label="Shuffle" data-icone="aleatorio"></button>
+          <button class="ink-btn" id="rep" title="Repeat" aria-label="Repeat" data-icone="repetir"></button>
         </div>
       </div>
       <section class="md-panel ajustes md-hide" id="ajustes">
-        <h3>Equalizador</h3>
-        <div class="presets" id="presets"></div>
-        <div id="eq"></div>
-        <div class="md-row"><label for="ganho">Volume extra</label><input type="range" id="ganho" min="-12" max="12" step="1" value="0"><output id="oganho">0 dB</output></div>
-        <div class="md-row"><label for="bal">Balanço</label><input type="range" id="bal" min="-1" max="1" step="0.1" value="0"><output id="obal">centro</output></div>
-        <div class="md-row"><label for="vel">Velocidade</label><input type="range" id="vel" min="0.5" max="2" step="0.05" value="1"><output id="ovel">1,00×</output></div>
-        <p class="md-note">Os ajustes ficam salvos neste aparelho e valem para todas as músicas.</p>
+        <h3>Equalizer</h3>
+        <div class="presets" id="presets" data-idioma-nao></div>
+        <div id="eq" data-idioma-nao></div>
+        <div class="md-row"><label for="ganho">Extra volume</label><input type="range" id="ganho" min="-12" max="12" step="1" value="0"><output id="oganho" data-idioma-nao>0 dB</output></div>
+        <div class="md-row"><label for="bal">Balance</label><input type="range" id="bal" min="-1" max="1" step="0.1" value="0"><output id="obal" data-idioma-nao>center</output></div>
+        <div class="md-row"><label for="vel">Speed</label><input type="range" id="vel" min="0.5" max="2" step="0.05" value="1"><output id="ovel" data-idioma-nao>1.00×</output></div>
+        <p class="md-note">These settings are saved on this device and apply to all songs.</p>
       </section>
     </section>
     <aside class="md-side">
-      <h2><span>Lista de reprodução</span><button class="ink-btn" id="limpar">Limpar</button></h2>
-      <ul class="md-list" id="lista"></ul>
+      <h2><span>Playlist</span><button class="ink-btn" id="limpar">Clear</button></h2>
+      <ul class="md-list" id="lista" data-idioma-nao></ul>
     </aside>
   </div>
 </main>
 <input id="arquivos" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.flac,.opus" multiple hidden>
-<script src="../../assets/midia.js?v=1"></script>
+<script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=1"></script>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

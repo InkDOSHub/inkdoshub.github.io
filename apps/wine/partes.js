@@ -18,10 +18,16 @@
   };
   var original = window.fetch.bind(window);
   var status = document.getElementById("status");
+  /* Textos: traduzidos pelo assets/idioma.js da página de fora (mesma origem). */
+  var t = function (s, p) {
+    try { var I = window.parent.InkIdioma; if (I) return I.t(s, p); } catch (_) {}
+    return p ? s.replace(/\{(\w+)\}/g, function (m, k) { return Object.prototype.hasOwnProperty.call(p, k) ? String(p[k]) : m; }) : s;
+  };
+  function locale() { try { return window.parent.InkIdioma.atual; } catch (_) { return undefined; } }
 
   function avisar(recebido, total, doDisco) {
-    var texto = (doDisco ? "Abrindo o Wine guardado no aparelho… " : "Baixando o Wine… ") +
-      Math.round(recebido / 1e6) + " de " + Math.round(total / 1e6) + " MB";
+    var mb = { done: Math.round(recebido / 1e6).toLocaleString(locale()), total: Math.round(total / 1e6).toLocaleString(locale()) };
+    var texto = doDisco ? t("Opening the Wine saved on this device… {done} of {total} MB", mb) : t("Downloading Wine… {done} of {total} MB", mb);
     if (status) status.textContent = texto;
     if (window.parent !== window) window.parent.postMessage({ tipo: "wine:progresso", recebido: recebido, total: total, disco: !!doDisco }, location.origin);
   }
@@ -72,7 +78,7 @@
           }
           return ler();
         }).then(function (blob) {
-          if (blob.size !== p[1]) throw new Error(p[0] + ": tamanho errado");
+          if (blob.size !== p[1]) throw new Error(t("{file}: wrong size", { file: p[0] }));
           var guardar = "caches" in window ? caches.open(CACHE).then(function (c) {
             return c.put(chave, new Response(blob, { headers: { "Content-Type": "application/octet-stream" } }));
           }).catch(function () {}) : Promise.resolve();

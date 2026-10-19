@@ -1,6 +1,7 @@
 // Exporta o trecho escolhido com o ffmpeg.wasm (versão de uma thread só, sem modo isolado).
 // Pedido: {arquivo: File, ini, fim (segundos), som (bool), altura (0 = original)}.
-// Resposta: {tipo: "progresso", parte} ... {tipo: "pronto", blob} ou {tipo: "erro", texto}.
+// Resposta: {tipo: "progresso", parte} ... {tipo: "pronto", blob} ou {tipo: "erro", texto, codigo}.
+// O texto do erro é técnico (em inglês); codigo "vazio" = o ffmpeg não gerou nada (a página traduz).
 import createFFmpegCore from "./ffmpeg-core/ffmpeg-core.js";
 
 let core = null, duracao = 1;
@@ -47,11 +48,11 @@ onmessage = async ({ data }) => {
     const dados = c.FS.readFile(saida);
     c.FS.unlink(saida);
     c.FS.unmount("/in");
-    if (!dados.length) throw new Error("o ffmpeg não gerou o vídeo");
+    if (!dados.length) throw Object.assign(new Error("ffmpeg did not produce the video"), { codigo: "vazio" });
     const tipos = { ".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska", ".m4v": "video/mp4", ".mp4": "video/mp4" };
     postMessage({ tipo: "pronto", blob: new Blob([dados], { type: tipos[saida.slice(6)] }), ext: saida.slice(6) });
   } catch (e) {
     try { core && core.FS.unmount("/in"); } catch (_) {}
-    postMessage({ tipo: "erro", texto: String((e && e.message) || e) });
+    postMessage({ tipo: "erro", texto: String((e && e.message) || e), codigo: (e && e.codigo) || "" });
   }
 };

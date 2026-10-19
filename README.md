@@ -25,6 +25,14 @@ O editor de vídeo (`apps/video/cortar/`) corta o trecho, tira ou deixa o som e 
 
 Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no botão da tela inicial.
 
+## Idiomas
+
+O site vem só em inglês. Os outros idiomas (português, espanhol, alemão, francês, chinês simplificado, japonês e russo) são pacotes opcionais: o botão de idioma, na tela inicial e na barra de cada app, abre o mesmo aviso, que diz o que o pacote traduz, o que continua em inglês e quantos MB ele ocupa a mais ou a menos. Fica um pacote por vez no aparelho; escolher outro apaga o anterior.
+
+- Cada pacote traz a tradução da tela inicial e dos apps (`idiomas/<código>.json`), os textos dos editores ONLYOFFICE e os nomes das fórmulas, o idioma do Quadro e o dos apps do InkDOS. A lista de arquivos e tamanhos é gerada por `tools/portal_manifesto.py` (chave `idiomas` de `inicio/manifesto.json`); a cópia offline leva só o inglês.
+- Código (VS Code), o sistema Linux e os programas do Wine ficam em inglês; só a barra do topo deles é traduzida.
+- Como funciona: `assets/idioma.js`. Textos novos na interface são escritos em inglês (no HTML dentro de `<body data-idioma>`, ou no JavaScript com `InkIdioma.t("...")`); `python3 tools/idiomas_textos.py` lista os textos e mostra o que falta traduzir em cada pacote.
+
 ## Linux terminal
 
 - Roda Alpine Linux 3.22 com kernel Linux 6.6 (i386), emulado pelo [v86](https://github.com/copy/v86) em WebAssembly.

@@ -5,8 +5,9 @@
   try { volta = decodeURIComponent(location.hash.slice(1)); } catch (_) {}
   // só endereços deste site
   try { if (new URL(volta).origin !== location.origin) volta = ""; } catch (_) { volta = ""; }
-  document.getElementById("titulo").textContent = nome + " foi guardado";
-  document.title = nome + " (guardado) · InkTerminal";
+  var t = window.InkIdioma ? InkIdioma.t : function (s, p) { return s.replace(/\{(\w+)\}/g, function (m, k) { return p && k in p ? p[k] : m; }); };
+  document.getElementById("titulo").textContent = t("{name} was put away", { name: nome });
+  setTimeout(function () { document.title = t("{name} (put away)", { name: nome }) + " · InkTerminal"; });
   var b = document.getElementById("reabrir");
   if (!volta) b.disabled = true;
   b.addEventListener("click", function () { location.replace(volta); });

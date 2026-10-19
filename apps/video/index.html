@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Vídeo · InkTerminal</title>
+<title>Video · InkTerminal</title>
 <script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
 <script src="../../assets/gerenciador-app.js?v=6"></script>
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
 <link rel="stylesheet" href="../../assets/midia.css?v=2">
@@ -18,36 +19,37 @@
   .info small{color:var(--muted)}
 </style>
 </head>
-<body class="ink-app">
+<body class="ink-app" data-idioma>
 <header class="ink-bar">
   <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
-  <span class="ink-title">Vídeo</span>
+  <span class="ink-title">Video</span>
   <span class="ink-spacer"></span>
-  <button class="ink-btn" id="abrir">Abrir vídeos</button>
-  <button class="ink-btn" id="editar" disabled>Editar</button>
-  <button class="ink-btn" id="blista">Lista</button>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn" id="abrir">Open videos</button>
+  <button class="ink-btn" id="editar" disabled>Edit</button>
+  <button class="ink-btn" id="blista">List</button>
 </header>
 <main class="ink-main">
   <div class="md-wrap">
     <section class="md-stage">
       <div class="tela">
         <video id="video" controls playsinline preload="metadata"></video>
-        <div class="md-empty" id="vazio">Toque em <b>Abrir vídeos</b> para escolher vídeos do iPad.<br>Eles tocam no player do próprio Safari e ficam guardados neste aparelho.<br>Use <b>Editar</b> para cortar, tirar o som e exportar.</div>
+        <div class="md-empty" id="vazio"><span>Tap “Open videos” to choose videos from the iPad.</span><span>They play in Safari’s own player and are kept on this device.</span><span>Use “Edit” to trim, remove the sound and export.</span></div>
       </div>
-      <div class="info"><strong id="titulo">Nenhum vídeo</strong><small id="sub"></small>
-        <button class="ink-btn" id="ant" title="Anterior" aria-label="Anterior" data-icone="faixa-anterior"></button>
-        <button class="ink-btn" id="prox" title="Próximo" aria-label="Próximo" data-icone="faixa-proxima"></button>
+      <div class="info"><strong id="titulo" data-idioma-nao>No video</strong><small id="sub"></small>
+        <button class="ink-btn" id="ant" title="Previous" aria-label="Previous" data-icone="faixa-anterior"></button>
+        <button class="ink-btn" id="prox" title="Next" aria-label="Next" data-icone="faixa-proxima"></button>
       </div>
     </section>
     <aside class="md-side" id="lado">
-      <h2><span>Vídeos</span><button class="ink-btn" id="limpar">Limpar</button></h2>
-      <ul class="md-list" id="lista"></ul>
+      <h2><span>Videos</span><button class="ink-btn" id="limpar">Clear</button></h2>
+      <ul class="md-list" id="lista" data-idioma-nao></ul>
     </aside>
   </div>
 </main>
 <input id="arquivos" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv" multiple hidden>
-<script src="../../assets/midia.js?v=1"></script>
+<script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=1"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

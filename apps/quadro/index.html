@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Quadro branco · InkTerminal</title>
+<title>Whiteboard · InkTerminal</title>
 <script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
 <script src="../../assets/gerenciador-app.js?v=6"></script>
 <script src="../../assets/icones.js?v=1" defer></script>
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
@@ -12,12 +13,14 @@
 <!-- Fontes servidas daqui, nunca de um CDN -->
 <script>window.EXCALIDRAW_ASSET_PATH = new URL("./", location.href).href;</script>
 </head>
-<body class="ink-app">
+<body class="ink-app" data-idioma>
 <header class="ink-bar">
   <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
-  <span class="ink-title">Quadro branco</span>
+  <span class="ink-title">Whiteboard</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
 </header>
-<main class="ink-main" id="root"></main>
+<main class="ink-main" id="root" data-idioma-nao></main>
 <!-- Excalidraw 0.18.1 (MIT), https://github.com/excalidraw/excalidraw -->
 <script type="module" src="assets/main.js"></script>
 </body>

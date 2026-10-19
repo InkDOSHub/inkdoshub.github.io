@@ -36,16 +36,16 @@ class InkFS {
     if (!this.entries.has("/")) {
       const now = Date.now();
       this.entries.set("/", { type: vscode.FileType.Directory, ctime: now, mtime: now });
-      this.entries.set("/LEIA-ME.md", {
+      this.entries.set("/README.md", {
         type: vscode.FileType.File, ctime: now, mtime: now,
         data: new TextEncoder().encode(
-          "# Editor de código do InkTerminal\n\n" +
-          "Os arquivos desta pasta ficam guardados neste navegador.\n\n" +
-          "- Novo arquivo ou pasta: ícones no topo do Explorer.\n" +
-          "- Trazer arquivos do iPad: botão direito (ou toque longo) no Explorer > Upload...\n" +
-          "- Levar para o iPad: botão direito no arquivo > Download...\n"),
+          "# InkTerminal Code Editor\n\n" +
+          "The files in this folder are kept in this browser.\n\n" +
+          "- New file or folder: icons at the top of the Explorer.\n" +
+          "- Bring files from the iPad: right-click (or long-press) in the Explorer > Upload...\n" +
+          "- Take files to the iPad: right-click the file > Download...\n"),
       });
-      this._persist("/"); this._persist("/LEIA-ME.md");
+      this._persist("/"); this._persist("/README.md");
     }
   }
   _persist(path) {

@@ -12,11 +12,18 @@
   var btnApagar = document.getElementById("apagar-offline");
   var rotulo = document.getElementById("offline-texto");
   var baixando = false;
+  var t = window.InkIdioma ? InkIdioma.t : function (s, p) { return s.replace(/\{(\w+)\}/g, function (m, k) { return p && k in p ? p[k] : m; }); };
 
   function mb(b) {
-    if (b >= 1e9) return (b / 1e9).toFixed(2).replace(".", ",") + " GB";
-    if (b >= 1e6) return Math.round(b / 1e6) + " MB";
-    return Math.max(1, Math.round(b / 1e3)) + " KB";
+    var l = window.InkIdioma ? InkIdioma.atual : "en";
+    if (b >= 1e9) return (b / 1e9).toLocaleString(l, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " GB";
+    if (b >= 1e6) return Math.round(b / 1e6).toLocaleString(l) + " MB";
+    return Math.max(1, Math.round(b / 1e3)).toLocaleString(l) + " KB";
+  }
+  // nomes dos grupos (inicio/manifesto.json) para mostrar
+  function nomes() {
+    return { inicio: t("Home screen"), terminal: t("Linux terminal"), foto: t("Photos"), video: t("Video"), codigo: t("Code"), quadro: t("Whiteboard"),
+      musica: t("Music"), wine: t("Wine"), inkdos: t("Documents (InkDOS)"), onlyoffice: t("ONLYOFFICE editors") };
   }
   function urlDe(rel) { return new URL(rel, RAIZ).href; }
 
@@ -52,38 +59,39 @@
       faltaTotal += bytes;
       var li = document.createElement("li");
       li.innerHTML = "<span></span><small></small>";
-      li.firstChild.textContent = g.nome;
-      li.lastChild.textContent = !falta.length ? "guardado (" + mb(g.bytes) + ")" :
-        falta.length === g.arquivos.length ? "falta baixar " + mb(g.bytes) : "atualizar " + mb(bytes);
+      li.firstChild.textContent = nomes()[g.id] || g.nome;
+      li.lastChild.textContent = !falta.length ? t("saved ({size})", { size: mb(g.bytes) }) :
+        falta.length === g.arquivos.length ? t("{size} to download", { size: mb(g.bytes) }) : t("{size} to update", { size: mb(bytes) });
       li.className = falta.length ? "" : "ok";
       listaEl.appendChild(li);
     });
     var completo = faltaTotal === 0;
-    rotulo.textContent = completo ? "Offline pronto" : velho ? "Atualizar" : "Offline";
+    rotulo.textContent = completo ? t("Offline ready") : velho ? t("Update") : t("Offline");
     document.getElementById("btn-offline").classList.toggle("pronto", completo);
-    btnBaixar.textContent = completo ? "Tudo guardado" : velho ? "Atualizar cópia (" + mb(faltaTotal) + ")" : "Baixar tudo (" + mb(faltaTotal) + ")";
+    btnBaixar.textContent = completo ? t("Everything saved") : velho ? t("Update copy ({size})", { size: mb(faltaTotal) }) : t("Download all ({size})", { size: mb(faltaTotal) });
     btnBaixar.disabled = completo || baixando;
     btnApagar.disabled = !velho || baixando;
     if (!baixando) {
-      estado.textContent = completo ? "A cópia completa está neste aparelho. Tudo abre sem internet." :
-        velho ? "Há uma versão nova do InkTerminal. Atualize a cópia para usá-la sem internet." :
-        "Ainda não há cópia neste aparelho.";
+      estado.textContent = completo ? t("The full copy is on this device. Everything opens without internet.") :
+        velho ? t("There is a new version of InkTerminal. Update the copy to use it without internet.") :
+        t("There is no copy on this device yet.");
     }
     if (navigator.storage && navigator.storage.estimate) {
       navigator.storage.estimate().then(function (e) {
-        if (!baixando && e && e.quota) estado.textContent += " Espaço usado pelo site: " + mb(e.usage || 0) + ".";
+        if (!baixando && e && e.quota) estado.textContent += " " + t("Space used by the site: {size}.", { size: mb(e.usage || 0) });
       });
     }
   }
 
   function atualizarTela() {
     return Promise.all([lerManifesto(), instalado()]).then(function (r) { desenhar(r[0], r[1]); return r; })
-      .catch(function () { estado.textContent = "Sem internet e sem cópia neste aparelho."; });
+      .catch(function () { estado.textContent = t("No internet and no copy on this device."); });
   }
 
   function baixarTudo() {
     if (baixando || !("caches" in window)) return;
     baixando = true;
+    var falhou = false, erros = 0;
     btnBaixar.disabled = btnApagar.disabled = true;
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
     Promise.all([lerManifesto(), instalado(), caches.open(CACHE)]).then(function (r) {
@@ -94,8 +102,8 @@
         validos[urlDe(a[0])] = 1;
         if (tem[a[0]] !== a[2]) fila.push(a);
       }); });
-      var total = fila.reduce(function (s, a) { return s + a[1]; }, 0), feito = 0, erros = 0, i = 0;
-      function mostrar() { estado.textContent = "Baixando… " + mb(feito) + " de " + mb(total) + (erros ? " (" + erros + " falhas)" : ""); }
+      var total = fila.reduce(function (s, a) { return s + a[1]; }, 0), feito = 0, i = 0;
+      function mostrar() { estado.textContent = erros ? t("Downloading… {done} of {total} ({errors} failed)", { done: mb(feito), total: mb(total), errors: erros }) : t("Downloading… {done} of {total}", { done: mb(feito), total: mb(total) }); }
       function proximo() {
         if (i >= fila.length) return Promise.resolve();
         var a = fila[i++];
@@ -117,7 +125,7 @@
         });
       }).then(function () {
         if (erros) {
-          estado.textContent = erros + " arquivos não foram baixados. Toque em Baixar de novo para tentar só eles.";
+          estado.textContent = t("{n} files were not downloaded. Tap Download again to retry only those.", { n: erros });
           // guarda o manifesto só com o que deu certo, para a próxima vez baixar o resto
           return Promise.all(fila.map(function (a) { return cache.match(urlDe(a[0])).then(function (r) { if (!r) a[2] = "falta"; }); }))
             .then(function () { return cache.put(CHAVE_MANIFESTO, new Response(JSON.stringify(novo), { headers: { "content-type": "application/json" } })); });
@@ -125,11 +133,12 @@
         return cache.put(CHAVE_MANIFESTO, new Response(JSON.stringify(novo), { headers: { "content-type": "application/json" } }));
       });
     }).catch(function () {
-      estado.textContent = "Não deu para baixar agora. Confira a internet e tente de novo.";
+      falhou = true;
+      estado.textContent = t("Could not download now. Check the internet and try again.");
     }).then(function () {
-      var msg = estado.textContent;
+      var msg = estado.textContent, manter = falhou || erros;
       baixando = false;
-      return atualizarTela().then(function () { if (/não|falha/i.test(msg)) estado.textContent = msg; });
+      return atualizarTela().then(function () { if (manter) estado.textContent = msg; });
     });
   }
 

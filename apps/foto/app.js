@@ -1,6 +1,7 @@
 // Fotos do InkTerminal: visualizador com <img> nativo (zoom, giro, lista) e
 // edição como segunda opção, no miniPaint (app/), que devolve uma cópia nova.
 const $ = (id) => document.getElementById(id);
+const t = InkIdioma.t;
 const bib = InkBiblioteca("inkterminal-fotos");
 let fotos = [], atual = -1, urls = new Map(), zoom = 0, giro = 0; // zoom 0 = ajustar à tela
 
@@ -11,7 +12,7 @@ function grade() {
   const g = $("grade");
   g.innerHTML = "";
   $("vazio").classList.toggle("md-hide", fotos.length > 0);
-  $("status").textContent = fotos.length ? fotos.length + (fotos.length === 1 ? " foto" : " fotos") : "";
+  $("status").textContent = fotos.length ? (fotos.length === 1 ? t("1 photo") : t("{n} photos", { n: fotos.length.toLocaleString(InkIdioma.atual) })) : "";
   fotos.forEach((f, i) => {
     const b = document.createElement("button");
     const img = document.createElement("img");
@@ -43,10 +44,10 @@ function aplicar() {
   const img = $("foto"), v = $("ver");
   v.classList.toggle("ajustar", zoom === 0);
   img.style.transform = giro ? "rotate(" + giro + "deg)" : "";
-  if (zoom === 0) { img.style.width = img.style.height = ""; $("zajustar").textContent = "Ajustar"; return; }
+  if (zoom === 0) { img.style.width = img.style.height = ""; $("zajustar").textContent = t("Fit"); return; }
   img.style.width = Math.round(img.naturalWidth * zoom) + "px";
   img.style.height = Math.round(img.naturalHeight * zoom) + "px";
-  $("zajustar").textContent = Math.round(zoom * 100) + "%";
+  $("zajustar").textContent = Math.round(zoom * 100).toLocaleString(InkIdioma.atual) + "%";
 }
 function escalaAjustada() {
   const img = $("foto"), v = $("ver");
@@ -141,7 +142,7 @@ function guardarEdicao() {
     const jpeg = /jpe?g/i.test(orig.tipo || "");
     c.toBlob(async (blob) => {
       if (!blob) return ok(false);
-      const nome = orig.nome.replace(/\.[^.]+$/, "") + " (editada)." + (jpeg ? "jpg" : "png");
+      const nome = t("{name} (edited)", { name: orig.nome.replace(/\.[^.]+$/, "") }) + "." + (jpeg ? "jpg" : "png");
       const [novo] = await bib.adicionar([new File([blob], nome, { type: blob.type })]);
       fotos.splice(atual + 1, 0, novo);
       fecharEdicao();
@@ -154,4 +155,5 @@ function guardarEdicao() {
 $("concluir").onclick = guardarEdicao;
 if (window.inkGerenciador) inkGerenciador.aoGuardar(guardarEdicao);
 
+$("zajustar").textContent = t("Fit");
 bib.listar().then((lst) => { fotos = lst; grade(); modo(false); });

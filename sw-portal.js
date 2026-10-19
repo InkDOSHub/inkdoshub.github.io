@@ -22,7 +22,11 @@ function chave(url) {
 /* Rede primeiro; a cópia offline só quando a rede falha. */
 function daRedeOuCopia(req) {
   return fetch(req).catch(function (erro) {
-    return caches.open(CACHE).then(function (c) { return c.match(chave(req.url || req)); }).then(function (r) {
+    // a cópia offline ou o pacote de idioma (cache "inkterminal-idioma", de assets/idioma.js)
+    var k = chave(req.url || req);
+    return caches.open(CACHE).then(function (c) { return c.match(k); }).then(function (r) {
+      return r || caches.open("inkterminal-idioma").then(function (c) { return c.match(k); });
+    }).then(function (r) {
       if (r) return r;
       throw erro;
     });

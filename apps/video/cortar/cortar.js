@@ -4,6 +4,7 @@
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
+  var t = InkIdioma.t;
   var video = $("video"), faixa = $("faixa"), bib = InkBiblioteca("inkterminal-video");
   var item = null, dur = 0, ini = 0, fim = 0, som = true, altura = 0, url = null;
   var MIN = 0.5; // trecho mínimo, em segundos
@@ -11,7 +12,7 @@
   function hms(s) {
     s = Math.max(0, s);
     var m = Math.floor(s / 60), r = s - m * 60;
-    return m + ":" + (r < 10 ? "0" : "") + r.toFixed(1);
+    return m + ":" + r.toLocaleString(InkIdioma.atual, { minimumIntegerDigits: 2, minimumFractionDigits: 1, maximumFractionDigits: 1 });
   }
   function desenhar() {
     var p = function (t) { return (dur ? t / dur * 100 : 0) + "%"; };
@@ -22,7 +23,7 @@
     $("alca-ini").style.left = "calc(" + p(ini) + " + 7px)";
     $("alca-fim").style.left = "calc(" + p(fim) + " - 7px)";
     $("cursor").style.left = p(video.currentTime || 0);
-    $("tempos").innerHTML = "<b>" + hms(ini) + "</b> até <b>" + hms(fim) + "</b> · " + hms(fim - ini);
+    $("tempos").innerHTML = t("{start} to {end} · {length}", { start: "<b>" + hms(ini) + "</b>", end: "<b>" + hms(fim) + "</b>", length: hms(fim - ini) });
   }
 
   /* ---------- Miniaturas na faixa ---------- */
@@ -101,8 +102,8 @@
       video.play();
     } else video.pause();
   };
-  video.addEventListener("play", function () { $("tocar").textContent = "❚❚"; $("tocar").setAttribute("aria-label", "Pausar"); });
-  video.addEventListener("pause", function () { $("tocar").textContent = "▶"; $("tocar").setAttribute("aria-label", "Tocar"); });
+  video.addEventListener("play", function () { $("tocar").textContent = "❚❚"; $("tocar").setAttribute("aria-label", t("Pause")); });
+  video.addEventListener("pause", function () { $("tocar").textContent = "▶"; $("tocar").setAttribute("aria-label", t("Play")); });
   video.addEventListener("timeupdate", function () {
     if (!video.paused && video.currentTime >= fim) { video.pause(); video.currentTime = fim; }
     desenhar();
@@ -111,7 +112,7 @@
   $("som").onclick = function () {
     som = !som;
     video.muted = !som;
-    $("som").textContent = som ? "Com som" : "Sem som";
+    $("som").textContent = som ? t("With sound") : t("Without sound");
     $("som").setAttribute("aria-pressed", String(som));
   };
   $("qualidade").addEventListener("click", function (e) {
@@ -143,32 +144,33 @@
     if (!item) return;
     video.pause();
     var t0 = Date.now(), arquivo = item.blob instanceof File ? item.blob : new File([item.blob], item.nome, { type: item.tipo || item.blob.type });
-    var qual = altura ? altura + "p" : "qualidade original";
-    painel("Exportando", "Preparando (" + qual + ")…", 0, [{ texto: "Cancelar", acao: cancelar }]);
-    worker = new Worker("cortar-worker.js?v=1", { type: "module" });
+    var qual = altura + "p";
+    painel(t("Exporting"), altura ? t("Preparing ({quality})…", { quality: qual }) : t("Preparing (original quality)…"), 0, [{ texto: t("Cancel"), acao: cancelar }]);
+    worker = new Worker("cortar-worker.js?v=2", { type: "module" });
     worker.onmessage = function (e) {
       var d = e.data;
       if (d.tipo === "progresso") {
         var s = Math.round((Date.now() - t0) / 1000);
-        painel("Exportando", (altura ? "Convertendo para " + qual : "Cortando") + " · " + Math.round(d.parte * 100) + "% · " + s + " s", d.parte, [{ texto: "Cancelar", acao: cancelar }]);
+        var pct = Math.round(d.parte * 100).toLocaleString(InkIdioma.atual), seg = s.toLocaleString(InkIdioma.atual);
+        painel(t("Exporting"), altura ? t("Converting to {quality} · {percent}% · {seconds} s", { quality: qual, percent: pct, seconds: seg }) : t("Trimming · {percent}% · {seconds} s", { percent: pct, seconds: seg }), d.parte, [{ texto: t("Cancel"), acao: cancelar }]);
       }
-      if (d.tipo === "erro") { worker.terminate(); worker = null; painel("Não foi possível exportar", d.texto, null, [{ texto: "OK", acao: fecharPainel }]); }
+      if (d.tipo === "erro") { worker.terminate(); worker = null; painel(t("Could not export"), d.codigo === "vazio" ? t("ffmpeg did not produce the video.") : d.texto, null, [{ texto: t("OK"), acao: fecharPainel }]); }
       if (d.tipo === "pronto") { worker.terminate(); worker = null; guardar(d.blob, d.ext); }
     };
-    worker.onerror = function (e) { painel("Não foi possível exportar", e.message || "erro no ffmpeg", null, [{ texto: "OK", acao: fecharPainel }]); };
+    worker.onerror = function (e) { painel(t("Could not export"), e.message || t("ffmpeg error"), null, [{ texto: t("OK"), acao: fecharPainel }]); };
     worker.postMessage({ arquivo: arquivo, ini: ini, fim: fim, som: som, altura: altura });
   };
   function cancelar() { if (worker) { worker.terminate(); worker = null; } fecharPainel(); }
 
   function guardar(blob, ext) {
     var base = item.nome.replace(/\.[^.]+$/, "");
-    var arq = new File([blob], base + " (editado)" + ext, { type: blob.type });
+    var arq = new File([blob], t("{name} (edited)", { name: base }) + ext, { type: blob.type });
     bib.adicionar([arq]).then(function (novos) {
       var novo = novos[0];
       try { localStorage.setItem("inkterminal-video-atual", String(novo.id)); } catch (_) {}
-      painel("Pronto", arq.name + " (" + inkTamanho(arq.size) + ") está na lista do Vídeo.", null, [
-        { texto: "Guardar no aparelho", acao: function () { partilhar(arq); } },
-        { texto: "Ver no Vídeo", principal: true, acao: function () { location.href = "../"; } },
+      painel(t("Done"), t("{name} ({size}) is in the Video list.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
+        { texto: t("Save to device"), acao: function () { partilhar(arq); } },
+        { texto: t("View in Video"), principal: true, acao: function () { location.href = "../"; } },
       ]);
     });
   }
@@ -183,15 +185,16 @@
   }
 
   /* ---------- Abrir o vídeo ---------- */
+  $("nome").textContent = t("Edit");
   var id = +new URLSearchParams(location.search).get("id");
   bib.listar().then(function (lst) {
     item = lst.filter(function (v) { return v.id === id; })[0] || null;
     if (!item) {
-      painel("Nenhum vídeo", "Abra um vídeo no Vídeo e toque em Editar.", null, [{ texto: "Ir para o Vídeo", principal: true, acao: function () { location.href = "../"; } }]);
+      painel(t("No video"), t("Open a video in Video and tap Edit."), null, [{ texto: t("Go to Video"), principal: true, acao: function () { location.href = "../"; } }]);
       return;
     }
     $("nome").textContent = item.nome;
-    document.title = item.nome + " · Editar vídeo";
+    document.title = t("{name} · Edit video", { name: item.nome });
     url = URL.createObjectURL(item.blob);
     video.src = url;
     video.addEventListener("loadedmetadata", function () {
@@ -202,7 +205,7 @@
       miniaturas();
     }, { once: true });
     video.addEventListener("error", function () {
-      painel("Não consegui abrir o vídeo", "O navegador não toca este formato.", null, [{ texto: "Voltar", acao: function () { location.href = "../"; } }]);
+      painel(t("Could not open the video"), t("The browser cannot play this format."), null, [{ texto: t("Back"), acao: function () { location.href = "../"; } }]);
     });
   });
   addEventListener("resize", function () { if (dur) { desenhar(); miniaturas(); } });

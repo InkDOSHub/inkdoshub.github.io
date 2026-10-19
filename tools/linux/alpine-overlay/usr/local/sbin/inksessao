@@ -1,16 +1,17 @@
 #!/bin/sh
-# inksessao: guarda e devolve a "receita" deste Linux para o botão Sessão da página.
-# A página escreve /mnt/ipad/.inkterminal/pedido ("salvar" ou "restaurar") e lê "estado".
-#   salvar:    receita.tar.gz com a lista de pacotes (etc/apk/world), os repositórios,
-#              /root (sem ~/ipad nem caches), /home e /usr/local
-#   restaurar: instala os pacotes da lista (apk add, precisa de internet) e põe os arquivos de volta
+# inksessao: saves and restores this Linux's "recipe" for the page's Session button.
+# The page writes /mnt/ipad/.inkterminal/pedido ("salvar" = save or "restaurar" = restore) and reads "estado".
+# "estado" starts with a code the page checks (trabalhando, ok, aviso, erro) followed by free text.
+#   salvar:    receita.tar.gz with the package list (etc/apk/world), the repositories,
+#              /root (without ~/ipad or caches), /home and /usr/local
+#   restaurar: installs the listed packages (apk add, needs internet) and puts the files back
 D=/mnt/ipad/.inkterminal
 ITENS="etc/apk/world etc/apk/repositories root home usr/local"
 
 estado() { echo "$*" > "$D/estado.tmp" && mv -f "$D/estado.tmp" "$D/estado"; }
 
 salvar() {
-  estado "trabalhando juntando os arquivos"
+  estado "trabalhando gathering the files"
   rm -f "$D/receita.tmp" "$D/receita.tar.gz"
   L=""
   for i in $ITENS; do [ -e "/$i" ] && L="$L $i"; done
@@ -27,7 +28,7 @@ salvar() {
 restaurar() {
   T=/tmp/inksessao
   rm -rf "$T" && mkdir -p "$T"
-  estado "trabalhando abrindo o arquivo"
+  estado "trabalhando opening the file"
   if ! tar -xzf "$D/receita.tar.gz" -C "$T" 2>"$D/erro.log"; then
     estado "erro $(tail -n 1 "$D/erro.log")"; rm -rf "$T"; return
   fi
@@ -40,21 +41,21 @@ restaurar() {
   APK=ok
   if [ -n "$FALTAM" ]; then
     N=$(echo $FALTAM | wc -w)
-    [ "$N" = 1 ] && W=pacote || W=pacotes
-    estado "trabalhando instalando $N $W da internet"
+    [ "$N" = 1 ] && W=package || W=packages
+    estado "trabalhando installing $N $W from the internet"
     # shellcheck disable=SC2086
     if ! { apk update && apk add $FALTAM; } >"$D/apk.log" 2>&1; then
       APK=falhou
-      echo $FALTAM > /root/pacotes-da-sessao.txt
+      echo $FALTAM > /root/session-packages.txt
     fi
   fi
-  estado "trabalhando pondo os arquivos de volta"
+  estado "trabalhando putting the files back"
   for i in root home usr/local; do
     [ -d "$T/$i" ] && mkdir -p "/$i" && cp -a "$T/$i/." "/$i/"
   done
   ln -sfn /mnt/ipad /root/ipad
   rm -rf "$T"
-  if [ "$APK" = ok ]; then estado "ok restaurado"; else estado "aviso $(tail -n 1 "$D/apk.log")"; fi
+  if [ "$APK" = ok ]; then estado "ok restored"; else estado "aviso $(tail -n 1 "$D/apk.log")"; fi
 }
 
 mkdir -p "$D"
