@@ -22,7 +22,20 @@
   .info small{color:var(--muted)}
   #edicao{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:5}
   #edicao .ink-bar{border-top:0}
-  #edicao iframe{flex:1;width:100%;border:0;display:block}
+  .fe-palco{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none}
+  .fe-moldura{position:relative}
+  .fe-moldura canvas{display:block;width:100%;height:100%}
+  .fe-recorte{position:absolute;box-sizing:border-box;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.55);cursor:move;touch-action:none;
+    background-image:linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,.35)),linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,.35)),linear-gradient(90deg,rgba(255,255,255,.35),rgba(255,255,255,.35)),linear-gradient(90deg,rgba(255,255,255,.35),rgba(255,255,255,.35));
+    background-size:100% 1px,100% 1px,1px 100%,1px 100%;background-position:0 33.33%,0 66.66%,33.33% 0,66.66% 0;background-repeat:no-repeat}
+  .fe-recorte i{position:absolute;width:26px;height:26px;border:0 solid #fff}
+  .fe-recorte i[data-c="nw"]{left:-4px;top:-4px;border-width:4px 0 0 4px;cursor:nwse-resize}
+  .fe-recorte i[data-c="ne"]{right:-4px;top:-4px;border-width:4px 4px 0 0;cursor:nesw-resize}
+  .fe-recorte i[data-c="sw"]{left:-4px;bottom:-4px;border-width:0 0 4px 4px;cursor:nesw-resize}
+  .fe-recorte i[data-c="se"]{right:-4px;bottom:-4px;border-width:0 4px 4px 0;cursor:nwse-resize}
+  .fe-painel{border-top:1px solid var(--border);background:var(--card);padding:8px 14px 12px;max-height:45%;overflow:auto;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+  .fe-abas,.fe-linha{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+  .fe-abas{justify-content:center}
 </style>
 </head>
 <body class="ink-app" data-idioma>
@@ -57,20 +70,13 @@
       </div>
     </section>
   </div>
-  <div id="edicao" class="md-hide">
-    <header class="ink-bar">
-      <button class="ink-btn" id="cancelar">Cancel</button>
-      <span class="ink-title">Edit photo</span>
-      <span class="ink-spacer"></span>
-      <button class="ink-btn on" id="concluir">Save copy</button>
-    </header>
-    <iframe id="editor" title="Photo editor (miniPaint)"></iframe>
-  </div>
+  <div id="edicao" class="md-hide"></div>
 </main>
 <input id="arquivos" type="file" accept="image/*" multiple hidden>
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
 <script src="../../assets/gerenciador-app.js?v=7"></script>
-<script src="app.js?v=4"></script>
+<script src="editor.js?v=1"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

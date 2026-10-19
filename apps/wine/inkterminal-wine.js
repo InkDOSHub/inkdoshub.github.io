@@ -189,7 +189,7 @@
         entrada = e;
         // a sessão troca os discos inteiros, então vem antes de gravar a área de trabalho no D:
         if (e && e.sessao) restaurarSessao(e.partes);
-        return fetch("area/area.exe?v=1");
+        return fetch("area/area.exe?v=2");
       }).then(function (r) {
         if (!r.ok) throw new Error("area.exe " + r.status);
         return r.arrayBuffer();

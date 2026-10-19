@@ -8,19 +8,7 @@ cd "$WORK"
 npm init -y >/dev/null
 npm i -s vscode-web@1.91.1 @excalidraw/excalidraw@0.18.1 react@18.3.1 react-dom@18.3.1 esbuild@0.25
 
-# Fotos: miniPaint, sem mudanças, em apps/foto/app/ (apps/foto/index.html é nossa)
-git clone -q https://github.com/viliusle/miniPaint && (cd miniPaint && git checkout -q a79733eb803fc97084ef0ee4faa96b031e69e1c0)
-rm -rf "$ROOT/apps/foto/app"; mkdir -p "$ROOT/apps/foto/app/dist"
-cp miniPaint/index.html "$ROOT/apps/foto/app/"
-cp miniPaint/dist/bundle.js miniPaint/dist/bundle.js.LICENSE.txt "$ROOT/apps/foto/app/dist/"
-cp -r miniPaint/images "$ROOT/apps/foto/app/"
-cp miniPaint/MIT-LICENSE.txt "$ROOT/apps/foto/UPSTREAM-LICENSE.txt"
-# Única mudança: antes do bundle, um script curto que segue o tema do InkTerminal e escolhe o português
-node -e '
-const fs=require("fs"),p=process.argv[1];let s=fs.readFileSync(p,"utf8");
-const tag="<script src=\"dist/bundle.js\"></script>";
-const add=fs.readFileSync(process.argv[2],"utf8");
-fs.writeFileSync(p,s.replace(tag,add+tag));' "$ROOT/apps/foto/app/index.html" "$ROOT/tools/minipaint-tema.html"
+# Fotos: galeria e editor são nossos (apps/foto/), sem ferramenta de fora
 
 # Música: não usa ferramenta de fora (apps/musica é do InkTerminal)
 

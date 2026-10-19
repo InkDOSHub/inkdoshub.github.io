@@ -1,3 +1,0 @@
-miniPaint (MIT) https://github.com/viliusle/miniPaint
-commit a79733eb803fc97084ef0ee4faa96b031e69e1c0
-Copiado em app/: index.html, dist/bundle.js, images/. Mudanças: um script curto no app/index.html que escolhe o tema do InkTerminal e o português, e no dist/bundle.js o Arquivo > Abrir aceita imagens (accept="image/*,.json"), para o iPad oferecer a Fototeca em vez de só a pasta Downloads. A galeria e o visualizador (index.html, app.js) são do InkTerminal; o botão Editar abre o miniPaint com a foto e guarda o resultado como uma cópia nova.

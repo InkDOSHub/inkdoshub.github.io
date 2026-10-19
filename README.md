@@ -7,7 +7,7 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
-| Fotos | Galeria e visualizador feitos aqui; **Editar** abre o [miniPaint](https://github.com/viliusle/miniPaint) (MIT) | `apps/foto/` (o miniPaint fica em `apps/foto/app/`) |
+| Fotos | Galeria, visualizador e editor simples (recortar, girar, espelhar, endireitar, exposição, brilho, contraste, saturação, calor e tom) feitos aqui | `apps/foto/` (o editor é `apps/foto/editor.js`) |
 | Vídeo | Player nativo do Safari e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
