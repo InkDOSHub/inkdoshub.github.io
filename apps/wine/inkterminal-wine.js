@@ -1,6 +1,6 @@
 /* Partes do InkTerminal dentro do emulador (emulador.html), carregadas depois do boxedwine-shell.js.
 
-   1. Área de trabalho: o Wine sempre abre numa área de trabalho do tamanho da tela (?ink-tela=LxA),
+   1. Área de trabalho: o Wine sempre abre numa área de trabalho do tamanho pedido (?ink-tela=LxA),
       com a nossa área de trabalho (area/area.exe, guardada em D:\.inkterminal) por baixo das
       janelas: fundo azul e um ícone por programa instalado. Ela grava D:\.inkterminal\pronto quando
       aparece; esta página avisa a de fora para tirar o aviso de carregamento.
@@ -176,6 +176,35 @@
 
   /* ---------- Área de trabalho ---------- */
   var tela = /^\d{3,4}x\d{3,4}$/.test(q.get("ink-tela") || "") ? q.get("ink-tela") : "1024x768";
+  /* Tamanhos acima de 1024x768: o Boxedwine usa window.screen como tamanho da tela física e, abaixo
+     de 1601 pontos de largura (todo iPad), só oferece 1024x768, 800x600 e 640x480 ao Wine, que
+     então recusa qualquer tamanho maior. Com uma tela "física" grande, o Wine aceita os tamanhos
+     padrão até ela (wine.js escolhe um deles). Mais alta que larga, o Wine passa a oferecer os
+     tamanhos em pé (768x1024 etc.), para a página em pé. */
+  var emPe = (function () { var m = /^(\d+)x(\d+)$/.exec(tela); return +m[2] > +m[1]; })();
+  try {
+    Object.defineProperty(window.screen, "width", { configurable: true, get: function () { return emPe ? 2000 : 2048; } });
+    Object.defineProperty(window.screen, "height", { configurable: true, get: function () { return 2048; } });
+  } catch (_) {}
+  /* A imagem do Wine cabe inteira na página, sem esticar, centralizada; o que sobra fica com a cor
+     do fundo. O toque continua certo: o Emscripten converte a posição pelo tamanho do canvas. */
+  (function () {
+    var m = /^(\d+)x(\d+)$/.exec(tela), W = +m[1], H = +m[2];
+    function caber() {
+      var c = document.getElementById("canvas");
+      if (!c) return;
+      var k = Math.min(innerWidth / W, innerHeight / H), w = Math.floor(W * k), h = Math.floor(H * k);
+      c.style.setProperty("width", w + "px", "important");
+      c.style.setProperty("height", h + "px", "important");
+      c.style.setProperty("position", "fixed", "important");
+      c.style.setProperty("margin", "0", "important");
+      c.style.setProperty("left", Math.floor((innerWidth - w) / 2) + "px", "important");
+      c.style.setProperty("top", Math.floor((innerHeight - h) / 2) + "px", "important");
+      c.style.setProperty("background", "#163254", "important");
+    }
+    addEventListener("resize", caber);
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", caber); else caber();
+  })();
   if (typeof buildBrowserFileSystem === "function") {
     var original = buildBrowserFileSystem;
     // initBrowserFilesystem chama buildBrowserFileSystem pelo nome global, então esta troca vale
@@ -189,7 +218,7 @@
         entrada = e;
         // a sessão troca os discos inteiros, então vem antes de gravar a área de trabalho no D:
         if (e && e.sessao) restaurarSessao(e.partes);
-        return fetch("area/area.exe?v=2");
+        return fetch("area/area.exe?v=3");
       }).then(function (r) {
         if (!r.ok) throw new Error("area.exe " + r.status);
         return r.arrayBuffer();

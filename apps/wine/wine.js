@@ -1,5 +1,5 @@
 /* Página do Wine: "Iniciar o Wine", "Instalar programa", o aviso de carregamento e os botões da barra.
-   O emulador roda em emulador.html (iframe), sempre com a área de trabalho do tamanho da tela.
+   O emulador roda em emulador.html (iframe), com a área de trabalho num tamanho padrão do formato da página.
    inkterminal-wine.js, lá dentro, põe os arquivos recebidos no disco D:, mostra os programas
    instalados na área de trabalho (area/area.exe) e cuida do teclado e do clique direito no iPad. */
 (function () {
@@ -21,14 +21,22 @@
   function rodando() { return document.body.classList.contains("rodando"); }
   function janela() { try { return $("tela").contentWindow; } catch (_) { return null; } }
 
-  /* Tamanho da área de trabalho: o da área da página, com pelo menos 800 pontos no lado menor
-     (abaixo disso as janelas do Windows não cabem; a imagem é reduzida para caber). */
+  /* Tamanho da área de trabalho. O Wine só aceita os tamanhos de tela padrão da lista dele
+     (dlls/win32u/sysparams.c, default_sizes); pedir outro deixa a área de trabalho em 1024x768, com
+     a barra de tarefas no meio da página. Vale o tamanho da lista com o formato mais parecido com o
+     da área da página e, entre os de mesmo formato, o de lado menor mais perto de 800 pontos (menos
+     e as janelas do Windows não cabem; mais e o texto fica miúdo). Página em pé: o mesmo tamanho
+     deitado de lado. inkterminal-wine.js reduz a imagem para caber, sem esticar. */
+  var TAMANHOS = [[1024, 768], [1152, 864], [1280, 960], [1280, 720], [1600, 900], [1440, 900], [1440, 960], [1280, 768], [1920, 800]];
   function tamanhoTela() {
     var r = document.querySelector(".ink-main").getBoundingClientRect();
-    var w = Math.max(320, Math.round(r.width)), h = Math.max(240, Math.round(r.height));
-    var k = Math.max(1, 800 / Math.min(w, h));
-    w = Math.min(2048, Math.round(w * k / 2) * 2); h = Math.min(2048, Math.round(h * k / 2) * 2);
-    return w + "x" + h;
+    var emPe = r.height > r.width, formato = Math.max(r.width, r.height, 1) / Math.max(Math.min(r.width, r.height), 1);
+    var melhor = null, nota = Infinity;
+    TAMANHOS.forEach(function (s) {
+      var n = Math.round(Math.abs(Math.log(s[0] / s[1] / formato)) * 50) * 1000 + Math.abs(s[1] - 800);
+      if (n < nota) { nota = n; melhor = s; }
+    });
+    return emPe ? melhor[1] + "x" + melhor[0] : melhor[0] + "x" + melhor[1];
   }
 
   /* ---------- Aviso de carregamento ---------- */
@@ -221,6 +229,34 @@
     var w = janela(); if (w) w.postMessage({ tipo: "wine:fundo", manter: v === "continua" }, location.origin);
   };
   mostrarFundo();
+
+  /* ---------- Menus da barra (Arquivos, Mais) ---------- */
+  function fecharMenus() {
+    [].forEach.call(document.querySelectorAll("[data-menu]"), function (b) {
+      b.setAttribute("aria-expanded", "false");
+      $(b.dataset.menu).hidden = true;
+    });
+  }
+  [].forEach.call(document.querySelectorAll("[data-menu]"), function (b) {
+    var m = $(b.dataset.menu);
+    b.onclick = function (e) {
+      e.stopPropagation();
+      var abrir = m.hidden;
+      fecharMenus();
+      if (!abrir) return;
+      var r = b.getBoundingClientRect();
+      m.hidden = false;
+      m.style.top = Math.round(r.bottom + 4) + "px";
+      m.style.left = Math.round(Math.max(8, Math.min(r.right - m.offsetWidth, innerWidth - m.offsetWidth - 8))) + "px";
+      b.setAttribute("aria-expanded", "true");
+    };
+    // escolher um item fecha o menu (o item faz o resto, ainda dentro do toque)
+    m.addEventListener("click", function () { fecharMenus(); });
+  });
+  document.addEventListener("click", function (e) { if (!e.target.closest(".menu")) fecharMenus(); });
+  window.addEventListener("blur", fecharMenus); // toque no Wine (iframe)
+  window.addEventListener("resize", fecharMenus);
+  $("b-parar").addEventListener("click", fecharMenus);
 
   /* ---------- Barra com o Wine aberto ---------- */
   $("b-arquivos").onclick = function () {
