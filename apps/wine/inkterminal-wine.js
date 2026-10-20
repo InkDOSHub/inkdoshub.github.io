@@ -368,34 +368,62 @@
   campo.addEventListener("input", function () { campo.value = ""; });
 
   function canvas() { return document.getElementById("canvas"); }
-  function clique(x, y, botao) {
+  function mouse(tipo, x, y, botao, botoes) {
     var c = canvas(); if (!c) return;
-    var o = { bubbles: true, cancelable: true, clientX: x, clientY: y, screenX: x, screenY: y, button: botao, buttons: botao === 2 ? 2 : 1, view: window };
-    c.dispatchEvent(new MouseEvent("mousemove", o));
-    c.dispatchEvent(new MouseEvent("mousedown", o));
-    setTimeout(function () { o.buttons = 0; c.dispatchEvent(new MouseEvent("mouseup", o)); }, 60);
+    c.dispatchEvent(new MouseEvent(tipo, { bubbles: true, cancelable: true, clientX: x, clientY: y, screenX: x, screenY: y, button: botao, buttons: botoes, view: window }));
   }
-  /* Com "clique direito" ligado, o próximo toque vira um clique com o botão direito. Também dá para
-     segurar o dedo por meio segundo, em qualquer momento. */
-  var segurar = null, inicio = null;
+  function clique(x, y, botao) {
+    mouse("mousemove", x, y, 0, 0);
+    mouse("mousedown", x, y, botao, botao === 2 ? 2 : 1);
+    setTimeout(function () { mouse("mouseup", x, y, botao, 0); }, 60);
+  }
+  /* Toque no iPad: vira mouse aqui mesmo, e o Safari e o SDL não recebem o toque. No Safari do iPad
+     o toque entregue ao SDL não chegava ao Wine (tocar num ícone não fazia nada).
+     - toque rápido: clique com o botão esquerdo;
+     - arrastar: botão esquerdo apertado enquanto o dedo anda (mover janelas, selecionar);
+     - segurar meio segundo sem mexer, ou tocar com "clique direito" ligado: botão direito. */
+  var segurar = null, toque = null;
+  function dentro(e) { var c = canvas(); return c && (e.target === c || c.contains(e.target)); }
   document.addEventListener("touchstart", function (e) {
     var t = e.touches[0];
-    if (!t || !canvas() || !canvas().contains(e.target)) return;
+    if (!t || !dentro(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.touches.length > 1 || toque) return;
     if (direito) {
-      e.preventDefault(); e.stopPropagation();
       direito = false; avisar();
       clique(t.clientX, t.clientY, 2);
       return;
     }
-    inicio = { x: t.clientX, y: t.clientY };
+    toque = { x: t.clientX, y: t.clientY, apertado: false };
+    mouse("mousemove", t.clientX, t.clientY, 0, 0);
     clearTimeout(segurar);
-    segurar = setTimeout(function () { segurar = null; if (inicio) clique(inicio.x, inicio.y, 2); inicio = null; }, 550);
+    segurar = setTimeout(function () {
+      segurar = null;
+      if (toque && !toque.apertado) { clique(toque.x, toque.y, 2); toque = null; }
+    }, 550);
   }, { capture: true, passive: false });
   document.addEventListener("touchmove", function (e) {
     var t = e.touches[0];
-    if (inicio && t && Math.hypot(t.clientX - inicio.x, t.clientY - inicio.y) > 10) { clearTimeout(segurar); inicio = null; }
-  }, true);
-  ["touchend", "touchcancel"].forEach(function (n) { document.addEventListener(n, function () { clearTimeout(segurar); inicio = null; }, true); });
+    if (!toque || !t) return;
+    e.preventDefault(); e.stopPropagation();
+    if (!toque.apertado && Math.hypot(t.clientX - toque.x, t.clientY - toque.y) > 10) {
+      clearTimeout(segurar);
+      toque.apertado = true;
+      mouse("mousedown", toque.x, toque.y, 0, 1);
+    }
+    if (toque.apertado) mouse("mousemove", t.clientX, t.clientY, 0, 1);
+  }, { capture: true, passive: false });
+  ["touchend", "touchcancel"].forEach(function (n) {
+    document.addEventListener(n, function (e) {
+      if (!toque) return;
+      e.preventDefault(); e.stopPropagation();
+      clearTimeout(segurar);
+      var t = e.changedTouches[0], x = t ? t.clientX : toque.x, y = t ? t.clientY : toque.y;
+      if (toque.apertado) mouse("mouseup", x, y, 0, 0);
+      else if (n === "touchend") clique(toque.x, toque.y, 0);
+      toque = null;
+    }, { capture: true, passive: false });
+  });
 
   function avisar() {
     if (window.parent !== window) window.parent.postMessage({ tipo: "wine:direito", ligado: direito }, location.origin);
