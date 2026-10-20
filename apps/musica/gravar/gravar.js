@@ -12,7 +12,24 @@
   var ctx = null, analisador = null;
 
   var suporta = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.MediaRecorder);
-  if (!suporta) { $("sem-suporte").hidden = false; $("gravar").disabled = true; }
+  var temMic = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  // modos: som do computador (Chrome/Edge), microfone, ou gravação de tela do iPad (o sistema grava; aqui só tira o som)
+  var modo = suporta ? "sistema" : "tela";
+  function escolherModo(m) {
+    modo = m;
+    [].forEach.call(document.querySelectorAll("#modos [data-modo]"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.modo === m)); });
+    $("cartao-sistema").classList.toggle("md-hide", m !== "sistema");
+    $("sem-suporte").hidden = !(m === "sistema" && !suporta);
+    $("cartao-tela").classList.toggle("md-hide", m !== "tela");
+    $("cartao-gravar").classList.toggle("md-hide", m === "tela");
+    $("dica-mic").classList.toggle("md-hide", m !== "mic");
+    $("gravar").disabled = (m === "sistema" && !suporta) || (m === "mic" && !temMic);
+  }
+  $("modos").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-modo]");
+    if (b && !gravador) escolherModo(b.dataset.modo);
+  });
+  escolherModo(modo);
   var temPasta = !!window.showDirectoryPicker;
   if (!temPasta) { $("linha-pasta").classList.add("md-hide"); $("nota-pasta").textContent = t("The file goes to Downloads and to the Music list."); }
 
@@ -65,7 +82,8 @@
     estado("");
     var usarPasta = await permissaoPasta();
     try {
-      fluxo = await navigator.mediaDevices.getDisplayMedia({
+      if (modo === "mic") fluxo = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      else fluxo = await navigator.mediaDevices.getDisplayMedia({
         video: true, // o Chrome exige vídeo para mostrar a escolha; ele não é gravado
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false },
         systemAudio: "include", selfBrowserSurface: "exclude", surfaceSwitching: "include",
@@ -101,6 +119,8 @@
     medir(audio);
     $("gravar").classList.add("md-hide"); $("parar").classList.remove("md-hide");
     $("nome").disabled = true; $("escolher").disabled = true;
+    // no Safari a gravação em mp4 sai .m4a
+    if (/mp4/.test(gravador.mimeType || tipo)) nomeArquivo = nomeArquivo.replace(/\.webm$/, ".m4a");
     relogio = setInterval(function () {
       $("tempo").textContent = hms((Date.now() - inicio) / 1000);
       estado(t("Recording {name} · {size}", { name: nomeArquivo, size: inkTamanho(bytes) }) + (erroEscrita ? " · " + t("error writing to the folder") : ""), !!erroEscrita);
@@ -155,6 +175,51 @@
       })();
     } catch (_) {}
   }
+
+  /* ---------- Gravação de tela do iPad: tirar só o som ---------- */
+  $("escolher-tela").onclick = function () { $("arquivo-tela").click(); };
+  $("arquivo-tela").onchange = function (e) {
+    var arquivo = e.target.files[0];
+    e.target.value = "";
+    if (!arquivo) return;
+    var est = $("estado-tela"), t0 = Date.now();
+    est.classList.remove("aviso");
+    est.textContent = t("Preparing (sound only)…");
+    $("escolher-tela").disabled = true;
+    var v = document.createElement("video"), u = URL.createObjectURL(arquivo), feito = false;
+    function comecar(dur) {
+      if (feito) return; feito = true;
+      URL.revokeObjectURL(u);
+      var w = new Worker("../../video/cortar/cortar-worker.js?v=3", { type: "module" });
+      w.onmessage = function (ev) {
+        var d = ev.data;
+        if (d.tipo === "progresso") {
+          if (dur) $("nivel-tela").style.width = Math.round(d.parte * 100) + "%";
+          est.textContent = t("Extracting the sound · {percent}% · {seconds} s", { percent: Math.round(d.parte * 100), seconds: Math.round((Date.now() - t0) / 1000) });
+        }
+        if (d.tipo === "erro") {
+          w.terminate(); $("escolher-tela").disabled = false;
+          est.classList.add("aviso");
+          est.textContent = d.codigo === "semaudio" ? t("This video has no sound, or its sound could not be read.") : d.texto;
+        }
+        if (d.tipo === "pronto") {
+          w.terminate(); $("escolher-tela").disabled = false; $("nivel-tela").style.width = "0";
+          var arq = new File([d.blob], arquivo.name.replace(/\.[^.]+$/, "") + d.ext, { type: d.blob.type });
+          InkBiblioteca("inkterminal-musica").adicionar([arq]).then(function (novos) {
+            try { localStorage.setItem("inkterminal-musica-atual", String(novos[0].id)); } catch (_) {}
+          });
+          est.textContent = t("{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.", { name: arq.name, size: inkTamanho(arq.size) });
+          if (navigator.canShare && navigator.canShare({ files: [arq] })) navigator.share({ files: [arq] }).catch(function () {});
+        }
+      };
+      w.postMessage({ arquivo: arquivo, ini: 0, fim: dur || 360000, som: true, soSom: true, altura: 0 });
+    }
+    v.preload = "metadata"; v.muted = true;
+    v.onloadedmetadata = function () { comecar(isFinite(v.duration) ? v.duration : 0); };
+    v.onerror = function () { comecar(0); };
+    setTimeout(function () { comecar(0); }, 8000);
+    v.src = u;
+  };
 
   addEventListener("beforeunload", function (e) { if (gravador) { e.preventDefault(); e.returnValue = ""; } });
   if (temPasta) mostrarPasta();
