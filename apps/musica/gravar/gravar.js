@@ -24,6 +24,8 @@
     $("cartao-gravar").classList.toggle("md-hide", m === "tela");
     $("dica-mic").classList.toggle("md-hide", m !== "mic");
     $("gravar").disabled = (m === "sistema" && !suporta) || (m === "mic" && !temMic);
+    // sem isso o botão só fica parado, sem explicar (ex.: um app que não libera o microfone para sites)
+    estado(m === "mic" && !temMic ? t("This browser or app does not give websites access to the microphone. Open this page in Safari.") : "", m === "mic" && !temMic);
   }
   $("modos").addEventListener("click", function (e) {
     var b = e.target.closest("[data-modo]");
@@ -89,7 +91,8 @@
         systemAudio: "include", selfBrowserSurface: "exclude", surfaceSwitching: "include",
       });
     } catch (e) {
-      if (e && e.name !== "NotAllowedError" && e.name !== "AbortError") estado(String(e.message || e), true);
+      if (modo === "mic" && e && e.name === "NotAllowedError") estado(t("Microphone access was denied. Allow it for this site (on the iPad: Settings › Apps › Safari › Microphone) and try again."), true);
+      else if (e && e.name !== "NotAllowedError" && e.name !== "AbortError") estado(String(e.message || e), true);
       return;
     }
     var faixas = fluxo.getAudioTracks();
