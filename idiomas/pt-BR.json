@@ -41,6 +41,7 @@
 "Copy files from this device to drive D:": "Copiar arquivos do aparelho para o disco D:",
 "Could not download now. Check the internet and try again.": "Não deu para baixar agora. Confira a internet e tente de novo.",
 "Could not export": "Não foi possível exportar",
+"Could not extract the sound": "Não deu para extrair o som",
 "Could not keep the file for the app. Try again.": "Não consegui guardar o arquivo para o app. Tente de novo.",
 "Could not open the session: {error}": "Não foi possível abrir a sessão: {error}",
 "Could not open the video": "Não consegui abrir o vídeo",
@@ -92,6 +93,7 @@
 "Exposure": "Exposição",
 "Extra keys": "Teclas extras",
 "Extra volume": "Volume extra",
+"Extract sound": "Extrair som",
 "Extracting the sound · {percent}% · {seconds} s": "Extraindo o som · {percent}% · {seconds} s",
 "Files": "Arquivos",
 "Files are kept in this browser. Upload and Download: right-click in the Explorer": "Arquivos guardados neste navegador. Upload e Download: botão direito no Explorer",
@@ -118,6 +120,7 @@
 "Install program": "Instalar programa",
 "Installed programs appear as icons on the desktop. One tap opens them.": "Os programas instalados aparecem como ícones na área de trabalho. Um toque abre.",
 "It left the memory so another page could open. What it saves by itself is still kept on this device.": "Ele saiu da memória para outra página abrir. O que ele salva sozinho continua guardado neste aparelho.",
+"Keeps only the sound of a video (.m4a) in Music. The video is not stored here.": "Guarda só o som de um vídeo (.m4a) na Música. O vídeo não fica guardado aqui.",
 "Keyboard": "Teclado",
 "Language": "Idioma",
 "Left arrow": "Seta para a esquerda",
@@ -368,6 +371,7 @@
 "{name} (edited)": "{name} (editada)",
 "{name} (put away)": "{name} (guardado)",
 "{name} ({size}) is in the Music list.": "{name} ({size}) está na lista da Música.",
+"{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.": "{name} ({size}) está na lista da Música. O vídeo não foi guardado aqui: se não precisar mais dele, apague-o no Fotos ou no Arquivos.",
 "{name} ({size}) is in the Video list.": "{name} ({size}) está na lista do Vídeo.",
 "{name} is in {folder}, with a shortcut on the desktop.": "{name} está em {folder}, com um atalho na área de trabalho.",
 "{name} on drive D:": "{name} no disco D:",
@@ -382,6 +386,7 @@
 "{n} photos": "{n} fotos",
 "{size} to download": "falta baixar {size}",
 "{size} to update": "atualizar {size}",
-"{start} to {end} · {length}": "{start} até {end} · {length}"
+"{start} to {end} · {length}": "{start} até {end} · {length}",
+"“Extract sound” keeps only the sound of a long recording, without storing the video.": "“Extrair som” guarda só o som de uma gravação longa, sem guardar o vídeo."
 }
 }

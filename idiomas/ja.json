@@ -41,6 +41,7 @@
 "Copy files from this device to drive D:": "このデバイスからドライブD:にファイルをコピー",
 "Could not download now. Check the internet and try again.": "今はダウンロードできません。インターネット接続を確認して、もう一度お試しください。",
 "Could not export": "書き出せませんでした",
+"Could not extract the sound": "サウンドを抽出できませんでした",
 "Could not keep the file for the app. Try again.": "Appのためにファイルを保持できませんでした。もう一度お試しください。",
 "Could not open the session: {error}": "セッションを開けませんでした: {error}",
 "Could not open the video": "ビデオを開けませんでした",
@@ -92,6 +93,7 @@
 "Exposure": "露出",
 "Extra keys": "追加キー",
 "Extra volume": "音量ブースト",
+"Extract sound": "サウンドを抽出",
 "Extracting the sound · {percent}% · {seconds} s": "サウンドを抽出中 · {percent}% · {seconds} 秒",
 "Files": "ファイル",
 "Files are kept in this browser. Upload and Download: right-click in the Explorer": "ファイルはこのブラウザに保持されます。アップロードとダウンロード: エクスプローラで右クリック",
@@ -118,6 +120,7 @@
 "Install program": "プログラムをインストール",
 "Installed programs appear as icons on the desktop. One tap opens them.": "インストールしたプログラムはデスクトップにアイコンとして表示されます。1回タップで開きます。",
 "It left the memory so another page could open. What it saves by itself is still kept on this device.": "ほかのページを開くため、メモリから解放されました。自動で保存される内容は、このデバイスに残っています。",
+"Keeps only the sound of a video (.m4a) in Music. The video is not stored here.": "ビデオのサウンドだけ（.m4a）をミュージックに保存します。ビデオはここに保存されません。",
 "Keyboard": "キーボード",
 "Language": "言語",
 "Left arrow": "左矢印",
@@ -368,6 +371,7 @@
 "{name} (edited)": "{name}（編集済み）",
 "{name} (put away)": "{name}（休止中）",
 "{name} ({size}) is in the Music list.": "{name}（{size}）はミュージックのリストにあります。",
+"{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.": "{name}（{size}）はミュージックのリストにあります。ビデオはここに保存されていません。不要になったら写真またはファイルで削除してください。",
 "{name} ({size}) is in the Video list.": "{name}（{size}）はビデオのリストにあります。",
 "{name} is in {folder}, with a shortcut on the desktop.": "{name}は{folder}にあり、デスクトップにショートカットがあります。",
 "{name} on drive D:": "ドライブD:の{name}",
@@ -382,6 +386,7 @@
 "{n} photos": "{n}枚の写真",
 "{size} to download": "ダウンロード: {size}",
 "{size} to update": "アップデート: {size}",
-"{start} to {end} · {length}": "{start}～{end} · {length}"
+"{start} to {end} · {length}": "{start}～{end} · {length}",
+"“Extract sound” keeps only the sound of a long recording, without storing the video.": "「サウンドを抽出」は長い録画のサウンドだけを残し、ビデオは保存しません。"
 }
 }

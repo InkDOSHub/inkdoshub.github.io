@@ -41,6 +41,7 @@
 "Copy files from this device to drive D:": "将文件从此设备复制到 D: 盘",
 "Could not download now. Check the internet and try again.": "暂时无法下载。请检查网络连接后重试。",
 "Could not export": "无法导出",
+"Could not extract the sound": "无法提取声音",
 "Could not keep the file for the app. Try again.": "无法为应用保留该文件。请重试。",
 "Could not open the session: {error}": "无法打开会话：{error}",
 "Could not open the video": "无法打开视频",
@@ -92,6 +93,7 @@
 "Exposure": "曝光",
 "Extra keys": "附加按键",
 "Extra volume": "音量增强",
+"Extract sound": "提取声音",
 "Extracting the sound · {percent}% · {seconds} s": "正在提取声音 · {percent}% · {seconds} 秒",
 "Files": "文件",
 "Files are kept in this browser. Upload and Download: right-click in the Explorer": "文件保存在此浏览器中。上传和下载：在资源管理器中右键点按",
@@ -118,6 +120,7 @@
 "Install program": "安装程序",
 "Installed programs appear as icons on the desktop. One tap opens them.": "已安装的程序会以图标形式显示在桌面上，轻点一下即可打开。",
 "It left the memory so another page could open. What it saves by itself is still kept on this device.": "它已从内存中释放，以便打开其他页面。它自动保存的内容仍保留在此设备上。",
+"Keeps only the sound of a video (.m4a) in Music. The video is not stored here.": "只把视频的声音（.m4a）保存到音乐。视频不会保存在这里。",
 "Keyboard": "键盘",
 "Language": "语言",
 "Left arrow": "左箭头",
@@ -368,6 +371,7 @@
 "{name} (edited)": "{name}（已编辑）",
 "{name} (put away)": "{name}（已收起）",
 "{name} ({size}) is in the Music list.": "{name}（{size}）已在音乐列表中。",
+"{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.": "{name}（{size}）已在音乐列表中。视频没有保存在这里：如果不再需要，请在“照片”或“文件”中删除它。",
 "{name} ({size}) is in the Video list.": "{name}（{size}）已在“视频”列表中。",
 "{name} is in {folder}, with a shortcut on the desktop.": "{name} 位于 {folder}，桌面上有快捷方式。",
 "{name} on drive D:": "D: 盘上的 {name}",
@@ -382,6 +386,7 @@
 "{n} photos": "{n} 张照片",
 "{size} to download": "需下载 {size}",
 "{size} to update": "需更新 {size}",
-"{start} to {end} · {length}": "{start} 至 {end} · {length}"
+"{start} to {end} · {length}": "{start} 至 {end} · {length}",
+"“Extract sound” keeps only the sound of a long recording, without storing the video.": "“提取声音”只保留长录像的声音，不保存视频。"
 }
 }
