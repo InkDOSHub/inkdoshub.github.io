@@ -41,6 +41,7 @@
 "Copy files from this device to drive D:": "Скопировать файлы с этого устройства на диск D:",
 "Could not download now. Check the internet and try again.": "Не удалось скачать. Проверьте подключение к интернету и повторите попытку.",
 "Could not export": "Не удалось экспортировать",
+"Could not extract the sound": "Не удалось извлечь звук",
 "Could not keep the file for the app. Try again.": "Не удалось сохранить файл для приложения. Повторите попытку.",
 "Could not open the session: {error}": "Не удалось открыть сеанс: {error}",
 "Could not open the video": "Не удалось открыть видео",
@@ -92,6 +93,7 @@
 "Exposure": "Экспозиция",
 "Extra keys": "Дополнительные клавиши",
 "Extra volume": "Усиление громкости",
+"Extract sound": "Извлечь звук",
 "Extracting the sound · {percent}% · {seconds} s": "Извлечение звука · {percent}% · {seconds} с",
 "Files": "Файлы",
 "Files are kept in this browser. Upload and Download: right-click in the Explorer": "Файлы хранятся в этом браузере. Отправка и скачивание: правый клик в Проводнике",
@@ -118,6 +120,7 @@
 "Install program": "Установить программу",
 "Installed programs appear as icons on the desktop. One tap opens them.": "Установленные программы появляются значками на рабочем столе. Открываются одним нажатием.",
 "It left the memory so another page could open. What it saves by itself is still kept on this device.": "Страница выгружена из памяти, чтобы открылась другая. То, что она сохраняет сама, по-прежнему хранится на этом устройстве.",
+"Keeps only the sound of a video (.m4a) in Music. The video is not stored here.": "Сохраняет только звук видео (.m4a) в Музыку. Само видео здесь не сохраняется.",
 "Keyboard": "Клавиатура",
 "Language": "Язык",
 "Left arrow": "Стрелка влево",
@@ -368,6 +371,7 @@
 "{name} (edited)": "{name} (изменено)",
 "{name} (put away)": "{name} (выгружено)",
 "{name} ({size}) is in the Music list.": "{name} ({size}) в списке Музыки.",
+"{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.": "{name} ({size}) в списке Музыки. Видео здесь не сохранено: если оно больше не нужно, удалите его в Фото или Файлах.",
 "{name} ({size}) is in the Video list.": "{name} ({size}) — в списке «Видео».",
 "{name} is in {folder}, with a shortcut on the desktop.": "{name} находится в {folder}, ярлык — на рабочем столе.",
 "{name} on drive D:": "{name} на диске D:",
@@ -382,6 +386,7 @@
 "{n} photos": "Фото: {n}",
 "{size} to download": "Скачать: {size}",
 "{size} to update": "Обновить: {size}",
-"{start} to {end} · {length}": "{start} – {end} · {length}"
+"{start} to {end} · {length}": "{start} – {end} · {length}",
+"“Extract sound” keeps only the sound of a long recording, without storing the video.": "«Извлечь звук» сохраняет только звук длинной записи, не сохраняя видео."
 }
 }

@@ -1,5 +1,7 @@
 // Player de vídeo do InkTerminal: <video> nativo do Safari, com lista guardada
 // neste aparelho. "Editar" abre o vídeo atual no editor simples (cortar/).
+// "Extrair som" tira só o áudio (.m4a, para a Música) de um vídeo escolhido, sem guardar o vídeo
+// aqui: serve para gravações longas (uma aula de 1 h), que ocupariam gigabytes.
 const $ = (id) => document.getElementById(id);
 const t = InkIdioma.t;
 const video = $("video"), lista = $("lista");
@@ -95,6 +97,80 @@ $("editar").onclick = () => {
   if (!v) return;
   video.pause(); guardarPosicao();
   location.href = "cortar/?id=" + v.id;
+};
+
+/* ---------- Extrair só o som, sem guardar o vídeo ---------- */
+function painel(titulo, texto, parte, botoes) {
+  $("progresso").classList.add("on");
+  $("p-titulo").textContent = titulo;
+  $("p-texto").textContent = texto || "";
+  $("p-barra").style.display = parte == null ? "none" : "";
+  $("p-barra").firstChild.style.width = Math.round((parte || 0) * 100) + "%";
+  const b = $("p-botoes"); b.innerHTML = "";
+  (botoes || []).forEach((x) => {
+    const e = document.createElement("button");
+    e.className = "ink-btn" + (x.principal ? " principal" : "");
+    e.textContent = x.texto; e.onclick = x.acao;
+    b.appendChild(e);
+  });
+}
+const fecharPainel = () => $("progresso").classList.remove("on");
+function duracaoDe(arquivo) {
+  // a duração só serve para a barra de progresso; se o Safari não souber ler, segue sem ela
+  return new Promise((ok) => {
+    const v = document.createElement("video"), u = URL.createObjectURL(arquivo);
+    const fim = (d) => { clearTimeout(tempo); v.removeAttribute("src"); v.load(); URL.revokeObjectURL(u); ok(d); };
+    const tempo = setTimeout(() => fim(0), 8000);
+    v.preload = "metadata"; v.muted = true;
+    v.onloadedmetadata = () => fim(isFinite(v.duration) ? v.duration : 0);
+    v.onerror = () => fim(0);
+    v.src = u;
+  });
+}
+function partilhar(arq) {
+  if (navigator.canShare && navigator.canShare({ files: [arq] })) { navigator.share({ files: [arq] }).catch(() => {}); return; }
+  const a = document.createElement("a"), u = URL.createObjectURL(arq);
+  a.href = u; a.download = arq.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+let worker = null;
+const cancelar = () => { if (worker) { worker.terminate(); worker = null; } fecharPainel(); };
+$("extrair").onclick = () => $("arquivo-som").click();
+$("arquivo-som").onchange = async (e) => {
+  const arquivo = e.target.files[0];
+  e.target.value = "";
+  if (!arquivo) return;
+  video.pause();
+  painel(t("Extract sound"), t("Preparing (sound only)…"), 0, [{ texto: t("Cancel"), acao: cancelar }]);
+  const dur = await duracaoDe(arquivo), t0 = Date.now();
+  worker = new Worker("cortar/cortar-worker.js?v=3", { type: "module" });
+  worker.onmessage = (ev) => {
+    const d = ev.data;
+    if (d.tipo === "progresso") {
+      painel(t("Extract sound"), t("Extracting the sound · {percent}% · {seconds} s", {
+        percent: Math.round(d.parte * 100).toLocaleString(InkIdioma.atual),
+        seconds: Math.round((Date.now() - t0) / 1000).toLocaleString(InkIdioma.atual),
+      }), dur ? d.parte : null, [{ texto: t("Cancel"), acao: cancelar }]);
+    }
+    if (d.tipo === "erro") {
+      worker.terminate(); worker = null;
+      painel(t("Could not extract the sound"), d.codigo === "semaudio" ? t("This video has no sound, or its sound could not be read.") : d.texto, null, [{ texto: t("OK"), acao: fecharPainel }]);
+    }
+    if (d.tipo === "pronto") {
+      worker.terminate(); worker = null;
+      const arq = new File([d.blob], arquivo.name.replace(/\.[^.]+$/, "") + d.ext, { type: d.blob.type });
+      InkBiblioteca("inkterminal-musica").adicionar([arq]).then((novos) => {
+        try { localStorage.setItem("inkterminal-musica-atual", String(novos[0].id)); } catch (_) {}
+        painel(t("Done"), t("{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
+          { texto: t("Save to device"), acao: () => partilhar(arq) },
+          { texto: t("Open in Music"), principal: true, acao: () => { location.href = "../musica/"; } },
+        ]);
+      });
+    }
+  };
+  worker.onerror = (ev) => painel(t("Could not extract the sound"), ev.message || t("ffmpeg error"), null, [{ texto: t("OK"), acao: fecharPainel }]);
+  // fim enorme quando a duração não é conhecida: o ffmpeg para no fim do arquivo
+  worker.postMessage({ arquivo, ini: 0, fim: dur || 360000, som: true, soSom: true, altura: 0 });
 };
 
 $("titulo").textContent = t("No video");

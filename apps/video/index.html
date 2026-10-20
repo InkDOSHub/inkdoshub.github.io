@@ -17,6 +17,14 @@
   .info{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card);border-top:1px solid var(--border);font-size:14px;min-height:44px;box-sizing:border-box}
   .info strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .info small{color:var(--muted)}
+  #progresso{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10}
+  #progresso.on{display:flex}
+  #progresso .caixa{background:var(--card);color:var(--text);border-radius:12px;padding:18px;width:min(380px,calc(100% - 32px));display:flex;flex-direction:column;gap:10px}
+  #progresso .barra{height:8px;border-radius:4px;background:var(--border);overflow:hidden}
+  #progresso .barra span{display:block;height:100%;width:0;background:var(--accent)}
+  #progresso .botoes{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  #progresso p{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+  #progresso .principal{background:var(--accent);border-color:var(--accent);color:#0d1117;font-weight:600}
 </style>
 </head>
 <body class="ink-app" data-idioma>
@@ -27,6 +35,7 @@
   <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
   <button class="ink-btn" id="abrir">Open videos</button>
   <button class="ink-btn" id="editar" disabled>Edit</button>
+  <button class="ink-btn" id="extrair" title="Keeps only the sound of a video (.m4a) in Music. The video is not stored here.">Extract sound</button>
   <button class="ink-btn" id="blista">List</button>
 </header>
 <main class="ink-main">
@@ -34,7 +43,7 @@
     <section class="md-stage">
       <div class="tela">
         <video id="video" controls playsinline preload="metadata"></video>
-        <div class="md-empty" id="vazio"><span>Tap “Open videos” to choose videos from the iPad.</span><span>They play in Safari’s own player and are kept on this device.</span><span>Use “Edit” to trim, remove the sound and export.</span></div>
+        <div class="md-empty" id="vazio"><span>Tap “Open videos” to choose videos from the iPad.</span><span>They play in Safari’s own player and are kept on this device.</span><span>Use “Edit” to trim, remove the sound and export.</span><span>“Extract sound” keeps only the sound of a long recording, without storing the video.</span></div>
       </div>
       <div class="info"><strong id="titulo" data-idioma-nao>No video</strong><small id="sub"></small>
         <button class="ink-btn" id="ant" title="Previous" aria-label="Previous" data-icone="faixa-anterior"></button>
@@ -48,8 +57,15 @@
   </div>
 </main>
 <input id="arquivos" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv" multiple hidden>
+<input id="arquivo-som" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv" hidden>
+<div id="progresso" role="dialog" aria-live="polite" data-idioma-nao><div class="caixa">
+  <strong id="p-titulo"></strong>
+  <p id="p-texto"></p>
+  <div class="barra" id="p-barra"><span></span></div>
+  <div class="botoes" id="p-botoes"></div>
+</div></div>
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

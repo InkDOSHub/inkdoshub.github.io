@@ -41,6 +41,7 @@
 "Copy files from this device to drive D:": "Copier des fichiers de cet appareil vers le lecteur D:",
 "Could not download now. Check the internet and try again.": "Téléchargement impossible pour le moment. Vérifiez la connexion Internet et réessayez.",
 "Could not export": "Exportation impossible",
+"Could not extract the sound": "Impossible d’extraire le son",
 "Could not keep the file for the app. Try again.": "Impossible de conserver le fichier pour l’app. Réessayez.",
 "Could not open the session: {error}": "Impossible d’ouvrir la session : {error}",
 "Could not open the video": "Impossible d’ouvrir la vidéo",
@@ -92,6 +93,7 @@
 "Exposure": "Exposition",
 "Extra keys": "Touches supplémentaires",
 "Extra volume": "Volume supplémentaire",
+"Extract sound": "Extraire le son",
 "Extracting the sound · {percent}% · {seconds} s": "Extraction du son · {percent} % · {seconds} s",
 "Files": "Fichiers",
 "Files are kept in this browser. Upload and Download: right-click in the Explorer": "Les fichiers sont conservés dans ce navigateur. Importer et Télécharger : clic droit dans l’Explorateur",
@@ -118,6 +120,7 @@
 "Install program": "Installer un programme",
 "Installed programs appear as icons on the desktop. One tap opens them.": "Les programmes installés apparaissent comme icônes sur le bureau. Un toucher suffit pour les ouvrir.",
 "It left the memory so another page could open. What it saves by itself is still kept on this device.": "Elle a quitté la mémoire pour laisser s’ouvrir une autre page. Ce qu’elle enregistre d’elle-même reste conservé sur cet appareil.",
+"Keeps only the sound of a video (.m4a) in Music. The video is not stored here.": "Enregistre seulement le son d’une vidéo (.m4a) dans Musique. La vidéo n’est pas gardée ici.",
 "Keyboard": "Clavier",
 "Language": "Langue",
 "Left arrow": "Flèche gauche",
@@ -368,6 +371,7 @@
 "{name} (edited)": "{name} (modifiée)",
 "{name} (put away)": "{name} (en veille)",
 "{name} ({size}) is in the Music list.": "{name} ({size}) est dans la liste de Musique.",
+"{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.": "{name} ({size}) est dans la liste de Musique. La vidéo n’a pas été gardée ici : si vous n’en avez plus besoin, supprimez-la dans Photos ou Fichiers.",
 "{name} ({size}) is in the Video list.": "{name} ({size}) est dans la liste Vidéo.",
 "{name} is in {folder}, with a shortcut on the desktop.": "{name} est dans {folder}, avec un raccourci sur le bureau.",
 "{name} on drive D:": "{name} sur le lecteur D:",
@@ -382,6 +386,7 @@
 "{n} photos": "{n} photos",
 "{size} to download": "{size} à télécharger",
 "{size} to update": "{size} à mettre à jour",
-"{start} to {end} · {length}": "{start} à {end} · {length}"
+"{start} to {end} · {length}": "{start} à {end} · {length}",
+"“Extract sound” keeps only the sound of a long recording, without storing the video.": "« Extraire le son » garde seulement le son d’un long enregistrement, sans garder la vidéo."
 }
 }
