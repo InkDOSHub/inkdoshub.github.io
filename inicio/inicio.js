@@ -15,19 +15,6 @@
     });
   });
 
-  // Painel "Uso sem internet"
-  var painel = $("painel-offline"), botao = $("btn-offline");
-  function fechar() { painel.hidden = true; botao.setAttribute("aria-expanded", "false"); }
-  botao.addEventListener("click", function (e) {
-    e.stopPropagation();
-    var abrir = painel.hidden;
-    painel.hidden = !abrir;
-    botao.setAttribute("aria-expanded", String(abrir));
-    if (abrir && window.InkOffline) InkOffline.atualizar();
-  });
-  painel.addEventListener("click", function (e) { e.stopPropagation(); });
-  document.addEventListener("click", fechar);
-
   // Tema: troca aqui; as outras abas abertas acompanham pelo evento "storage"
   $("tema").addEventListener("click", function () {
     var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";

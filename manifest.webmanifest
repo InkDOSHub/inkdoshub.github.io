@@ -2,7 +2,7 @@
   "id": "./",
   "name": "InkTerminal",
   "short_name": "InkTerminal",
-  "description": "Advanced tools: Linux, photos, video, code, whiteboard, music, Wine and the InkDOS document apps. Everything on this device.",
+  "description": "Advanced tools: Linux, photos, video, code, whiteboard, music and the InkDOS document apps. Everything on this device.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",
@@ -174,12 +174,6 @@
           ".ogg",
           ".opus",
           ".wav"
-        ],
-        "application/x-msdownload": [
-          ".exe"
-        ],
-        "application/x-msi": [
-          ".msi"
         ]
       }
     }

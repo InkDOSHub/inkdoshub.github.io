@@ -20,8 +20,6 @@
     { id: "codigo", nome: "Code", url: "apps/codigo/", peso: 250 },
     { id: "quadro", nome: "Whiteboard", url: "apps/quadro/", peso: 120 },
     { id: "musica", nome: "Music", url: "apps/musica/", peso: 60 },
-    // Boxedwine: começa com 512 MB e cresce, mais o sistema do Wine (~220 MB)
-    { id: "wine", nome: "Wine", url: "apps/wine/", peso: 950 },
     // cópia dos apps do InkDOS (inkdos/); suite=1 mostra o botão Home, que volta para a tela inicial
     { id: "documentos", nome: "Documents", url: "inkdos/apps/documents/index.html?suite=1", peso: 120 },
     { id: "planilhas", nome: "Spreadsheets", url: "inkdos/apps/spreadsheets/index.html?suite=1", peso: 120 },
