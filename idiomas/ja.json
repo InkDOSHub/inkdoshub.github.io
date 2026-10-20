@@ -342,6 +342,7 @@
 "Windows programs": "Windowsプログラム",
 "Windows programs in the browser: add an .exe, .msi or .zip, or use the desktop (Boxedwine).": "ブラウザで動くWindowsプログラム: .exe、.msi、.zipを追加するか、デスクトップを使えます（Boxedwine）。",
 "Wine": "Wine",
+"Wine (legacy)": "Wine（レガシー）",
 "Wine (the Windows programs themselves)": "Wine（Windowsプログラム本体）",
 "Wine desktop": "Wineデスクトップ",
 "Wine didn't respond": "Wineが応答しませんでした",

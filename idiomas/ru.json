@@ -342,6 +342,7 @@
 "Windows programs": "Программы Windows",
 "Windows programs in the browser: add an .exe, .msi or .zip, or use the desktop (Boxedwine).": "Программы Windows в браузере: добавьте .exe, .msi или .zip либо используйте рабочий стол (Boxedwine).",
 "Wine": "Wine",
+"Wine (legacy)": "Wine (устаревшее)",
 "Wine (the Windows programs themselves)": "Wine (сами программы Windows)",
 "Wine desktop": "Рабочий стол Wine",
 "Wine didn't respond": "Wine не ответил",

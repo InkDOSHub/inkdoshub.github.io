@@ -342,6 +342,7 @@
 "Windows programs": "Programas de Windows",
 "Windows programs in the browser: add an .exe, .msi or .zip, or use the desktop (Boxedwine).": "Programas de Windows en el navegador: añade un .exe, .msi o .zip, o usa el escritorio (Boxedwine).",
 "Wine": "Wine",
+"Wine (legacy)": "Wine (heredado)",
 "Wine (the Windows programs themselves)": "Wine (los propios programas de Windows)",
 "Wine desktop": "Escritorio de Wine",
 "Wine didn't respond": "Wine no respondió",

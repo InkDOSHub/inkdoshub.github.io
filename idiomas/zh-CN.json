@@ -342,6 +342,7 @@
 "Windows programs": "Windows 程序",
 "Windows programs in the browser: add an .exe, .msi or .zip, or use the desktop (Boxedwine).": "在浏览器中运行 Windows 程序：添加 .exe、.msi 或 .zip，或使用桌面（Boxedwine）。",
 "Wine": "Wine",
+"Wine (legacy)": "Wine（旧版）",
 "Wine (the Windows programs themselves)": "Wine（Windows 程序本身）",
 "Wine desktop": "Wine 桌面",
 "Wine didn't respond": "Wine 没有响应",
