@@ -1,7 +1,7 @@
 /* Service worker do portal offline do InkTerminal.
 
    Ele é registrado pela tela inicial. A cópia offline é
-   baixada pela própria página (inicio/offline.js) para o cache "inkterminal-offline"; este arquivo
+   baixada pela própria página (legado/offline.js, fora de uso) para o cache "inkterminal-offline"; este arquivo
    apenas serve essa cópia quando não há rede. Com rede, tudo vem do site normalmente, então uma
    versão nova do site nunca se mistura com arquivos antigos da cópia. */
 "use strict";
