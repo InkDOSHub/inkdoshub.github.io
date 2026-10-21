@@ -4,27 +4,9 @@ html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}body{min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}
 .home-shell{width:min(1180px,calc(100% - 64px));min-height:100vh;margin:0 auto;padding:38px 0 26px;display:flex;flex-direction:column}
 .brand-row{min-height:54px;display:flex;align-items:center;gap:12px}.brand{display:inline-flex;align-items:center;gap:13px}
-.brand-mark{width:46px;height:46px;border-radius:12px;background:var(--card);border:1px solid var(--border);display:grid;place-items:center}
-
-.brand-mark {
-  width: 46px;
-  height: 46px;
-  flex-shrink: 0;
-  overflow: hidden;
-  border-radius: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  display: grid;
-  place-items: center;
-}
-
-.brand-mark img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
+.brand-mark{width:46px;height:46px;flex-shrink:0;border-radius:11px;overflow:hidden;display:grid;place-items:center}
+/* o PNG do ícone tem margem clara em volta do quadro (igual ao do InkDOS); ampliar 1,104x deixa só o quadro, também no tema escuro */
+.brand-mark img{display:block;width:100%;height:100%;transform:scale(1.104)}
 .brand-copy{display:flex;flex-direction:column;gap:3px;line-height:1.04}.brand-copy strong{font-size:20px;font-weight:760;letter-spacing:-.02em}.brand-copy small{font-size:13px;font-weight:500;color:var(--muted)}
 .theme-button{margin-left:auto;width:38px;height:38px;padding:0;border:1px solid var(--border);border-radius:11px;background:var(--card);color:var(--muted);display:grid;place-items:center;cursor:pointer}
 .theme-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
