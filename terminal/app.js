@@ -121,7 +121,8 @@ const config = {
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
   bzimage: { url: "images/inkterminal-bzImage.bin?v=9" },
-  cmdline: "console=ttyS0 quiet tsc=reliable mitigations=off random.trust_cpu=on" +
+  // Keep the guest kernel security mitigations enabled; this is an emulated environment.
+  cmdline: "console=ttyS0 quiet tsc=reliable" +
     (LIMITADA ? " inkzram=192M" + (swap ? " inkswap=1" : "") : ""),
   hda: swap || undefined,
   filesystem: {},
