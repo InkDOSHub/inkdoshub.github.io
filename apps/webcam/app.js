@@ -438,7 +438,8 @@
     mostrar("host");
     var cfg = {};
     try { cfg = JSON.parse(ler(CHAVE_HOST) || "{}") || {}; } catch (_) {}
-    $("hcodigo").value = limpo(codigo) || cfg.codigo || "";
+    var codigoInicial = limpo(codigo), codigoSalvo = limpo(cfg.codigo);
+    $("hcodigo").value = /^[a-z0-9]{10}$/.test(codigoInicial) ? codigoInicial : (/^[a-z0-9]{10}$/.test(codigoSalvo) ? codigoSalvo : "");
     if (cfg.qualidade && QUALIDADES[cfg.qualidade]) $("qualidade").value = cfg.qualidade;
     if (cfg.codecVersion === 2 && cfg.codec) $("codec").value = cfg.codec;
     else $("codec").value = "VP8";
