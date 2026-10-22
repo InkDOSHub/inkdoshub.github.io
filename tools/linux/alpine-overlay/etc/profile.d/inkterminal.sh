@@ -6,7 +6,7 @@ help() {
   echo "Commands: ls cd cat vi top ps df free"
   echo "Install programs: apk add python3 git nano (any Alpine package)"
   echo "No internet? Switch the network at the top (wisp or relay) and tap Restart."
-  echo "iPad files: the ~/ipad folder"
+  echo "Device files: the ~/files folder (Upload/Download buttons)"
   echo "Screen the wrong size? Type: resize"
   echo "Tap Save to keep everything."
 }

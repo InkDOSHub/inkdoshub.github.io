@@ -13,10 +13,10 @@ mount -t tmpfs run /run
 hostname inkterminal
 ip link set lo up
 
-# Folder shared with the iPad (the page's Upload/Download buttons)
+# Folder shared with the device (the page's Upload/Download buttons)
 mkdir -p /mnt/ipad
 mount -t 9p -o trans=virtio,version=9p2000.L,cache=none host9p /mnt/ipad 2>/dev/null
-ln -sfn /mnt/ipad /root/ipad
+ln -sfn /mnt/ipad /root/files
 
 # Limited memory mode (the page's "Memory" option): zram and swap on the v86 disk
 for a in $(cat /proc/cmdline); do

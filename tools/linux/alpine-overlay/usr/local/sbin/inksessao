@@ -3,7 +3,7 @@
 # The page writes /mnt/ipad/.inkterminal/pedido ("salvar" = save or "restaurar" = restore) and reads "estado".
 # "estado" starts with a code the page checks (trabalhando, ok, aviso, erro) followed by free text.
 #   salvar:    receita.tar.gz with the package list (etc/apk/world), the repositories,
-#              /root (without ~/ipad or caches), /home and /usr/local
+#              /root (without ~/files or caches), /home and /usr/local
 #   restaurar: installs the listed packages (apk add, needs internet) and puts the files back
 D=/mnt/ipad/.inkterminal
 ITENS="etc/apk/world etc/apk/repositories root home usr/local"
@@ -16,7 +16,7 @@ salvar() {
   L=""
   for i in $ITENS; do [ -e "/$i" ] && L="$L $i"; done
   # shellcheck disable=SC2086
-  if (cd / && tar -czf "$D/receita.tmp" --exclude=root/ipad --exclude=root/.cache --exclude=usr/local/sbin/inksessao $L) 2>"$D/erro.log" \
+  if (cd / && tar -czf "$D/receita.tmp" --exclude=root/ipad --exclude=root/files --exclude=root/.cache --exclude=usr/local/sbin/inksessao $L) 2>"$D/erro.log" \
      && mv -f "$D/receita.tmp" "$D/receita.tar.gz"; then
     estado "ok $(wc -c < "$D/receita.tar.gz") $(grep -c . /etc/apk/world)"
   else
@@ -53,7 +53,7 @@ restaurar() {
   for i in root home usr/local; do
     [ -d "$T/$i" ] && mkdir -p "/$i" && cp -a "$T/$i/." "/$i/"
   done
-  ln -sfn /mnt/ipad /root/ipad
+  ln -sfn /mnt/ipad /root/files
   rm -rf "$T"
   if [ "$APK" = ok ]; then estado "ok restored"; else estado "aviso $(tail -n 1 "$D/apk.log")"; fi
 }

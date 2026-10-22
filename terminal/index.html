@@ -27,8 +27,8 @@
   <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
   <button class="ink-btn" id="rede" title="How Linux reaches the internet (tap to switch)">Network: wisp</button>
   <button class="ink-btn" id="memoria" title="How much RAM Linux uses (tap to switch and restart)">Memory: 256 MB</button>
-  <button class="ink-btn" id="btn-upload" title="Send files from the iPad to ~/ipad">Upload</button>
-  <button class="ink-btn" id="btn-download" title="Download files from ~/ipad">Download</button>
+  <button class="ink-btn" id="btn-upload" title="Send files from this device to ~/files">Upload</button>
+  <button class="ink-btn" id="btn-download" title="Download files from ~/files">Download</button>
   <button class="ink-btn" id="btn-save" title="Save the machine state in this browser">Save</button>
   <button class="ink-btn" id="btn-sessao" title="Save or open a session file on the device (packages and home folder, password-protected)">Session</button>
   <button class="ink-btn" id="btn-reset" title="Erase the saved state and start over from scratch">Restart</button>
@@ -51,13 +51,13 @@
 </nav>
 <input type="file" id="file-picker" multiple hidden>
 <dialog id="download-dialog">
-  <h2>Download from the ~/ipad folder</h2>
+  <h2>Download from the ~/files folder</h2>
   <div id="download-list" data-idioma-nao></div>
   <button class="ink-btn" id="download-close">Close</button>
 </dialog>
 <dialog id="sessao-dialog">
   <h2>Session file</h2>
-  <p class="nota">Saves the list of packages you installed and your home folder (~, without ~/ipad) to a password-protected file. When you open it on another device or after clearing site data, Linux reinstalls the packages from the internet and restores your files.</p>
+  <p class="nota">Saves the list of packages you installed and your home folder (~, without ~/files) to a password-protected file. When you open it on another device or after clearing site data, Linux reinstalls the packages from the internet and restores your files.</p>
   <div class="sessao-botoes">
     <button class="ink-btn" id="sessao-fechar">Close</button>
     <button class="ink-btn" id="sessao-abrir">Open file</button>

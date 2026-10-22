@@ -63,7 +63,7 @@ iOS ("Salvar em Arquivos") ou um download.
 
 - **Linux** (`../terminal/app.js`): guarda a receita, não a memória. O `inksessao` do Linux
   (`../tools/linux/alpine-overlay/usr/local/sbin/inksessao`, ligado pelo `init`) faz um .tar.gz com
-  `etc/apk/world`, os repositórios, `/root` (sem `~/ipad` e `~/.cache`), `/home` e `/usr/local`. Para abrir,
+  `etc/apk/world`, os repositórios, `/root` (sem `~/files` e `~/.cache`), `/home` e `/usr/local`. Para abrir,
   instala pela internet os pacotes que faltam (`apk add`) e põe os arquivos de volta. A conversa é pela
   pasta `/mnt/ipad/.inkterminal` (`pedido`, `estado`). Num Linux restaurado de um Salvar antigo, sem o
   `inksessao`, a página manda o programa pela pasta e digita o comando que o liga (pede antes).

@@ -120,7 +120,7 @@ const config = {
   vga_memory_size: 2 * 1024 * 1024,
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
-  bzimage: { url: "images/inkterminal-bzImage.bin?v=8" },
+  bzimage: { url: "images/inkterminal-bzImage.bin?v=9" },
   cmdline: "console=ttyS0 quiet tsc=reliable mitigations=off random.trust_cpu=on" +
     (LIMITADA ? " inkzram=192M" + (swap ? " inkswap=1" : "") : ""),
   hda: swap || undefined,
@@ -260,7 +260,7 @@ document.getElementById("btn-reset").addEventListener("click", async () => {
   location.search = params.has("embed") ? "?embed=1&fresh=1" : "?fresh=1";
 });
 
-// ---------- Arquivos do iPad (pasta /mnt/ipad, atalho ~/ipad) ----------
+// ---------- Arquivos do dispositivo (pasta /mnt/ipad, atalho ~/files) ----------
 const picker = document.getElementById("file-picker");
 document.getElementById("btn-upload").addEventListener("click", () => picker.click());
 picker.addEventListener("change", async () => {
@@ -268,7 +268,7 @@ picker.addEventListener("change", async () => {
     const data = new Uint8Array(await file.arrayBuffer());
     await emulator.create_file("/" + file.name, data);
   }
-  setStatus(picker.files.length === 1 ? t("Uploaded: ~/ipad/{name}", { name: picker.files[0].name }) : t("Uploaded {n} files to ~/ipad", { n: picker.files.length.toLocaleString(local) }));
+  setStatus(picker.files.length === 1 ? t("Uploaded: ~/files/{name}", { name: picker.files[0].name }) : t("Uploaded {n} files to ~/files", { n: picker.files.length.toLocaleString(local) }));
   picker.value = "";
   term.focus();
 });
@@ -292,8 +292,8 @@ document.getElementById("btn-download").addEventListener("click", () => {
   list.innerHTML = "";
   if (!files.length) {
     const p = document.createElement("p");
-    p.textContent = t("The ~/ipad folder is empty. In the terminal, copy a file there, for example:");
-    p.insertAdjacentHTML("beforeend", "<br><code>cp notes.txt ~/ipad/</code>");
+    p.textContent = t("The ~/files folder is empty. In the terminal, copy a file there, for example:");
+    p.insertAdjacentHTML("beforeend", "<br><code>cp notes.txt ~/files/</code>");
     list.appendChild(p);
   }
   for (const path of files) {
@@ -399,7 +399,7 @@ async function pedirAoLinux(pedido, aviso) {
       if (!await InkSessao.perguntar(t("Turn on session saving"), t("This Linux was saved before the Session button existed. To continue, a command will be typed in the terminal. Quit any open programs (such as nano or vi) first."), t("Type the command"))) {
         throw new Error(t("Canceled."));
       }
-      const r = await fetch("../tools/linux/alpine-overlay/usr/local/sbin/inksessao?v=3");
+      const r = await fetch("../tools/linux/alpine-overlay/usr/local/sbin/inksessao?v=4");
       if (!r.ok) throw new Error(t("could not download inksessao ({status})", { status: r.status }));
       await gravar9p(SESSAO + "/inksessao", new Uint8Array(await r.arrayBuffer()));
       send("(sh /mnt/ipad/.inkterminal/inksessao </dev/null >/dev/null 2>&1 &)\n");
