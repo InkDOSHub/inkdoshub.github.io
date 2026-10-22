@@ -215,9 +215,14 @@
       // Um peer ID público não autentica o chamador: rejeite chamadas concorrentes e
       // trate todos os metadados recebidos como dados não confiáveis.
       if (chamada) {
-        var estadoAtual = chamada.peerConnection && chamada.peerConnection.connectionState;
-        if (estadoAtual && (estadoAtual === "closed" || estadoAtual === "failed")) chamada = null;
-        else { try { c.close(); } catch (_) {} return; }
+        var anterior = chamada;
+        var estadoAtual = anterior.peerConnection && anterior.peerConnection.connectionState;
+        // Uma chamada presa em "disconnected" após modo avião também é obsoleta:
+        // aceite a nova chamada do Host para que a reconexão possa se completar.
+        if (estadoAtual && (estadoAtual === "closed" || estadoAtual === "failed" || estadoAtual === "disconnected")) {
+          chamada = null;
+          try { anterior.close(); } catch (_) {}
+        } else { try { c.close(); } catch (_) {} return; }
       }
       var recebido = c.metadata && typeof c.metadata === "object" ? c.metadata : {};
       var codecs = ["H264", "H265", "VP9", "AV1", "VP8"];
