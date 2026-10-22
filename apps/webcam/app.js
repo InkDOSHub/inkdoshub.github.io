@@ -423,29 +423,46 @@
      A cada quadro: desenha o vídeo no canvas (no formato escolhido no iPhone), copia os pixels para
      o buffer e avisa com "frame"; o app responde "ok" quando já mandou para a câmera. */
   function bombaApp(video, formatoAtual) {
-    var buf = null, W = 0, H = 0, fps = 60, pronto = true, timer = 0;
+    var buf = null, W = 0, H = 0, fps = 30, pronto = true, timer = 0, ultimoEnvio = 0;
     var canvas = document.createElement("canvas"), ctx = null;
+    function programar() {
+      clearTimeout(timer);
+      if (!ctx || !pronto) return;
+      var esperaMs = Math.max(0, (1000 / fps) - (performance.now() - ultimoEnvio));
+      timer = setTimeout(passo, esperaMs);
+    }
     chrome.webview.addEventListener("sharedbufferreceived", function (e) {
       var d = e.additionalData || {};
       buf = new Uint8ClampedArray(e.getBuffer());
-      W = d.w; H = d.h; fps = d.fps || 60;
+      W = d.w; H = d.h; fps = d.fps || 30;
       canvas.width = W; canvas.height = H;
       ctx = canvas.getContext("2d", { alpha: false, willReadFrequently: true });
       pronto = true;
-      clearInterval(timer);
-      timer = setInterval(passo, Math.floor(1000 / fps));
+      ultimoEnvio = performance.now();
       espera();
     });
-    chrome.webview.addEventListener("message", function (e) { if (e.data === "ok") pronto = true; });
+    chrome.webview.addEventListener("message", function (e) {
+      if (e.data !== "ok") return;
+      pronto = true;
+      // Cadencia guiada pela confirmação do Windows: evita perder ciclos do setInterval
+      // quando a conversão ou o driver demora um pouco mais que o período nominal.
+      programar();
+    });
     function enviar() {
       if (!buf || !ctx || !pronto) return;
       pronto = false;
+      ultimoEnvio = performance.now();
       buf.set(ctx.getImageData(0, 0, W, H).data);
       chrome.webview.postMessage("frame");
     }
     function passo() {
       var vw = video.videoWidth, vh = video.videoHeight;
-      if (!ctx || !pronto || !vw || !video.srcObject) return;
+      if (!ctx || !pronto) return;
+      if (!vw || !video.srcObject) {
+        // Mantém o loop vivo enquanto o iPhone ainda não conectou ou está reconectando.
+        programar();
+        return;
+      }
       var f = formatoAtual(), gira = f === "gira90" || f === "gira270";
       var sw = gira ? vh : vw, sh = gira ? vw : vh;
       var esc = f === "ajustar" ? Math.min(W / sw, H / sh) : Math.max(W / sw, H / sh);
@@ -472,7 +489,7 @@
     }
     return {
       espera: espera,
-      parar: function () { clearInterval(timer); timer = 0; buf = null; pronto = false; }
+      parar: function () { clearTimeout(timer); timer = 0; buf = null; pronto = false; }
     };
   }
 
