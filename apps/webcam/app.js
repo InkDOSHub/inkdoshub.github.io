@@ -435,7 +435,7 @@
         + " read_avg_ms=" + (perfRead / perfFrames).toFixed(2)
         + " copy_avg_ms=" + (perfCopy / perfFrames).toFixed(2)
         + " ackwait_avg_ms=" + (perfAck / perfFrames).toFixed(2)
-        + " pipeline_avg_ms=" + (perfAguardando / perfFrames).toFixed(2));
+        + " prepare_avg_ms=" + (perfAguardando / perfFrames).toFixed(2));
       perfInicio = agora; perfFrames = perfDraw = perfRead = perfCopy = perfAck = perfAguardando = 0;
     }
     function programar() {
