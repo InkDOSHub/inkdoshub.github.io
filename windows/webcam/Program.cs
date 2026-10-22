@@ -198,12 +198,12 @@ namespace InkTerminalWebcam
             if (web.CoreWebView2 == null || q == null) return;
             lock (trava)
             {
-                if (camera != IntPtr.Zero && atual != null && (atual.W != q.W || atual.H != q.H))
+                if (camera != IntPtr.Zero && atual != null && (atual.W != q.W || atual.H != q.H || atual.Fps != q.Fps))
                 {
                     Softcam.scDeleteCamera(camera);
                     camera = IntPtr.Zero;
                 }
-                if (camera == IntPtr.Zero) camera = Softcam.scCreateCamera(q.W, q.H, 0);
+                if (camera == IntPtr.Zero) camera = Softcam.scCreateCamera(q.W, q.H, q.Fps);
                 if (camera == IntPtr.Zero)
                 {
                     estado.Text = "Could not create the camera. Is another copy of this app open?";
