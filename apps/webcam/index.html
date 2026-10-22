@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Webcam · InkTerminal</title>
+<script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<script src="../../assets/gerenciador-app.js?v=8"></script>
+<link rel="stylesheet" href="../../assets/barra.css?v=2">
+<style>
+  :root{--wc:#0e8a7e}
+  .ink-main{overflow:auto}
+  .tela[hidden]{display:none!important}
+  .centro{max-width:760px;margin:0 auto;padding:24px 16px 40px;box-sizing:border-box}
+  .centro h1{margin:6px 0 4px;font-size:28px}
+  .nota{color:var(--muted);font-size:13.5px;line-height:1.5;margin:8px 0}
+  .opcoes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0}
+  .opcao{font:inherit;color:inherit;text-align:left;background:var(--card);border:1px solid var(--border);border-left:5px solid var(--wc);border-radius:14px;padding:18px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .opcao strong{display:block;font-size:19px}
+  .opcao small{display:block;color:var(--muted);font-size:13px;margin-top:6px;line-height:1.4}
+  .passos{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px 12px 34px;font-size:13.5px;line-height:1.55}
+  .fluxo{background:color-mix(in srgb,var(--wc) 10%,var(--card));border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600;line-height:1.5}
+  .centro h2{margin:26px 0 6px;font-size:19px}.centro h3{margin:20px 0 6px;font-size:15.5px}
+  .passos a{color:var(--wc);font-weight:600}
+  .selo{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a4a00;background:#ffe2a8;border-radius:6px;padding:2px 7px;vertical-align:4px}
+  @media(max-width:620px){.opcoes{grid-template-columns:1fr}}
+
+  /* Guest (PC) */
+  #guest{position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center}
+  #vguest{width:100%;height:100%;object-fit:contain;background:#000}
+  .cartao{position:absolute;max-width:min(420px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;box-sizing:border-box;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center}
+  #qr{width:min(240px,60vw);margin:4px auto 8px;background:#fff;border-radius:10px;padding:8px;box-sizing:border-box}
+  #qr svg{display:block;width:100%;height:auto}
+  .codigo{font-size:15px;margin:6px 0}
+  .codigo b{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:20px;letter-spacing:.12em}
+  .cartao details{text-align:left;margin-top:10px;font-size:13px}
+  .cartao summary{cursor:pointer;font-weight:600}
+  .linha{display:flex;gap:6px;margin:8px 0}
+  .linha input{flex:1;min-width:0;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text)}
+  .stats{position:absolute;left:10px;top:10px;background:rgba(0,0,0,.6);color:#fff;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;padding:6px 9px;border-radius:8px;white-space:pre;pointer-events:none}
+  .stats[hidden]{display:none}
+  .flutua{position:absolute;right:10px;bottom:10px;display:flex;gap:6px}
+
+  /* Host (iPhone) */
+  #host{display:flex;flex-direction:column;min-height:100%}
+  .previa{position:relative;background:#000;display:flex;justify-content:center}
+  #vhost{width:100%;aspect-ratio:16/9;max-height:55vh;object-fit:contain;background:#000}
+  .controles{padding:12px 14px 20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
+  .controles label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+  .controles select,.controles input{font:inherit;font-size:15px;color:var(--text);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 8px;min-width:0;width:100%;box-sizing:border-box}
+  .controles input{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.1em;text-transform:lowercase}
+  .controles .largo{grid-column:1/-1}
+  #iniciar{font-size:16px;font-weight:700;padding:11px;background:var(--wc);border-color:var(--wc);color:#fff}
+  #iniciar.parar{background:#da3633;border-color:#da3633}
+  #hestado{margin:0;font-size:14px;color:var(--text)}
+
+  /* Modo OBS: só a imagem, sem barra */
+  body.obs .ink-bar{display:none}
+  body.obs{background:#000}
+  body.obs .flutua{display:none}
+</style>
+</head>
+<body class="ink-app" data-idioma>
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkTerminal</a>
+  <span class="ink-title">Webcam (test)</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn" id="btroca" type="button" hidden>Host or guest</button>
+</header>
+<main class="ink-main">
+
+  <section class="tela centro" id="escolha">
+    <h1>Webcam <span class="selo">Test</span></h1>
+    <p class="nota">Use the iPhone camera as a webcam on the PC. Open this page on both devices: the PC shows a QR code and the iPhone sends the image straight to it, over Wi-Fi.</p>
+    <div class="opcoes">
+      <button class="opcao" id="ehost" type="button"><strong>Host</strong><small>Send the camera. Open this on the iPhone.</small></button>
+      <button class="opcao" id="eguest" type="button"><strong>Guest</strong><small>Receive the image. Open this on the PC.</small></button>
+    </div>
+    <h2>How it works</h2>
+    <p class="fluxo" data-idioma-nao>iPhone (Safari, Host) → Wi-Fi (WebRTC) → PC (Guest page) → OBS Studio → OBS Virtual Camera → Zoom, Teams, Meet…</p>
+    <p class="nota">This flow was designed around this path, which is the supported one: <b>Windows 10 or 11 with OBS Studio</b>, using the OBS Virtual Camera as the Windows webcam. OBS on macOS and Linux works the same way. Other paths also work, such as a Window capture of this page in OBS, or any program that can turn a browser window into a virtual camera.</p>
+
+    <h3>1. Install OBS Studio (once)</h3>
+    <ol class="passos">
+      <li>Download OBS Studio from the official website: <a href="https://obsproject.com/download" target="_blank" rel="noopener">obsproject.com/download</a>. It is free and open source.</li>
+      <li>Install it and open it. If the setup wizard appears, choose "Optimize just for using the virtual camera".</li>
+      <li>In Settings › Video, set Base and Output resolution to 1920x1080 and FPS to 60 (or 3840x2160 for 4K).</li>
+    </ol>
+
+    <h3>2. Add the iPhone image to OBS (once)</h3>
+    <ol class="passos">
+      <li>On the PC, tap Guest on this page. Under the QR code, open "Link for OBS" and tap Copy. Then close this tab: the same code works in one window at a time.</li>
+      <li>In OBS, under Sources, click + › Browser › OK. Paste the link in URL, set Width 1920 and Height 1080 (or 3840 and 2160), tick "Use custom frame rate" and choose 60.</li>
+      <li>Untick "Shutdown source when not visible" and click OK. Right-click the source › Transform › Fit to screen.</li>
+      <li>The QR code now shows inside OBS. OBS keeps the same code, so next time you only need to open OBS.</li>
+    </ol>
+
+    <h3>3. Start the camera</h3>
+    <ol class="passos">
+      <li>On the iPhone, scan the QR code with the Camera app (or open this page, tap Host and type the code). Choose the quality and tap Start. Hold the iPhone horizontally.</li>
+      <li>In OBS, click Start Virtual Camera (Controls panel, bottom right).</li>
+    </ol>
+
+    <h3>4. Use it as the Windows webcam</h3>
+    <ol class="passos">
+      <li>Zoom: Settings › Video › Camera › choose "OBS Virtual Camera" and tick HD. Untick "Mirror my video" if you want the image as others see it.</li>
+      <li>Teams, Google Meet (Chrome or Edge), Discord and most apps: choose "OBS Virtual Camera" in the camera settings.</li>
+      <li>If no app sees any camera: Windows Settings › Privacy &amp; security › Camera, turn on "Camera access" and "Let desktop apps access your camera".</li>
+      <li>The Windows Camera app and Settings › Cameras may not list the OBS Virtual Camera. That is normal; Zoom and the other apps still see it.</li>
+    </ol>
+
+    <h3>Tips</h3>
+    <ul class="passos">
+      <li>Both devices should be on the same Wi-Fi, preferably 5 GHz. The pairing uses the free public PeerJS server; the video goes directly between the two devices and is not uploaded.</li>
+      <li>Keep Safari open on the iPhone with the screen on. If you switch apps, iOS turns the camera off; it comes back when you return to Safari.</li>
+      <li>Zoom sends at most 1080p, so 1080p 60 fps is the best choice for calls. 4K is useful for recording in OBS.</li>
+      <li>Tap Details on the PC to see the resolution, frame rate, codec and delay that are really arriving.</li>
+    </ul>
+  </section>
+
+  <section class="tela" id="guest" hidden>
+    <video id="vguest" autoplay playsinline muted></video>
+    <div class="cartao" id="parear">
+      <div id="qr" aria-label="QR code"></div>
+      <p class="nota">Scan it with the iPhone Camera app, or open this page on the iPhone, tap Host and type the code.</p>
+      <p class="codigo">Code: <b id="gcodigo" data-idioma-nao></b></p>
+      <p class="nota" id="gestado">Connecting to the pairing server…</p>
+      <details>
+        <summary>Link for OBS</summary>
+        <p class="nota">Browser source in OBS: this link shows only the image, with the same code. Close this tab after adding it to OBS, because the same code works in one window at a time.</p>
+        <div class="linha"><input id="linkobs" readonly data-idioma-nao><button class="ink-btn" id="copiar" type="button">Copy</button></div>
+        <button class="ink-btn" id="novocodigo" type="button">New code</button>
+      </details>
+    </div>
+    <div class="stats" id="gstats" hidden data-idioma-nao></div>
+    <div class="flutua">
+      <button class="ink-btn" id="bstats" type="button">Details</button>
+      <button class="ink-btn" id="btela" type="button">Full screen</button>
+    </div>
+  </section>
+
+  <section class="tela" id="host" hidden>
+    <div class="previa">
+      <video id="vhost" autoplay playsinline muted></video>
+      <div class="stats" id="hstats" hidden data-idioma-nao></div>
+    </div>
+    <div class="controles">
+      <label>Code of the PC<input id="hcodigo" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="abc123"></label>
+      <label>Quality<select id="qualidade">
+        <option value="2160p60">4K 60 fps (maximum)</option>
+        <option value="2160p30">4K 30 fps</option>
+        <option value="1080p60" selected>1080p 60 fps</option>
+        <option value="1080p30">1080p 30 fps</option>
+        <option value="720p60">720p 60 fps</option>
+        <option value="720p30">720p 30 fps</option>
+      </select></label>
+      <label>Camera<select id="camera">
+        <option value="environment">Back camera</option>
+        <option value="user">Front camera</option>
+      </select></label>
+      <label>Codec<select id="codec">
+        <option value="H264">H.264 (recommended)</option>
+        <option value="H265">HEVC (H.265)</option>
+        <option value="VP9">VP9</option>
+        <option value="AV1">AV1</option>
+        <option value="VP8">VP8</option>
+      </select></label>
+      <button class="ink-btn largo" id="iniciar" type="button">Start</button>
+      <p class="largo" id="hestado">Choose the quality and tap Start.</p>
+      <p class="nota largo">If the PC cannot play the chosen codec, it falls back to one both support. Zoom sends at most 1080p, so 1080p 60 fps is the best choice for calls; 4K is useful for recording in OBS.</p>
+    </div>
+  </section>
+
+</main>
+<script src="../../assets/icones.js?v=2"></script>
+<script src="lib/peerjs.min.js"></script>
+<script src="lib/qrcode.js"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

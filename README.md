@@ -12,6 +12,7 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
 | Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
+| Webcam (em teste, na seção "Testing") | A câmera do iPhone (Safari) vira webcam do PC: o iPhone manda o vídeo por WebRTC, até 4K 60 fps, para a página aberta no PC, pareada por QR code ([PeerJS](https://github.com/peers/peerjs), MIT, com o servidor público gratuito dele só para o pareamento). No Windows, o OBS Studio transforma a imagem em webcam (fonte de navegador + câmera virtual); as instruções estão no próprio app | `apps/webcam/` |
 | Documentos, Planilhas, Apresentações, PDF, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS) (editores ONLYOFFICE), copiados para cá (`tools/copiar_inkdos.sh`); "Editar com ONLYOFFICE" abre os editores copiados em `onlyoffice/` | `inkdos/`, `onlyoffice/` |
 
 Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória. O Wine e o botão de cópia offline ficaram congelados em `legado/` (fora do app; veja legado/README.md).
