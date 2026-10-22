@@ -221,6 +221,7 @@
         view: visualizacoes.indexOf(recebido.view) >= 0 ? recebido.view : "preencher"
       };
       chamada = c;
+      $("bparartransmissao").hidden = false;
       c.answer(undefined, { sdpTransform: function (sdp) { return ajustarSdp(sdp, meta.codec, meta.bps); } });
       estado(t("Connecting to the iPhone…"));
       formato = meta.view;
