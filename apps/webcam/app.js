@@ -33,6 +33,7 @@
   var app = !!(window.chrome && window.chrome.webview);
   var obs = q.get("obs") === "1" || !!window.obsstudio || app;
   if (obs) document.body.classList.add("obs");
+  if (app) document.body.classList.add("app-webcam");
 
   function ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
   function gravar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
