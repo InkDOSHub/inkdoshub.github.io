@@ -29,6 +29,8 @@
   /* Guest (PC) */
   #guest{position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center}
   #vguest{width:100%;height:100%;object-fit:contain;background:#000}
+  #vguest.preencher{object-fit:cover}
+  #vguest.gira90,#vguest.gira270{position:absolute;left:50%;top:50%;object-fit:cover}
   .cartao{position:absolute;max-width:min(420px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;box-sizing:border-box;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center}
   #qr{width:min(240px,60vw);margin:4px auto 8px;background:#fff;border-radius:10px;padding:8px;box-sizing:border-box}
   #qr svg{display:block;width:100%;height:auto}
@@ -160,6 +162,12 @@
         <option value="environment">Back camera</option>
         <option value="user">Front camera</option>
       </select></label>
+      <label class="largo">Image on the PC<select id="formato">
+        <option value="preencher">Fill 16:9 (crops the image if the iPhone is upright)</option>
+        <option value="ajustar">Whole image (black bars on the sides)</option>
+        <option value="gira90">Rotate right and fill 16:9</option>
+        <option value="gira270">Rotate left and fill 16:9</option>
+      </select></label>
       <label>Codec<select id="codec">
         <option value="H264">H.264 (recommended)</option>
         <option value="H265">HEVC (H.265)</option>
@@ -169,6 +177,7 @@
       </select></label>
       <button class="ink-btn largo" id="iniciar" type="button">Start</button>
       <p class="largo" id="hestado">Choose the quality and tap Start.</p>
+      <p class="nota largo">For the sharpest 16:9 image, turn off Portrait Orientation Lock (Control Center) and hold the iPhone horizontally. Upright, the PC crops the middle of the image to fill 16:9. If the rotation lock stays on, use "Rotate right" or "Rotate left".</p>
       <p class="nota largo">If the PC cannot play the chosen codec, it falls back to one both support. Zoom sends at most 1080p, so 1080p 60 fps is the best choice for calls; 4K is useful for recording in OBS.</p>
     </div>
   </section>
@@ -177,6 +186,6 @@
 <script src="../../assets/icones.js?v=2"></script>
 <script src="lib/peerjs.min.js"></script>
 <script src="lib/qrcode.js"></script>
-<script src="app.js?v=1"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

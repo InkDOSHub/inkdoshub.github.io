@@ -173,6 +173,8 @@
       var meta = c.metadata || {};
       c.answer(undefined, { sdpTransform: function (sdp) { return ajustarSdp(sdp, meta.codec, meta.bps); } });
       estado(t("Connecting to the iPhone…"));
+      formato = meta.view || "preencher";
+      aplicarFormato();
       c.on("stream", function (s) {
         if (chamada !== c) return;
         video.srcObject = s;
@@ -200,6 +202,17 @@
         if (pc.connectionState === "failed") { c.close(); fim(); }
       });
     }
+
+    /* Formato da imagem no PC: preencher 16:9 (corta), inteira, ou girada 90° para um lado. */
+    var formato = "preencher";
+    function aplicarFormato() {
+      video.className = formato;
+      var gira = formato === "gira90" || formato === "gira270", caixa = $("guest");
+      video.style.width = gira ? caixa.clientHeight + "px" : "";
+      video.style.height = gira ? caixa.clientWidth + "px" : "";
+      video.style.transform = gira ? "translate(-50%,-50%) rotate(" + (formato === "gira90" ? 90 : -90) + "deg)" : "";
+    }
+    addEventListener("resize", aplicarFormato);
 
     function stats() {
       if (!chamada || !chamada.peerConnection) return;
@@ -243,13 +256,14 @@
     $("hcodigo").value = limpo(codigo) || cfg.codigo || "";
     if (cfg.qualidade && QUALIDADES[cfg.qualidade]) $("qualidade").value = cfg.qualidade;
     if (cfg.codec) $("codec").value = cfg.codec;
+    if (cfg.formato) $("formato").value = cfg.formato;
     var video = $("vhost"), stream = null, peer = null, chamada = null, ligado = false, tentativa = 0, ant = null, timer = 0, trava = null;
     var cameraSalva = cfg.camera || "environment";
     $("camera").value = cameraSalva;
 
     function estado(s) { $("hestado").textContent = s; }
     function salvar() {
-      gravar(CHAVE_HOST, JSON.stringify({ codigo: limpo($("hcodigo").value), qualidade: $("qualidade").value, camera: $("camera").value, codec: $("codec").value }));
+      gravar(CHAVE_HOST, JSON.stringify({ codigo: limpo($("hcodigo").value), qualidade: $("qualidade").value, camera: $("camera").value, codec: $("codec").value, formato: $("formato").value }));
     }
     function qual() { return QUALIDADES[$("qualidade").value] || QUALIDADES["1080p60"]; }
 
@@ -319,7 +333,7 @@
       if (chamada) { try { chamada.close(); } catch (_) {} }
       estado(t("Calling the PC…"));
       var c = peer.call(destino, stream, {
-        metadata: { codec: $("codec").value, bps: Q.bps },
+        metadata: { codec: $("codec").value, bps: Q.bps, view: $("formato").value },
         sdpTransform: function (sdp) { return ajustarSdp(sdp, $("codec").value, 0); },
       });
       chamada = c;
@@ -428,6 +442,7 @@
     $("qualidade").onchange = trocarCamera;
     $("camera").onchange = trocarCamera;
     $("codec").onchange = function () { salvar(); if (ligado) denovo(); };
+    $("formato").onchange = function () { salvar(); if (ligado) denovo(); };
     $("hcodigo").onchange = function () { salvar(); if (ligado) denovo(); };
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState !== "visible" || !ligado) return;
