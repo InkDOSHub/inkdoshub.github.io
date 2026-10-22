@@ -449,7 +449,7 @@
       buf = new Uint8ClampedArray(e.getBuffer());
       W = d.w; H = d.h; fps = d.fps || 30;
       canvas.width = W; canvas.height = H;
-      ctx = canvas.getContext("2d", { alpha: false, willReadFrequently: true });
+      ctx = canvas.getContext("2d", { alpha: false });
       pronto = true;
       ultimoEnvio = performance.now();
       espera();
