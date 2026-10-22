@@ -56,7 +56,7 @@ namespace InkTerminalWebcam
                 return ok ? 0 : 1;
             }
             bool novaInstancia;
-            instancia = new Mutex(true, @"Local\\InkTerminalWebcamSingleInstance", out novaInstancia);
+            instancia = new Mutex(true, @"Local\InkTerminalWebcamSingleInstance", out novaInstancia);
             if (!novaInstancia)
             {
                 Log("Another InkTerminal Webcam instance is already running; refusing duplicate launch.");
