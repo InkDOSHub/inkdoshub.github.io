@@ -142,7 +142,7 @@
     if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = novoCodigo();
     gravar(CHAVE_CODIGO, codigo);
     if (q.get("guest") !== codigo) history.replaceState(null, "", "?guest=" + codigo + (obs ? "&obs=1" : ""));
-    var video = $("vguest"), peer = null, chamada = null, ant = null, timer = 0, encerrando = false, statsVisivel = false;
+    var video = $("vguest"), peer = null, chamada = null, ant = null, timer = 0, reconectarTimer = 0, encerrando = false, statsVisivel = false;
     var linkHost = BASE + "?host=" + codigo;
     $("gcodigo").textContent = codigo;
     $("linkobs").value = BASE + "?guest=" + codigo + "&obs=1";
@@ -157,10 +157,18 @@
     function conectar() {
       if (encerrando) return;
       peer = new Peer(PREFIXO + codigo, { debug: 0 });
-      peer.on("open", function () { estado(t("Ready. Waiting for the iPhone…")); });
+      peer.on("open", function () { clearTimeout(reconectarTimer); reconectarTimer = 0; estado(t("Ready. Waiting for the iPhone…")); });
       peer.on("disconnected", function () {
         estado(t("Connecting to the pairing server…"));
-        setTimeout(function () { if (peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }, 2000);
+        clearTimeout(reconectarTimer);
+        function tentarReconectar() {
+          var p = peer;
+          if (encerrando || !p || p.destroyed) return;
+          if (!p.disconnected) { reconectarTimer = 0; return; }
+          try { p.reconnect(); } catch (_) {}
+          reconectarTimer = setTimeout(tentarReconectar, 3000);
+        }
+        reconectarTimer = setTimeout(tentarReconectar, 1000);
       });
       peer.on("error", function (e) {
         if (e.type === "unavailable-id") {
@@ -474,7 +482,7 @@
     if (cfg.codecVersion === 2 && cfg.codec) $("codec").value = cfg.codec;
     else $("codec").value = "VP8";
     if (cfg.formato) $("formato").value = cfg.formato;
-    var video = $("vhost"), stream = null, peer = null, chamada = null, ligado = false, tentativa = 0, falhasDestino = 0, ant = null, timer = 0, trava = null;
+    var video = $("vhost"), stream = null, peer = null, chamada = null, ligado = false, tentativa = 0, reconectarTimer = 0, falhasDestino = 0, ant = null, timer = 0, trava = null;
     var encerrando = false;
     var cameraSalva = cfg.camera || "environment";
     $("camera").value = cameraSalva;
@@ -534,6 +542,8 @@
     function pararLocal(mensagem) {
       ligado = false;
       clearTimeout(tentativa);
+      clearTimeout(reconectarTimer);
+      reconectarTimer = 0;
       clearInterval(timer);
       var c = chamada;
       chamada = null;
@@ -554,7 +564,7 @@
       var destino = PREFIXO + limpo($("hcodigo").value), Q = qual();
       if (!peer || peer.destroyed) {
         peer = new Peer({ debug: 0 });
-        peer.on("open", ligar);
+        peer.on("open", function () { clearTimeout(reconectarTimer); reconectarTimer = 0; ligar(); });
         peer.on("connection", function (conn) {
           conn.on("data", function (msg) {
             if (conn.peer === PREFIXO + limpo($("hcodigo").value) && msg && typeof msg === "object" && msg.type === "inkterminal-stop") {
@@ -562,7 +572,18 @@
             }
           });
         });
-        peer.on("disconnected", function () { setTimeout(function () { if (peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }, 2000); });
+        peer.on("disconnected", function () {
+          clearTimeout(reconectarTimer);
+          estado(t("Connecting to the pairing server…"));
+          function tentarReconectar() {
+            var p = peer;
+            if (encerrando || !ligado || !p || p.destroyed) return;
+            if (!p.disconnected) { reconectarTimer = 0; return; }
+            try { p.reconnect(); } catch (_) {}
+            reconectarTimer = setTimeout(tentarReconectar, 3000);
+          }
+          reconectarTimer = setTimeout(tentarReconectar, 1000);
+        });
         peer.on("error", function (e) {
           if (e.type === "peer-unavailable") {
             estado(t("The PC was not found. Check that the Guest page is open with code {code}. Trying again…", { code: limpo($("hcodigo").value) }));
@@ -689,6 +710,8 @@
       encerrando = true;
       ligado = false;
       clearTimeout(tentativa);
+      clearTimeout(reconectarTimer);
+      reconectarTimer = 0;
       clearInterval(timer);
       if (chamada) { try { chamada.close(); } catch (_) {} chamada = null; }
       pararStream();
