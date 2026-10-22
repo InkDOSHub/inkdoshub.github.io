@@ -83,7 +83,7 @@ function create({session,overlay,host,counter}={}){
   frame.appendChild(layer);return {frame,layer};
  }
  function render(){
-  const slide=session.slides[index];if(!slide)return;
+  const slide=session.slides[index];if(!slide)return;resetPan();
   const {frame,layer}=buildFrame(slide);host.replaceChildren(frame);fit(slide,frame);animateTransition(layer,slide);counter.textContent=`${index+1} / ${session.slides.length}`;
  }
  // Printing (button or browser shortcut): every slide, one per landscape page, without the editor UI.
@@ -106,43 +106,31 @@ function create({session,overlay,host,counter}={}){
  function next(){if(index<session.slides.length-1){index++;render()}else close()}
  function prev(){if(index>0){index--;render()}}
  function key(e){if(!active)return;if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev()}else if(e.key==='Home'){index=0;render()}else if(e.key==='End'){index=session.slides.length-1;render()}else if(e.key==='Escape')close()}
- // Touch navigation: use native touch events (iOS Safari) plus Pointer Events as a fallback.
-  let pointerStart=null,nativeTouchStart=null,suppressClickUntil=0,lastSwipeAt=0;
+ // EPUB-style touch panning: a drag moves the visible canvas and never changes slides.
+  let touchPan=null,panX=0,panY=0,suppressClickUntil=0;
   overlay.style.touchAction='none';
-  function completeSwipe(start,x,y,e){
-   if(!start||!active)return false;
-   const dx=x-start.x,dy=y-start.y;
-   if(Math.abs(dx)<45||Math.abs(dx)<Math.abs(dy)*1.2)return false;
-   const now=Date.now();
-   if(now-lastSwipeAt<500)return true;
-   lastSwipeAt=now;suppressClickUntil=now+800;
-   if(e&&e.cancelable)e.preventDefault();
-   if(e)e.stopPropagation();
-   if(dx<0)next();else prev();
-   return true;
+  function applyPan(){host.style.transform=`translate(${panX}px,${panY}px)`;}
+  function resetPan(){panX=0;panY=0;applyPan();}
+  function beginPan(e){
+   if(!active||e.touches.length!==1||e.target.closest('[data-present-exit]')){touchPan=null;return}
+   const t=e.touches[0];touchPan={x:t.clientX,y:t.clientY,baseX:panX,baseY:panY,moved:false};
   }
-  overlay.addEventListener('touchstart',e=>{
-   if(!active||e.touches.length!==1||e.target.closest('[data-present-exit]')){nativeTouchStart=null;return}
-   const t=e.touches[0];nativeTouchStart={x:t.clientX,y:t.clientY};
-  },{passive:true});
-  overlay.addEventListener('touchend',e=>{
-   if(!nativeTouchStart)return;
-   const start=nativeTouchStart;nativeTouchStart=null;
-   const t=e.changedTouches&&e.changedTouches[0];
-   if(t)completeSwipe(start,t.clientX,t.clientY,e);
+  overlay.addEventListener('touchstart',beginPan,{passive:true});
+  overlay.addEventListener('touchmove',e=>{
+   if(!touchPan||e.touches.length!==1)return;
+   const t=e.touches[0],dx=t.clientX-touchPan.x,dy=t.clientY-touchPan.y;
+   if(Math.abs(dx)+Math.abs(dy)<7)return;
+   touchPan.moved=true;suppressClickUntil=Date.now()+800;
+   if(e.cancelable)e.preventDefault();
+   panX=touchPan.baseX+dx;panY=touchPan.baseY+dy;applyPan();
   },{passive:false});
-  overlay.addEventListener('touchcancel',()=>{nativeTouchStart=null},{passive:true});
-  overlay.addEventListener('pointerdown',e=>{
-   if(!active||e.pointerType!=='touch'||e.target.closest('[data-present-exit]'))return;
-   pointerStart={id:e.pointerId,x:e.clientX,y:e.clientY};
-  },{passive:true});
-  overlay.addEventListener('pointerup',e=>{
-   if(!pointerStart||pointerStart.id!==e.pointerId)return;
-   const start=pointerStart;pointerStart=null;
-   completeSwipe(start,e.clientX,e.clientY,e);
+  overlay.addEventListener('touchend',()=>{touchPan=null},{passive:true});
+  overlay.addEventListener('touchcancel',()=>{touchPan=null},{passive:true});
+  overlay.addEventListener('click',e=>{
+   if(e.target.closest('[data-present-exit]'))return;
+   if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();return}
+   next();
   });
-  overlay.addEventListener('pointercancel',()=>{pointerStart=null});
-  overlay.addEventListener('click',e=>{if(e.target.closest('[data-present-exit]'))return;if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();return}next()});
   overlay.querySelector('[data-present-exit]')?.addEventListener('click',e=>{e.stopPropagation();close()});document.addEventListener('keydown',key);
  global.addEventListener?.('resize',fitCurrent);global.visualViewport?.addEventListener?.('resize',fitCurrent);document.addEventListener('fullscreenchange',fitCurrent);
  if(typeof global.ResizeObserver==='function'){const ro=new global.ResizeObserver(fitCurrent);ro.observe(overlay)}
