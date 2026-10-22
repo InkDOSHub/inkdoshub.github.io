@@ -184,9 +184,9 @@
         var p = video.play();
         if (p && p.catch) p.catch(function () {});
       }
-      ["loadedmetadata", "loadeddata", "canplay"].forEach(function (ev) {
-        video.addEventListener(ev, tocar);
-      });
+      video.onloadedmetadata = tocar;
+      video.onloadeddata = tocar;
+      video.oncanplay = tocar;
       if (reiniciar) {
         try { video.pause(); } catch (_) {}
         video.srcObject = null;
