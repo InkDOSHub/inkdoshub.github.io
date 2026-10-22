@@ -233,6 +233,75 @@
       });
     }
 
+    function diagnosticar() {
+      var linhas = [];
+      var tracks = video.srcObject && video.srcObject.getVideoTracks ? video.srcObject.getVideoTracks() : [];
+      var tr = tracks[0] || null;
+      var pc = chamada && chamada.peerConnection;
+      function linha(k, v) { linhas.push(k + ": " + (v === undefined || v === null || v === "" ? "—" : v)); }
+      linha("Hora", new Date().toLocaleString());
+      linha("Navegador", navigator.userAgent);
+      linha("Visibilidade da página", document.visibilityState);
+      linha("Tela cheia", !!document.fullscreenElement);
+      linha("WebRTC chamada", chamada ? "presente" : "ausente");
+      linha("PeerConnection", pc ? pc.connectionState : "ausente");
+      linha("ICE", pc ? pc.iceConnectionState : "ausente");
+      linha("Vídeo ligado ao stream", !!video.srcObject);
+      linha("Stream ativo", video.srcObject ? video.srcObject.active : false);
+      linha("Tracks de vídeo", tracks.length);
+      linha("Track", tr ? tr.readyState + ", muted=" + tr.muted + ", enabled=" + tr.enabled : "ausente");
+      linha("Video element", "readyState=" + video.readyState + ", paused=" + video.paused + ", networkState=" + video.networkState);
+      linha("Dimensões renderizadas", video.videoWidth + "×" + video.videoHeight);
+      linha("Tempo do vídeo", Number(video.currentTime || 0).toFixed(2) + " s");
+      linha("Último erro de mídia", video.error ? ("code=" + video.error.code + " " + video.error.message) : "nenhum");
+      if (!pc) {
+        $("diagnostico").textContent = linhas.join("\n") + "\n\nSem PeerConnection: confirme se o iPhone tocou em Start e se o código corresponde.";
+        return;
+      }
+      pc.getStats().then(function (rel) {
+        var inbound = null, codec = "", map = {};
+        rel.forEach(function (s) { map[s.id] = s; });
+        rel.forEach(function (s) {
+          if (s.type === "inbound-rtp" && (s.kind === "video" || s.mediaType === "video")) inbound = s;
+        });
+        linha("Stats de vídeo recebidas", !!inbound);
+        if (inbound) {
+          var c = inbound.codecId && map[inbound.codecId];
+          codec = c && c.mimeType ? c.mimeType : "desconhecido";
+          linha("Codec recebido", codec);
+          linha("Pacotes recebidos", inbound.packetsReceived);
+          linha("Pacotes perdidos", inbound.packetsLost);
+          linha("Bytes recebidos", inbound.bytesReceived);
+          linha("Frames recebidos", inbound.framesReceived);
+          linha("Frames decodificados", inbound.framesDecoded);
+          linha("Frames descartados", inbound.framesDropped);
+          linha("Resolução recebida", (inbound.frameWidth || "?") + "×" + (inbound.frameHeight || "?"));
+          linha("FPS recebido", inbound.framesPerSecond);
+        }
+        $("diagnostico").textContent = linhas.join("\n") + "\n\nLeitura rápida:\n- Bytes/frames não aumentam: problema de envio ou rede/WebRTC.\n- Frames recebidos aumentam, mas decodificados ficam em 0: possível incompatibilidade de codec/decodificador do XeOS.\n- Frames decodificados aumentam, mas a imagem continua preta até tela cheia: provável falha de composição/renderização de vídeo do navegador; o botão Refresh video tenta forçar uma atualização.";
+      }).catch(function (e) {
+        $("diagnostico").textContent = linhas.join("\n") + "\n\nFalha ao ler WebRTC stats: " + (e && (e.message || e.name) || e);
+      });
+    }
+    $("bdiagnostico").onclick = function () {
+      var painel = $("diagnostico");
+      painel.hidden = !painel.hidden;
+      if (!painel.hidden) diagnosticar();
+    };
+    $("brefrescar").onclick = function () {
+      // XeOS pode receber os frames, mas não redesenhar o elemento até uma mudança de composição.
+      video.style.transform = "translateZ(0)";
+      video.style.willChange = "transform";
+      video.play().catch(function () {});
+      requestAnimationFrame(function () {
+        video.style.opacity = "0.99";
+        requestAnimationFrame(function () {
+          video.style.opacity = "1";
+          video.style.willChange = "";
+          if (!$("diagnostico").hidden) diagnosticar();
+        });
+      });
+    };
     $("bstats").onclick = function () { statsVisivel = !statsVisivel; $("gstats").hidden = !statsVisivel || !chamada; };
     $("btela").onclick = function () {
       var el = $("guest");
