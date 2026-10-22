@@ -28,7 +28,8 @@
     "720p30": { w: 1280, h: 720, fps: 30, bps: 4e6 },
   };
   var q = new URLSearchParams(location.search);
-  var obs = q.get("obs") === "1";
+  // window.obsstudio existe dentro da fonte de navegador do OBS: lá mostra só a imagem, mesmo sem &obs=1
+  var obs = q.get("obs") === "1" || !!window.obsstudio;
   if (obs) document.body.classList.add("obs");
 
   function ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
