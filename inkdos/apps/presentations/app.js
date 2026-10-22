@@ -1,27 +1,34 @@
 (function(global){'use strict';const NS=global.InkDOS2Presentations;if(!NS)throw new Error('Presentations private runtime namespace missing.');const $=id=>document.getElementById(id);const dismissStartState=()=>{const hide=()=>{const state=$('startState');if(!state)return;state.dataset.active='false';state.style.removeProperty('display');state.hidden=true};hide();requestAnimationFrame(hide)};const session=new NS.PresentationSession();let editor=null,commands=null,p1Tools=null,p2Tools=null,previewState=null;const chrome=NS.ChromeController.create({session});const selection=new NS.SelectionController(()=>editor?.sync());const history=new NS.HistoryController(session,()=>{editor?.sync();p2Tools?.sync?.()});const adapter=new NS.ContentViewportAdapter($('viewport'),$('stage'));let zoomControls=null;const zoom=new NS.ZoomController(adapter,$('stage'),$('slideShell'),$('slideCanvas'),()=>session.currentSlide,info=>zoomControls?.update(info));const surface=NS.SlideSurface.create({session,stage:$('stage'),shell:$('slideShell'),canvas:$('slideCanvas'),selection,history,onModelChange:()=>{panel.render({ensureActive:false});editor?.sync();p1Tools?.sync?.();p2Tools?.sync?.()}});let panel=null;panel=NS.SlidePanelController.create({session,workspace:$('workspace'),panel:$('slidePanel'),inner:$('slidePanelInner'),onNavigate:index=>{commands?.execute('navigation.to',index);p1Tools?.sync?.();p2Tools?.sync?.()},onLayout:()=>zoom.apply({preserveFocus:true})});zoomControls=NS.ZoomControls.create({zoom});
-// Touch-pan is clamped to the gray viewport; the surrounding workspace never moves.
-(function installCanvasPan(){
- const viewport=$('viewport'),shell=$('slideShell'),stage=$('stage');let touch=null,panX=0,panY=0;
- const isBlankCanvas=target=>target=== $('slideCanvas')||target===shell||target===stage;
- function clampPan(x,y){
-  const vr=viewport.getBoundingClientRect(),sr=shell.getBoundingClientRect();
-  return {x:Math.max(-Math.max(0,(sr.width-vr.width)/2),Math.min(Math.max(0,(sr.width-vr.width)/2),x)),
-          y:Math.max(-Math.max(0,(sr.height-vr.height)/2),Math.min(Math.max(0,(sr.height-vr.height)/2),y))};
- }
+// Touch navigation follows the thumbnail rail: horizontal when thumbnails are below,
+ // vertical when thumbnails are arranged in the side rail. Gestures on slide objects remain editing gestures.
+(function installSlideSwipe(){
+ const viewport=$('viewport'),shell=$('slideShell'),stage=$('stage');
+ let touch=null;
+ const isBlankCanvas=target=>target===$('slideCanvas')||target===shell||target===stage;
+ function thumbnailAxis(){return globalThis.matchMedia?.('(orientation: portrait)').matches?'x':'y'}
  viewport.addEventListener('touchstart',e=>{
   if(e.touches.length!==1||!isBlankCanvas(e.target)||e.target.closest?.('[data-object-id],[data-p1-handle]')){touch=null;return}
-  const t=e.touches[0],left=parseFloat(shell.style.left)||0,top=parseFloat(shell.style.top)||0;
-  touch={x:t.clientX,y:t.clientY,left:left-panX,top:top-panY,baseX:panX,baseY:panY};
+  const t=e.touches[0];touch={x:t.clientX,y:t.clientY,axis:thumbnailAxis(),moved:false};
  },{passive:true});
  viewport.addEventListener('touchmove',e=>{
   if(!touch||e.touches.length!==1)return;
-  const t=e.touches[0],dx=t.clientX-touch.x,dy=t.clientY-touch.y;
-  if(Math.abs(dx)+Math.abs(dy)<7)return;
+  const t=e.touches[0],dx=t.clientX-touch.x,dy=t.clientY-touch.y,delta=touch.axis==='x'?dx:dy;
+  const cross=touch.axis==='x'?dy:dx;
+  if(Math.abs(delta)<8||Math.abs(delta)<Math.abs(cross)*1.15)return;
+  touch.moved=true;
   if(e.cancelable)e.preventDefault();
-  const p=clampPan(touch.baseX+dx,touch.baseY+dy);panX=p.x;panY=p.y;
-  shell.style.left=(touch.left+panX)+'px';shell.style.top=(touch.top+panY)+'px';
  },{passive:false});
- viewport.addEventListener('touchend',()=>{touch=null},{passive:true});
+ viewport.addEventListener('touchend',e=>{
+  if(!touch)return;
+  const state=touch;touch=null;
+  if(!state.moved)return;
+  const t=e.changedTouches?.[0];if(!t)return;
+  const delta=state.axis==='x'?t.clientX-state.x:t.clientY-state.y;
+  if(Math.abs(delta)<45)return;
+  const direction=delta<0?1:-1;
+  const target=Math.max(0,Math.min(session.slides.length-1,session.currentIndex+direction));
+  if(target!==session.currentIndex)commands?.execute('navigation.to',target);
+ },{passive:true});
  viewport.addEventListener('touchcancel',()=>{touch=null},{passive:true});
 })();
 const previewEventAllowed=target=>!!target?.closest?.('#menuBtn,#newMenuBtn,#openMenuBtn,#presentationsUnsavedDialog');
