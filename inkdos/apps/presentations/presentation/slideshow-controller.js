@@ -106,24 +106,42 @@ function create({session,overlay,host,counter}={}){
  function next(){if(index<session.slides.length-1){index++;render()}else close()}
  function prev(){if(index>0){index--;render()}}
  function key(e){if(!active)return;if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev()}else if(e.key==='Home'){index=0;render()}else if(e.key==='End'){index=session.slides.length-1;render()}else if(e.key==='Escape')close()}
- // Horizontal finger swipe: left advances, right goes back. Suppress the synthetic click after a swipe.
-  let touchStart=null,suppressClickUntil=0;
+ // Touch navigation: use native touch events (iOS Safari) plus Pointer Events as a fallback.
+  let pointerStart=null,nativeTouchStart=null,suppressClickUntil=0,lastSwipeAt=0;
   overlay.style.touchAction='none';
+  function completeSwipe(start,x,y,e){
+   if(!start||!active)return false;
+   const dx=x-start.x,dy=y-start.y;
+   if(Math.abs(dx)<45||Math.abs(dx)<Math.abs(dy)*1.2)return false;
+   const now=Date.now();
+   if(now-lastSwipeAt<500)return true;
+   lastSwipeAt=now;suppressClickUntil=now+800;
+   if(e&&e.cancelable)e.preventDefault();
+   if(e)e.stopPropagation();
+   if(dx<0)next();else prev();
+   return true;
+  }
+  overlay.addEventListener('touchstart',e=>{
+   if(!active||e.touches.length!==1||e.target.closest('[data-present-exit]')){nativeTouchStart=null;return}
+   const t=e.touches[0];nativeTouchStart={x:t.clientX,y:t.clientY};
+  },{passive:true});
+  overlay.addEventListener('touchend',e=>{
+   if(!nativeTouchStart)return;
+   const start=nativeTouchStart;nativeTouchStart=null;
+   const t=e.changedTouches&&e.changedTouches[0];
+   if(t)completeSwipe(start,t.clientX,t.clientY,e);
+  },{passive:false});
+  overlay.addEventListener('touchcancel',()=>{nativeTouchStart=null},{passive:true});
   overlay.addEventListener('pointerdown',e=>{
    if(!active||e.pointerType!=='touch'||e.target.closest('[data-present-exit]'))return;
-   touchStart={id:e.pointerId,x:e.clientX,y:e.clientY};
+   pointerStart={id:e.pointerId,x:e.clientX,y:e.clientY};
   },{passive:true});
   overlay.addEventListener('pointerup',e=>{
-   if(!touchStart||touchStart.id!==e.pointerId)return;
-   const start=touchStart;touchStart=null;
-   const dx=e.clientX-start.x,dy=e.clientY-start.y;
-   if(Math.abs(dx)<45||Math.abs(dx)<Math.abs(dy)*1.25)return;
-   suppressClickUntil=Date.now()+600;
-   if(e.cancelable)e.preventDefault();
-   e.stopPropagation();
-   if(dx<0)next();else prev();
+   if(!pointerStart||pointerStart.id!==e.pointerId)return;
+   const start=pointerStart;pointerStart=null;
+   completeSwipe(start,e.clientX,e.clientY,e);
   });
-  overlay.addEventListener('pointercancel',()=>{touchStart=null});
+  overlay.addEventListener('pointercancel',()=>{pointerStart=null});
   overlay.addEventListener('click',e=>{if(e.target.closest('[data-present-exit]'))return;if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();return}next()});
   overlay.querySelector('[data-present-exit]')?.addEventListener('click',e=>{e.stopPropagation();close()});document.addEventListener('keydown',key);
  global.addEventListener?.('resize',fitCurrent);global.visualViewport?.addEventListener?.('resize',fitCurrent);document.addEventListener('fullscreenchange',fitCurrent);
