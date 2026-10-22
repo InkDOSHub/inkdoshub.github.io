@@ -145,7 +145,7 @@ namespace InkTerminalWebcam
             new Qualidade("1080p 60 fps (high load)", 1920, 1080, 60),
             new Qualidade("1080p 30 fps", 1920, 1080, 30),
             new Qualidade("720p 60 fps", 1280, 720, 60),
-            new Qualidade("720p 30 fps (recommended)", 1280, 720, 30),
+            new Qualidade("720p 30 fps (diagnostic)", 1280, 720, 30),
             new Qualidade("4K 30 fps (heavy, for recording)", 3840, 2160, 30),
         };
 
@@ -187,7 +187,7 @@ namespace InkTerminalWebcam
             Controls.Add(web);
             Controls.Add(barra);
 
-            int salvo = 3; // Perfil inicial mais leve: 720p/30 reduz o custo de conversão e cópia dos quadros.
+            int salvo = 1; // Perfil padrão exigido: Full HD 1080p/30.
             try
             {
                 using (var chave = Registry.CurrentUser.CreateSubKey(@"Software\InkTerminal Webcam"))
@@ -195,15 +195,15 @@ namespace InkTerminalWebcam
                     bool migrado = Convert.ToInt32(chave.GetValue("perfilDesempenhoMigrado", 0)) == 1;
                     if (!migrado)
                     {
-                        chave.SetValue("qualidade", 3);
+                        chave.SetValue("qualidade", 1);
                         chave.SetValue("perfilDesempenhoMigrado", 1);
-                        salvo = 3;
+                        salvo = 1;
                     }
                     else salvo = Convert.ToInt32(chave.GetValue("qualidade", 3));
                 }
             }
             catch (Exception) { }
-            qualidade.SelectedIndex = salvo >= 0 && salvo < Qualidades.Length ? salvo : 3;
+            qualidade.SelectedIndex = salvo >= 0 && salvo < Qualidades.Length ? salvo : 1;
             qualidade.SelectedIndexChanged += delegate
             {
                 try { Registry.CurrentUser.CreateSubKey(@"Software\InkTerminal Webcam").SetValue("qualidade", qualidade.SelectedIndex); } catch (Exception) { }
@@ -259,7 +259,7 @@ namespace InkTerminalWebcam
         }
 
         /* Cria a câmera no tamanho escolhido e manda o buffer para a página. */
-        void AbrirCamera()
+        void AbrirCamera(int tentativa = 0)
         {
             var q = (Qualidade)qualidade.SelectedItem;
             if (web.CoreWebView2 == null || q == null) return;
@@ -279,7 +279,30 @@ namespace InkTerminalWebcam
                 }
                 if (camera == IntPtr.Zero)
                 {
-                    estado.Text = "Could not create the camera. Is another copy of this app open?";
+                    estado.Text = "Camera initialization failed; retrying. Check whether another app is using InkTerminal Webcam.";
+                    Program.Log("CAMERA INIT FAILED quality=" + q.W + "x" + q.H + "@" + q.Fps + " retry=" + tentativa);
+                    // A troca de modo pode falhar logo após liberar o dispositivo nativo. Tenta novamente
+                    // na thread da UI, sem deixar a página ser informada de uma câmera pronta inexistente.
+                    if (tentativa < 3)
+                    {
+                        Task.Delay(350).ContinueWith(delegate
+                        {
+                            try
+                            {
+                                BeginInvoke((Action)delegate
+                                {
+                                    if (!IsDisposed && qualidade.SelectedItem == q && web.CoreWebView2 != null)
+                                        AbrirCamera(tentativa + 1);
+                                });
+                            }
+                            catch (Exception ex) { Program.Log("CAMERA RETRY SCHEDULE ERROR: " + ex.Message); }
+                        });
+                    }
+                    else
+                    {
+                        estado.Text = "Camera could not be created after retries. Close Zoom/Teams and retry the quality selection.";
+                        Program.Log("CAMERA INIT GAVE UP quality=" + q.W + "x" + q.H + "@" + q.Fps);
+                    }
                     return;
                 }
                 if (buffer == null || atual == null || atual.W != q.W || atual.H != q.H)
