@@ -1,4 +1,23 @@
 (function(global){'use strict';const NS=global.InkDOS2Presentations;if(!NS)throw new Error('Presentations private runtime namespace missing.');const $=id=>document.getElementById(id);const dismissStartState=()=>{const hide=()=>{const state=$('startState');if(!state)return;state.dataset.active='false';state.style.removeProperty('display');state.hidden=true};hide();requestAnimationFrame(hide)};const session=new NS.PresentationSession();let editor=null,commands=null,p1Tools=null,p2Tools=null,previewState=null;const chrome=NS.ChromeController.create({session});const selection=new NS.SelectionController(()=>editor?.sync());const history=new NS.HistoryController(session,()=>{editor?.sync();p2Tools?.sync?.()});const adapter=new NS.ContentViewportAdapter($('viewport'),$('stage'));let zoomControls=null;const zoom=new NS.ZoomController(adapter,$('stage'),$('slideShell'),$('slideCanvas'),()=>session.currentSlide,info=>zoomControls?.update(info));const surface=NS.SlideSurface.create({session,stage:$('stage'),shell:$('slideShell'),canvas:$('slideCanvas'),selection,history,onModelChange:()=>{panel.render({ensureActive:false});editor?.sync();p1Tools?.sync?.();p2Tools?.sync?.()}});let panel=null;panel=NS.SlidePanelController.create({session,workspace:$('workspace'),panel:$('slidePanel'),inner:$('slidePanelInner'),onNavigate:index=>{commands?.execute('navigation.to',index);p1Tools?.sync?.();p2Tools?.sync?.()},onLayout:()=>zoom.apply({preserveFocus:true})});zoomControls=NS.ZoomControls.create({zoom});
+// EPUB-style canvas panning: drag empty canvas space to move the viewport, never change slides.
+(function installCanvasPan(){
+ const viewport=$('viewport');let touch=null;
+ const isBlankCanvas=target=>target=== $('slideCanvas')||target=== $('slideShell')||target=== $('stage');
+ viewport.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1||!isBlankCanvas(e.target)||e.target.closest?.('[data-object-id],[data-p1-handle]')){touch=null;return}
+  const t=e.touches[0];touch={x:t.clientX,y:t.clientY,left:viewport.scrollLeft,top:viewport.scrollTop,moved:false};
+ },{passive:true});
+ viewport.addEventListener('touchmove',e=>{
+  if(!touch||e.touches.length!==1)return;
+  const t=e.touches[0],dx=t.clientX-touch.x,dy=t.clientY-touch.y;
+  if(Math.abs(dx)+Math.abs(dy)<7)return;
+  touch.moved=true;
+  if(e.cancelable)e.preventDefault();
+  viewport.scrollLeft=touch.left-dx;viewport.scrollTop=touch.top-dy;
+ },{passive:false});
+ viewport.addEventListener('touchend',()=>{touch=null},{passive:true});
+ viewport.addEventListener('touchcancel',()=>{touch=null},{passive:true});
+})();
 const previewEventAllowed=target=>!!target?.closest?.('#menuBtn,#newMenuBtn,#openMenuBtn,#presentationsUnsavedDialog');
 const guardPreviewPointer=e=>{if(!previewState||previewEventAllowed(e.target))return;e.preventDefault();e.stopImmediatePropagation()};
 const guardPreviewKey=e=>{if(!previewState||previewEventAllowed(e.target))return;const mod=e.metaKey||e.ctrlKey;if(mod&&String(e.key).toLowerCase()==='n')return;e.preventDefault();e.stopImmediatePropagation()};
