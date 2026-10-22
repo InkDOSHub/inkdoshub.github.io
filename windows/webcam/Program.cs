@@ -142,10 +142,10 @@ namespace InkTerminalWebcam
         const string Pagina = "https://inkterminal.github.io/apps/webcam/?app=1";
         static readonly Qualidade[] Qualidades =
         {
-            new Qualidade("1080p 60 fps (recommended)", 1920, 1080, 60),
+            new Qualidade("1080p 60 fps (high load)", 1920, 1080, 60),
             new Qualidade("1080p 30 fps", 1920, 1080, 30),
             new Qualidade("720p 60 fps", 1280, 720, 60),
-            new Qualidade("720p 30 fps", 1280, 720, 30),
+            new Qualidade("720p 30 fps (recommended)", 1280, 720, 30),
             new Qualidade("4K 30 fps (heavy, for recording)", 3840, 2160, 30),
         };
 
@@ -187,9 +187,23 @@ namespace InkTerminalWebcam
             Controls.Add(web);
             Controls.Add(barra);
 
-            int salvo = 0;
-            try { salvo = (int)(Registry.CurrentUser.CreateSubKey(@"Software\InkTerminal Webcam").GetValue("qualidade", 0)); } catch (Exception) { }
-            qualidade.SelectedIndex = salvo >= 0 && salvo < Qualidades.Length ? salvo : 0;
+            int salvo = 3; // Perfil inicial mais leve: 720p/30 reduz o custo de conversão e cópia dos quadros.
+            try
+            {
+                using (var chave = Registry.CurrentUser.CreateSubKey(@"Software\InkTerminal Webcam"))
+                {
+                    bool migrado = Convert.ToInt32(chave.GetValue("perfilDesempenhoMigrado", 0)) == 1;
+                    if (!migrado)
+                    {
+                        chave.SetValue("qualidade", 3);
+                        chave.SetValue("perfilDesempenhoMigrado", 1);
+                        salvo = 3;
+                    }
+                    else salvo = Convert.ToInt32(chave.GetValue("qualidade", 3));
+                }
+            }
+            catch (Exception) { }
+            qualidade.SelectedIndex = salvo >= 0 && salvo < Qualidades.Length ? salvo : 3;
             qualidade.SelectedIndexChanged += delegate
             {
                 try { Registry.CurrentUser.CreateSubKey(@"Software\InkTerminal Webcam").SetValue("qualidade", qualidade.SelectedIndex); } catch (Exception) { }
