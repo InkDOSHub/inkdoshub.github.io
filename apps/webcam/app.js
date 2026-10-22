@@ -29,7 +29,9 @@
   };
   var q = new URLSearchParams(location.search);
   // window.obsstudio existe dentro da fonte de navegador do OBS: lá mostra só a imagem, mesmo sem &obs=1
-  var obs = q.get("obs") === "1" || !!window.obsstudio;
+  // app de Windows (windows/webcam/): a página roda dentro dele, num WebView2
+  var app = !!(window.chrome && window.chrome.webview);
+  var obs = q.get("obs") === "1" || !!window.obsstudio || app;
   if (obs) document.body.classList.add("obs");
 
   function ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
@@ -147,6 +149,8 @@
     qr.make();
     $("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
     function estado(s) { $("gestado").textContent = s; }
+    var bomba = app ? bombaApp(video, function () { return formato; }) : null;
+    if (app) $("linkobs").closest("details").hidden = true;
 
     function conectar() {
       peer = new Peer(PREFIXO + codigo, { debug: 0 });
@@ -195,6 +199,7 @@
         $("parear").hidden = false;
         $("gstats").hidden = true;
         estado(t("The iPhone disconnected. Waiting for it again…"));
+        if (bomba) bomba.espera();
       }
       c.on("close", fim);
       c.on("error", fim);
@@ -247,6 +252,61 @@
     };
     addEventListener("pagehide", function () { if (peer) peer.destroy(); });
     conectar();
+  }
+
+  /* ---------- App de Windows: manda os quadros para a câmera virtual ----------
+     O app (windows/webcam/Program.cs) entrega um buffer compartilhado do tamanho da câmera (RGBA).
+     A cada quadro: desenha o vídeo no canvas (no formato escolhido no iPhone), copia os pixels para
+     o buffer e avisa com "frame"; o app responde "ok" quando já mandou para a câmera. */
+  function bombaApp(video, formatoAtual) {
+    var buf = null, W = 0, H = 0, fps = 60, pronto = true, timer = 0;
+    var canvas = document.createElement("canvas"), ctx = null;
+    chrome.webview.addEventListener("sharedbufferreceived", function (e) {
+      var d = e.additionalData || {};
+      buf = new Uint8ClampedArray(e.getBuffer());
+      W = d.w; H = d.h; fps = d.fps || 60;
+      canvas.width = W; canvas.height = H;
+      ctx = canvas.getContext("2d", { alpha: false, willReadFrequently: true });
+      pronto = true;
+      clearInterval(timer);
+      timer = setInterval(passo, Math.floor(1000 / fps));
+      espera();
+    });
+    chrome.webview.addEventListener("message", function (e) { if (e.data === "ok") pronto = true; });
+    function enviar() {
+      if (!buf || !ctx || !pronto) return;
+      pronto = false;
+      buf.set(ctx.getImageData(0, 0, W, H).data);
+      chrome.webview.postMessage("frame");
+    }
+    function passo() {
+      var vw = video.videoWidth, vh = video.videoHeight;
+      if (!ctx || !pronto || !vw || !video.srcObject) return;
+      var f = formatoAtual(), gira = f === "gira90" || f === "gira270";
+      var sw = gira ? vh : vw, sh = gira ? vw : vh;
+      var esc = f === "ajustar" ? Math.min(W / sw, H / sh) : Math.max(W / sw, H / sh);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      if (gira) ctx.rotate((f === "gira90" ? 90 : -90) * Math.PI / 180);
+      ctx.drawImage(video, -vw * esc / 2, -vh * esc / 2, vw * esc, vh * esc);
+      ctx.restore();
+      enviar();
+    }
+    // sem iPhone: a câmera mostra um aviso em vez de congelar no último quadro
+    function espera() {
+      if (!ctx || video.srcObject) return;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = Math.round(H / 22) + "px -apple-system, Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(t("Waiting for the iPhone…"), W / 2, H / 2);
+      pronto = true;
+      enviar();
+    }
+    return { espera: espera };
   }
 
   /* ---------- Host (iPhone) ---------- */
@@ -459,7 +519,8 @@
   $("ehost").onclick = function () { history.replaceState(null, "", "?host="); host(""); };
   $("eguest").onclick = function () { guest(""); };
   $("btroca").onclick = function () { location.href = BASE; };
-  if (q.has("host")) host(q.get("host"));
+  if (app) guest(q.get("guest"));
+  else if (q.has("host")) host(q.get("host"));
   else if (q.has("guest")) guest(q.get("guest"));
   else mostrar("escolha");
 })();

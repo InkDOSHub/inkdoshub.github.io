@@ -22,7 +22,8 @@
   .passos{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px 12px 34px;font-size:13.5px;line-height:1.55}
   .fluxo{background:color-mix(in srgb,var(--wc) 10%,var(--card));border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600;line-height:1.5}
   .centro h2{margin:26px 0 6px;font-size:19px}.centro h3{margin:20px 0 6px;font-size:15.5px}
-  .passos a{color:var(--wc);font-weight:600}
+  .passos a,.nota a{color:var(--wc);font-weight:600}
+  .baixar{display:inline-block;text-decoration:none;font-weight:700;background:var(--wc);border-color:var(--wc);color:#fff;padding:9px 14px}
   .selo{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a4a00;background:#ffe2a8;border-radius:6px;padding:2px 7px;vertical-align:4px}
   @media(max-width:620px){.opcoes{grid-template-columns:1fr}}
 
@@ -84,6 +85,18 @@
     <p class="fluxo" data-idioma-nao>iPhone (Safari, Host) → Wi-Fi (WebRTC) → PC (Guest page) → OBS Studio → OBS Virtual Camera → Zoom, Teams, Meet…</p>
     <p class="nota">This flow was designed around this path, which is the supported one: <b>Windows 10 or 11 with OBS Studio</b>, using the OBS Virtual Camera as the Windows webcam. OBS on macOS and Linux works the same way. Other paths also work, such as a Window capture of this page in OBS, or any program that can turn a browser window into a virtual camera.</p>
 
+    <h2>Windows app, without OBS <span class="selo">Test</span></h2>
+    <p class="nota">A small open source app that creates the camera "InkTerminal Webcam" on Windows 10 or 11 (64-bit). You only choose the quality.</p>
+    <p><a class="ink-btn baixar" href="https://github.com/Inkterminal/Inkterminal.github.io/releases/download/webcam-windows/InkTerminal-Webcam-Windows.zip">Download for Windows (ZIP)</a></p>
+    <ol class="passos">
+      <li>Extract the ZIP and open "InkTerminal Webcam.exe". If SmartScreen warns, click "More info" › "Run anyway" (the app is not signed).</li>
+      <li>The first time, allow administrator permission once, to create the camera.</li>
+      <li>Choose the quality, scan the QR code with the iPhone and tap Start.</li>
+      <li>In Zoom, Teams or Meet, choose the camera "InkTerminal Webcam". Keep the app open during the call.</li>
+    </ol>
+    <p class="nota">Source code: <a href="https://github.com/Inkterminal/Inkterminal.github.io/tree/main/windows/webcam" target="_blank" rel="noopener">windows/webcam</a>, with the virtual camera from <a href="https://github.com/tshino/softcam" target="_blank" rel="noopener">softcam</a> (MIT).</p>
+
+    <h2>With OBS Studio (supported path)</h2>
     <h3>1. Install OBS Studio (once)</h3>
     <ol class="passos">
       <li>Download OBS Studio from the official website: <a href="https://obsproject.com/download" target="_blank" rel="noopener">obsproject.com/download</a>. It is free and open source.</li>
@@ -186,6 +199,6 @@
 <script src="../../assets/icones.js?v=2"></script>
 <script src="lib/peerjs.min.js"></script>
 <script src="lib/qrcode.js"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

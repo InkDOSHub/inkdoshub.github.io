@@ -1,0 +1,27 @@
+InkTerminal Webcam for Windows (test version)
+=============================================
+
+Turns the iPhone camera into a Windows webcam, without OBS.
+
+1. Extract this whole folder (do not run it from inside the ZIP).
+2. Open "InkTerminal Webcam.exe". If Windows SmartScreen warns, click "More info" > "Run anyway"
+   (the app is open source but not signed).
+3. The first time, Windows asks for administrator permission once, to create the camera
+   "InkTerminal Webcam". If you move the folder later, it asks again.
+4. Choose the quality. On the iPhone, open https://inkterminal.github.io/apps/webcam/,
+   scan the QR code shown in the app (Camera app) and tap Start.
+5. In Zoom, Teams, Meet or Discord, choose the camera "InkTerminal Webcam".
+
+Requirements: Windows 10 or 11 (64-bit) and the Microsoft Edge WebView2 Runtime (already in
+Windows 11). Keep the app open while you use the camera.
+
+To remove the camera: run in this folder, as administrator:
+  "InkTerminal Webcam.exe" --remover
+
+Source code (MIT): https://github.com/Inkterminal/Inkterminal.github.io/tree/main/windows/webcam
+Virtual camera: softcam by tshino (MIT), https://github.com/tshino/softcam (see softcam-LICENSE.txt).
+
+---
+
+Português: extraia a pasta, abra "InkTerminal Webcam.exe", permita o administrador uma vez,
+escolha a qualidade, leia o QR code com o iPhone e escolha "InkTerminal Webcam" no Zoom.
