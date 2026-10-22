@@ -316,7 +316,8 @@
     try { cfg = JSON.parse(ler(CHAVE_HOST) || "{}") || {}; } catch (_) {}
     $("hcodigo").value = limpo(codigo) || cfg.codigo || "";
     if (cfg.qualidade && QUALIDADES[cfg.qualidade]) $("qualidade").value = cfg.qualidade;
-    if (cfg.codec) $("codec").value = cfg.codec;
+    if (cfg.codecVersion === 2 && cfg.codec) $("codec").value = cfg.codec;
+    else $("codec").value = "VP8";
     if (cfg.formato) $("formato").value = cfg.formato;
     var video = $("vhost"), stream = null, peer = null, chamada = null, ligado = false, tentativa = 0, ant = null, timer = 0, trava = null;
     var cameraSalva = cfg.camera || "environment";
@@ -324,7 +325,7 @@
 
     function estado(s) { $("hestado").textContent = s; }
     function salvar() {
-      gravar(CHAVE_HOST, JSON.stringify({ codigo: limpo($("hcodigo").value), qualidade: $("qualidade").value, camera: $("camera").value, codec: $("codec").value, formato: $("formato").value }));
+      gravar(CHAVE_HOST, JSON.stringify({ codigo: limpo($("hcodigo").value), qualidade: $("qualidade").value, camera: $("camera").value, codec: $("codec").value, codecVersion: 2, formato: $("formato").value }));
     }
     function qual() { return QUALIDADES[$("qualidade").value] || QUALIDADES["1080p60"]; }
 
