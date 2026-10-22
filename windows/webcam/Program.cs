@@ -192,11 +192,12 @@ namespace InkTerminalWebcam
             {
                 using (var chave = Registry.CurrentUser.CreateSubKey(@"Software\InkTerminal Webcam"))
                 {
-                    bool migrado = Convert.ToInt32(chave.GetValue("perfilDesempenhoMigrado", 0)) == 1;
-                    if (!migrado)
+                    int versaoMigracao = Convert.ToInt32(chave.GetValue("perfilDesempenhoMigrado", 0));
+                    if (versaoMigracao < 2)
                     {
+                        // O perfil 720p foi aplicado automaticamente em uma versão anterior; volta ao requisito FHD.
                         chave.SetValue("qualidade", 1);
-                        chave.SetValue("perfilDesempenhoMigrado", 1);
+                        chave.SetValue("perfilDesempenhoMigrado", 2);
                         salvo = 1;
                     }
                     else salvo = Convert.ToInt32(chave.GetValue("qualidade", 3));
