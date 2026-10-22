@@ -1,0 +1,57 @@
+name: Pull request safety checks
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-safety-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diff-check:
+    name: Diff whitespace and conflict-marker check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout proposed changes
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check patch formatting
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eu
+          git diff --check "origin/${BASE_REF}...HEAD"
+
+      - name: Check for merge-conflict markers in changed text files
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$(git diff --name-only --diff-filter=ACMR "origin/${BASE_REF}...HEAD")"
+          if [[ -z "${files}" ]]; then
+            echo "No changed files to inspect."
+            exit 0
+          fi
+          while IFS= read -r file; do
+            [[ -f "${file}" ]] || continue
+            if file --mime-encoding "${file}" | grep -q 'binary'; then
+              continue
+            fi
+            if grep -nE '^(<<<<<<< |=======\$|>>>>>>> )' "${file}"; then
+              echo "::error file=${file}::Possible merge-conflict marker found."
+              exit 1
+            fi
+          done <<< "${files}"
