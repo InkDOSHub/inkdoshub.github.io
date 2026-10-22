@@ -37,11 +37,11 @@
 
   function ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
   function gravar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
-  function limpo(c) { return String(c || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6); }
+  function limpo(c) { return String(c || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10); }
   function novoCodigo() {
-    var s = "", a = new Uint32Array(6);
+    var s = "", a = new Uint32Array(10);
     crypto.getRandomValues(a);
-    for (var i = 0; i < 6; i++) s += LETRAS[a[i] % LETRAS.length];
+    for (var i = 0; i < 10; i++) s += LETRAS[a[i] % LETRAS.length];
     return s;
   }
   function mostrar(id) {
@@ -138,10 +138,11 @@
   /* ---------- Guest (PC) ---------- */
   function guest(codigo) {
     mostrar("guest");
-    codigo = limpo(codigo) || limpo(ler(CHAVE_CODIGO)) || novoCodigo();
+    codigo = limpo(codigo);
+    if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = novoCodigo();
     gravar(CHAVE_CODIGO, codigo);
     if (q.get("guest") !== codigo) history.replaceState(null, "", "?guest=" + codigo + (obs ? "&obs=1" : ""));
-    var video = $("vguest"), peer = null, chamada = null, ant = null, timer = 0, statsVisivel = obs ? false : false;
+    var video = $("vguest"), peer = null, chamada = null, ant = null, timer = 0, encerrando = false, statsVisivel = false;
     var linkHost = BASE + "?host=" + codigo;
     $("gcodigo").textContent = codigo;
     $("linkobs").value = BASE + "?guest=" + codigo + "&obs=1";
@@ -154,6 +155,7 @@
     if (app) $("linkobs").closest("details").hidden = true;
 
     function conectar() {
+      if (encerrando) return;
       peer = new Peer(PREFIXO + codigo, { debug: 0 });
       peer.on("open", function () { estado(t("Ready. Waiting for the iPhone…")); });
       peer.on("disconnected", function () {
@@ -202,12 +204,26 @@
     }
 
     function receber(c) {
-      if (chamada) chamada.close();
+      // Um peer ID público não autentica o chamador: rejeite chamadas concorrentes e
+      // trate todos os metadados recebidos como dados não confiáveis.
+      if (chamada) {
+        var estadoAtual = chamada.peerConnection && chamada.peerConnection.connectionState;
+        if (estadoAtual && (estadoAtual === "closed" || estadoAtual === "failed")) chamada = null;
+        else { try { c.close(); } catch (_) {} return; }
+      }
+      var recebido = c.metadata && typeof c.metadata === "object" ? c.metadata : {};
+      var codecs = ["H264", "H265", "VP9", "AV1", "VP8"];
+      var codec = typeof recebido.codec === "string" ? recebido.codec.toUpperCase() : "VP8";
+      var visualizacoes = ["preencher", "ajustar", "gira90", "gira270"];
+      var meta = {
+        codec: codecs.indexOf(codec) >= 0 ? codec : "VP8",
+        bps: typeof recebido.bps === "number" && isFinite(recebido.bps) && recebido.bps >= 1000000 ? Math.min(40000000, Math.floor(recebido.bps)) : 0,
+        view: visualizacoes.indexOf(recebido.view) >= 0 ? recebido.view : "preencher"
+      };
       chamada = c;
-      var meta = c.metadata || {};
       c.answer(undefined, { sdpTransform: function (sdp) { return ajustarSdp(sdp, meta.codec, meta.bps); } });
       estado(t("Connecting to the iPhone…"));
-      formato = meta.view || "preencher";
+      formato = meta.view;
       aplicarFormato();
       c.on("stream", function (s) {
         if (chamada !== c) return;
@@ -348,7 +364,14 @@
       gravar(CHAVE_CODIGO, novoCodigo());
       location.href = BASE + "?guest=" + ler(CHAVE_CODIGO);
     };
-    addEventListener("pagehide", function () { if (peer) peer.destroy(); });
+    addEventListener("pagehide", function () {
+      encerrando = true;
+      clearInterval(timer);
+      if (chamada) { try { chamada.close(); } catch (_) {} chamada = null; }
+      video.srcObject = null;
+      if (bomba) bomba.parar();
+      if (peer) { peer.destroy(); peer = null; }
+    });
     conectar();
   }
 
@@ -404,7 +427,10 @@
       pronto = true;
       enviar();
     }
-    return { espera: espera };
+    return {
+      espera: espera,
+      parar: function () { clearInterval(timer); timer = 0; buf = null; pronto = false; }
+    };
   }
 
   /* ---------- Host (iPhone) ---------- */
@@ -418,6 +444,7 @@
     else $("codec").value = "VP8";
     if (cfg.formato) $("formato").value = cfg.formato;
     var video = $("vhost"), stream = null, peer = null, chamada = null, ligado = false, tentativa = 0, ant = null, timer = 0, trava = null;
+    var encerrando = false;
     var cameraSalva = cfg.camera || "environment";
     $("camera").value = cameraSalva;
 
@@ -474,7 +501,7 @@
     }
 
     function ligar() {
-      if (!ligado) return;
+      if (!ligado || encerrando) return;
       var destino = PREFIXO + limpo($("hcodigo").value), Q = qual();
       if (!peer || peer.destroyed) {
         peer = new Peer({ debug: 0 });
@@ -582,7 +609,8 @@
         estado(t("Stopped."));
         return;
       }
-      if (limpo($("hcodigo").value).length !== 6) { estado(t("Type the 6-character code shown on the PC.")); $("hcodigo").focus(); return; }
+      if (!/^[a-z0-9]{10}$/.test(limpo($("hcodigo").value))) { estado(t("Type the 10-character code shown on the PC.")); $("hcodigo").focus(); return; }
+      $("hcodigo").value = limpo($("hcodigo").value);
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { estado(t("This browser cannot open the camera here.")); return; }
       salvar();
       travarTela();
@@ -611,7 +639,17 @@
       var tr = stream && stream.getVideoTracks()[0];
       if (!tr || tr.readyState === "ended" || tr.muted) trocarCamera();
     });
-    addEventListener("pagehide", function () { if (peer) peer.destroy(); });
+    addEventListener("pagehide", function () {
+      encerrando = true;
+      ligado = false;
+      clearTimeout(tentativa);
+      clearInterval(timer);
+      if (chamada) { try { chamada.close(); } catch (_) {} chamada = null; }
+      pararStream();
+      video.srcObject = null;
+      if (trava) { try { trava.release().catch(function () {}); } catch (_) {} trava = null; }
+      if (peer) { peer.destroy(); peer = null; }
+    });
   }
 
   /* ---------- Escolha ---------- */
