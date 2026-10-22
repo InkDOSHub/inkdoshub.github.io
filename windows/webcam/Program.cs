@@ -143,6 +143,8 @@ namespace InkTerminalWebcam
         readonly ComboBox qualidade = new ComboBox();
         readonly Label estado = new Label();
         CoreWebView2SharedBuffer buffer;
+        // Obter o ponteiro COM do buffer somente na thread da UI; a thread de envio usa o ponteiro nativo.
+        IntPtr bufferPointer = IntPtr.Zero;
         IntPtr camera = IntPtr.Zero;
         byte[] bgr;
         Qualidade atual;
@@ -222,7 +224,13 @@ namespace InkTerminalWebcam
             {
                 rodando = false;
                 temQuadro.Set();
-                lock (trava) { if (camera != IntPtr.Zero) Softcam.scDeleteCamera(camera); camera = IntPtr.Zero; }
+                lock (trava)
+                {
+                    if (camera != IntPtr.Zero) Softcam.scDeleteCamera(camera);
+                    camera = IntPtr.Zero;
+                    bufferPointer = IntPtr.Zero;
+                    if (buffer != null) { buffer.Dispose(); buffer = null; }
+                }
             };
         }
 
@@ -254,6 +262,8 @@ namespace InkTerminalWebcam
                 {
                     if (buffer != null) buffer.Dispose();
                     buffer = web.CoreWebView2.Environment.CreateSharedBuffer((ulong)q.W * (ulong)q.H * 4);
+                    // CoreWebView2SharedBuffer.Buffer é COM/UI-thread-bound: capture o ponteiro aqui.
+                    bufferPointer = buffer.Buffer;
                     bgr = new byte[q.W * q.H * 3];
                 }
                 atual = q;
@@ -281,12 +291,13 @@ namespace InkTerminalWebcam
                 if (!rodando) break;
                 lock (trava)
                 {
-                    if (camera != IntPtr.Zero && buffer != null && bgr != null)
+                    if (camera != IntPtr.Zero && bufferPointer != IntPtr.Zero && bgr != null && atual != null)
                     {
                         int n = atual.W * atual.H;
                         unsafe
                         {
-                            byte* src = (byte*)buffer.Buffer.ToPointer();
+                            // Não acessa propriedades WebView2/COM nesta thread de fundo.
+                            byte* src = (byte*)bufferPointer.ToPointer();
                             fixed (byte* dst0 = bgr)
                             {
                                 byte* dst = dst0;
