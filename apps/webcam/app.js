@@ -229,6 +229,7 @@
         if (chamada !== c) return;
         ligarVideo(s, false);
         $("parear").hidden = true;
+        $("bparartransmissao").hidden = false;
         // menos atraso: o Chrome toca o quadro assim que chega
         try { c.peerConnection.getReceivers().forEach(function (r) { if ("jitterBufferTarget" in r) r.jitterBufferTarget = 0; else r.playoutDelayHint = 0; }); } catch (_) {}
         clearInterval(timer);
@@ -241,6 +242,7 @@
         clearInterval(timer);
         video.srcObject = null;
         $("parear").hidden = false;
+        $("bparartransmissao").hidden = true;
         $("gstats").hidden = true;
         estado(t("The iPhone disconnected. Waiting for it again…"));
         if (bomba) bomba.espera();
@@ -327,6 +329,19 @@
         $("diagnostico").textContent = linhas.join("\n") + "\n\nFalha ao ler WebRTC stats: " + (e && (e.message || e.name) || e);
       });
     }
+    $("bparartransmissao").onclick = function () {
+      var c = chamada;
+      chamada = null;
+      clearInterval(timer);
+      if (c) { try { c.close(); } catch (_) {} }
+      video.pause();
+      video.srcObject = null;
+      $("parear").hidden = false;
+      $("bparartransmissao").hidden = true;
+      $("gstats").hidden = true;
+      estado(t("Transmission stopped by the PC. Waiting for the iPhone…"));
+      if (bomba) bomba.espera();
+    };
     $("bdiagnostico").onclick = function () {
       var painel = $("diagnostico");
       painel.hidden = !painel.hidden;
@@ -501,6 +516,24 @@
       });
     }
 
+    function pararLocal(mensagem) {
+      ligado = false;
+      clearTimeout(tentativa);
+      clearInterval(timer);
+      var c = chamada;
+      chamada = null;
+      if (c) { try { c.close(); } catch (_) {} }
+      if (peer) { peer.destroy(); peer = null; }
+      pararStream();
+      video.srcObject = null;
+      if (trava) { try { trava.release().catch(function () {}); } catch (_) {} }
+      trava = null;
+      $("hstats").hidden = true;
+      $("iniciar").textContent = t("Start");
+      $("iniciar").classList.remove("parar");
+      estado(mensagem || t("Stopped."));
+    }
+
     function ligar() {
       if (!ligado || encerrando) return;
       var destino = PREFIXO + limpo($("hcodigo").value), Q = qual();
@@ -545,7 +578,9 @@
           setTimeout(function () { if (chamada === c && pc.connectionState === "disconnected") denovo(); }, 5000);
         }
       });
-      c.on("close", function () { if (chamada === c) { estado(t("The PC closed the connection. Trying again…")); denovo(); } });
+      c.on("close", function () {
+        if (chamada === c && ligado) pararLocal(t("The PC closed the connection. Transmission stopped."));
+      });
     }
     function denovo() {
       if (!ligado) return;
@@ -593,21 +628,7 @@
 
     $("iniciar").onclick = function () {
       if (ligado) {
-        ligado = false;
-        clearTimeout(tentativa);
-        clearInterval(timer);
-        if (chamada) try { chamada.close(); } catch (_) {}
-        chamada = null;
-        if (peer) peer.destroy();
-        peer = null;
-        pararStream();
-        video.srcObject = null;
-        if (trava) trava.release().catch(function () {});
-        trava = null;
-        $("hstats").hidden = true;
-        $("iniciar").textContent = t("Start");
-        $("iniciar").classList.remove("parar");
-        estado(t("Stopped."));
+        pararLocal(t("Stopped."));
         return;
       }
       if (!/^[a-z0-9]{10}$/.test(limpo($("hcodigo").value))) { estado(t("Type the 10-character code shown on the PC.")); $("hcodigo").focus(); return; }
