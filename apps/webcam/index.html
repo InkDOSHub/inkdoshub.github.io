@@ -64,6 +64,8 @@
   body.obs .ink-bar{display:none}
   body.obs{background:#000}
   body.obs .flutua{display:none}
+  /* No app WebView, os controles de diagnóstico continuam acessíveis. */
+  body.app-webcam .flutua{display:flex}
 </style>
 </head>
 <body class="ink-app" data-idioma>
@@ -204,6 +206,6 @@
 <script src="../../assets/icones.js?v=2"></script>
 <script src="lib/peerjs.min.js"></script>
 <script src="lib/qrcode.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
