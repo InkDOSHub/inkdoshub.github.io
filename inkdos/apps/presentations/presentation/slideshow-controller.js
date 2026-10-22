@@ -82,9 +82,24 @@ function create({session,overlay,host,counter}={}){
   for(const o of slide.objects||[]){let node=null;if(o.type==='text')node=textNode(o);else if(o.type==='image')node=imageNode(o);else if(o.type==='shape')node=shapeNode(o);else if(o.type==='table')node=tableNode(o);if(node)layer.appendChild(node)}
   frame.appendChild(layer);return {frame,layer};
  }
- function render(){
+ function render(direction=0){
   const slide=session.slides[index];if(!slide)return;resetPan();
-  const {frame,layer}=buildFrame(slide);host.replaceChildren(frame);fit(slide,frame);animateTransition(layer,slide);counter.textContent=`${index+1} / ${session.slides.length}`;
+  const oldFrame=host.firstElementChild;
+  const {frame,layer}=buildFrame(slide);
+  fit(slide,frame);
+  counter.textContent=`${index+1} / ${session.slides.length}`;
+  if(direction&&oldFrame&&typeof layer.animate==='function'){
+   const oldLayer=oldFrame.querySelector('[data-slideshow-layer]');
+   host.appendChild(frame);
+   layer.style.transform=`translateX(${direction>0?100:-100}%)`;
+   layer.style.willChange='transform';
+   if(oldLayer){oldLayer.style.willChange='transform';oldLayer.animate([{transform:'translateX(0)'},{transform:`translateX(${direction>0?-100:100}%)`}],{duration:260,easing:'cubic-bezier(.2,.75,.25,1)',fill:'forwards'});}
+   const animation=layer.animate([{transform:`translateX(${direction>0?100:-100}%)`},{transform:'translateX(0)'}],{duration:260,easing:'cubic-bezier(.2,.75,.25,1)',fill:'forwards'});
+   animation.onfinish=()=>{oldFrame.remove();layer.style.removeProperty('will-change');layer.style.removeProperty('transform')};
+  }else{
+   host.replaceChildren(frame);
+   if(!direction)animateTransition(layer,slide);
+  }
  }
  // Printing (button or browser shortcut): every slide, one per landscape page, without the editor UI.
  const PRINT_W=1000,PRINT_H=720;let printSheet=null;
@@ -106,32 +121,33 @@ function create({session,overlay,host,counter}={}){
  function next(){if(index<session.slides.length-1){index++;render()}else close()}
  function prev(){if(index>0){index--;render()}}
  function key(e){if(!active)return;if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev()}else if(e.key==='Home'){index=0;render()}else if(e.key==='End'){index=session.slides.length-1;render()}else if(e.key==='Escape')close()}
- // EPUB-style touch panning: drag only the slide canvas; never change slides.
- let touchPan=null,panX=0,panY=0,suppressClickUntil=0;
- overlay.style.touchAction='none';
- function clampPan(x,y){
-  const ow=overlay.clientWidth||global.innerWidth||1,oh=overlay.clientHeight||global.innerHeight||1;
-  const hw=host.offsetWidth||1,hh=host.offsetHeight||1;
-  const maxX=Math.max(0,(hw-ow)/2),maxY=Math.max(0,(hh-oh)/2);
-  return {x:Math.max(-maxX,Math.min(maxX,x)),y:Math.max(-maxY,Math.min(maxY,y))};
+ // Horizontal swipe changes slides with a simple sheet-replacement animation.
+ let touchSwipe=null,suppressClickUntil=0;
+ overlay.style.touchAction='pan-y';
+ function resetPan(){host.style.removeProperty('transform');}
+ function beginSwipe(e){
+  if(!active||e.touches.length!==1||e.target.closest('[data-present-exit]')){touchSwipe=null;return}
+  const t=e.touches[0];touchSwipe={x:t.clientX,y:t.clientY,moved:false};
  }
- function applyPan(){const p=clampPan(panX,panY);panX=p.x;panY=p.y;host.style.transform=`translate(${panX}px,${panY}px)`;}
- function resetPan(){panX=0;panY=0;applyPan();}
- function beginPan(e){
-  if(!active||e.touches.length!==1||e.target.closest('[data-present-exit]')){touchPan=null;return}
-  const t=e.touches[0];touchPan={x:t.clientX,y:t.clientY,baseX:panX,baseY:panY,moved:false};
- }
- overlay.addEventListener('touchstart',beginPan,{passive:true});
+ overlay.addEventListener('touchstart',beginSwipe,{passive:true});
  overlay.addEventListener('touchmove',e=>{
-  if(!touchPan||e.touches.length!==1)return;
-  const t=e.touches[0],dx=t.clientX-touchPan.x,dy=t.clientY-touchPan.y;
-  if(Math.abs(dx)+Math.abs(dy)<7)return;
-  touchPan.moved=true;suppressClickUntil=Date.now()+800;
+  if(!touchSwipe||e.touches.length!==1)return;
+  const t=e.touches[0],dx=t.clientX-touchSwipe.x,dy=t.clientY-touchSwipe.y;
+  if(Math.abs(dx)<8||Math.abs(dx)<Math.abs(dy)*1.2)return;
+  touchSwipe.moved=true;suppressClickUntil=Date.now()+800;
   if(e.cancelable)e.preventDefault();
-  const p=clampPan(touchPan.baseX+dx,touchPan.baseY+dy);panX=p.x;panY=p.y;applyPan();
  },{passive:false});
- overlay.addEventListener('touchend',()=>{touchPan=null},{passive:true});
- overlay.addEventListener('touchcancel',()=>{touchPan=null},{passive:true});
+ overlay.addEventListener('touchend',e=>{
+  if(!touchSwipe)return;
+  const state=touchSwipe;touchSwipe=null;
+  if(!state.moved)return;
+  const t=e.changedTouches?.[0];if(!t)return;
+  const dx=t.clientX-state.x,dy=t.clientY-state.y;
+  if(Math.abs(dx)<45||Math.abs(dx)<Math.abs(dy)*1.2)return;
+  if(dx<0){if(index<session.slides.length-1){index++;render(1)}else close()}
+  else if(index>0){index--;render(-1)}
+ },{passive:true});
+ overlay.addEventListener('touchcancel',()=>{touchSwipe=null},{passive:true});
  overlay.addEventListener('click',e=>{
   if(e.target.closest('[data-present-exit]'))return;
   if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();return}
