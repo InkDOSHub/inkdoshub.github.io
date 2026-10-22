@@ -1,18 +1,22 @@
 (function(global){'use strict';const NS=global.InkDOS2Presentations;if(!NS)throw new Error('Presentations private runtime namespace missing.');const $=id=>document.getElementById(id);const dismissStartState=()=>{const hide=()=>{const state=$('startState');if(!state)return;state.dataset.active='false';state.style.removeProperty('display');state.hidden=true};hide();requestAnimationFrame(hide)};const session=new NS.PresentationSession();let editor=null,commands=null,p1Tools=null,p2Tools=null,previewState=null;const chrome=NS.ChromeController.create({session});const selection=new NS.SelectionController(()=>editor?.sync());const history=new NS.HistoryController(session,()=>{editor?.sync();p2Tools?.sync?.()});const adapter=new NS.ContentViewportAdapter($('viewport'),$('stage'));let zoomControls=null;const zoom=new NS.ZoomController(adapter,$('stage'),$('slideShell'),$('slideCanvas'),()=>session.currentSlide,info=>zoomControls?.update(info));const surface=NS.SlideSurface.create({session,stage:$('stage'),shell:$('slideShell'),canvas:$('slideCanvas'),selection,history,onModelChange:()=>{panel.render({ensureActive:false});editor?.sync();p1Tools?.sync?.();p2Tools?.sync?.()}});let panel=null;panel=NS.SlidePanelController.create({session,workspace:$('workspace'),panel:$('slidePanel'),inner:$('slidePanelInner'),onNavigate:index=>{commands?.execute('navigation.to',index);p1Tools?.sync?.();p2Tools?.sync?.()},onLayout:()=>zoom.apply({preserveFocus:true})});zoomControls=NS.ZoomControls.create({zoom});
-// EPUB-style canvas panning: drag blank canvas space to move the canvas, never change slides.
+// Touch-pan is clamped to the gray viewport; the surrounding workspace never moves.
 (function installCanvasPan(){
- const viewport=$('viewport'),shell=$('slideShell');let touch=null;
- const isBlankCanvas=target=>target=== $('slideCanvas')||target===shell||target=== $('stage');
+ const viewport=$('viewport'),shell=$('slideShell'),stage=$('stage');let touch=null;
+ const isBlankCanvas=target=>target=== $('slideCanvas')||target===shell||target===stage;
  viewport.addEventListener('touchstart',e=>{
   if(e.touches.length!==1||!isBlankCanvas(e.target)||e.target.closest?.('[data-object-id],[data-p1-handle]')){touch=null;return}
-  const t=e.touches[0];touch={x:t.clientX,y:t.clientY,left:parseFloat(shell.style.left)||0,top:parseFloat(shell.style.top)||0};
+  const t=e.touches[0],r=shell.getBoundingClientRect();
+  touch={x:t.clientX,y:t.clientY,left:parseFloat(shell.style.left)||0,top:parseFloat(shell.style.top)||0,rectLeft:r.left,rectTop:r.top};
  },{passive:true});
  viewport.addEventListener('touchmove',e=>{
   if(!touch||e.touches.length!==1)return;
   const t=e.touches[0],dx=t.clientX-touch.x,dy=t.clientY-touch.y;
   if(Math.abs(dx)+Math.abs(dy)<7)return;
   if(e.cancelable)e.preventDefault();
-  shell.style.left=(touch.left+dx)+'px';shell.style.top=(touch.top+dy)+'px';
+  const vr=viewport.getBoundingClientRect(),sr=shell.getBoundingClientRect();
+  const limitX=Math.max(0,(sr.width-vr.width)/2),limitY=Math.max(0,(sr.height-vr.height)/2);
+  const clampedX=Math.max(-limitX,Math.min(limitX,dx)),clampedY=Math.max(-limitY,Math.min(limitY,dy));
+  shell.style.left=(touch.left+clampedX)+'px';shell.style.top=(touch.top+clampedY)+'px';
  },{passive:false});
  viewport.addEventListener('touchend',()=>{touch=null},{passive:true});
  viewport.addEventListener('touchcancel',()=>{touch=null},{passive:true});
