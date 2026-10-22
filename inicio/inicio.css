@@ -9,9 +9,9 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent;touch-
 .theme-button.wide{width:auto;padding:0 12px;gap:8px;display:inline-flex;align-items:center;font-size:13px;font-weight:600;color:var(--muted)}
 .theme-button[aria-expanded="true"]{background:var(--btn);color:var(--text)}
 #btn-offline.pronto{color:var(--accent-ok)}
-@media(max-width:620px){.theme-button.wide .rotulo{display:none}.theme-button.wide{width:38px;padding:0;justify-content:center}.theme-button.wide 
-.grupo{margin:30px 0 14px;font-size:15px;font-weight:700;color:var(--muted);letter-spacing:-.01em}
-.grupo small{font-weight:500;font-size:13px;margin-left:6px}
+@media(max-width:620px){.theme-button.wide .rotulo{display:none}.theme-button.wide{width:38px;padding:0;justify-content:center}}
+.grupo,.home-shell h2.grupo{margin:30px 0 14px;font-size:15px;font-weight:700;color:var(--muted);letter-spacing:-.01em}
+.grupo small,.home-shell h2.grupo small{font-weight:500;font-size:13px;margin-left:6px}
 .intro + .grupo{margin-top:0}
 
 /* Painéis */
