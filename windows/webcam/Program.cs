@@ -24,6 +24,8 @@ namespace InkTerminalWebcam
 {
     static class Program
     {
+        // Mantém apenas uma instância da câmera virtual por sessão do Windows.
+        static Mutex instancia;
         public const string Clsid = "{4E1C6B1A-2B7E-4F0A-9C55-6A1D3B8E7F21}"; // o mesmo de softcam.cpp (patch do workflow)
         public static readonly string Pasta = AppDomain.CurrentDomain.BaseDirectory;
         public static readonly string Dll = Path.Combine(Pasta, "softcam.dll");
@@ -52,6 +54,14 @@ namespace InkTerminalWebcam
                 bool ok = Softcam.Registrar(args[0] == "--registrar");
                 Log("Registration helper result=" + ok);
                 return ok ? 0 : 1;
+            }
+            bool novaInstancia;
+            instancia = new Mutex(true, @"Local\\InkTerminalWebcamSingleInstance", out novaInstancia);
+            if (!novaInstancia)
+            {
+                Log("Another InkTerminal Webcam instance is already running; refusing duplicate launch.");
+                MessageBox.Show("O InkTerminal Webcam já está aberto. Feche a outra janela antes de abrir novamente.", "InkTerminal Webcam", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return 1;
             }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
