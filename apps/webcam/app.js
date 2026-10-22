@@ -173,6 +173,34 @@
       peer.on("call", receber);
     }
 
+    // Safari/WebKit pode receber e decodificar frames WebRTC sem iniciar o elemento <video>.
+    // Reassocia o MediaStream e tenta reproduzir nos eventos de mídia, não só uma vez.
+    function ligarVideo(stream, reiniciar) {
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      function tocar() {
+        if (!stream || video.srcObject !== stream) return;
+        var p = video.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+      ["loadedmetadata", "loadeddata", "canplay"].forEach(function (ev) {
+        video.addEventListener(ev, tocar);
+      });
+      if (reiniciar) {
+        try { video.pause(); } catch (_) {}
+        video.srcObject = null;
+        requestAnimationFrame(function () {
+          video.srcObject = stream;
+          tocar();
+          requestAnimationFrame(tocar);
+        });
+      } else {
+        video.srcObject = stream;
+        tocar();
+      }
+    }
+
     function receber(c) {
       if (chamada) chamada.close();
       chamada = c;
@@ -183,8 +211,7 @@
       aplicarFormato();
       c.on("stream", function (s) {
         if (chamada !== c) return;
-        video.srcObject = s;
-        video.play().catch(function () {});
+        ligarVideo(s, false);
         $("parear").hidden = true;
         // menos atraso: o Chrome toca o quadro assim que chega
         try { c.peerConnection.getReceivers().forEach(function (r) { if ("jitterBufferTarget" in r) r.jitterBufferTarget = 0; else r.playoutDelayHint = 0; }); } catch (_) {}
@@ -290,10 +317,11 @@
       if (!painel.hidden) diagnosticar();
     };
     $("brefrescar").onclick = function () {
-      // XeOS pode receber os frames, mas não redesenhar o elemento até uma mudança de composição.
+      // Recupera o elemento de mídia sem encerrar a chamada WebRTC.
+      var stream = video.srcObject;
+      if (stream) ligarVideo(stream, true);
       video.style.transform = "translateZ(0)";
       video.style.willChange = "transform";
-      video.play().catch(function () {});
       requestAnimationFrame(function () {
         video.style.opacity = "0.99";
         requestAnimationFrame(function () {
