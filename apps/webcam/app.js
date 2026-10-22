@@ -424,7 +424,20 @@
      o buffer e avisa com "frame"; o app responde "ok" quando já mandou para a câmera. */
   function bombaApp(video, formatoAtual) {
     var buf = null, W = 0, H = 0, fps = 30, pronto = true, timer = 0, ultimoEnvio = 0;
+    // Métricas de cada etapa do caminho até a câmera virtual, reportadas ao log do Windows.
+    var perfInicio = performance.now(), perfFrames = 0, perfDraw = 0, perfRead = 0, perfCopy = 0, perfAck = 0, perfAguardando = 0, envioInicio = 0;
     var canvas = document.createElement("canvas"), ctx = null;
+    function perfReportar() {
+      var agora = performance.now();
+      if (agora - perfInicio < 5000) return;
+      if (perfFrames) chrome.webview.postMessage("PERFJS w=" + W + " h=" + H + " fps=" + (perfFrames * 1000 / (agora - perfInicio)).toFixed(1)
+        + " draw_avg_ms=" + (perfDraw / perfFrames).toFixed(2)
+        + " read_avg_ms=" + (perfRead / perfFrames).toFixed(2)
+        + " copy_avg_ms=" + (perfCopy / perfFrames).toFixed(2)
+        + " ackwait_avg_ms=" + (perfAck / perfFrames).toFixed(2)
+        + " pipeline_avg_ms=" + (perfAguardando / perfFrames).toFixed(2));
+      perfInicio = agora; perfFrames = perfDraw = perfRead = perfCopy = perfAck = perfAguardando = 0;
+    }
     function programar() {
       clearTimeout(timer);
       if (!ctx || !pronto) return;
@@ -444,6 +457,7 @@
     chrome.webview.addEventListener("message", function (e) {
       if (e.data !== "ok") return;
       pronto = true;
+      if (envioInicio) { perfAck += performance.now() - envioInicio; envioInicio = 0; }
       // Cadencia guiada pela confirmação do Windows: evita perder ciclos do setInterval
       // quando a conversão ou o driver demora um pouco mais que o período nominal.
       programar();
@@ -452,7 +466,14 @@
       if (!buf || !ctx || !pronto) return;
       pronto = false;
       ultimoEnvio = performance.now();
-      buf.set(ctx.getImageData(0, 0, W, H).data);
+      var t = performance.now();
+      var pixels = ctx.getImageData(0, 0, W, H).data;
+      perfRead += performance.now() - t;
+      t = performance.now();
+      buf.set(pixels);
+      perfCopy += performance.now() - t;
+      envioInicio = performance.now();
+      perfAguardando += envioInicio - ultimoEnvio;
       chrome.webview.postMessage("frame");
     }
     function passo() {
@@ -466,6 +487,7 @@
       var f = formatoAtual(), gira = f === "gira90" || f === "gira270";
       var sw = gira ? vh : vw, sh = gira ? vw : vh;
       var esc = f === "ajustar" ? Math.min(W / sw, H / sh) : Math.max(W / sw, H / sh);
+      var t = performance.now();
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, W, H);
       ctx.save();
@@ -473,6 +495,9 @@
       if (gira) ctx.rotate((f === "gira90" ? 90 : -90) * Math.PI / 180);
       ctx.drawImage(video, -vw * esc / 2, -vh * esc / 2, vw * esc, vh * esc);
       ctx.restore();
+      perfDraw += performance.now() - t;
+      perfFrames++;
+      perfReportar();
       enviar();
     }
     // sem iPhone: a câmera mostra um aviso em vez de congelar no último quadro
