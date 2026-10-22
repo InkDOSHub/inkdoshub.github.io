@@ -306,9 +306,11 @@ namespace InkTerminalWebcam
             if (m == "frame") temQuadro.Set();
         }
 
-        /* Linha de envio: converte RGBA (da página) para BGR e manda para a câmera. */
+        /* Mede separadamente conversão e envio à câmera virtual para localizar gargalos. */
         void Enviar()
         {
+            long janelaInicio = Stopwatch.GetTimestamp();
+            long quadros = 0, somaConversao = 0, maxConversao = 0, somaEnvio = 0, maxEnvio = 0;
             while (rodando)
             {
                 temQuadro.WaitOne();
@@ -325,16 +327,45 @@ namespace InkTerminalWebcam
                             fixed (byte* dst0 = bgr)
                             {
                                 byte* dst = dst0;
+                                long inicioConversao = Stopwatch.GetTimestamp();
                                 for (int i = 0; i < n; i++, src += 4, dst += 3)
                                 {
                                     dst[0] = src[2];
                                     dst[1] = src[1];
                                     dst[2] = src[0];
                                 }
+                                long conversao = Stopwatch.GetTimestamp() - inicioConversao;
+                                long inicioEnvio = Stopwatch.GetTimestamp();
                                 Softcam.scSendFrame(camera, (IntPtr)dst0);
+                                long envio = Stopwatch.GetTimestamp() - inicioEnvio;
+
+                                quadros++;
+                                somaConversao += conversao;
+                                somaEnvio += envio;
+                                if (conversao > maxConversao) maxConversao = conversao;
+                                if (envio > maxEnvio) maxEnvio = envio;
                             }
                         }
                     }
+                }
+                long agora = Stopwatch.GetTimestamp();
+                if (agora - janelaInicio >= Stopwatch.Frequency * 5)
+                {
+                    double segundos = (double)(agora - janelaInicio) / Stopwatch.Frequency;
+                    if (quadros > 0)
+                    {
+                        double fatorMs = 1000.0 / Stopwatch.Frequency;
+                        Program.Log("PERF camera=" + atual.W + "x" + atual.H + "@" + atual.Fps
+                            + " delivered_fps=" + (quadros / segundos).ToString("F1")
+                            + " convert_avg_ms=" + (somaConversao / (double)quadros * fatorMs).ToString("F2")
+                            + " convert_max_ms=" + (maxConversao * fatorMs).ToString("F2")
+                            + " send_avg_ms=" + (somaEnvio / (double)quadros * fatorMs).ToString("F2")
+                            + " send_max_ms=" + (maxEnvio * fatorMs).ToString("F2")
+                            + " frames=" + quadros);
+                    }
+                    else Program.Log("PERF: no frames delivered during last " + segundos.ToString("F1") + " seconds.");
+                    janelaInicio = agora;
+                    quadros = somaConversao = maxConversao = somaEnvio = maxEnvio = 0;
                 }
                 try { BeginInvoke((Action)delegate { if (web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsString("ok"); }); } catch (Exception) { }
             }
