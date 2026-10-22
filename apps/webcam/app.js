@@ -331,17 +331,31 @@
       });
     }
     $("bparartransmissao").onclick = function () {
-      var c = chamada;
-      chamada = null;
-      clearInterval(timer);
-      if (c) { try { c.close(); } catch (_) {} }
-      video.pause();
-      video.srcObject = null;
-      $("parear").hidden = false;
-      $("bparartransmissao").hidden = true;
-      $("gstats").hidden = true;
-      estado(t("Transmission stopped by the PC. Waiting for the iPhone…"));
-      if (bomba) bomba.espera();
+      var c = chamada, sinal = peer && c && c.peer ? peer.connect(c.peer, { reliable: true }) : null, finalizado = false;
+      function finalizar() {
+        if (finalizado) return;
+        finalizado = true;
+        clearTimeout(limiteSinal);
+        chamada = null;
+        clearInterval(timer);
+        if (sinal) { try { sinal.close(); } catch (_) {} }
+        if (c) { try { c.close(); } catch (_) {} }
+        video.pause();
+        video.srcObject = null;
+        $("parear").hidden = false;
+        $("bparartransmissao").hidden = true;
+        $("gstats").hidden = true;
+        estado(t("Transmission stopped by the PC."));
+        if (bomba) bomba.espera();
+      }
+      var limiteSinal = setTimeout(finalizar, 1500);
+      if (sinal) {
+        sinal.on("open", function () {
+          try { sinal.send({ type: "inkterminal-stop" }); } catch (_) {}
+          setTimeout(finalizar, 150);
+        });
+        sinal.on("error", finalizar);
+      } else finalizar();
     };
     $("bdiagnostico").onclick = function () {
       var painel = $("diagnostico");
@@ -541,14 +555,16 @@
       if (!peer || peer.destroyed) {
         peer = new Peer({ debug: 0 });
         peer.on("open", ligar);
+        peer.on("connection", function (conn) {
+          conn.on("data", function (msg) {
+            if (conn.peer === PREFIXO + limpo($("hcodigo").value) && msg && typeof msg === "object" && msg.type === "inkterminal-stop") {
+              pararLocal(t("Transmission stopped by the PC."));
+            }
+          });
+        });
         peer.on("disconnected", function () { setTimeout(function () { if (peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }, 2000); });
         peer.on("error", function (e) {
           if (e.type === "peer-unavailable") {
-            falhasDestino++;
-            if (falhasDestino >= 3) {
-              pararLocal(t("The PC was not found. Transmission stopped. Open Guest and tap Start to reconnect."));
-              return;
-            }
             estado(t("The PC was not found. Check that the Guest page is open with code {code}. Trying again…", { code: limpo($("hcodigo").value) }));
           } else if (e.type === "network" || e.type === "server-error" || e.type === "socket-error" || e.type === "socket-closed") estado(t("No connection to the pairing server. Trying again…"));
           else estado(t("Error: {msg}", { msg: e.type || e.message }));
@@ -587,7 +603,7 @@
         }
       });
       c.on("close", function () {
-        if (chamada === c && ligado) pararLocal(t("The PC closed the connection. Transmission stopped."));
+        if (chamada === c && ligado) denovo();
       });
     }
     function denovo() {
