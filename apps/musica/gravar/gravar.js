@@ -66,8 +66,12 @@
   try { var n = localStorage.getItem("inkterminal-gravador-nome"); if (n) $("nome").value = n; } catch (_) {}
 
   /* ---------- Gravar ---------- */
+  function nomeSeguro(valor) {
+    return String(valor || "").replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").replace(/[. ]+$/g, "").trim().slice(0, 100) || t("Recording");
+  }
   function nomeNovo() {
-    var d = new Date(), base = ($("nome").value || "").replace(/[\\/:*?"<>|]/g, "").trim() || t("Recording");
+    var d = new Date(), base = nomeSeguro($("nome").value);
+    $("nome").value = base;
     try { localStorage.setItem("inkterminal-gravador-nome", base); } catch (_) {}
     return base + " " + d.getFullYear() + "-" + doisDig(d.getMonth() + 1) + "-" + doisDig(d.getDate()) + " " + doisDig(d.getHours()) + "-" + doisDig(d.getMinutes()) + ".webm";
   }
@@ -108,7 +112,16 @@
       catch (e) { gravavel = null; estado(t("Could not write to the folder; the file will go to Downloads."), true); }
     }
     var tipo = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].filter(function (m) { return MediaRecorder.isTypeSupported(m); })[0];
-    gravador = new MediaRecorder(audio, { mimeType: tipo, audioBitsPerSecond: KBPS });
+    var opcoes = { audioBitsPerSecond: KBPS };
+    if (tipo) opcoes.mimeType = tipo;
+    try { gravador = new MediaRecorder(audio, opcoes); }
+    catch (e) {
+      fluxo.getTracks().forEach(function (f) { f.stop(); }); fluxo = null; gravador = null;
+      if (gravavel) { try { await gravavel.abort(); } catch (_) {} gravavel = null; }
+      $("nome").disabled = false; $("escolher").disabled = false;
+      estado(t("Could not start recording: {error}", { error: e && (e.name || e.message) || "MediaRecorder error" }), true);
+      return;
+    }
     gravador.ondataavailable = function (e) {
       if (!e.data || !e.data.size) return;
       bytes += e.data.size;
@@ -116,8 +129,20 @@
       else partes.push(e.data);
     };
     gravador.onstop = terminar;
+    gravador.onerror = function () {
+      estado(t("Recording error; attempting to save the captured audio."), true);
+      if (gravador && gravador.state !== "inactive") parar();
+    };
     fluxo.getTracks().forEach(function (f) { f.onended = parar; });
-    gravador.start(5000);
+    try { gravador.start(5000); }
+    catch (e) {
+      var falhou = gravador; gravador = null;
+      fluxo.getTracks().forEach(function (f) { f.stop(); }); fluxo = null;
+      if (gravavel) { try { await gravavel.abort(); } catch (_) {} gravavel = null; }
+      $("nome").disabled = false; $("escolher").disabled = false;
+      estado(t("Could not start recording: {error}", { error: e && (e.name || e.message) || "MediaRecorder error" }), true);
+      return;
+    }
     inicio = Date.now();
     medir(audio);
     $("gravar").classList.add("md-hide"); $("parar").classList.remove("md-hide");
@@ -143,13 +168,15 @@
     $("parar").classList.add("md-hide"); $("gravar").classList.remove("md-hide");
     $("nome").disabled = false; $("escolher").disabled = false;
     var tipo = (gravador && gravador.mimeType) || "audio/webm";
-    gravador = null; fluxo = null;
+    gravador = null;
+    if (fluxo) fluxo.getTracks().forEach(function (f) { f.stop(); });
+    fluxo = null; analisador = null;
     if (gravavel) {
       await fila;
       try { await gravavel.close(); } catch (e) { erroEscrita = erroEscrita || e; }
       gravavel = null;
       if (!erroEscrita) { estado(t("Saved {name} ({size}) in the folder {folder}.", { name: nomeArquivo, size: inkTamanho(bytes), folder: pasta.name })); return; }
-      estado(t("The folder could not be written. Nothing was lost only if the file in the folder is complete; check it."), true);
+      estado(t("Writing failed. Check the partial file in the selected folder; a complete save could not be guaranteed."), true);
       return;
     }
     var arq = new File(partes, tipo.indexOf("mp4") >= 0 ? nomeArquivo.replace(/\.webm$/, ".m4a") : nomeArquivo, { type: tipo.split(";")[0] });
