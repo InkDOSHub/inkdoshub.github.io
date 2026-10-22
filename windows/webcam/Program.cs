@@ -304,6 +304,7 @@ namespace InkTerminalWebcam
             string m;
             try { m = e.TryGetWebMessageAsString(); } catch (Exception) { return; }
             if (m == "frame") temQuadro.Set();
+            else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m);
         }
 
         /* Mede separadamente conversão e envio à câmera virtual para localizar gargalos. */
