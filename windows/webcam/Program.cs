@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
@@ -25,14 +26,35 @@ namespace InkTerminalWebcam
         public const string Clsid = "{4E1C6B1A-2B7E-4F0A-9C55-6A1D3B8E7F21}"; // o mesmo de softcam.cpp (patch do workflow)
         public static readonly string Pasta = AppDomain.CurrentDomain.BaseDirectory;
         public static readonly string Dll = Path.Combine(Pasta, "softcam.dll");
+        public static readonly string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InkTerminal Webcam", "startup.log");
+
+        public static void Log(string message)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(LogPath));
+                File.AppendAllText(LogPath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + " " + message + Environment.NewLine, Encoding.UTF8);
+            }
+            catch { }
+        }
 
         [STAThread]
         static int Main(string[] args)
         {
+            Log("Process started. OS=" + Environment.OSVersion + "; 64bit=" + Environment.Is64BitProcess + "; args=" + string.Join(" ", args));
+            AppDomain.CurrentDomain.UnhandledException += (s, e) => Log("UNHANDLED: " + e.ExceptionObject);
+            Application.ThreadException += (s, e) => Log("THREAD EXCEPTION: " + e.Exception);
+            TaskScheduler.UnobservedTaskException += (s, e) => { Log("UNOBSERVED TASK: " + e.Exception); e.SetObserved(); };
             if (args.Length > 0 && (args[0] == "--registrar" || args[0] == "--remover"))
-                return Softcam.Registrar(args[0] == "--registrar") ? 0 : 1;
+            {
+                Log("Registration helper starting.");
+                bool ok = Softcam.Registrar(args[0] == "--registrar");
+                Log("Registration helper result=" + ok);
+                return ok ? 0 : 1;
+            }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Log("DLL path=" + Dll + "; exists=" + File.Exists(Dll));
             if (!File.Exists(Dll))
             {
                 MessageBox.Show("softcam.dll is missing. Extract the whole ZIP to a folder and open the app from there.", "InkTerminal Webcam");
@@ -55,7 +77,9 @@ namespace InkTerminalWebcam
                     return 1;
                 }
             }
+            Log("Starting main window.");
             Application.Run(new Janela());
+            Log("Main window closed normally.");
             return 0;
         }
     }
@@ -163,16 +187,21 @@ namespace InkTerminalWebcam
             envio.Start();
             Load += async delegate
             {
+                Program.Log("Window Load event.");
                 try
                 {
                     var dados = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InkTerminal Webcam");
                     // sem isso o Chromium desacelera a página quando a janela fica escondida ou minimizada, e a câmera congela
                     var opcoes = new CoreWebView2EnvironmentOptions("--disable-features=CalculateNativeWinOcclusion --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --autoplay-policy=no-user-gesture-required");
+                    Program.Log("Creating WebView2 environment at " + dados);
                     var env = await CoreWebView2Environment.CreateAsync(null, dados, opcoes);
+                    Program.Log("WebView2 environment created; ensuring CoreWebView2.");
                     await web.EnsureCoreWebView2Async(env);
+                    Program.Log("CoreWebView2 initialized.");
                 }
                 catch (Exception e)
                 {
+                    Program.Log("WEBVIEW START ERROR: " + e);
                     MessageBox.Show("WebView2 could not start. Install the Microsoft Edge WebView2 Runtime and open the app again.\n\n" + e.Message, "InkTerminal Webcam");
                     Close();
                     return;
@@ -180,7 +209,12 @@ namespace InkTerminalWebcam
                 web.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 web.CoreWebView2.Settings.IsStatusBarEnabled = false;
                 web.CoreWebView2.WebMessageReceived += Mensagem;
-                web.CoreWebView2.NavigationCompleted += delegate { AbrirCamera(); };
+                web.CoreWebView2.NavigationCompleted += delegate(object sender, CoreWebView2NavigationCompletedEventArgs e)
+            {
+                Program.Log("Navigation completed. success=" + e.IsSuccess + "; webError=" + e.WebErrorStatus);
+                AbrirCamera();
+            };
+                Program.Log("Navigating to " + Pagina);
                 web.CoreWebView2.Navigate(Pagina);
             };
             FormClosing += delegate
@@ -196,6 +230,7 @@ namespace InkTerminalWebcam
         {
             var q = (Qualidade)qualidade.SelectedItem;
             if (web.CoreWebView2 == null || q == null) return;
+            Program.Log("AbrirCamera entered. quality=" + q.W + "x" + q.H + "@" + q.Fps);
             lock (trava)
             {
                 if (camera != IntPtr.Zero && atual != null && (atual.W != q.W || atual.H != q.H || atual.Fps != q.Fps))
@@ -203,7 +238,12 @@ namespace InkTerminalWebcam
                     Softcam.scDeleteCamera(camera);
                     camera = IntPtr.Zero;
                 }
-                if (camera == IntPtr.Zero) camera = Softcam.scCreateCamera(q.W, q.H, q.Fps);
+                if (camera == IntPtr.Zero)
+                {
+                    Program.Log("Calling native scCreateCamera.");
+                    camera = Softcam.scCreateCamera(q.W, q.H, q.Fps);
+                    Program.Log("scCreateCamera returned " + camera);
+                }
                 if (camera == IntPtr.Zero)
                 {
                     estado.Text = "Could not create the camera. Is another copy of this app open?";
@@ -217,9 +257,11 @@ namespace InkTerminalWebcam
                 }
                 atual = q;
             }
+            Program.Log("Posting shared buffer to page.");
             web.CoreWebView2.PostSharedBufferToScript(buffer, CoreWebView2SharedBufferAccess.ReadWrite,
                 "{\"w\":" + q.W + ",\"h\":" + q.H + ",\"fps\":" + q.Fps + "}");
             estado.Text = "Camera \"InkTerminal Webcam\" ready (" + q.W + "×" + q.H + "). Choose it in Zoom. On the iPhone, pick " + (q.H >= 2160 ? "4K" : q.H + "p") + " " + q.Fps + " fps.";
+            Program.Log("Camera initialization finished.");
         }
 
         void Mensagem(object s, CoreWebView2WebMessageReceivedEventArgs e)
