@@ -106,12 +106,15 @@
       return;
     }
     var audio = new MediaStream(faixas);
-    nomeArquivo = nomeNovo(); partes = []; bytes = 0; erroEscrita = null; fila = Promise.resolve(); gravavel = null;
+    var tipo = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].filter(function (m) { return MediaRecorder.isTypeSupported(m); })[0];
+    nomeArquivo = nomeNovo();
+    // Use a extensão real antes de criar o arquivo na pasta escolhida.
+    if (/mp4/.test(tipo || "")) nomeArquivo = nomeArquivo.replace(/\.webm$/, ".m4a");
+    partes = []; bytes = 0; erroEscrita = null; fila = Promise.resolve(); gravavel = null;
     if (usarPasta) {
       try { gravavel = await (await pasta.getFileHandle(nomeArquivo, { create: true })).createWritable(); }
       catch (e) { gravavel = null; estado(t("Could not write to the folder; the file will go to Downloads."), true); }
     }
-    var tipo = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].filter(function (m) { return MediaRecorder.isTypeSupported(m); })[0];
     var opcoes = { audioBitsPerSecond: KBPS };
     if (tipo) opcoes.mimeType = tipo;
     try { gravador = new MediaRecorder(audio, opcoes); }
@@ -147,8 +150,6 @@
     medir(audio);
     $("gravar").classList.add("md-hide"); $("parar").classList.remove("md-hide");
     $("nome").disabled = true; $("escolher").disabled = true;
-    // no Safari a gravação em mp4 sai .m4a
-    if (/mp4/.test(gravador.mimeType || tipo)) nomeArquivo = nomeArquivo.replace(/\.webm$/, ".m4a");
     relogio = setInterval(function () {
       $("tempo").textContent = hms((Date.now() - inicio) / 1000);
       estado(t("Recording {name} · {size}", { name: nomeArquivo, size: inkTamanho(bytes) }) + (erroEscrita ? " · " + t("error writing to the folder") : ""), !!erroEscrita);
