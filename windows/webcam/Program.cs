@@ -235,6 +235,21 @@ namespace InkTerminalWebcam
                 }
                 web.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 web.CoreWebView2.Settings.IsStatusBarEnabled = false;
+                // Keep the embedded browser on the official HTTPS origin only.
+                // This prevents links or injected navigation from opening arbitrary sites in the app.
+                web.CoreWebView2.NavigationStarting += delegate(object sender, CoreWebView2NavigationStartingEventArgs e)
+                {
+                    Uri destino;
+                    bool permitido = Uri.TryCreate(e.Uri, UriKind.Absolute, out destino)
+                        && string.Equals(destino.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(destino.Host, "inkterminal.github.io", StringComparison.OrdinalIgnoreCase)
+                        && destino.Port == 443;
+                    if (!permitido)
+                    {
+                        e.Cancel = true;
+                        Program.Log("Blocked WebView navigation outside official HTTPS origin: " + e.Uri);
+                    }
+                };
                 web.CoreWebView2.WebMessageReceived += Mensagem;
                 web.CoreWebView2.NavigationCompleted += delegate(object sender, CoreWebView2NavigationCompletedEventArgs e)
             {

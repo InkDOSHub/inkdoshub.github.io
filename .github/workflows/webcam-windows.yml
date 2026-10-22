@@ -1,24 +1,30 @@
 name: App Webcam para Windows
-# Compila windows/webcam/ (o app) e o softcam (a câmera virtual) e publica o ZIP na release
-# "webcam-windows", que o app Webcam do site oferece para baixar.
+# Compila a webcam no Windows; somente o job de publicação recebe permissão de escrita.
 on:
   push:
     branches: [main]
     paths: [windows/webcam/**, .github/workflows/webcam-windows.yml]
   workflow_dispatch:
+
 permissions:
-  contents: write
+  contents: read
+
 concurrency:
   group: webcam-windows
   cancel-in-progress: true
+
 jobs:
   build:
-    # só no site publicado; o espelho vfydr2m9wk-ops/inkterminal recebe só o código pela sincronização
+    # Só no site publicado; o espelho vfydr2m9wk-ops/inkterminal recebe código pela sincronização.
     if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: microsoft/setup-msbuild@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
       - name: softcam (versão fixada, com o nome e o CLSID do InkTerminal)
         shell: pwsh
@@ -51,16 +57,31 @@ jobs:
           Get-ChildItem $d | Format-Table Name, Length
           Compress-Archive -Path $d -DestinationPath InkTerminal-Webcam-Windows.zip -Force
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload do pacote compilado
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: InkTerminal-Webcam-Windows
           path: InkTerminal-Webcam-Windows.zip
+          if-no-files-found: error
+          retention-days: 7
 
+  publish:
+    # Publica apenas builds da main; este job é o único que pode escrever no repositório.
+    if: ${{ github.ref == 'refs/heads/main' && !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download do pacote compilado
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: InkTerminal-Webcam-Windows
       - name: Publicar na release webcam-windows
-        if: github.ref == 'refs/heads/main'
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
+          set -euo pipefail
           gh release view webcam-windows >/dev/null 2>&1 || gh release create webcam-windows --title "InkTerminal Webcam for Windows" --latest=false --notes "Turns the iPhone camera (InkTerminal Webcam page) into a Windows webcam, without OBS. Source: windows/webcam/ (MIT) and softcam (MIT)."
           gh release upload webcam-windows InkTerminal-Webcam-Windows.zip --clobber
