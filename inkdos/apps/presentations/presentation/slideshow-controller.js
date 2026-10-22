@@ -106,69 +106,38 @@ function create({session,overlay,host,counter}={}){
  function next(){if(index<session.slides.length-1){index++;render()}else close()}
  function prev(){if(index>0){index--;render()}}
  function key(e){if(!active)return;if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev()}else if(e.key==='Home'){index=0;render()}else if(e.key==='End'){index=session.slides.length-1;render()}else if(e.key==='Escape')close()}
- // EPUB-style touch panning: a drag moves the visible canvas and never changes slides.
-  let touchPan=null,panX=0,panY=0,suppressClickUntil=0;
-  overlay.style.touchAction='none';
-  function applyPan(){host.style.transform=`translate(${panX}px,${panY}px)`;}
-  function resetPan(){panX=0;panY=0;applyPan();}
-  function beginPan(e){
-   if(!active||e.touches.length!==1||e.target.closest('[data-present-exit]')){touchPan=null;return}
-   const t=e.touches[0];touchPan={x:t.clientX,y:t.clientY,baseX:panX,baseY:panY,moved:false};
-  }
-  overlay.addEventListener('touchstart',beginPan,{passive:true});
-  overlay.addEventListener('touchmove',e=>{
-   if(!touchPan||e.touches.length!==1)return;
-   const t=e.touches[0],dx=t.clientX-touchPan.x,dy=t.clientY-touchPan.y;
-   if(Math.abs(dx)+Math.abs(dy)<7)return;
-   touchPan.moved=true;suppressClickUntil=Date.now()+800;
-   if(e.cancelable)e.preventDefault();
-   panX=touchPan.baseX+dx;panY=touchPan.baseY+dy;applyPan();
-  },{passive:false});
-  overlay.addEventListener('touchend',()=>{touchPan=null},{passive:true});
-  overlay.addEventListener('touchcancel',()=>{touchPan=null},{passive:true});
-  overlay.addEventListener('click',e=>{
-   if(e.target.closest('[data-present-exit]'))return;
-   if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();return}
-   next();
-  });
-  overlay.querySelector('[data-present-exit]')?.addEventListener('click',e=>{e.stopPropagation();close()});document.addEventListener('keydown',key);
- global.addEventListener?.('resize',fitCurrent);global.visualViewport?.addEventListener?.('resize',fitCurrent);document.addEventListener('fullscreenchange',fitCurrent);
- if(typeof global.ResizeObserver==='function'){const ro=new global.ResizeObserver(fitCurrent);ro.observe(overlay)}
- return Object.freeze({open,close,render,preparePrint,clearPrint,get active(){return active}})
-}
-NS.SlideshowController=Object.freeze({create});
-})(globalThis);  // Touch-pan stays within the presentation viewport and never flips slides.
-  let touchPan=null,panX=0,panY=0,suppressClickUntil=0;
-  overlay.style.touchAction='none';
-  function clampPan(x,y){
-   const ow=overlay.clientWidth||global.innerWidth||1,oh=overlay.clientHeight||global.innerHeight||1;
-   const hw=host.offsetWidth||1,hh=host.offsetHeight||1;
-   const maxX=Math.abs(hw-ow)/2,maxY=Math.abs(hh-oh)/2;
-   return {x:Math.max(-maxX,Math.min(maxX,x)),y:Math.max(-maxY,Math.min(maxY,y))};
-  }
-  function applyPan(){const p=clampPan(panX,panY);panX=p.x;panY=p.y;host.style.transform=`translate(${panX}px,${panY}px)`;}
-  function resetPan(){panX=0;panY=0;applyPan();}
-  function beginPan(e){
-   if(!active||e.touches.length!==1||e.target.closest('[data-present-exit]')){touchPan=null;return}
-   const t=e.touches[0];touchPan={x:t.clientX,y:t.clientY,baseX:panX,baseY:panY,moved:false};
-  }
-  overlay.addEventListener('touchstart',beginPan,{passive:true});
-  overlay.addEventListener('touchmove',e=>{
-   if(!touchPan||e.touches.length!==1)return;
-   const t=e.touches[0],dx=t.clientX-touchPan.x,dy=t.clientY-touchPan.y;
-   if(Math.abs(dx)+Math.abs(dy)<7)return;
-   touchPan.moved=true;suppressClickUntil=Date.now()+800;
-   if(e.cancelable)e.preventDefault();
-   const p=clampPan(touchPan.baseX+dx,touchPan.baseY+dy);panX=p.x;panY=p.y;applyPan();
-  },{passive:false});
-  overlay.addEventListener('touchend',()=>{touchPan=null},{passive:true});
-  overlay.addEventListener('touchcancel',()=>{touchPan=null},{passive:true});
-  overlay.addEventListener('click',e=>{
-   if(e.target.closest('[data-present-exit]'))return;
-   if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();return}
-   next();
-  });
-  overlay.querySelector('[data-present-exit]')?.addEventListener('click',e=>{e.stopPropagation();close()});document.addEventListener('keydown',key);
+ // EPUB-style touch panning: drag only the slide canvas; never change slides.
+ let touchPan=null,panX=0,panY=0,suppressClickUntil=0;
+ overlay.style.touchAction='none';
+ function clampPan(x,y){
+  const ow=overlay.clientWidth||global.innerWidth||1,oh=overlay.clientHeight||global.innerHeight||1;
+  const hw=host.offsetWidth||1,hh=host.offsetHeight||1;
+  const maxX=Math.max(0,(hw-ow)/2),maxY=Math.max(0,(hh-oh)/2);
+  return {x:Math.max(-maxX,Math.min(maxX,x)),y:Math.max(-maxY,Math.min(maxY,y))};
+ }
+ function applyPan(){const p=clampPan(panX,panY);panX=p.x;panY=p.y;host.style.transform=`translate(${panX}px,${panY}px)`;}
+ function resetPan(){panX=0;panY=0;applyPan();}
+ function beginPan(e){
+  if(!active||e.touches.length!==1||e.target.closest('[data-present-exit]')){touchPan=null;return}
+  const t=e.touches[0];touchPan={x:t.clientX,y:t.clientY,baseX:panX,baseY:panY,moved:false};
+ }
+ overlay.addEventListener('touchstart',beginPan,{passive:true});
+ overlay.addEventListener('touchmove',e=>{
+  if(!touchPan||e.touches.length!==1)return;
+  const t=e.touches[0],dx=t.clientX-touchPan.x,dy=t.clientY-touchPan.y;
+  if(Math.abs(dx)+Math.abs(dy)<7)return;
+  touchPan.moved=true;suppressClickUntil=Date.now()+800;
+  if(e.cancelable)e.preventDefault();
+  const p=clampPan(touchPan.baseX+dx,touchPan.baseY+dy);panX=p.x;panY=p.y;applyPan();
+ },{passive:false});
+ overlay.addEventListener('touchend',()=>{touchPan=null},{passive:true});
+ overlay.addEventListener('touchcancel',()=>{touchPan=null},{passive:true});
+ overlay.addEventListener('click',e=>{
+  if(e.target.closest('[data-present-exit]'))return;
+  if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();return}
+  next();
+ });
+ overlay.querySelector('[data-present-exit]')?.addEventListener('click',e=>{e.stopPropagation();close()});document.addEventListener('keydown',key);
  global.addEventListener?.('resize',fitCurrent);global.visualViewport?.addEventListener?.('resize',fitCurrent);document.addEventListener('fullscreenchange',fitCurrent);
  if(typeof global.ResizeObserver==='function'){const ro=new global.ResizeObserver(fitCurrent);ro.observe(overlay)}
  return Object.freeze({open,close,render,preparePrint,clearPrint,get active(){return active}})
