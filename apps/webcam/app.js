@@ -460,7 +460,7 @@
     if (cfg.codecVersion === 2 && cfg.codec) $("codec").value = cfg.codec;
     else $("codec").value = "VP8";
     if (cfg.formato) $("formato").value = cfg.formato;
-    var video = $("vhost"), stream = null, peer = null, chamada = null, ligado = false, tentativa = 0, ant = null, timer = 0, trava = null;
+    var video = $("vhost"), stream = null, peer = null, chamada = null, ligado = false, tentativa = 0, falhasDestino = 0, ant = null, timer = 0, trava = null;
     var encerrando = false;
     var cameraSalva = cfg.camera || "environment";
     $("camera").value = cameraSalva;
@@ -543,8 +543,14 @@
         peer.on("open", ligar);
         peer.on("disconnected", function () { setTimeout(function () { if (peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }, 2000); });
         peer.on("error", function (e) {
-          if (e.type === "peer-unavailable") estado(t("The PC was not found. Check that the Guest page is open with code {code}. Trying again…", { code: limpo($("hcodigo").value) }));
-          else if (e.type === "network" || e.type === "server-error" || e.type === "socket-error" || e.type === "socket-closed") estado(t("No connection to the pairing server. Trying again…"));
+          if (e.type === "peer-unavailable") {
+            falhasDestino++;
+            if (falhasDestino >= 3) {
+              pararLocal(t("The PC was not found. Transmission stopped. Open Guest and tap Start to reconnect."));
+              return;
+            }
+            estado(t("The PC was not found. Check that the Guest page is open with code {code}. Trying again…", { code: limpo($("hcodigo").value) }));
+          } else if (e.type === "network" || e.type === "server-error" || e.type === "socket-error" || e.type === "socket-closed") estado(t("No connection to the pairing server. Trying again…"));
           else estado(t("Error: {msg}", { msg: e.type || e.message }));
           denovo();
         });
@@ -566,6 +572,7 @@
         var st = pc.connectionState;
         if (st === "connected") {
           tentativa = 0;
+          falhasDestino = 0;
           estado(t("Sending to the PC. Keep Safari open with the screen on."));
           ajustarEnvio();
           clearInterval(timer);
