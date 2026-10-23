@@ -207,6 +207,9 @@ A simulação não prova que A atingirá 4K60. Mostra que um único readback de 
 18. WebKit bug sobre custo de `getImageData`/GPU readback: https://bugs.webkit.org/show_bug.cgi?id=65622
 19. Investigação técnica sobre `willReadFrequently`: https://www.schiener.io/2024-08-02/canvas-willreadfrequently
 20. Recomendações de desempenho WebView2: https://learn.microsoft.com/pt-br/microsoft-edge/webview2/concepts/performance
+21. Apple AVFoundation — formatos de captura expõem intervalos de FPS suportados; o app deve enumerar os formatos reais do dispositivo: https://developer.apple.com/documentation/avfoundation/avcapturedevice/format/videosupportedframerateranges
+22. Apple AVFoundation — activeFormat e duração mínima/máxima de frame precisam ser configurados explicitamente; o formato selecionado pode afetar o FPS real: https://developer.apple.com/documentation/avfoundation/avcapturedevice/activeformat
+23. Apple VideoToolbox — acesso a codificação/decodificação acelerada por hardware; disponibilidade deve ser verificada em runtime: https://developer.apple.com/documentation/videotoolbox
 
 ## Ambiente de execução acessível e limites
 
