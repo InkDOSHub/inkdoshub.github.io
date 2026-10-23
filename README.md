@@ -2,7 +2,7 @@
 
 A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), feita para o iPad e o iPhone (Safari e XeOS). O InkDOS fica com os documentos e o InkDOS Hub com o resto.
 
-**Abrir:** https://inkterminal.github.io/
+**Abrir:** https://inkdoshub.github.io/
 
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
@@ -70,7 +70,7 @@ Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou for
 ### Usar dentro de outra página
 
 ```html
-<iframe src="https://inkterminal.github.io/terminal/?embed=1" style="width:100%;height:100%;border:0"></iframe>
+<iframe src="https://inkdoshub.github.io/terminal/?embed=1" style="width:100%;height:100%;border:0"></iframe>
 ```
 
 ### Limitações

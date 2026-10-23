@@ -1,6 +1,6 @@
 // InkDOS Hub Webcam para Windows.
 //
-// Mostra a página Guest do app Webcam (https://inkterminal.github.io/apps/webcam/) num WebView2 e
+// Mostra a página Guest do app Webcam (https://inkdoshub.github.io/apps/webcam/) num WebView2 e
 // entrega a imagem que chega do iPhone a uma câmera virtual do Windows (softcam, DirectShow), que o
 // Zoom, o Teams, o Meet e os outros apps enxergam como "InkDOS Hub Webcam". Sem o OBS.
 //
@@ -139,8 +139,8 @@ namespace InkDOSHubWebcam
 
     class Janela : Form
     {
-        const string Pagina = "https://inkterminal.github.io/apps/webcam/?app=1";
-        const string Origem = "https://inkterminal.github.io/apps/webcam/";
+        const string Pagina = "https://inkdoshub.github.io/apps/webcam/?app=1";
+        const string Origem = "https://inkdoshub.github.io/apps/webcam/";
 
         /* Só a página da Webcam pode abrir aqui: ela recebe o buffer da câmera virtual. */
         static bool Permitida(string uri)
