@@ -169,6 +169,10 @@ namespace InkTerminalWebcam
         readonly object trava = new object();
         Thread envio;
         volatile bool rodando = true;
+        // quadros avisados pela página: posição no buffer duplo e formato (BGRX do caminho rápido
+        // VideoFrame.copyTo, ou RGBA do canvas)
+        readonly System.Collections.Concurrent.ConcurrentQueue<int> fila = new System.Collections.Concurrent.ConcurrentQueue<int>();
+        const int Slots = 2;
 
         public Janela()
         {
@@ -290,7 +294,9 @@ namespace InkTerminalWebcam
                 if (camera == IntPtr.Zero)
                 {
                     Program.Log("Calling native scCreateCamera.");
-                    camera = Softcam.scCreateCamera(q.W, q.H, q.Fps);
+                    // framerate 0: cada quadro vai na hora. Com fps fixo o scSendFrame "dorme" para manter
+                    // o ritmo, o que soma atraso (e aqui seguraria a trava). O DirectShow anuncia 60 fps.
+                    camera = Softcam.scCreateCamera(q.W, q.H, 0);
                     Program.Log("scCreateCamera returned " + camera);
                 }
                 if (camera == IntPtr.Zero)
@@ -324,7 +330,7 @@ namespace InkTerminalWebcam
                 if (buffer == null || atual == null || atual.W != q.W || atual.H != q.H)
                 {
                     if (buffer != null) buffer.Dispose();
-                    buffer = web.CoreWebView2.Environment.CreateSharedBuffer((ulong)q.W * (ulong)q.H * 4);
+                    buffer = web.CoreWebView2.Environment.CreateSharedBuffer((ulong)q.W * (ulong)q.H * 4 * Slots);
                     // CoreWebView2SharedBuffer.Buffer é COM/UI-thread-bound: capture o ponteiro aqui.
                     bufferPointer = buffer.Buffer;
                     bgr = new byte[q.W * q.H * 3];
@@ -333,7 +339,7 @@ namespace InkTerminalWebcam
             }
             Program.Log("Posting shared buffer to page.");
             web.CoreWebView2.PostSharedBufferToScript(buffer, CoreWebView2SharedBufferAccess.ReadWrite,
-                "{\"w\":" + q.W + ",\"h\":" + q.H + ",\"fps\":" + q.Fps + "}");
+                "{\"w\":" + q.W + ",\"h\":" + q.H + ",\"fps\":" + q.Fps + ",\"slots\":" + Slots + "}");
             estado.Text = "Camera \"InkTerminal Webcam\" ready (" + q.W + "×" + q.H + "). Choose it in Zoom. On the iPhone, pick " + (q.H >= 2160 ? "4K" : q.H + "p") + " " + q.Fps + " fps.";
             Program.Log("Camera initialization finished.");
         }
@@ -343,8 +349,37 @@ namespace InkTerminalWebcam
             if (!Permitida(e.Source)) return;
             string m;
             try { m = e.TryGetWebMessageAsString(); } catch (Exception) { return; }
-            if (m == "frame") temQuadro.Set();
+            // "frame:<bgrx|rgba>:<posição>"; o valor guardado na fila é posição*2 + (1 se BGRX)
+            if (m != null && m.StartsWith("frame:", StringComparison.Ordinal))
+            {
+                var partes = m.Split(':');
+                int slot = 0;
+                if (partes.Length > 2) int.TryParse(partes[2], out slot);
+                if (slot < 0 || slot >= Slots) slot = 0;
+                fila.Enqueue(slot * 2 + (partes[1] == "bgrx" ? 1 : 0));
+                temQuadro.Set();
+            }
             else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m.Length > 300 ? m.Substring(0, 300) : m);
+        }
+
+        /* 4 bytes por pixel (BGRX ou RGBA) para os 3 bytes BGR que o softcam pede, em faixas paralelas. */
+        static void Converter(IntPtr origem, IntPtr destino, int n, bool bgrx)
+        {
+            int faixas = Math.Max(1, Math.Min(Environment.ProcessorCount, 8));
+            int porFaixa = (n + faixas - 1) / faixas;
+            Parallel.For(0, faixas, k =>
+            {
+                int ini = k * porFaixa, fim = Math.Min(n, ini + porFaixa);
+                unsafe
+                {
+                    byte* src = (byte*)origem.ToPointer() + (long)ini * 4;
+                    byte* dst = (byte*)destino.ToPointer() + (long)ini * 3;
+                    if (bgrx)
+                        for (int i = ini; i < fim; i++, src += 4, dst += 3) { dst[0] = src[0]; dst[1] = src[1]; dst[2] = src[2]; }
+                    else
+                        for (int i = ini; i < fim; i++, src += 4, dst += 3) { dst[0] = src[2]; dst[1] = src[1]; dst[2] = src[0]; }
+                }
+            });
         }
 
         /* Mede separadamente conversão e envio à câmera virtual para localizar gargalos. */
@@ -356,6 +391,11 @@ namespace InkTerminalWebcam
             {
                 temQuadro.WaitOne();
                 if (!rodando) break;
+                int item;
+                while (rodando && fila.TryDequeue(out item))
+                {
+                int slotAtual = item / 2;
+                bool bgrx = (item & 1) == 1;
                 lock (trava)
                 {
                     if (camera != IntPtr.Zero && bufferPointer != IntPtr.Zero && bgr != null && atual != null)
@@ -364,17 +404,10 @@ namespace InkTerminalWebcam
                         unsafe
                         {
                             // Não acessa propriedades WebView2/COM nesta thread de fundo.
-                            byte* src = (byte*)bufferPointer.ToPointer();
                             fixed (byte* dst0 = bgr)
                             {
-                                byte* dst = dst0;
                                 long inicioConversao = Stopwatch.GetTimestamp();
-                                for (int i = 0; i < n; i++, src += 4, dst += 3)
-                                {
-                                    dst[0] = src[2];
-                                    dst[1] = src[1];
-                                    dst[2] = src[0];
-                                }
+                                Converter(bufferPointer + (int)((long)slotAtual * n * 4), (IntPtr)dst0, n, bgrx);
                                 long conversao = Stopwatch.GetTimestamp() - inicioConversao;
                                 long inicioEnvio = Stopwatch.GetTimestamp();
                                 Softcam.scSendFrame(camera, (IntPtr)dst0);
@@ -408,7 +441,9 @@ namespace InkTerminalWebcam
                     janelaInicio = agora;
                     quadros = somaConversao = maxConversao = somaEnvio = maxEnvio = 0;
                 }
-                try { BeginInvoke((Action)delegate { if (web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsString("ok"); }); } catch (Exception) { }
+                string resposta = "ok:" + slotAtual;
+                try { BeginInvoke((Action)delegate { if (web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsString(resposta); }); } catch (Exception) { }
+                }
             }
         }
     }

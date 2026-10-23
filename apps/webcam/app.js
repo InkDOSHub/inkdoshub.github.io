@@ -139,6 +139,7 @@
   function guest(codigo) {
     mostrar("guest");
     codigo = limpo(codigo);
+    if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = limpo(ler(CHAVE_CODIGO)); // o app de Windows abre sem código: usa o salvo
     if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = novoCodigo();
     gravar(CHAVE_CODIGO, codigo);
     if (q.get("guest") !== codigo) history.replaceState(null, "", "?guest=" + codigo + (obs ? "&obs=1" : ""));
@@ -151,7 +152,20 @@
     qr.make();
     $("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
     function estado(s) { $("gestado").textContent = s; }
-    var bomba = app ? bombaApp(video, function () { return formato; }) : null;
+    var bomba = app ? bombaApp(video, function () { return formato; }, pedirQualidade) : null;
+    /* App de Windows: pede ao iPhone a mesma resolução e fps da câmera escolhida no app, para o quadro
+       chegar já no tamanho certo e ir pelo caminho rápido (sem redimensionar). */
+    function pedirQualidade() {
+      var alvo = bomba && bomba.alvo(), c = chamada;
+      if (!alvo || !c || !peer || !c.peer) return;
+      try {
+        var conn = peer.connect(c.peer, { reliable: true });
+        conn.on("open", function () {
+          try { conn.send({ type: "inkterminal-quality", w: alvo.w, h: alvo.h, fps: alvo.fps }); } catch (_) {}
+          setTimeout(function () { try { conn.close(); } catch (_) {} }, 1000);
+        });
+      } catch (_) {}
+    }
     if (app) $("linkobs").closest("details").hidden = true;
 
     function conectar() {
@@ -219,7 +233,7 @@
         var estadoAtual = anterior.peerConnection && anterior.peerConnection.connectionState;
         // Uma chamada presa em "disconnected" após modo avião também é obsoleta:
         // aceite a nova chamada do Host para que a reconexão possa se completar.
-        if (estadoAtual && (estadoAtual === "closed" || estadoAtual === "failed" || estadoAtual === "disconnected")) {
+        if (estadoAtual !== "connected") {
           chamada = null;
           try { anterior.close(); } catch (_) {}
         } else { try { c.close(); } catch (_) {} return; }
@@ -242,6 +256,7 @@
       c.on("stream", function (s) {
         if (chamada !== c) return;
         ligarVideo(s, false);
+        pedirQualidade();
         $("parear").hidden = true;
         $("bparartransmissao").hidden = false;
         // menos atraso: o Chrome toca o quadro assim que chega
@@ -419,102 +434,171 @@
   }
 
   /* ---------- App de Windows: manda os quadros para a câmera virtual ----------
-     O app (windows/webcam/Program.cs) entrega um buffer compartilhado do tamanho da câmera (RGBA).
-     A cada quadro: desenha o vídeo no canvas (no formato escolhido no iPhone), copia os pixels para
-     o buffer e avisa com "frame"; o app responde "ok" quando já mandou para a câmera. */
-  function bombaApp(video, formatoAtual) {
-    var buf = null, W = 0, H = 0, fps = 30, pronto = true, timer = 0, ultimoEnvio = 0;
-    // Métricas de cada etapa do caminho até a câmera virtual, reportadas ao log do Windows.
-    var perfInicio = performance.now(), perfFrames = 0, perfDraw = 0, perfRead = 0, perfCopy = 0, perfAck = 0, perfAguardando = 0, envioInicio = 0;
-    var canvas = document.createElement("canvas"), ctx = null;
-    function perfReportar() {
-      var agora = performance.now();
-      if (agora - perfInicio < 5000) return;
-      if (perfFrames) chrome.webview.postMessage("PERFJS w=" + W + " h=" + H + " fps=" + (perfFrames * 1000 / (agora - perfInicio)).toFixed(1)
-        + " draw_avg_ms=" + (perfDraw / perfFrames).toFixed(2)
-        + " read_avg_ms=" + (perfRead / perfFrames).toFixed(2)
-        + " copy_avg_ms=" + (perfCopy / perfFrames).toFixed(2)
-        + " ackwait_avg_ms=" + (perfAck / perfFrames).toFixed(2)
-        + " prepare_avg_ms=" + (perfAguardando / perfFrames).toFixed(2));
-      perfInicio = agora; perfFrames = perfDraw = perfRead = perfCopy = perfAck = perfAguardando = 0;
+     O app (windows/webcam/Program.cs) entrega um buffer compartilhado do tamanho da câmera.
+
+     Caminho rápido (quase sempre): lê os quadros decodificados direto da faixa do WebRTC
+     (MediaStreamTrackProcessor), sem passar pelo <video> nem por canvas, e copia cada quadro já em
+     BGRX para o buffer (VideoFrame.copyTo). O ritmo é o dos próprios quadros, não de um timer, então a
+     aba escondida ou coberta pelo Zoom não desacelera. Enquanto o app ainda está entregando o quadro
+     anterior, os novos são descartados: nunca forma fila, então o atraso não cresce.
+
+     Caminho lento (só quando o quadro não tem o tamanho da câmera, está em pé ou girado): desenha o
+     quadro num canvas no formato escolhido e copia os pixels (RGBA).
+
+     Mensagens para o app: "frame:bgrx" ou "frame:rgba"; o app responde "ok" quando já mandou para a
+     câmera. A cada 5 s vai "PERFJS ..." para o log do app. */
+  function bombaApp(video, formatoAtual, aoMudarQualidade) {
+    // o buffer pode ter 2 posições (buffer duplo): enquanto o app entrega uma, a página copia na outra
+    var mem = null, slots = [], livre = [], W = 0, H = 0, fps = 30, leitor = null, faixaAtual = null, ultimo = 0;
+    var canvas = document.createElement("canvas"), ctx = null, bgrxOk = true;
+    var perf = { ini: performance.now(), rapido: 0, lento: 0, descartados: 0, copia: 0, ack: 0, envio: 0 };
+    var temProcessador = typeof window.MediaStreamTrackProcessor === "function" && typeof window.VideoFrame === "function";
+
+    function reportar() {
+      var agora = performance.now(), s = (agora - perf.ini) / 1000;
+      if (s < 5) return;
+      var n = perf.rapido + perf.lento;
+      chrome.webview.postMessage("PERFJS camera=" + W + "x" + H + "@" + fps + " sent_fps=" + (n / s).toFixed(1) +
+        " fast=" + perf.rapido + " slow=" + perf.lento + " dropped=" + perf.descartados +
+        " copy_avg_ms=" + (n ? perf.copia / n : 0).toFixed(2) + " ack_avg_ms=" + (n ? perf.ack / n : 0).toFixed(2) +
+        " processor=" + (temProcessador ? 1 : 0) + " bgrx=" + (bgrxOk ? 1 : 0));
+      perf = { ini: agora, rapido: 0, lento: 0, descartados: 0, copia: 0, ack: 0, envio: 0 };
     }
-    function programar() {
-      clearTimeout(timer);
-      if (!ctx || !pronto) return;
-      var esperaMs = Math.max(0, (1000 / fps) - (performance.now() - ultimoEnvio));
-      timer = setTimeout(passo, esperaMs);
+    function pegarSlot() {
+      for (var i = 0; i < livre.length; i++) if (livre[i]) { livre[i] = false; return i; }
+      return -1;
     }
+    function avisar(tipo, slot, t0) {
+      perf.copia += performance.now() - t0;
+      perf.envio = performance.now();
+      chrome.webview.postMessage("frame:" + tipo + ":" + slot);
+    }
+
     chrome.webview.addEventListener("sharedbufferreceived", function (e) {
       var d = e.additionalData || {};
-      buf = new Uint8ClampedArray(e.getBuffer());
+      mem = e.getBuffer();
       W = d.w; H = d.h; fps = d.fps || 30;
+      var n = Math.max(1, Math.min(2, d.slots || 1));
+      slots = []; livre = [];
+      for (var i = 0; i < n; i++) { slots.push(new Uint8Array(mem, i * W * H * 4, W * H * 4)); livre.push(true); }
       canvas.width = W; canvas.height = H;
-      ctx = canvas.getContext("2d", { alpha: false });
-      pronto = true;
-      ultimoEnvio = performance.now();
-      espera();
+      ctx = canvas.getContext("2d", { alpha: false, willReadFrequently: true });
+      if (!video.srcObject) espera();
+      ligar(video.srcObject);
+      if (aoMudarQualidade) aoMudarQualidade();
     });
     chrome.webview.addEventListener("message", function (e) {
-      if (e.data !== "ok") return;
-      pronto = true;
-      if (envioInicio) { perfAck += performance.now() - envioInicio; envioInicio = 0; }
-      // Cadencia guiada pela confirmação do Windows: evita perder ciclos do setInterval
-      // quando a conversão ou o driver demora um pouco mais que o período nominal.
-      programar();
+      var m = typeof e.data === "string" ? /^ok(?::(\d))?$/.exec(e.data) : null;
+      if (!m) return;
+      if (perf.envio) { perf.ack += performance.now() - perf.envio; perf.envio = 0; }
+      if (m[1] === undefined) for (var i = 0; i < livre.length; i++) livre[i] = true;
+      else if (+m[1] < livre.length) livre[+m[1]] = true;
+      reportar();
     });
-    function enviar() {
-      if (!buf || !ctx || !pronto) return;
-      pronto = false;
-      ultimoEnvio = performance.now();
-      var t = performance.now();
-      var pixels = ctx.getImageData(0, 0, W, H).data;
-      perfRead += performance.now() - t;
-      t = performance.now();
-      buf.set(pixels);
-      perfCopy += performance.now() - t;
-      envioInicio = performance.now();
-      perfAguardando += envioInicio - ultimoEnvio;
-      chrome.webview.postMessage("frame");
-    }
-    function passo() {
-      var vw = video.videoWidth, vh = video.videoHeight;
-      if (!ctx || !pronto) return;
-      if (!vw || !video.srcObject) {
-        // Mantém o loop vivo enquanto o iPhone ainda não conectou ou está reconectando.
-        programar();
+
+    /* Entrega um quadro: um VideoFrame do WebRTC (que esta função fecha) ou, sem o processador, o
+       próprio <video>. */
+    function entregar(fonte, largura, altura) {
+      var quadro = fonte instanceof window.VideoFrame ? fonte : null;
+      function fechar() { if (quadro) { try { quadro.close(); } catch (_) {} } }
+      if (!slots.length || !ctx) { fechar(); return; }
+      // limita ao fps da câmera escolhida (o iPhone pode mandar mais)
+      // (relógio com "vaga" por período: aguenta a variação natural entre quadros sem descartar à toa)
+      var agora = performance.now(), periodo = 1000 / fps;
+      if (agora < ultimo - 2) { perf.descartados++; fechar(); return; }
+      var slot = pegarSlot();
+      if (slot < 0) { perf.descartados++; fechar(); return; }
+      ultimo = Math.max(ultimo + periodo, agora - periodo / 2);
+      var buf = slots[slot];
+      var f = formatoAtual(), t0 = performance.now();
+      if (quadro && bgrxOk && largura === W && altura === H && f !== "gira90" && f !== "gira270") {
+        // caminho rápido: o Chrome converte para BGRX e copia direto para a memória do app
+        quadro.copyTo(buf, { format: "BGRX", layout: [{ offset: 0, stride: W * 4 }] }).then(function () {
+          fechar();
+          perf.rapido++;
+          avisar("bgrx", slot, t0);
+        }, function () {
+          fechar();
+          bgrxOk = false; // este Chrome não converte para BGRX: usa o canvas daqui em diante
+          livre[slot] = true;
+        });
         return;
       }
-      var f = formatoAtual(), gira = f === "gira90" || f === "gira270";
+      try {
+        desenhar(fonte, largura, altura, f);
+        buf.set(ctx.getImageData(0, 0, W, H).data);
+      } finally { fechar(); }
+      perf.lento++;
+      avisar("rgba", slot, t0);
+    }
+    function desenhar(fonte, vw, vh, f) {
+      var gira = f === "gira90" || f === "gira270";
       var sw = gira ? vh : vw, sh = gira ? vw : vh;
       var esc = f === "ajustar" ? Math.min(W / sw, H / sh) : Math.max(W / sw, H / sh);
-      var t = performance.now();
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.translate(W / 2, H / 2);
       if (gira) ctx.rotate((f === "gira90" ? 90 : -90) * Math.PI / 180);
-      ctx.drawImage(video, -vw * esc / 2, -vh * esc / 2, vw * esc, vh * esc);
+      ctx.drawImage(fonte, -vw * esc / 2, -vh * esc / 2, vw * esc, vh * esc);
       ctx.restore();
-      perfDraw += performance.now() - t;
-      perfFrames++;
-      perfReportar();
-      enviar();
     }
+
+    /* Lê os quadros da faixa de vídeo assim que o iPhone conecta. */
+    function ligar(stream) {
+      var faixa = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+      if (!faixa || faixa === faixaAtual || !slots.length) return;
+      parar();
+      faixaAtual = faixa;
+      if (!temProcessador) return peloVideo(faixa);
+      var r;
+      try { r = new MediaStreamTrackProcessor({ track: faixa, maxBufferSize: 1 }).readable.getReader(); }
+      catch (_) { temProcessador = false; return peloVideo(faixa); }
+      leitor = r;
+      (function proximo() {
+        r.read().then(function (res) {
+          if (res.done || leitor !== r) { if (res.value) res.value.close(); return; }
+          var q = res.value;
+          try { entregar(q, q.displayWidth, q.displayHeight); } catch (_) { try { q.close(); } catch (e) {} for (var i = 0; i < livre.length; i++) livre[i] = true; }
+          proximo();
+        }, function () {});
+      })();
+    }
+    // sem MediaStreamTrackProcessor: um quadro por quadro novo do <video>
+    function peloVideo(faixa) {
+      function quadro() {
+        if (faixaAtual !== faixa) return;
+        if (video.videoWidth) entregar(video, video.videoWidth, video.videoHeight);
+        if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(quadro);
+        else setTimeout(quadro, 1000 / fps);
+      }
+      quadro();
+    }
+    function parar() {
+      faixaAtual = null;
+      if (leitor) { var r = leitor; leitor = null; try { r.cancel(); } catch (_) {} }
+    }
+    // o <video> ganha a faixa um pouco depois da chamada: confere de tempos em tempos
+    setInterval(function () { if (video.srcObject) ligar(video.srcObject); }, 500);
+
     // sem iPhone: a câmera mostra um aviso em vez de congelar no último quadro
     function espera() {
-      if (!ctx || video.srcObject) return;
+      if (!ctx || !slots.length) return;
+      parar();
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = "#fff";
       ctx.font = Math.round(H / 22) + "px -apple-system, Segoe UI, sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(t("Waiting for the iPhone…"), W / 2, H / 2);
-      pronto = true;
-      enviar();
+      slots[0].set(ctx.getImageData(0, 0, W, H).data);
+      livre[0] = false;
+      chrome.webview.postMessage("frame:rgba:0");
     }
     return {
       espera: espera,
-      parar: function () { clearTimeout(timer); timer = 0; buf = null; pronto = false; }
+      alvo: function () { return W ? { w: W, h: H, fps: fps } : null; },
+      parar: function () { parar(); slots = []; livre = []; }
     };
   }
 
@@ -582,6 +666,8 @@
         p.encodings[0].maxBitrate = Q.bps;
         p.encodings[0].maxFramerate = Q.fps;
         p.encodings[0].scaleResolutionDownBy = 1;
+        // com pouca banda, baixa o fps e não a resolução: o PC recebe sempre o tamanho da câmera
+        try { p.degradationPreference = "maintain-resolution"; } catch (_) {}
         snd.setParameters(p).catch(function () {});
       });
     }
@@ -614,8 +700,15 @@
         peer.on("open", function () { clearTimeout(reconectarTimer); reconectarTimer = 0; ligar(); });
         peer.on("connection", function (conn) {
           conn.on("data", function (msg) {
-            if (conn.peer === PREFIXO + limpo($("hcodigo").value) && msg && typeof msg === "object" && msg.type === "inkterminal-stop") {
-              pararLocal(t("Transmission stopped by the PC."));
+            if (conn.peer !== PREFIXO + limpo($("hcodigo").value) || !msg || typeof msg !== "object") return;
+            if (msg.type === "inkterminal-stop") pararLocal(t("Transmission stopped by the PC."));
+            else if (msg.type === "inkterminal-quality") {
+              // o app de Windows pede a resolução da câmera dele (ex.: 1080p60); só aceita as da lista
+              var chave = (msg.h >= 2160 ? "2160p" : msg.h >= 1080 ? "1080p" : "720p") + (msg.fps >= 60 ? "60" : "30");
+              if (QUALIDADES[chave] && $("qualidade").value !== chave) {
+                $("qualidade").value = chave;
+                trocarCamera();
+              }
             }
           });
         });
