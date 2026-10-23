@@ -4,6 +4,8 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 
 **Abrir:** https://inkdoshub.github.io/
 
+> **Sem promessa de suporte.** O InkDOS Hub é um projeto pessoal, feito no tempo livre, e está aqui do jeito que está porque funcionou para quem criou. Foi testado no iPhone, no iPad e num notebook com Windows; em outros aparelhos pode funcionar, ou não. Fique à vontade para usar, copiar e adaptar, só não dá para garantir correções, novidades ou respostas rápidas. 🙂
+
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
