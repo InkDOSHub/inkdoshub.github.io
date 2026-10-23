@@ -96,7 +96,7 @@ console.log("Results below are simulated scenarios, not hardware measurements.\n
 
 const scenarios = [
   { name: "current canvas/RGBA (model)", serviceMeanMs: 60, serviceSdMs: 5, seed: 42 },
-  { name: "A: VideoFrame/YUV + native pipeline (assumption)", serviceMeanMs: 3, serviceSdMs: 1, seed: 42 },
-  { name: "B: native WebRTC/decoder + MF (assumption)", serviceMeanMs: 6, serviceSdMs: 2, seed: 42 }
+  { name: "A: native WebRTC/decoder + MF (assumption)", serviceMeanMs: 6, serviceSdMs: 2, seed: 42 },
+  { name: "B: VideoFrame/YUV + native pipeline (assumption)", serviceMeanMs: 3, serviceSdMs: 1, seed: 42 }
 ];
 for (const scenario of scenarios) console.log(JSON.stringify(simulate(scenario)));
