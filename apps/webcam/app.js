@@ -436,6 +436,19 @@
       });
     };
     $("bstats").onclick = function () { statsVisivel = !statsVisivel; $("gstats").hidden = !statsVisivel || !chamada; };
+    /* App de Windows: a prévia na janela custa placa de vídeo e memória (pesa em 4K) e não muda o que
+       vai para a câmera virtual. Fica desligada por padrão; o botão liga e a escolha fica salva. */
+    if (app) {
+      var CHAVE_PREVIA = "inkdoshub-webcam-previa";
+      var previa = ler(CHAVE_PREVIA) === "1";
+      var mostrarPrevia = function () {
+        video.style.visibility = previa ? "" : "hidden";
+        $("bprevia").textContent = previa ? t("Hide preview") : t("Show preview");
+      };
+      $("bprevia").hidden = false;
+      $("bprevia").onclick = function () { previa = !previa; gravar(CHAVE_PREVIA, previa ? "1" : "0"); mostrarPrevia(); };
+      mostrarPrevia();
+    }
     $("btela").onclick = function () {
       var el = $("guest");
       if (document.fullscreenElement) document.exitFullscreen();
