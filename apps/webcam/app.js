@@ -34,6 +34,8 @@
   var obs = q.get("obs") === "1" || !!window.obsstudio || app;
   if (obs) document.body.classList.add("obs");
   if (app) document.body.classList.add("app-webcam");
+  // app de Windows com "Native receiver (beta)": o próprio app recebe o vídeo (GStreamer); a página só mostra o QR e o estado
+  var nativo = app && q.get("nativo") === "1";
 
   function ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
   function gravar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
@@ -142,7 +144,7 @@
     if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = limpo(ler(CHAVE_CODIGO)); // o app de Windows abre sem código: usa o salvo
     if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = novoCodigo();
     gravar(CHAVE_CODIGO, codigo);
-    if (q.get("guest") !== codigo) history.replaceState(null, "", "?guest=" + codigo + (obs ? "&obs=1" : ""));
+    if (q.get("guest") !== codigo) history.replaceState(null, "", "?guest=" + codigo + (obs ? "&obs=1" : "") + (nativo ? "&nativo=1" : ""));
     var video = $("vguest"), peer = null, chamada = null, ant = null, timer = 0, reconectarTimer = 0, encerrando = false, statsVisivel = false, reiniciando = false;
     var linkHost = BASE + "?host=" + codigo;
     $("gcodigo").textContent = codigo;
@@ -152,7 +154,7 @@
     qr.make();
     $("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
     function estado(s) { $("gestado").textContent = s; }
-    var bomba = app ? bombaApp(video, function () { return formato; }, pedirQualidade) : null;
+    var bomba = app && !nativo ? bombaApp(video, function () { return formato; }, pedirQualidade) : null;
     /* App de Windows: pede ao iPhone a mesma resolução e fps da câmera escolhida no app, para o quadro
        chegar já no tamanho certo e ir pelo caminho rápido (sem redimensionar). */
     function pedirQualidade() {
@@ -464,7 +466,7 @@
     };
     $("novocodigo").onclick = function () {
       gravar(CHAVE_CODIGO, novoCodigo());
-      location.href = BASE + "?guest=" + ler(CHAVE_CODIGO);
+      location.href = BASE + "?guest=" + ler(CHAVE_CODIGO) + (nativo ? "&nativo=1" : "");
     };
     addEventListener("pagehide", function () {
       encerrando = true;
@@ -474,7 +476,15 @@
       if (bomba) bomba.parar();
       if (peer) { peer.destroy(); peer = null; }
     });
-    conectar();
+    if (!nativo) { conectar(); return; }
+    // receptor nativo: o app conecta com este código e manda o estado de volta
+    chrome.webview.addEventListener("message", function (e) {
+      var m = typeof e.data === "string" ? e.data : "";
+      if (m.indexOf("nat:estado:") === 0) estado(t(m.slice(11)));
+      else if (m === "nat:on") $("parear").hidden = true;
+      else if (m === "nat:off") $("parear").hidden = false;
+    });
+    chrome.webview.postMessage("NATIVO " + codigo);
   }
 
   /* ---------- App de Windows: manda os quadros para a câmera virtual ----------
