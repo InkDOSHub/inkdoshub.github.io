@@ -333,6 +333,7 @@ namespace InkDOSHubWebcam
         public static string LimparOferta(string sdp)
         {
             var l = new List<string>(sdp.Replace("\r\n", "\n").Split('\n'));
+            RecusarDados(l);
             var s = SecaoVideo(l);
             int ini = s[0], fim = s[1];
             if (ini < 0) return sdp;
@@ -366,6 +367,32 @@ namespace InkDOSHubWebcam
                     l.RemoveAt(i);
             }
             return string.Join("\r\n", l);
+        }
+
+        /* O PeerJS põe um canal de dados (m=application) na chamada. O SCTP dele caía depois de ~15 s
+           e derrubava a chamada inteira (o vídeo usa o mesmo transporte): recusa essa seção (porta 0)
+           e tira ela do BUNDLE. A resposta continua com o mesmo número de seções, como o WebRTC exige. */
+        static void RecusarDados(List<string> l)
+        {
+            var recusados = new List<string>();
+            for (int i = 0; i < l.Count; i++)
+            {
+                if (!l[i].StartsWith("m=application ", StringComparison.Ordinal)) continue;
+                var partes = l[i].Split(' ');
+                partes[1] = "0";
+                l[i] = string.Join(" ", partes);
+                for (int j = i + 1; j < l.Count && !l[j].StartsWith("m="); j++)
+                    if (l[j].StartsWith("a=mid:")) recusados.Add(l[j].Substring(6).Trim());
+            }
+            if (recusados.Count == 0) return;
+            for (int i = 0; i < l.Count; i++)
+            {
+                if (!l[i].StartsWith("a=group:BUNDLE")) continue;
+                var partes = new List<string>(l[i].Split(' '));
+                partes.RemoveAll(x => recusados.Contains(x.Trim()));
+                l[i] = string.Join(" ", partes);
+            }
+            Program.Log("NATIVO: data section rejected (mid " + string.Join(",", recusados) + ")");
         }
 
         /* Resposta para o iPhone: limite de bitrate e começo já perto dele (igual à página Guest). */
