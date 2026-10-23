@@ -461,8 +461,8 @@
       chrome.webview.postMessage("PERFJS camera=" + W + "x" + H + "@" + fps + " sent_fps=" + (n / s).toFixed(1) +
         " fast=" + perf.rapido + " slow=" + perf.lento + " dropped=" + perf.descartados +
         " copy_avg_ms=" + (n ? perf.copia / n : 0).toFixed(2) + " ack_avg_ms=" + (n ? perf.ack / n : 0).toFixed(2) +
-        " processor=" + (temProcessador ? 1 : 0) + " bgrx=" + (bgrxOk ? 1 : 0));
-      perf = { ini: agora, rapido: 0, lento: 0, descartados: 0, copia: 0, ack: 0, envio: 0 };
+        " processor=" + (temProcessador ? 1 : 0) + " bgrx=" + (bgrxOk ? 1 : 0) + " " + (perf.info || ""));
+      perf = { ini: agora, rapido: 0, lento: 0, descartados: 0, copia: 0, ack: 0, envio: 0, info: perf.info };
     }
     function pegarSlot() {
       for (var i = 0; i < livre.length; i++) if (livre[i]) { livre[i] = false; return i; }
@@ -471,7 +471,7 @@
     function avisar(tipo, slot, t0) {
       perf.copia += performance.now() - t0;
       perf.envio = performance.now();
-      chrome.webview.postMessage("frame:" + tipo + ":" + slot);
+      chrome.webview.postMessage("frame:" + (tipo.indexOf(":") > 0 ? tipo : tipo + ":" + slot));
     }
 
     chrome.webview.addEventListener("sharedbufferreceived", function (e) {
@@ -511,22 +511,30 @@
       ultimo = Math.max(ultimo + periodo, agora - periodo / 2);
       var buf = slots[slot];
       var f = formatoAtual(), t0 = performance.now();
-      // quadro "deitado" que o iPhone marcou para girar (celular em pé) e que o formato escolhido gira
-      // de volta: os pixels crus já são a imagem final, então também vai pelo caminho rápido
-      var g = f === "gira90" ? 90 : f === "gira270" ? 270 : 0, rot = quadro ? (quadro.rotation || 0) : 0;
-      var cru = quadro && quadro.visibleRect && quadro.visibleRect.width === W && quadro.visibleRect.height === H &&
-        !quadro.flip && (rot + g) % 360 === 0;
-      if (quadro && bgrxOk && (cru || (largura === W && altura === H && g === 0 && rot === 0))) {
-        // caminho rápido: o Chrome converte para BGRX e copia direto para a memória do app
-        quadro.copyTo(buf, { format: "BGRX", layout: [{ offset: 0, stride: W * 4 }] }).then(function () {
+      var g = f === "gira90" ? 90 : f === "gira270" ? 270 : 0;
+      var vr = quadro && quadro.visibleRect, rot = null;
+      if (quadro) rot = typeof quadro.rotation === "number" ? quadro.rotation : (vr && vr.width === largura ? 0 : null);
+      perf.info = "rot=" + rot + " fmt=" + f + " raw=" + (vr ? vr.width + "x" + vr.height : "-") + " disp=" + largura + "x" + altura;
+      function copiar(tipo, layout) {
+        quadro.copyTo(buf, { format: "BGRX", layout: layout }).then(function () {
           fechar();
           perf.rapido++;
-          avisar("bgrx", slot, t0);
+          avisar(tipo, slot, t0);
         }, function () {
           fechar();
           bgrxOk = false; // este Chrome não converte para BGRX: usa o canvas daqui em diante
           livre[slot] = true;
         });
+      }
+      if (quadro && bgrxOk && rot === 0 && g === 0 && largura === W && altura === H) {
+        // caminho rápido: o Chrome converte para BGRX e copia direto para a memória do app
+        copiar("bgrx", [{ offset: 0, stride: W * 4 }]);
+        return;
+      }
+      if (quadro && bgrxOk && vr && rot !== null && !quadro.flip && vr.width * vr.height <= W * H) {
+        // quadro cru (em qualquer tamanho e giro): o app gira, corta e escala na conversão para a câmera
+        var giro = (rot + g) % 360;
+        copiar("raw:" + slot + ":" + vr.width + ":" + vr.height + ":" + giro + ":" + (f === "ajustar" ? 1 : 0), [{ offset: 0, stride: vr.width * 4 }]);
         return;
       }
       try {
@@ -615,8 +623,9 @@
     var codigoInicial = limpo(codigo), codigoSalvo = limpo(cfg.codigo);
     $("hcodigo").value = /^[a-z0-9]{10}$/.test(codigoInicial) ? codigoInicial : (/^[a-z0-9]{10}$/.test(codigoSalvo) ? codigoSalvo : "");
     if (cfg.qualidade && QUALIDADES[cfg.qualidade]) $("qualidade").value = cfg.qualidade;
-    if (cfg.codecVersion === 2 && cfg.codec) $("codec").value = cfg.codec;
-    else $("codec").value = "VP8";
+    // H.264 é codificado pelo hardware do iPhone e decodificado pela placa de vídeo do PC (versão 3 volta todos para ele)
+    if (cfg.codecVersion === 3 && cfg.codec) $("codec").value = cfg.codec;
+    else $("codec").value = "H264";
     if (cfg.formato) $("formato").value = cfg.formato;
     var video = $("vhost"), stream = null, peer = null, chamada = null, ligado = false, tentativa = 0, reconectarTimer = 0, falhasDestino = 0, ant = null, timer = 0, trava = null;
     var encerrando = false;
@@ -625,7 +634,7 @@
 
     function estado(s) { $("hestado").textContent = s; }
     function salvar() {
-      gravar(CHAVE_HOST, JSON.stringify({ codigo: limpo($("hcodigo").value), qualidade: $("qualidade").value, camera: $("camera").value, codec: $("codec").value, codecVersion: 2, formato: $("formato").value }));
+      gravar(CHAVE_HOST, JSON.stringify({ codigo: limpo($("hcodigo").value), qualidade: $("qualidade").value, camera: $("camera").value, codec: $("codec").value, codecVersion: 3, formato: $("formato").value }));
     }
     function qual() { return QUALIDADES[$("qualidade").value] || QUALIDADES["1080p60"]; }
 

@@ -172,7 +172,9 @@ namespace InkDOSHubWebcam
         volatile bool rodando = true;
         // quadros avisados pela página: posição no buffer duplo e formato (BGRX do caminho rápido
         // VideoFrame.copyTo, ou RGBA do canvas)
-        readonly System.Collections.Concurrent.ConcurrentQueue<int> fila = new System.Collections.Concurrent.ConcurrentQueue<int>();
+        // um quadro pronto no buffer: posição, formato e, para "raw", tamanho, giro e modo "inteira"
+        sealed class Pedido { public int Slot; public bool Bgrx; public bool Cru; public int Sw, Sh, Giro; public bool Inteira; }
+        readonly System.Collections.Concurrent.ConcurrentQueue<Pedido> fila = new System.Collections.Concurrent.ConcurrentQueue<Pedido>();
         const int Slots = 2;
 
         public Janela()
@@ -350,14 +352,24 @@ namespace InkDOSHubWebcam
             if (!Permitida(e.Source)) return;
             string m;
             try { m = e.TryGetWebMessageAsString(); } catch (Exception) { return; }
-            // "frame:<bgrx|rgba>:<posição>"; o valor guardado na fila é posição*2 + (1 se BGRX)
+            // "frame:<bgrx|rgba>:<posição>" (já no tamanho da câmera) ou
+            // "frame:raw:<posição>:<largura>:<altura>:<giro>:<0|1 inteira>" (BGRX cru do WebRTC; o app gira e corta)
             if (m != null && m.StartsWith("frame:", StringComparison.Ordinal))
             {
                 var partes = m.Split(':');
-                int slot = 0;
-                if (partes.Length > 2) int.TryParse(partes[2], out slot);
-                if (slot < 0 || slot >= Slots) slot = 0;
-                fila.Enqueue(slot * 2 + (partes[1] == "bgrx" ? 1 : 0));
+                var p = new Pedido();
+                if (partes.Length > 2) int.TryParse(partes[2], out p.Slot);
+                if (p.Slot < 0 || p.Slot >= Slots) p.Slot = 0;
+                p.Bgrx = partes[1] != "rgba";
+                if (partes[1] == "raw" && partes.Length > 6)
+                {
+                    int.TryParse(partes[3], out p.Sw); int.TryParse(partes[4], out p.Sh); int.TryParse(partes[5], out p.Giro);
+                    p.Inteira = partes[6] == "1";
+                    p.Giro = ((p.Giro % 360) + 360) % 360;
+                    p.Cru = p.Sw > 0 && p.Sh > 0 && p.Giro % 90 == 0;
+                    if (!p.Cru) return;
+                }
+                fila.Enqueue(p);
                 temQuadro.Set();
             }
             else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m.Length > 300 ? m.Substring(0, 300) : m);
@@ -383,6 +395,48 @@ namespace InkDOSHubWebcam
             });
         }
 
+        /* BGRX cru (sw×sh) para BGR no tamanho da câmera: gira (0/90/180/270, sentido horário), preenche
+           16:9 cortando as bordas ou mostra inteira com faixas pretas, por vizinho mais próximo, em faixas
+           paralelas. Substitui o canvas da página, que custava ~130 ms por quadro a 4K. */
+        static void Transformar(IntPtr origem, int sw, int sh, int giro, bool inteira, IntPtr destino, int W, int H)
+        {
+            bool deitado = giro == 90 || giro == 270;
+            int rw = deitado ? sh : sw, rh = deitado ? sw : sh;   // tamanho depois do giro
+            double esc = inteira ? Math.Min((double)W / rw, (double)H / rh) : Math.Max((double)W / rw, (double)H / rh);
+            // coordenada na imagem girada para cada coluna x e linha y da câmera (-1 = fora: preto)
+            int[] us = new int[W], vs = new int[H];
+            for (int x = 0; x < W; x++) { int u = (int)Math.Floor((x + 0.5 - W / 2.0) / esc + rw / 2.0); us[x] = u >= 0 && u < rw ? u : -1; }
+            for (int y = 0; y < H; y++) { int v = (int)Math.Floor((y + 0.5 - H / 2.0) / esc + rh / 2.0); vs[y] = v >= 0 && v < rh ? v : -1; }
+            int faixas = Math.Max(1, Math.Min(Environment.ProcessorCount, 8));
+            int porFaixa = (H + faixas - 1) / faixas;
+            Parallel.For(0, faixas, k =>
+            {
+                int ini = k * porFaixa, fim = Math.Min(H, ini + porFaixa);
+                unsafe
+                {
+                    uint* src = (uint*)origem.ToPointer();
+                    for (int y = ini; y < fim; y++)
+                    {
+                        byte* dst = (byte*)destino.ToPointer() + (long)y * W * 3;
+                        int v = vs[y];
+                        for (int x = 0; x < W; x++, dst += 3)
+                        {
+                            int u = us[x];
+                            if (u < 0 || v < 0) { dst[0] = 0; dst[1] = 0; dst[2] = 0; continue; }
+                            int sx, sy;
+                            // ponto (u,v) da imagem girada -> ponto da imagem crua
+                            if (giro == 0) { sx = u; sy = v; }
+                            else if (giro == 90) { sx = v; sy = sh - 1 - u; }
+                            else if (giro == 180) { sx = sw - 1 - u; sy = sh - 1 - v; }
+                            else { sx = sw - 1 - v; sy = u; }
+                            uint c = src[(long)sy * sw + sx];
+                            dst[0] = (byte)c; dst[1] = (byte)(c >> 8); dst[2] = (byte)(c >> 16);
+                        }
+                    }
+                }
+            });
+        }
+
         /* Mede separadamente conversão e envio à câmera virtual para localizar gargalos. */
         void Enviar()
         {
@@ -392,11 +446,11 @@ namespace InkDOSHubWebcam
             {
                 temQuadro.WaitOne();
                 if (!rodando) break;
-                int item;
+                Pedido item;
                 while (rodando && fila.TryDequeue(out item))
                 {
-                int slotAtual = item / 2;
-                bool bgrx = (item & 1) == 1;
+                int slotAtual = item.Slot;
+                bool bgrx = item.Bgrx;
                 lock (trava)
                 {
                     if (camera != IntPtr.Zero && bufferPointer != IntPtr.Zero && bgr != null && atual != null)
@@ -408,7 +462,12 @@ namespace InkDOSHubWebcam
                             fixed (byte* dst0 = bgr)
                             {
                                 long inicioConversao = Stopwatch.GetTimestamp();
-                                Converter(bufferPointer + (int)((long)slotAtual * n * 4), (IntPtr)dst0, n, bgrx);
+                                IntPtr origemSlot = bufferPointer + (int)((long)slotAtual * n * 4);
+                                if (!item.Cru)
+                                    Converter(origemSlot, (IntPtr)dst0, n, bgrx);
+                                else if ((long)item.Sw * item.Sh <= n)
+                                    Transformar(origemSlot, item.Sw, item.Sh, item.Giro, item.Inteira, (IntPtr)dst0, atual.W, atual.H);
+                                // (quadro cru maior que o buffer: a página não manda; se mandar, repete o último quadro)
                                 long conversao = Stopwatch.GetTimestamp() - inicioConversao;
                                 long inicioEnvio = Stopwatch.GetTimestamp();
                                 Softcam.scSendFrame(camera, (IntPtr)dst0);
