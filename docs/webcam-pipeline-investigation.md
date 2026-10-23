@@ -3,15 +3,19 @@
 Data: 2026-10-22  
 Escopo: Windows 11, iPhone/Safari → WebRTC → câmera virtual, meta final 3840×2160/60 fps; piso obrigatório 1920×1080/30 fps.
 
-## Meta de desempenho e decisão resumida
+## Decisão executiva — revisão para a meta 4K60
 
-**Meta final do produto: 4K (3840×2160) a 60 fps sustentados. Piso mínimo de compatibilidade: 1080p a 30 fps.** 1080p30 não conta como conclusão bem-sucedida da otimização; é apenas o nível mínimo para evitar regressão. As metas devem ser avaliadas separadamente por dispositivo, navegador/runtime, codec, rede e consumidor da câmera virtual. A meta 4K60 só pode ser declarada após teste físico de ponta a ponta, não por simulação.
+**Meta final: 3840×2160 a 60 fps sustentados, de ponta a ponta. Piso de compatibilidade: 1920×1080 a 30 fps.** O piso não é critério de conclusão.
 
-**Hipótese preferida após a comparação (B): manter a recepção WebRTC no Chromium/WebView2 e substituir o caminho de pixels Canvas/RGBA por frames WebCodecs/VideoFrame, enviados em formato YUV para um pipeline nativo otimizado (libyuv), mantendo inicialmente o dispositivo DirectShow `softcam`.**
+A investigação inicial favorecia preservar WebRTC no WebView2 e remover Canvas. Isso continua sendo a melhor melhoria incremental, mas **não é a arquitetura com maior probabilidade de garantir 4K60**. A referência mais relevante, OmniCam, registra que no caminho de decodificação por hardware seus frames ficam em superfícies GPU e `VideoFrame.copyTo()` custou cerca de 12 ms por quadro em 1080p — já 72% do orçamento de 16,67 ms para 60 fps. Uma extrapolação linear simples para 4K seria cerca de 48 ms, antes de qualquer conversão; é uma estimativa de risco, não medição 4K. A documentação do mesmo projeto relata I420 em CPU bem mais rápido a 1080p, mas não prova que o i5-1235U sustente decodificação 4K60 por software.
 
-Não recomendo como primeira implementação reescrever simultaneamente o receptor WebRTC nativo e o dispositivo virtual em Media Foundation. Essa é uma arquitetura possível, mas dobra a superfície de risco: negociação WebRTC/sinalização/ICE/codec e implementação COM/Frame Server da câmera. A API `libdatachannel` não inclui decodificação de mídia; a discussão do próprio mantenedor deixa claro que a aplicação precisa fornecer o decoder e o controle de bitrate [11][12]. Isso significa que o “receptor nativo” não elimina o trabalho de codec, jitter buffer e recuperação de pacotes.
+**Melhor hipótese para a meta real (A): pipeline nativo de ponta a ponta** — captura iOS nativa via AVFoundation/VideoToolbox para controlar formato da câmera e encoder; transporte WebRTC nativo; receptor Windows com decoder acelerado por hardware e superfícies D3D11; câmera virtual Media Foundation fornecendo NV12 sem ida e volta GPU→CPU. É a arquitetura com maior teto de desempenho, mas implica aplicativo/componente nativo iOS, migração ou compatibilidade da sinalização hoje baseada em PeerJS, receiver WebRTC nativo, decoder e media source COM. Deve ser provada por etapas, não implementada toda de uma vez.
 
-O repositório de referência **OmniCam** já demonstra a alternativa B: WebRTC no Chromium/Electron, `MediaStreamTrackProcessor`, `VideoFrame.copyTo`, addon C++ nativo e libyuv, sem desenhar os frames de produção em Canvas. A documentação pública registra medições de cerca de 0,4 ms para copiar frame I420 por software e cerca de 1,5 ms para converter I420 em RGB24 em sua configuração Windows, com a ressalva de que são números de outra máquina e não uma medição do InkTerminal [1][2]. O código atual do InkTerminal tem o mesmo tipo de gargalo que esse projeto deliberadamente evita.
+**Segunda melhor hipótese (B): manter a experiência web, remover Canvas e usar pipeline YUV nativo** — Safari/PeerJS/WebRTC no telefone e WebView2 como receptor; feature-detect `MediaStreamTrackProcessor`, copiar `VideoFrame` para I420 em CPU quando isso evitar readback lento, transferir por buffer limitado para C++/libyuv e uma Media Foundation Virtual Camera que aceite NV12. Preserva mais do produto atual e reduz o risco de regressão, mas só alcança 4K60 se Safari/iPhone realmente capturar e codificar 4K60 e se não houver readback de GPU caro. É a primeira prova de conceito de menor custo, não uma promessa de que o browser permite 4K60.
+
+**Ponto crítico no código atual:** `apps/webcam/app.js` declara perfil `2160p60` e pede `width/height/frameRate: { ideal: ... }`, mas não verifica a configuração efetiva por `track.getSettings()`. Constraints ideais não garantem os valores pedidos. Além disso, `windows/webcam/Program.cs` oferece atualmente 4K30, não 4K60, e o fluxo usa Canvas → `getImageData()` → RGBA → conversão C# para BGR → DirectShow. Logo, perfil declarado não prova 4K60 capturado, transmitido ou entregue.
+
+Sequência recomendada: (1) instrumentar o fluxo para registrar resolução/FPS reais; (2) testar B com CPU I420 e sem Canvas; (3) identificar se o gargalo restante é captura/encoder Safari, rede, decode, cópia ou softcam; (4) se Safari não entregar 4K60 ou readback/decoder impedir o orçamento, avançar para A. Não reescrever tudo antes de medir, mas também não encerrar o trabalho em 1080p30.
 
 ## O que foi observado no InkTerminal
 
@@ -123,3 +127,104 @@ A implementação deve ter flag de experimento e fallback automático para o pip
 > - Só considere o piso aprovado após ≥29,5 fps em 1080p por 60 s, p95 da idade do quadro <100 ms, fila limitada, memória estável e nenhuma regressão. Só declare a meta final aprovada após 4K60 sustentado por 10 minutos (média ≥59 fps), p95 da idade do quadro <50 ms como alvo a validar, sem backlog/memória crescente e com consumidor real da câmera virtual. Até provar isso em hardware, mantenha a rota opt-in e documente claramente o que foi validado apenas em CI/simulação versus em máquina física.
 >
 > Faça alterações pequenas, revisáveis e licenciadas corretamente. Não copie arquivos de terceiros sem preservar os avisos/licenças. Não afirme que o build, o teste físico ou a compatibilidade com Zoom passaram sem evidência correspondente.
+
+
+---
+
+# Revisão técnica aprofundada: meta 4K60
+Esta seção e o prompt final prevalecem sobre recomendações antigas deste documento que tratem 1080p30 como meta ou proponham manter DirectShow como destino definitivo.
+
+## Inspeção do código real do InkTerminal
+
+- `apps/webcam/app.js` declara perfis de envio, incluindo `2160p60` com limite nominal de 40 Mbps e `2160p30` com 25 Mbps.
+- A captura iPhone usa `getUserMedia()` com `ideal` para largura, altura e FPS. O sucesso da Promise só confirma que alguma configuração foi concedida; o código deve registrar `track.getSettings()` e comparar width, height e frameRate reais.
+- O sender configura `contentHint = "motion"`, `maxFramerate` e bitrate, mas isso não força a câmera a capturar no formato solicitado. Registrar também stats de quadros codificados/enviados, recebidos/decodificados, bitrate e dimensões.
+- O receiver Windows usa `bombaApp`: Canvas de saída, `drawImage`, `getImageData`, cópia para `CoreWebView2SharedBuffer`; C# converte RGBA para BGR e chama `scSendFrame` do softcam.
+- A UI nativa em `windows/webcam/Program.cs` oferece 1080p60, 1080p30, 720p60, 720p30 e 4K30; não oferece 4K60.
+- `.github/workflows/webcam-windows.yml` compila executável e softcam, mas não faz benchmark 4K60 nem teste de câmera virtual com consumidor real.
+
+## Hipótese A — maior teto: captura nativa iOS + WebRTC nativo + decode GPU/D3D11 + Media Foundation Virtual Camera
+
+1. No iPhone, AVFoundation seleciona um formato de câmera que realmente suporte 3840×2160/60; VideoToolbox codifica H.264 por hardware. O app verifica e informa o formato ativo.
+2. Cliente WebRTC nativo envia vídeo com timestamps, congestion control e feedback. A UI pode preservar QR/código de pareamento, mas a sinalização deve ser adaptada de forma explícita; não presumir compatibilidade automática com PeerJS.
+3. No Windows, uma stack WebRTC nativa com decoder acelerado entrega superfícies D3D11 quando possível, evitando mapear cada quadro GPU para CPU.
+4. Media Foundation Virtual Camera publica NV12 e media types exatos de resolução/FPS. Rotação, espelhamento e crop devem ocorrer na GPU; quando não há transformação, encaminhar sem conversão.
+5. Filas limitadas, timestamps preservados, política latest-frame-wins e métricas de drops/idade. Só mostrar 4K60 ativo quando captura, sender, receiver e câmera virtual confirmarem esse modo.
+
+**Vantagem:** maior teto de desempenho e controle do encoder/câmera no iPhone, além de acesso a superfícies GPU no Windows. **Custo:** maior reescrita e manutenção. Riscos: o iPhone pode não oferecer 4K60 em todos os modos; encoder, calor/bateria e Wi-Fi podem limitar sessões longas; nem todo consumidor enumera a câmera MF em 4K60; native não significa zero-copy por si só.
+
+## Hipótese B — melhor caminho incremental: Safari/PeerJS + WebView2 + frames YUV + C++/libyuv + MF
+
+1. Preservar pareamento atual e página iPhone. Pedir 4K60, consultar `getCapabilities()` quando disponível e registrar `getSettings()`; não anunciar 4K60 se browser/runtime conceder menos.
+2. No WebView2, testar `MediaStreamTrackProcessor` num Dedicated Worker e `VideoFrame.copyTo()`. Medir decode, copyTo, IPC e entrega. Comparar decode software I420 contra hardware/GPU-backed NV12: hardware decode pode ser contraproducente se exigir readback.
+3. Transferir I420 por buffer nativo limitado a C++/libyuv. Respeitar formato, offsets, strides, layout, colorimetria e timestamps; não presumir I420 contíguo.
+4. Implementar MF Virtual Camera opt-in com NV12. Usar GPU para rotação/crop quando possível; manter DirectShow como fallback enquanto a matriz Zoom/Brave/Chrome/OBS não passar.
+5. Feature detection e fallback para pipeline atual, sem reduzir silenciosamente resolução/FPS. Se browser não conceder 4K60, mostrar o modo efetivo e o bloqueio.
+
+**Vantagem:** preserva PeerJS e a experiência web. Pode ser suficiente para 4K30 e, se captura e decode forem adequados, talvez 4K60. **Risco principal:** OmniCam relata que, no ambiente deles, navegadores de telefone só oferecem 60 fps abaixo de 1080p. Isso é um aviso concreto, não prova universal sobre todo iPhone/Safari; medir o dispositivo alvo é obrigatório.
+
+## Teste teórico em Node.js — não é benchmark físico
+
+O script `tools/webcam-4k60-sim.js` simula estágios em pipeline com fila limitada a um quadro mais recente. Executa em Node.js 22; não decodifica vídeo, não usa GPU e não cria câmera virtual.
+
+Para 3840×2160/60:
+- 8.294.400 pixels/quadro; 497.664.000 pixels/s.
+- RGBA: 33.177.600 bytes/quadro, cerca de **1,991 GB/s por passagem**.
+- I420/NV12: 12.441.600 bytes/quadro, cerca de **0,746 GB/s por passagem**.
+- Isso não é bitrate de rede. É volume de memória por passagem; várias cópias multiplicam o custo.
+
+Tempos abaixo são hipóteses de serviço para comparar sensibilidade, não medições:
+
+| Cenário simulado | FPS de saída | Latência média | p95 | Interpretação |
+|---|---:|---:|---:|---|
+| Canvas/RGBA + IPC + BGR (28/4/12 ms) | ~35,7 | ~52,2 ms | ~63,6 ms | Canvas sozinho excede o orçamento de 16,67 ms. |
+| Browser + I420 CPU + pipeline nativo/MF (3,2/2,5/5/1,5 ms) | ~60 | ~12,2 ms | ~15,3 ms | A matemática fecha se os tempos se confirmarem em hardware. |
+| Browser com readback GPU 4K estimado em 48 ms + etapas posteriores | ~20 | >50 ms | alto | Extrapolação linear de ~12 ms em 1080p publicada por OmniCam; não é medição 4K. |
+| WebRTC nativo + decode hardware/D3D11 + MF NV12 (1,5/3,5/2,5 ms) | ~60 | ~7,5 ms | ~9,6 ms | Maior margem teórica se as superfícies GPU funcionarem. |
+| Mesmo caminho nativo com folga (2/4,5/3,5 ms) | ~60 | ~10 ms | ~12,5 ms | Folga teórica, ainda sem rede, aquecimento ou perdas reais. |
+
+A simulação não prova que A atingirá 4K60. Mostra que um único readback de dezenas de milissegundos inviabiliza 60 fps; é necessário medir por estágio e substituir as hipóteses por percentis reais.
+
+## Referências técnicas e discussões de implementação
+
+1. OmniCam — implementação próxima (telefone/browser → WebRTC → virtual camera); lista 4K, mas relata 60 fps no browser de telefone apenas abaixo de 1080p no ambiente deles: https://github.com/Orest-Z/OmniCam
+2. OmniCam ARCHITECTURE — medições de `VideoFrame.copyTo`, software I420 versus GPU-backed NV12 e crescimento de memória ao desenhar frames em Canvas/IMG: https://github.com/Orest-Z/OmniCam/blob/main/ARCHITECTURE.md
+3. WebRTC sample — pedir resolução 4K via constraints, sem garantir que o hardware/runtime a conceda: https://webrtc.github.io/samples/src/content/getusermedia/resolution/
+4. MDN `MediaStreamTrack.getSettings()` — configuração efetiva: https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack/getSettings
+5. MDN constraints/capabilities — diferença entre ideal e obrigatório: https://developer.mozilla.org/en-US/docs/Web/API/Media_Capture_and_Streams_API/Constraints
+6. MDN `VideoFrame.copyTo()`: https://developer.mozilla.org/en-US/docs/Web/API/VideoFrame/copyTo
+7. Chrome Developers — insertable MediaStreamTrack streams/VideoFrame: https://developer.chrome.com/docs/capabilities/web-apis/mediastreamtrack-insertable-media-processing?hl=pt-br
+8. MDN `RTCRtpSender.getStats()`: https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/getStats
+9. Microsoft `IMFVirtualCamera`: https://learn.microsoft.com/pt-br/windows/win32/api/mfvirtualcamera/nn-mfvirtualcamera-imfvirtualcamera
+10. Microsoft Windows-Camera VirtualCamera sample: https://github.com/microsoft/Windows-Camera/tree/master/Samples/VirtualCamera
+11. smourier VCamSample — Media Foundation source RGB32/NV12: https://github.com/smourier/VCamSample
+12. OBS Studio issue #13559 — relato de uma câmera virtual cuja resolução máxima anunciada ao browser é menor que a capacidade observada por outra API. O caso é macOS, portanto ilustra o risco de negociação, não prova falha no Windows: https://github.com/obsproject/obs-studio/issues/13559
+13. WebKit bug #179994 — discussão sobre constraints de resolução/FPS em Safari/WebKit: https://bugs.webkit.org/show_bug.cgi?id=179994
+14. Microsoft AVStream driver samples: https://learn.microsoft.com/en-us/windows-hardware/drivers/samples/avstream-driver-samples
+15. libdatachannel — biblioteca WebRTC nativa, sem decoder de vídeo integrado: https://libdatachannel.org/
+16. Discussão do mantenedor libdatachannel #688 sobre transporte versus decoder: https://github.com/paullouisageneau/libdatachannel/issues/688
+17. Discussão libdatachannel #1307 sobre bitrate/encoder: https://github.com/paullouisageneau/libdatachannel/discussions/1307
+18. WebKit bug sobre custo de `getImageData`/GPU readback: https://bugs.webkit.org/show_bug.cgi?id=65622
+19. Investigação técnica sobre `willReadFrequently`: https://www.schiener.io/2024-08-02/canvas-willreadfrequently
+20. Recomendações de desempenho WebView2: https://learn.microsoft.com/pt-br/microsoft-edge/webview2/concepts/performance
+
+## Ambiente de execução acessível e limites
+
+- Executei localmente uma simulação determinística em Node.js 22.16.0; o script foi adicionado ao branch de pesquisa.
+- Consultei os workflows associados ao commit da simulação; nenhum workflow foi iniciado para esse commit. O workflow Windows existente compila app/softcam em condições específicas, mas não executa benchmark 4K60 de câmera virtual.
+- Não há neste ambiente iPhone físico, Windows 11 com GPU/Frame Server nem Zoom/Brave usando a câmera virtual. Não foi possível provar 4K60 real. Um runner CI Windows pode validar compilação e testes sintéticos, mas não substitui o teste físico ponta a ponta.
+
+## Prompt final para o agente de código — provar antes de reescrever
+
+> Trabalhe em branch isolada em `Inkterminal/Inkterminal.github.io`. Meta final: 3840×2160 a 60 fps sustentados de ponta a ponta; 1080p30 é apenas o piso.
+>
+> **Fase 1 — medir o existente:** instrumente captura, sender WebRTC, receiver, pipeline Windows e câmera. Registre `track.getSettings()`, dimensões/FPS efetivos, codec, bitrate, FPS codificado/enviado/recebido/decodificado/entregue, drops, idade do quadro, RTT/jitter/perda e p50/p95 por etapa. Não anuncie 4K60 se o navegador não o conceder.
+>
+> **Fase 2 — prova B de menor custo:** preserve QR/código, PeerJS, reconexão, seleção de câmera, perfis, rotação, mirror, fit/fill e fallback. Remova Canvas/`getImageData` da rota de produção. Teste `MediaStreamTrackProcessor`/Dedicated Worker e `VideoFrame.copyTo`; compare software I420 com hardware/GPU-backed NV12, pois readback GPU pode ser mais lento. Use C++/libyuv, buffers limitados e fila latest-frame-wins; respeite formato, stride, layout, colorimetria e timestamps. Implemente MF Virtual Camera opt-in em NV12, mantendo DirectShow como fallback até validar Zoom/Brave/Chrome/OBS.
+>
+> **Fase 3 — decidir com evidência:** se iPhone/Safari não conceder 3840×2160/60, ou se copyTo/readback/decoder/CPU impedir 60 fps, não tente resolver apenas com mais conversões C++. Faça experiência A separada: captura iOS nativa (AVFoundation + VideoToolbox), WebRTC nativo com sinalização compatível com o pareamento, receiver Windows com decoder acelerado/superfícies D3D11 e MF Virtual Camera NV12. Preserve QR/código e documente o custo de exigir app iOS.
+>
+> Acrescente testes sintéticos de formatos/layouts/strides, rotação, crop/fill, mudança de resolução, reconexão, perda e shutdown. CI compila Windows e executa testes. Teste físico por pelo menos 10 minutos em 4K60 com iPhone alvo e consumidor real: média ≥59 fps, p95 da idade do quadro <50 ms como alvo a validar, sem backlog/memória crescente ou throttling térmico progressivo, sem regressões. Teste 1080p30 como piso separadamente.
+>
+> Sem hardware real, declare “simulação/CI apenas”. Não faça merge automático nem troque o perfil padrão sem evidência. Mantenha licenças/avisos de dependências e não solicite etapas manuais ao usuário.
+
