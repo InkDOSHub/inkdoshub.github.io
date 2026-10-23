@@ -35,7 +35,7 @@ agregação, e não como uma obra derivada.
 ## Cuidados
 
 - **App Store:** se o XeOS for um app da App Store e passar a *embutir* o Linux (em vez de abrir a página
-  https://inkterminal.github.io/), as partes GPL podem entrar em conflito com os termos da Apple (foi o que aconteceu
+  https://inkdoshub.github.io/), as partes GPL podem entrar em conflito com os termos da Apple (foi o que aconteceu
   com o VLC em 2011). Abrir a página pela internet evita isso, porque nesse caso o app não distribui o código.
 - **Nome "VS Code":** "Visual Studio Code" e o logotipo são marcas da Microsoft. Num produto comercial, chame de
   "Editor de código" (como o cartão já faz) e não use o logotipo. A loja de extensões configurada é a Open VSX, que é

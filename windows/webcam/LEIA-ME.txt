@@ -8,7 +8,7 @@ Turns the iPhone camera into a Windows webcam, without OBS.
    (the app is open source but not signed).
 3. The first time, Windows asks for administrator permission once, to create the camera
    "InkDOS Hub Webcam". If you move the folder later, it asks again.
-4. Choose the quality. On the iPhone, open https://inkterminal.github.io/apps/webcam/,
+4. Choose the quality. On the iPhone, open https://inkdoshub.github.io/apps/webcam/,
    scan the QR code shown in the app (Camera app) and tap Start.
 5. In Zoom, Teams, Meet or Discord, choose the camera "InkDOS Hub Webcam".
 
@@ -18,7 +18,7 @@ Windows 11). Keep the app open while you use the camera.
 To remove the camera: run in this folder, as administrator:
   "InkDOS Hub Webcam.exe" --remover
 
-Source code (MIT): https://github.com/Inkterminal/inkterminal.github.io/tree/main/windows/webcam
+Source code (MIT): https://github.com/InkDOSHub/inkdoshub.github.io/tree/main/windows/webcam
 Virtual camera: softcam by tshino (MIT), https://github.com/tshino/softcam (see softcam-LICENSE.txt).
 
 ---
