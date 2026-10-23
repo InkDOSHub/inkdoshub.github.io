@@ -1,9 +1,11 @@
 # InkTerminal Webcam — investigação do pipeline de vídeo
 
 Data: 2026-10-22  
-Escopo: Windows 11, iPhone/Safari → WebRTC → câmera virtual, alvo 1920×1080/30 fps.
+Escopo: Windows 11, iPhone/Safari → WebRTC → câmera virtual, meta final 3840×2160/60 fps; piso obrigatório 1920×1080/30 fps.
 
-## Decisão resumida
+## Meta de desempenho e decisão resumida
+
+**Meta final do produto: 4K (3840×2160) a 60 fps sustentados. Piso mínimo de compatibilidade: 1080p a 30 fps.** 1080p30 não conta como conclusão bem-sucedida da otimização; é apenas o nível mínimo para evitar regressão. As metas devem ser avaliadas separadamente por dispositivo, navegador/runtime, codec, rede e consumidor da câmera virtual. A meta 4K60 só pode ser declarada após teste físico de ponta a ponta, não por simulação.
 
 **Hipótese preferida após a comparação (B): manter a recepção WebRTC no Chromium/WebView2 e substituir o caminho de pixels Canvas/RGBA por frames WebCodecs/VideoFrame, enviados em formato YUV para um pipeline nativo otimizado (libyuv), mantendo inicialmente o dispositivo DirectShow `softcam`.**
 
@@ -63,11 +65,15 @@ Os números históricos do log informado no projeto mostram, em 1080p, aproximad
 - Risco principal: suporte/contexto de `MediaStreamTrackProcessor` no WebView2 runtime e custo de readback se o frame estiver na GPU. A implementação deve testar capacidades reais, usar software decode como experimento controlado e manter fallback atual.
 - Risco secundário: formatos/strides/colorimetria devem ser tratados corretamente. Não assumir I420 contíguo sem verificar layout.
 
+## Custo de dados para a meta 4K60
+
+O 4K (3840×2160) contém 8.294.400 pixels por quadro. A 60 fps são 497,7 milhões de pixels/s — **8 vezes** o volume de pixels de 1080p30. Um quadro 4K RGBA ocupa 33.177.600 bytes (31,64 MiB); uma única passagem a 60 fps movimenta aproximadamente 1,99 GB/s (antes de cópias adicionais). Um quadro 4K I420 ocupa aproximadamente 12.441.600 bytes (11,87 MiB), cerca de 746 MB/s a 60 fps por passagem. Esses números são tráfego bruto teórico, não largura de banda de rede nem medições do computador. WebRTC normalmente transporta vídeo comprimido; os custos acima aparecem em buffers/descompressão e cópias de pixels.
+
 ## Mini-teste teórico (não é benchmark físico)
 
-Um quadro 1080p RGBA ocupa 1920 × 1080 × 4 = 8.294.400 bytes (7,91 MiB); a 30 fps, uma única passagem desse buffer equivale a aproximadamente 249 MB/s. I420 ocupa aproximadamente 3.110.400 bytes (2,97 MiB), cerca de 93 MB/s a 30 fps — redução aproximada de 62,5% no volume por passagem.
+Um quadro 1080p RGBA ocupa 8.294.400 bytes; a 30 fps, uma passagem equivale a aproximadamente 249 MB/s. I420 ocupa 3.110.400 bytes, cerca de 93 MB/s a 30 fps. Para 4K60, esses volumes sobem para cerca de 1,99 GB/s em RGBA e 746 MB/s em I420 por passagem — portanto, cópias intermediárias precisam ser minimizadas.
 
-Modelo discreto de fila única com “último quadro vence”, 30 fps de entrada, jitter de chegada ±1,5 ms e serviço aleatório. Os tempos abaixo são **parâmetros hipotéticos** escolhidos para comparar sensibilidade, não medidas do InkTerminal nem garantia de desempenho:
+Modelo discreto de fila única com “último quadro vence”, 30 fps de entrada para os cenários comparativos iniciais, jitter de chegada ±1,5 ms e serviço aleatório. Este modelo não demonstra a meta 4K60. Os tempos abaixo são **parâmetros hipotéticos** escolhidos para comparar sensibilidade, não medidas do InkTerminal nem garantia de desempenho:
 
 | Cenário | Serviço por quadro assumido | Resultado do modelo |
 |---|---:|---|
@@ -86,7 +92,9 @@ A implementação deve ter flag de experimento e fallback automático para o pip
 - estado de reconexão e resultado de 1080p30 após reconectar;
 - Zoom e Brave/Chrome separadamente, porque usam caminhos de captura distintos.
 
-**Critério mínimo de aprovação sugerido:** 30 fps de saída sustentados por 60 s (média ≥29,5), p95 da idade do quadro <100 ms, fila limitada a um quadro pendente, nenhum crescimento contínuo de memória e nenhuma regressão em pareamento, rotação, fit/fill ou reconexão. Não declarar sucesso só porque o log mostra 1080p.
+**Critério de piso (necessário, mas insuficiente para concluir o projeto):** 1080p30 de saída sustentados por 60 s (média ≥29,5), p95 da idade do quadro <100 ms, fila limitada a um quadro pendente, memória estável e nenhuma regressão funcional.
+
+**Critério da meta final:** 3840×2160 a 60 fps de ponta a ponta por pelo menos 10 minutos, com média ≥59 fps, p95 de idade do quadro <50 ms (alvo de engenharia, a validar), sem backlog crescente, sem crescimento contínuo de memória e sem queda sustentada de resolução/fps. Medir CPU/GPU, bitrate, perdas, drops e temperatura/limitação térmica. Testar separadamente a saída da câmera virtual nos consumidores suportados. Se o iPhone, a rede, o runtime WebView2, o codec ou o dispositivo virtual não suportarem 4K60, reportar o gargalo e o melhor perfil realmente sustentado; não declarar a meta cumprida com base apenas em fps do WebRTC.
 
 ## Próxima implementação recomendada
 
@@ -94,15 +102,17 @@ A implementação deve ter flag de experimento e fallback automático para o pip
 2. Provar a leitura de frames no WebView2 usando `MediaStreamTrackProcessor` em Dedicated Worker e `VideoFrame.copyTo`; feature-detect e manter fallback.
 3. Adicionar libyuv ao build Windows e converter do formato real de entrada diretamente para o formato exigido por softcam, executando rotação/espelhamento/fit/fill no pipeline nativo.
 4. Manter DirectShow no primeiro experimento. Avaliar MFVirtualCamera em ramo separado somente após B passar os testes e com matriz de compatibilidade de Zoom/Brave/Chrome.
-5. Se o readback continuar acima do orçamento, estudar compartilhamento GPU/D3D11 e só então considerar receptor WebRTC nativo completo.
+5. Projetar o pipeline para 4K60 desde o início: evitar RGBA e cópias repetidas, usar buffers limitados, converter no formato nativo mais adequado e medir aceleração por hardware/D3D11. Se houver readback GPU→CPU inevitável, avaliar compartilhamento de superfícies GPU.
+6. Testar separadamente limites reais de captura do iPhone/Safari, resolução negociada do WebRTC, codec/encoder, bitrate e capacidades do softcam e dos aplicativos consumidores. Não presumir que 4K60 é suportado só porque a tela de configuração oferece esse perfil.
 
 ## Prompt de implementação para o agente de código
 
-> Trabalhe no repositório `Inkterminal/Inkterminal.github.io`, em branch isolada. Implemente a hipótese B como prova de conceito opt-in para o InkTerminal Webcam Windows: substitua o pipeline Canvas → getImageData → cópia RGBA → conversão manual BGR por captura de VideoFrames do MediaStream WebRTC no WebView2, preferencialmente via MediaStreamTrackProcessor em Dedicated Worker, e um pipeline nativo C++ com libyuv.
+> Trabalhe no repositório `Inkterminal/Inkterminal.github.io`, em branch isolada. Implemente a hipótese B como prova de conceito opt-in para o InkTerminal Webcam Windows, projetando para a meta final de 4K (3840×2160) a 60 fps; 1080p30 é somente o piso mínimo: substitua o pipeline Canvas → getImageData → cópia RGBA → conversão manual BGR por captura de VideoFrames do MediaStream WebRTC no WebView2, preferencialmente via MediaStreamTrackProcessor em Dedicated Worker, e um pipeline nativo C++ com libyuv.
 >
 > Requisitos:
 > - Preserve PeerJS, pareamento QR/código, codec, qualidade, reconexão, rotação, espelhamento, fit/fill, placeholder, perfis e compatibilidade atual.
-> - Não mude a resolução nem o FPS solicitados para esconder lentidão.
+> - Meta final obrigatória: sustentar 3840×2160 a 60 fps ponta a ponta; piso de compatibilidade: 1920×1080 a 30 fps. Não trate o piso como conclusão do projeto.
+> - Não mude a resolução nem o FPS solicitados para esconder lentidão. Registre resolução/FPS solicitados e efetivamente negociados/entregues em cada etapa.
 > - Detecte suporte a cada API e mantenha fallback para o pipeline atual.
 > - Trate formatos reais (I420/NV12/RGBA/BGRA), layout/strides, timestamps, colorimetria e rotação; não assuma buffer I420 apertado sem validação.
 > - Use fila limitada e política “quadro mais novo vence”; nunca permita backlog crescente. Não bloquear a thread UI do WebView2 com conversão de pixels.
@@ -110,6 +120,6 @@ A implementação deve ter flag de experimento e fallback automático para o pip
 > - Não introduza Media Foundation Virtual Camera no mesmo patch inicial; mantenha softcam/DirectShow até provar a melhoria. Faça a hipótese A (receptor WebRTC nativo + Media Foundation Virtual Camera) uma segunda experiência separada, pois exige decoder, adaptação da sinalização PeerJS, media source COM e validação de compatibilidade.
 > - Acrescente teste sintético de formatos/layouts, rotação, resolução, cadência, perda de conexão e shutdown seguro. Atualize o workflow Windows para compilar e executar testes automaticamente.
 > - Execute build Windows em CI e registre os resultados. Se não houver máquina física para medir Zoom, declare explicitamente que a meta de 1080p30 ainda não foi validada em hardware.
-> - Só habilite a nova rota por padrão depois de demonstrar ≥29,5 fps de saída por 60 s, p95 de idade do quadro <100 ms, fila limitada, memória estável e nenhum regresso de funcionalidades. Caso contrário, deixe o experimento opt-in e documente o bloqueio.
+> - Só considere o piso aprovado após ≥29,5 fps em 1080p por 60 s, p95 da idade do quadro <100 ms, fila limitada, memória estável e nenhuma regressão. Só declare a meta final aprovada após 4K60 sustentado por 10 minutos (média ≥59 fps), p95 da idade do quadro <50 ms como alvo a validar, sem backlog/memória crescente e com consumidor real da câmera virtual. Até provar isso em hardware, mantenha a rota opt-in e documente claramente o que foi validado apenas em CI/simulação versus em máquina física.
 >
 > Faça alterações pequenas, revisáveis e licenciadas corretamente. Não copie arquivos de terceiros sem preservar os avisos/licenças. Não afirme que o build, o teste físico ou a compatibilidade com Zoom passaram sem evidência correspondente.
