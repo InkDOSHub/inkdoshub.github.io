@@ -252,8 +252,10 @@ namespace InkDOSHubWebcam
                 if (qualidade.SelectedItem != antes) AbrirCamera();
             };
 
+            Tamanho();
             nativo.CheckedChanged += delegate
             {
+                Tamanho();
                 Salvar();
                 PararNativo();
                 if (web.CoreWebView2 != null) web.CoreWebView2.Navigate(Endereco());
@@ -441,6 +443,13 @@ namespace InkDOSHubWebcam
             }
             else if (m != null && m.StartsWith("NATIVO ", StringComparison.Ordinal)) IniciarNativo(m.Substring(7).Trim());
             else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m.Length > 300 ? m.Substring(0, 300) : m);
+        }
+
+        /* Receptor nativo não tem prévia: janela compacta, só a barra e o cartão do QR. */
+        void Tamanho()
+        {
+            if (nativo.Checked) { MinimumSize = new Size(520, 300); ClientSize = new Size(760, 480); }
+            else { MinimumSize = new Size(520, 420); ClientSize = new Size(960, 640); }
         }
 
         string Endereco() { return Pagina + (nativo.Checked ? "&nativo=1" : ""); }
