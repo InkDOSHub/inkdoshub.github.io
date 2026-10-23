@@ -140,6 +140,13 @@ namespace InkTerminalWebcam
     class Janela : Form
     {
         const string Pagina = "https://inkterminal.github.io/apps/webcam/?app=1";
+        const string Origem = "https://inkterminal.github.io/apps/webcam/";
+
+        /* Só a página da Webcam pode abrir aqui: ela recebe o buffer da câmera virtual. */
+        static bool Permitida(string uri)
+        {
+            return uri != null && uri.StartsWith(Origem, StringComparison.Ordinal);
+        }
         static readonly Qualidade[] Qualidades =
         {
             new Qualidade("1080p 60 fps (high load)", 1920, 1080, 60),
@@ -241,6 +248,14 @@ namespace InkTerminalWebcam
                 web.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 web.CoreWebView2.Settings.IsStatusBarEnabled = false;
                 web.CoreWebView2.WebMessageReceived += Mensagem;
+                web.CoreWebView2.NavigationStarting += delegate(object sender, CoreWebView2NavigationStartingEventArgs e)
+                {
+                    if (!Permitida(e.Uri)) { Program.Log("Blocked navigation to " + e.Uri); e.Cancel = true; }
+                };
+                web.CoreWebView2.NewWindowRequested += delegate(object sender, CoreWebView2NewWindowRequestedEventArgs e)
+                {
+                    e.Handled = true;
+                };
                 web.CoreWebView2.NavigationCompleted += delegate(object sender, CoreWebView2NavigationCompletedEventArgs e)
             {
                 Program.Log("Navigation completed. success=" + e.IsSuccess + "; webError=" + e.WebErrorStatus);
@@ -331,6 +346,7 @@ namespace InkTerminalWebcam
 
         void Mensagem(object s, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            if (!Permitida(e.Source)) return;
             string m;
             try { m = e.TryGetWebMessageAsString(); } catch (Exception) { return; }
             // "frame:<bgrx|rgba>:<posição>"; o valor guardado na fila é posição*2 + (1 se BGRX)
@@ -343,7 +359,7 @@ namespace InkTerminalWebcam
                 fila.Enqueue(slot * 2 + (partes[1] == "bgrx" ? 1 : 0));
                 temQuadro.Set();
             }
-            else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m);
+            else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m.Length > 300 ? m.Substring(0, 300) : m);
         }
 
         /* 4 bytes por pixel (BGRX ou RGBA) para os 3 bytes BGR que o softcam pede, em faixas paralelas. */
