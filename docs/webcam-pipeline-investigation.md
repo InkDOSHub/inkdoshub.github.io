@@ -5,7 +5,7 @@ Escopo: Windows 11, iPhone/Safari → WebRTC → câmera virtual, alvo 1920×108
 
 ## Decisão resumida
 
-**Hipótese preferida (A): manter a recepção WebRTC no Chromium/WebView2 e substituir o caminho de pixels Canvas/RGBA por frames WebCodecs/VideoFrame, enviados em formato YUV para um pipeline nativo otimizado (libyuv), mantendo inicialmente o dispositivo DirectShow `softcam`.**
+**Hipótese preferida após a comparação (B): manter a recepção WebRTC no Chromium/WebView2 e substituir o caminho de pixels Canvas/RGBA por frames WebCodecs/VideoFrame, enviados em formato YUV para um pipeline nativo otimizado (libyuv), mantendo inicialmente o dispositivo DirectShow `softcam`.**
 
 Não recomendo como primeira implementação reescrever simultaneamente o receptor WebRTC nativo e o dispositivo virtual em Media Foundation. Essa é uma arquitetura possível, mas dobra a superfície de risco: negociação WebRTC/sinalização/ICE/codec e implementação COM/Frame Server da câmera. A API `libdatachannel` não inclui decodificação de mídia; a discussão do próprio mantenedor deixa claro que a aplicação precisa fornecer o decoder e o controle de bitrate [11][12]. Isso significa que o “receptor nativo” não elimina o trabalho de codec, jitter buffer e recuperação de pacotes.
 
@@ -45,7 +45,7 @@ Os números históricos do log informado no projeto mostram, em 1080p, aproximad
 
 ## Confronto das hipóteses
 
-### A — Chromium/WebView2 WebRTC + VideoFrame/YUV + pipeline nativo + DirectShow atual
+### A — receptor WebRTC nativo + decoder + Media Foundation Virtual Camera (hipótese principal a investigar)
 
 - Mantém o servidor de pareamento PeerJS, a negociação de codec, ICE, reconexão e permissões do iPhone que já funcionam.
 - Retira Canvas e `getImageData` do caminho de cada frame.
@@ -55,7 +55,7 @@ Os números históricos do log informado no projeto mostram, em 1080p, aproximad
 - Risco principal: suporte/contexto de `MediaStreamTrackProcessor` no WebView2 runtime e custo de readback se o frame estiver na GPU. A implementação deve testar capacidades reais, usar software decode como experimento controlado e manter fallback atual.
 - Risco secundário: formatos/strides/colorimetria devem ser tratados corretamente. Não assumir I420 contíguo sem verificar layout.
 
-### B — receptor WebRTC nativo + decoder H.264/VP8 + Media Foundation Virtual Camera
+### B — Chromium/WebView2 WebRTC + VideoFrame/YUV + pipeline nativo + DirectShow atual (segunda hipótese)
 
 - Potencial de evitar inteiramente o readback de pixels do Chromium e obter maior controle do buffer/decoder.
 - Requer trocar ou compatibilizar o protocolo de sinalização PeerJS; um receptor nativo não se conecta magicamente ao servidor PeerJS existente.
@@ -72,8 +72,8 @@ Modelo discreto de fila única com “último quadro vence”, 30 fps de entrada
 | Cenário | Serviço por quadro assumido | Resultado do modelo |
 |---|---:|---|
 | Atual (aproximação dos custos observados) | 60 ms ± 5 ms | ~16,7 fps; ~77 ms de latência média |
-| A: VideoFrame/I420 + pipeline nativo | 3 ms ± 1 ms | ~30 fps; ~3 ms de latência média |
-| B: receptor/decoder nativo + MF | 6 ms ± 2 ms | ~30 fps; ~6 ms de latência média |
+| A: receptor/decoder nativo + MF (hipótese) | 6 ms ± 2 ms | ~30 fps; ~6 ms de latência média |
+| B: VideoFrame/YUV + pipeline nativo (hipótese) | 3 ms ± 1 ms | ~30 fps; ~3 ms de latência média |
 
 O modelo confirma apenas a aritmética da fila: se o serviço excede 33,33 ms continuamente, 30 fps não se sustentam; se fica bem abaixo do período e a fila não acumula, há margem. Não modela CPU real, codecs, rede, GPU, Frame Server, Zoom, pausas do iOS nem comportamento térmico. Os valores de A derivam parcialmente de medições publicadas por OmniCam em outro equipamento; os de B são apenas cenário de sensibilidade. Portanto, o teste não prova que A alcançará 30 fps no computador-alvo.
 
@@ -93,12 +93,12 @@ A implementação deve ter flag de experimento e fallback automático para o pip
 1. Criar pipeline nativo de frames com buffer limitado (double/triple buffer), “newest frame wins”, timestamps e contadores.
 2. Provar a leitura de frames no WebView2 usando `MediaStreamTrackProcessor` em Dedicated Worker e `VideoFrame.copyTo`; feature-detect e manter fallback.
 3. Adicionar libyuv ao build Windows e converter do formato real de entrada diretamente para o formato exigido por softcam, executando rotação/espelhamento/fit/fill no pipeline nativo.
-4. Manter DirectShow no primeiro experimento. Avaliar MFVirtualCamera em ramo separado somente após A passar os testes e com matriz de compatibilidade de Zoom/Brave/Chrome.
+4. Manter DirectShow no primeiro experimento. Avaliar MFVirtualCamera em ramo separado somente após B passar os testes e com matriz de compatibilidade de Zoom/Brave/Chrome.
 5. Se o readback continuar acima do orçamento, estudar compartilhamento GPU/D3D11 e só então considerar receptor WebRTC nativo completo.
 
 ## Prompt de implementação para o agente de código
 
-> Trabalhe no repositório `Inkterminal/Inkterminal.github.io`, em branch isolada. Implemente uma prova de conceito opt-in para o InkTerminal Webcam Windows que substitua o pipeline Canvas → getImageData → cópia RGBA → conversão manual BGR por captura de VideoFrames do MediaStream WebRTC no WebView2, preferencialmente via MediaStreamTrackProcessor em Dedicated Worker, e um pipeline nativo C++ com libyuv.
+> Trabalhe no repositório `Inkterminal/Inkterminal.github.io`, em branch isolada. Implemente a hipótese B como prova de conceito opt-in para o InkTerminal Webcam Windows: substitua o pipeline Canvas → getImageData → cópia RGBA → conversão manual BGR por captura de VideoFrames do MediaStream WebRTC no WebView2, preferencialmente via MediaStreamTrackProcessor em Dedicated Worker, e um pipeline nativo C++ com libyuv.
 >
 > Requisitos:
 > - Preserve PeerJS, pareamento QR/código, codec, qualidade, reconexão, rotação, espelhamento, fit/fill, placeholder, perfis e compatibilidade atual.
@@ -107,7 +107,7 @@ A implementação deve ter flag de experimento e fallback automático para o pip
 > - Trate formatos reais (I420/NV12/RGBA/BGRA), layout/strides, timestamps, colorimetria e rotação; não assuma buffer I420 apertado sem validação.
 > - Use fila limitada e política “quadro mais novo vence”; nunca permita backlog crescente. Não bloquear a thread UI do WebView2 com conversão de pixels.
 > - Adicione métricas de fps recebido/processado/entregue, descartes, idade do quadro e p50/p95 de cada etapa.
-> - Não introduza Media Foundation Virtual Camera no mesmo patch inicial; mantenha softcam/DirectShow até provar a melhoria. Faça MF uma segunda experiência separada, pois muda compatibilidade e requer uma media source COM.
+> - Não introduza Media Foundation Virtual Camera no mesmo patch inicial; mantenha softcam/DirectShow até provar a melhoria. Faça a hipótese A (receptor WebRTC nativo + Media Foundation Virtual Camera) uma segunda experiência separada, pois exige decoder, adaptação da sinalização PeerJS, media source COM e validação de compatibilidade.
 > - Acrescente teste sintético de formatos/layouts, rotação, resolução, cadência, perda de conexão e shutdown seguro. Atualize o workflow Windows para compilar e executar testes automaticamente.
 > - Execute build Windows em CI e registre os resultados. Se não houver máquina física para medir Zoom, declare explicitamente que a meta de 1080p30 ainda não foi validada em hardware.
 > - Só habilite a nova rota por padrão depois de demonstrar ≥29,5 fps de saída por 60 s, p95 de idade do quadro <100 ms, fila limitada, memória estável e nenhum regresso de funcionalidades. Caso contrário, deixe o experimento opt-in e documente o bloqueio.
