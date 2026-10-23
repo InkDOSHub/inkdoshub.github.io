@@ -1,4 +1,11 @@
 {
+"1080p 30 fps · ~8 Mbps · light (recommended)": "1080p 30 fps · ~8 Mbps · leve (recomendado)",
+"1080p 60 fps · ~15 Mbps · medium": "1080p 60 fps · ~15 Mbps · média",
+"4K 30 fps · ~25 Mbps · very heavy": "4K 30 fps · ~25 Mbps · muito pesada",
+"4K 60 fps · ~40 Mbps · extreme": "4K 60 fps · ~40 Mbps · extrema",
+"720p 30 fps · ~4 Mbps · lightest": "720p 30 fps · ~4 Mbps · a mais leve",
+"720p 60 fps · ~6 Mbps · light": "720p 60 fps · ~6 Mbps · leve",
+"Custom resolutions": "Resoluções personalizadas",
 "Hide preview": "Esconder prévia",
 "Show preview": "Mostrar prévia",
 "Video fell behind; reconnecting to catch up…": "O vídeo ficou atrasado; reconectando para alcançar…",

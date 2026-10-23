@@ -176,12 +176,14 @@
     <div class="controles">
       <label>Code of the PC<input id="hcodigo" maxlength="10" minlength="10" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="abcdefghjk"></label>
       <label>Quality<select id="qualidade">
-        <option value="2160p60">4K 60 fps (maximum)</option>
-        <option value="2160p30">4K 30 fps</option>
-        <option value="1080p60" selected>1080p 60 fps</option>
-        <option value="1080p30">1080p 30 fps</option>
-        <option value="720p60">720p 60 fps</option>
-        <option value="720p30">720p 30 fps</option>
+        <option value="1080p30" selected>1080p 30 fps · ~8 Mbps · light (recommended)</option>
+        <optgroup label="Custom resolutions">
+          <option value="720p30">720p 30 fps · ~4 Mbps · lightest</option>
+          <option value="720p60">720p 60 fps · ~6 Mbps · light</option>
+          <option value="1080p60">1080p 60 fps · ~15 Mbps · medium</option>
+          <option value="2160p30">4K 30 fps · ~25 Mbps · very heavy</option>
+          <option value="2160p60">4K 60 fps · ~40 Mbps · extreme</option>
+        </optgroup>
       </select></label>
       <label>Camera<select id="camera">
         <option value="environment">Back camera</option>
@@ -211,6 +213,6 @@
 <script src="../../assets/icones.js?v=2"></script>
 <script src="lib/peerjs.min.js"></script>
 <script src="lib/qrcode.js"></script>
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>
