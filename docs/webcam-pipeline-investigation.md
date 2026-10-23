@@ -213,7 +213,7 @@ A simulação não prova que A atingirá 4K60. Mostra que um único readback de 
 
 ## Ambiente de execução acessível e limites
 
-- Executei localmente uma simulação determinística em Node.js 22.16.0; o script foi adicionado ao branch de pesquisa.
+- Executei localmente em Node.js 22.16.0 uma simulação equivalente, com a mesma lógica de estágios e cenários; o script correspondente foi versionado no branch, mas não foi executado por GitHub Actions.
 - Consultei os workflows associados ao commit da simulação; nenhum workflow foi iniciado para esse commit. O workflow Windows existente compila app/softcam em condições específicas, mas não executa benchmark 4K60 de câmera virtual.
 - Não há neste ambiente iPhone físico, Windows 11 com GPU/Frame Server nem Zoom/Brave usando a câmera virtual. Não foi possível provar 4K60 real. Um runner CI Windows pode validar compilação e testes sintéticos, mas não substitui o teste físico ponta a ponta.
 
