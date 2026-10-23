@@ -1,11 +1,11 @@
-/* Service worker do portal offline do InkTerminal.
+/* Service worker do portal offline do InkDOS Hub.
 
    Ele é registrado pela tela inicial. A cópia offline é
-   baixada pela própria página (legado/offline.js, fora de uso) para o cache "inkterminal-offline"; este arquivo
+   baixada pela própria página (legado/offline.js, fora de uso) para o cache "inkdoshub-offline"; este arquivo
    apenas serve essa cópia quando não há rede. Com rede, tudo vem do site normalmente, então uma
    versão nova do site nunca se mistura com arquivos antigos da cópia. */
 "use strict";
-var CACHE = "inkterminal-offline";
+var CACHE = "inkdoshub-offline";
 var RAIZ = new URL("./", self.location.href).pathname; // "/" no GitHub Pages
 
 self.addEventListener("install", function () { self.skipWaiting(); });
@@ -22,10 +22,10 @@ function chave(url) {
 /* Rede primeiro; a cópia offline só quando a rede falha. */
 function daRedeOuCopia(req) {
   return fetch(req).catch(function (erro) {
-    // a cópia offline ou o pacote de idioma (cache "inkterminal-idioma", de assets/idioma.js)
+    // a cópia offline ou o pacote de idioma (cache "inkdoshub-idioma", de assets/idioma.js)
     var k = chave(req.url || req);
     return caches.open(CACHE).then(function (c) { return c.match(k); }).then(function (r) {
-      return r || caches.open("inkterminal-idioma").then(function (c) { return c.match(k); });
+      return r || caches.open("inkdoshub-idioma").then(function (c) { return c.match(k); });
     }).then(function (r) {
       if (r) return r;
       throw erro;

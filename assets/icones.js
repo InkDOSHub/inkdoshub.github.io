@@ -1,4 +1,4 @@
-/* Ícones de linha do InkTerminal (desenhos do Lucide, licença ISC, https://lucide.dev).
+/* Ícones de linha do InkDOS Hub (desenhos do Lucide, licença ISC, https://lucide.dev).
    Uso: <button data-icone="play"></button>, ou inkIcone("play") para gerar o SVG. */
 (function () {
   var P = {

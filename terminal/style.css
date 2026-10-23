@@ -1,4 +1,4 @@
-/* Terminal do InkTerminal: a barra e as cores vêm de ../assets/barra.css (as mesmas de todas as ferramentas). */
+/* Terminal do InkDOS Hub: a barra e as cores vêm de ../assets/barra.css (as mesmas de todas as ferramentas). */
 body.ink-app { position: fixed; inset: 0; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
 .ink-bar { flex-wrap: wrap; row-gap: 6px; }
 #term { padding: 6px 4px 0 8px; background: var(--term-bg); }

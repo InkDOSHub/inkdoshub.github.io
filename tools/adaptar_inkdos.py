@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Adapta a cópia dos apps do InkDOS (inkdos/) ao InkTerminal. Rode depois de tools/copiar_inkdos.sh.
+"""Adapta a cópia dos apps do InkDOS (inkdos/) ao InkDOS Hub. Rode depois de tools/copiar_inkdos.sh.
 
 Três mudanças:
 1. Cada app (index.html) carrega assets/gerenciador-app.js (abas dos apps, aviso de memória no
@@ -7,18 +7,18 @@ Três mudanças:
 2. "Editar com ONLYOFFICE": no InkDOS original o botão abre os editores do site inkdos-tools.github.io
    numa aba nova. Aqui o documento vai para a cópia dos editores em onlyoffice/, na aba nova que o
    botão já abre (InkPaginas.abrirEditor, em assets/gerenciador-app.js).
-3. Idioma: os apps seguem o pacote de idioma do InkTerminal (assets/idioma.js, carregado no começo
-   de cada app). Os menus de idioma do InkDOS abrem o aviso de pacotes do InkTerminal, em vez de
+3. Idioma: os apps seguem o pacote de idioma do InkDOS Hub (assets/idioma.js, carregado no começo
+   de cada app). Os menus de idioma do InkDOS abrem o aviso de pacotes do InkDOS Hub, em vez de
    trocar só aquele app.
 """
 import glob, os, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MARCA = "/* InkTerminal: editor ONLYOFFICE local */"
+MARCA = "/* InkDOS Hub: editor ONLYOFFICE local */"
 
 FUNCAO = MARCA + r"""
-function inkTerminal(){return g.InkPaginas&&g.InkPaginas.abrirEditor?g.InkPaginas:null}
-function toInkTerminal(it,file,win){
+function inkDOSHub(){return g.InkPaginas&&g.InkPaginas.abrirEditor?g.InkPaginas:null}
+function toInkDOSHub(it,file,win){
  const id=g.crypto?.randomUUID?g.crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2,10);
  const lang=String(g.InkDOSLocalization?.currentLanguage||doc.documentElement.lang||g.navigator?.language||'en');
  const LOCALE={pt:'pt',es:'es',de:'de',ja:'ja',zh:'zh-CN',fr:'fr',ru:'ru'}[lang.toLowerCase().split('-')[0]];
@@ -28,8 +28,8 @@ function toInkTerminal(it,file,win){
   .then(()=>{it.abrirEditor({id,nome:file.name,locale:LOCALE||''},win);return true});
 }
 function openInOffice(file,light,win){
- const it=inkTerminal();
- if(it){toInkTerminal(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
+ const it=inkDOSHub();
+ if(it){toInkDOSHub(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
  return openInOfficeOriginal(file,light,win);
 }
 function openInOfficeOriginal(file,light,win){"""
@@ -43,13 +43,13 @@ IDIOMA = '<script src="../../../assets/idioma.js?v=1"></script>'
 IDIOMA_TROCAS = [
     ("inkdos/shared/localization/ui-localization.js",
      "function readLanguage(key,legacyKeys=legacyStorageKeys){storageKey=typeof key==='string'?key:storageKey;",
-     "function readLanguage(key,legacyKeys=legacyStorageKeys){storageKey=typeof key==='string'?key:storageKey;/* InkTerminal: pacote de idioma */if(root.InkIdioma)return normalizeLanguage(root.InkIdioma.atual);"),
+     "function readLanguage(key,legacyKeys=legacyStorageKeys){storageKey=typeof key==='string'?key:storageKey;/* InkDOS Hub: pacote de idioma */if(root.InkIdioma)return normalizeLanguage(root.InkIdioma.atual);"),
     ("inkdos/shared/localization/settings-strip.js",
      "function showLanguage(anchor){",
-     "function showLanguage(anchor){/* InkTerminal: pacote de idioma */if(root.InkIdioma){closePopover();root.InkIdioma.escolher();return}"),
+     "function showLanguage(anchor){/* InkDOS Hub: pacote de idioma */if(root.InkIdioma){closePopover();root.InkIdioma.escolher();return}"),
     ("inkdos/shared/localization/settings-strip.js",
      "const api=root.InkDOSLocalization;if(api){section('Language');for(const language of api.languages){",
-     "const api=root.InkDOSLocalization;if(api&&root.InkIdioma){/* InkTerminal: pacote de idioma */section('Language');const o=option(root.InkIdioma.nome(),'idioma',()=>{closePopover();root.InkIdioma.escolher()});o.classList.add('active');popover.appendChild(o)}else if(api){section('Language');for(const language of api.languages){"),
+     "const api=root.InkDOSLocalization;if(api&&root.InkIdioma){/* InkDOS Hub: pacote de idioma */section('Language');const o=option(root.InkIdioma.nome(),'idioma',()=>{closePopover();root.InkIdioma.escolher()});o.classList.add('active');popover.appendChild(o)}else if(api){section('Language');for(const language of api.languages){"),
 ]
 
 def main():

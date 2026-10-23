@@ -1,4 +1,4 @@
-/* Barra comum das ferramentas do InkTerminal: mesmas cores do InkDOS, sem sombras nem animações. */
+/* Barra comum das ferramentas do InkDOS Hub: mesmas cores do InkDOS, sem sombras nem animações. */
 :root{--bg:#f2f5f8;--card:#fff;--text:#192235;--muted:#697486;--border:#e3e8ef;--btn:#f0f2f5;--btn-active:#e3e8ef;--accent:#3fb950}
 html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5c3;--border:#323c49;--btn:#252d37;--btn-active:#323c49}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}

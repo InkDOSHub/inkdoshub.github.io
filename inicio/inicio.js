@@ -1,4 +1,4 @@
-/* Tela inicial do InkTerminal: cada cartão abre a ferramenta na própria aba, carregada só quando é
+/* Tela inicial do InkDOS Hub: cada cartão abre a ferramenta na própria aba, carregada só quando é
    pedida. Tocar de novo num app já aberto volta para a aba dele (assets/gerenciador-app.js).
    Cada app cuida da própria memória. */
 (function () {
@@ -18,7 +18,7 @@
   // Tema: troca aqui; as outras abas abertas acompanham pelo evento "storage"
   $("tema").addEventListener("click", function () {
     var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem("inkterminal-tema", n); } catch (_) {}
+    try { localStorage.setItem("inkdoshub-tema", n); } catch (_) {}
     document.documentElement.dataset.theme = n;
     document.documentElement.style.colorScheme = n;
   });
@@ -32,6 +32,6 @@
   // endereços antigos (#terminal), da versão em que os apps abriam dentro desta página
   var pedido = location.hash.slice(1), cartao = pedido && document.querySelector('[data-app="' + pedido.replace(/[^a-z]/g, "") + '"]');
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
-  try { localStorage.removeItem("inkterminal-inicio"); localStorage.removeItem("inkterminal-paginas"); } catch (_) {}
+  try { localStorage.removeItem("inkdoshub-inicio"); localStorage.removeItem("inkdoshub-paginas"); } catch (_) {}
   if (cartao) location.href = cartao.href;
 })();

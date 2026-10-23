@@ -3,7 +3,7 @@
    service worker no meio de um download longo. Só os arquivos novos ou alterados são baixados. */
 (function () {
   "use strict";
-  var CACHE = "inkterminal-offline";
+  var CACHE = "inkdoshub-offline";
   var RAIZ = new URL("./", location.href);
   var CHAVE_MANIFESTO = RAIZ.origin + RAIZ.pathname + "__offline/manifesto.json";
   var estado = document.getElementById("offline-estado");
@@ -73,7 +73,7 @@
     btnApagar.disabled = !velho || baixando;
     if (!baixando) {
       estado.textContent = completo ? t("The full copy is on this device. Everything opens without internet.") :
-        velho ? t("There is a new version of InkTerminal. Update the copy to use it without internet.") :
+        velho ? t("There is a new version of InkDOS Hub. Update the copy to use it without internet.") :
         t("There is no copy on this device yet.");
     }
     if (navigator.storage && navigator.storage.estimate) {

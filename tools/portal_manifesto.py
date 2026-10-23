@@ -4,7 +4,7 @@ e (chave "idiomas") os arquivos de cada pacote de idioma (assets/idioma.js).
 
 Só o inglês entra na cópia offline. Os arquivos dos outros idiomas (traduções da casca, dos editores
 ONLYOFFICE, do Quadro e dos apps do InkDOS) vão para o pacote do idioma, baixado só quando a pessoa
-escolhe. Idiomas que o InkTerminal não oferece ficam fora dos dois.
+escolhe. Idiomas que o InkDOS Hub não oferece ficam fora dos dois.
 
 Cada grupo (tela inicial, terminal, cada app) pode ser baixado junto; o hash de cada arquivo
 permite atualizar só o que mudou. Rode na raiz do repositório depois de mudar qualquer arquivo:
@@ -29,7 +29,7 @@ FORA = {"inicio/manifesto.json"}
 FORA_PASTAS = ()
 FORA_EXT = (".md", ".txt", ".map")
 
-# pacotes de idioma: o nome que cada ferramenta usa -> código do InkTerminal
+# pacotes de idioma: o nome que cada ferramenta usa -> código do InkDOS Hub
 PACOTES = ["pt-BR", "es", "de", "fr", "zh-CN", "ja", "ru"]
 ONLYOFFICE = {"en": "en", "pt": "pt-BR", "pt-br": "pt-BR", "es": "es", "de": "de", "fr": "fr", "zh": "zh-CN", "ja": "ja", "ru": "ru"}
 EXCALIDRAW = {"en": "en", "pt-BR": "pt-BR", "es-ES": "es", "de-DE": "de", "fr-FR": "fr", "zh-CN": "zh-CN", "ja-JP": "ja", "ru-RU": "ru"}

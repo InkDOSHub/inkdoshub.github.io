@@ -1,5 +1,5 @@
 #!/bin/sh
-# InkTerminal init: mounts the system, brings up the network and opens the shell on the serial console.
+# InkDOS Hub init: mounts the system, brings up the network and opens the shell on the serial console.
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export HOME=/root TERM=xterm-256color
 mount -t proc proc /proc
@@ -10,7 +10,7 @@ mount -t devpts devpts /dev/pts
 mount -t tmpfs shm /dev/shm
 mount -t tmpfs tmp /tmp
 mount -t tmpfs run /run
-hostname inkterminal
+hostname inkdoshub
 ip link set lo up
 
 # Folder shared with the device (the page's Upload/Download buttons)

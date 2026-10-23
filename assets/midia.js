@@ -1,4 +1,4 @@
-/* Biblioteca local de arquivos (fotos, vídeos, músicas) do InkTerminal.
+/* Biblioteca local de arquivos (fotos, vídeos, músicas) do InkDOS Hub.
    Os arquivos ficam no IndexedDB deste site, neste aparelho. Nada é enviado. */
 (function () {
   function abrir(nome) {

@@ -1,8 +1,8 @@
-// InkTerminal Webcam para Windows.
+// InkDOS Hub Webcam para Windows.
 //
 // Mostra a página Guest do app Webcam (https://inkterminal.github.io/apps/webcam/) num WebView2 e
 // entrega a imagem que chega do iPhone a uma câmera virtual do Windows (softcam, DirectShow), que o
-// Zoom, o Teams, o Meet e os outros apps enxergam como "InkTerminal Webcam". Sem o OBS.
+// Zoom, o Teams, o Meet e os outros apps enxergam como "InkDOS Hub Webcam". Sem o OBS.
 //
 // Como a imagem passa: a página desenha cada quadro num canvas do tamanho da câmera e copia os pixels
 // (RGBA) para um buffer compartilhado com este programa (CoreWebView2SharedBuffer). Aí avisa com
@@ -20,7 +20,7 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using Microsoft.Win32;
 
-namespace InkTerminalWebcam
+namespace InkDOSHubWebcam
 {
     static class Program
     {
@@ -29,7 +29,7 @@ namespace InkTerminalWebcam
         public const string Clsid = "{4E1C6B1A-2B7E-4F0A-9C55-6A1D3B8E7F21}"; // o mesmo de softcam.cpp (patch do workflow)
         public static readonly string Pasta = AppDomain.CurrentDomain.BaseDirectory;
         public static readonly string Dll = Path.Combine(Pasta, "softcam.dll");
-        public static readonly string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InkTerminal Webcam", "startup.log");
+        public static readonly string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InkDOS Hub Webcam", "startup.log");
 
         public static void Log(string message)
         {
@@ -56,11 +56,11 @@ namespace InkTerminalWebcam
                 return ok ? 0 : 1;
             }
             bool novaInstancia;
-            instancia = new Mutex(true, @"Local\InkTerminalWebcamSingleInstance", out novaInstancia);
+            instancia = new Mutex(true, @"Local\InkDOSHubWebcamSingleInstance", out novaInstancia);
             if (!novaInstancia)
             {
-                Log("Another InkTerminal Webcam instance is already running; refusing duplicate launch.");
-                MessageBox.Show("O InkTerminal Webcam já está aberto. Feche a outra janela antes de abrir novamente.", "InkTerminal Webcam", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Log("Another InkDOS Hub Webcam instance is already running; refusing duplicate launch.");
+                MessageBox.Show("O InkDOS Hub Webcam já está aberto. Feche a outra janela antes de abrir novamente.", "InkDOS Hub Webcam", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return 1;
             }
             Application.EnableVisualStyles();
@@ -68,13 +68,13 @@ namespace InkTerminalWebcam
             Log("DLL path=" + Dll + "; exists=" + File.Exists(Dll));
             if (!File.Exists(Dll))
             {
-                MessageBox.Show("softcam.dll is missing. Extract the whole ZIP to a folder and open the app from there.", "InkTerminal Webcam");
+                MessageBox.Show("softcam.dll is missing. Extract the whole ZIP to a folder and open the app from there.", "InkDOS Hub Webcam");
                 return 1;
             }
             if (!Softcam.Registrada())
             {
-                var r = MessageBox.Show("To create the \"InkTerminal Webcam\" camera, Windows will ask for administrator permission once.\n\nIf you move this folder later, the app asks again.",
-                    "InkTerminal Webcam", MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
+                var r = MessageBox.Show("To create the \"InkDOS Hub Webcam\" camera, Windows will ask for administrator permission once.\n\nIf you move this folder later, the app asks again.",
+                    "InkDOS Hub Webcam", MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
                 if (r != DialogResult.OK) return 1;
                 try
                 {
@@ -84,7 +84,7 @@ namespace InkTerminalWebcam
                 catch (Exception) { }
                 if (!Softcam.Registrada())
                 {
-                    MessageBox.Show("The camera was not created (permission denied?). Open the app again to retry.", "InkTerminal Webcam");
+                    MessageBox.Show("The camera was not created (permission denied?). Open the app again to retry.", "InkDOS Hub Webcam");
                     return 1;
                 }
             }
@@ -176,7 +176,7 @@ namespace InkTerminalWebcam
 
         public Janela()
         {
-            Text = "InkTerminal Webcam";
+            Text = "InkDOS Hub Webcam";
             ClientSize = new Size(960, 640);
             MinimumSize = new Size(520, 420);
             StartPosition = FormStartPosition.CenterScreen;
@@ -201,7 +201,7 @@ namespace InkTerminalWebcam
             int salvo = 1; // Perfil padrão exigido: Full HD 1080p/30.
             try
             {
-                using (var chave = Registry.CurrentUser.CreateSubKey(@"Software\InkTerminal Webcam"))
+                using (var chave = Registry.CurrentUser.CreateSubKey(@"Software\InkDOS Hub Webcam"))
                 {
                     int versaoMigracao = Convert.ToInt32(chave.GetValue("perfilDesempenhoMigrado", 0));
                     if (versaoMigracao < 2)
@@ -218,7 +218,7 @@ namespace InkTerminalWebcam
             qualidade.SelectedIndex = salvo >= 0 && salvo < Qualidades.Length ? salvo : 1;
             qualidade.SelectedIndexChanged += delegate
             {
-                try { Registry.CurrentUser.CreateSubKey(@"Software\InkTerminal Webcam").SetValue("qualidade", qualidade.SelectedIndex); } catch (Exception) { }
+                try { Registry.CurrentUser.CreateSubKey(@"Software\InkDOS Hub Webcam").SetValue("qualidade", qualidade.SelectedIndex); } catch (Exception) { }
                 AbrirCamera();
             };
 
@@ -229,7 +229,7 @@ namespace InkTerminalWebcam
                 Program.Log("Window Load event.");
                 try
                 {
-                    var dados = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InkTerminal Webcam");
+                    var dados = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InkDOS Hub Webcam");
                     // sem isso o Chromium desacelera a página quando a janela fica escondida ou minimizada, e a câmera congela
                     var opcoes = new CoreWebView2EnvironmentOptions("--disable-features=CalculateNativeWinOcclusion --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --autoplay-policy=no-user-gesture-required");
                     Program.Log("Creating WebView2 environment at " + dados);
@@ -241,7 +241,7 @@ namespace InkTerminalWebcam
                 catch (Exception e)
                 {
                     Program.Log("WEBVIEW START ERROR: " + e);
-                    MessageBox.Show("WebView2 could not start. Install the Microsoft Edge WebView2 Runtime and open the app again.\n\n" + e.Message, "InkTerminal Webcam");
+                    MessageBox.Show("WebView2 could not start. Install the Microsoft Edge WebView2 Runtime and open the app again.\n\n" + e.Message, "InkDOS Hub Webcam");
                     Close();
                     return;
                 }
@@ -301,7 +301,7 @@ namespace InkTerminalWebcam
                 }
                 if (camera == IntPtr.Zero)
                 {
-                    estado.Text = "Camera initialization failed; retrying. Check whether another app is using InkTerminal Webcam.";
+                    estado.Text = "Camera initialization failed; retrying. Check whether another app is using InkDOS Hub Webcam.";
                     Program.Log("CAMERA INIT FAILED quality=" + q.W + "x" + q.H + "@" + q.Fps + " retry=" + tentativa);
                     // A troca de modo pode falhar logo após liberar o dispositivo nativo. Tenta novamente
                     // na thread da UI, sem deixar a página ser informada de uma câmera pronta inexistente.
@@ -340,7 +340,7 @@ namespace InkTerminalWebcam
             Program.Log("Posting shared buffer to page.");
             web.CoreWebView2.PostSharedBufferToScript(buffer, CoreWebView2SharedBufferAccess.ReadWrite,
                 "{\"w\":" + q.W + ",\"h\":" + q.H + ",\"fps\":" + q.Fps + ",\"slots\":" + Slots + "}");
-            estado.Text = "Camera \"InkTerminal Webcam\" ready (" + q.W + "×" + q.H + "). Choose it in Zoom. On the iPhone, pick " + (q.H >= 2160 ? "4K" : q.H + "p") + " " + q.Fps + " fps.";
+            estado.Text = "Camera \"InkDOS Hub Webcam\" ready (" + q.W + "×" + q.H + "). Choose it in Zoom. On the iPhone, pick " + (q.H >= 2160 ? "4K" : q.H + "p") + " " + q.Fps + " fps.";
             Program.Log("Camera initialization finished.");
         }
 

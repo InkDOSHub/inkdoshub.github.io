@@ -42,7 +42,7 @@
   /* ---------- Pasta (guardada no IndexedDB para a próxima vez) ---------- */
   function banco() {
     return new Promise(function (ok, erro) {
-      var r = indexedDB.open("inkterminal-gravador", 1);
+      var r = indexedDB.open("inkdoshub-gravador", 1);
       r.onupgradeneeded = function () { r.result.createObjectStore("cfg"); };
       r.onsuccess = function () { ok(r.result); }; r.onerror = function () { erro(r.error); };
     });
@@ -59,11 +59,11 @@
   function mostrarPasta() { $("pasta").textContent = pasta ? pasta.name : t("Downloads (no folder chosen)"); }
   if (temPasta) cfg("pasta").then(function (p) { pasta = p || null; mostrarPasta(); });
   $("escolher").onclick = function () {
-    window.showDirectoryPicker({ id: "inkterminal-gravador", mode: "readwrite", startIn: "music" }).then(function (p) {
+    window.showDirectoryPicker({ id: "inkdoshub-gravador", mode: "readwrite", startIn: "music" }).then(function (p) {
       pasta = p; cfg("pasta", p); mostrarPasta();
     }).catch(function () {});
   };
-  try { var n = localStorage.getItem("inkterminal-gravador-nome"); if (n) $("nome").value = n; } catch (_) {}
+  try { var n = localStorage.getItem("inkdoshub-gravador-nome"); if (n) $("nome").value = n; } catch (_) {}
 
   /* ---------- Gravar ---------- */
   function nomeSeguro(valor) {
@@ -72,7 +72,7 @@
   function nomeNovo() {
     var d = new Date(), base = nomeSeguro($("nome").value);
     $("nome").value = base;
-    try { localStorage.setItem("inkterminal-gravador-nome", base); } catch (_) {}
+    try { localStorage.setItem("inkdoshub-gravador-nome", base); } catch (_) {}
     return base + " " + d.getFullYear() + "-" + doisDig(d.getMonth() + 1) + "-" + doisDig(d.getDate()) + " " + doisDig(d.getHours()) + "-" + doisDig(d.getMinutes()) + ".webm";
   }
   async function permissaoPasta() {
@@ -185,7 +185,7 @@
     var a = document.createElement("a"), u = URL.createObjectURL(arq);
     a.href = u; a.download = arq.name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
-    InkBiblioteca("inkterminal-musica").adicionar([arq]).catch(function () {});
+    InkBiblioteca("inkdoshub-musica").adicionar([arq]).catch(function () {});
     estado(t("Saved {name} ({size}) in Downloads and in the Music list.", { name: arq.name, size: inkTamanho(arq.size) }));
   }
 
@@ -236,8 +236,8 @@
         if (d.tipo === "pronto") {
           w.terminate(); $("escolher-tela").disabled = false; $("nivel-tela").style.width = "0";
           var arq = new File([d.blob], arquivo.name.replace(/\.[^.]+$/, "") + d.ext, { type: d.blob.type });
-          InkBiblioteca("inkterminal-musica").adicionar([arq]).then(function (novos) {
-            try { localStorage.setItem("inkterminal-musica-atual", String(novos[0].id)); } catch (_) {}
+          InkBiblioteca("inkdoshub-musica").adicionar([arq]).then(function (novos) {
+            try { localStorage.setItem("inkdoshub-musica-atual", String(novos[0].id)); } catch (_) {}
           });
           est.textContent = t("{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.", { name: arq.name, size: inkTamanho(arq.size) });
           if (navigator.canShare && navigator.canShare({ files: [arq] })) navigator.share({ files: [arq] }).catch(function () {});

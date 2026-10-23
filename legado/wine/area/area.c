@@ -1,11 +1,11 @@
-/* Área de trabalho do InkTerminal dentro do Wine.
+/* Área de trabalho do InkDOS Hub dentro do Wine.
 
    Uma janela do tamanho da tela, atrás de todas as outras, com o fundo azul e um ícone para cada
    atalho dos programas instalados (Área de trabalho e menu Iniciar, do usuário e de todos), mais
    alguns atalhos fixos. Um toque abre o programa. A lista é refeita a cada 4 s, então um programa
    recém-instalado aparece sozinho.
 
-   Conversa com a página pelo disco D: (a pasta D:\.inkterminal):
+   Conversa com a página pelo disco D: (a pasta D:\.inkdoshub):
    - "pronto": gravado quando a janela aparece; a página tira o aviso de carregamento;
    - "abrir.txt": a página grava ali um caminho por linha (um instalador recebido, por exemplo);
      a cada segundo a área de trabalho abre cada um e apaga o arquivo;
@@ -90,7 +90,7 @@ static void montarLista(int forcar) {
     WCHAR p[MAX_PATH];
     if (SHGetSpecialFolderPathW(NULL, p, pastas[i], FALSE)) varrer(p, 0);
   }
-  varrer(L"D:\\.inkterminal\\atalhos", 0);
+  varrer(L"D:\\.inkdoshub\\atalhos", 0);
   qsort(itens, nItens, sizeof(Item), comparar);
   int fixos = nItens;
   adicionar(L"Drive D: (your files)", L"explorer.exe", L"D:\\");
@@ -160,14 +160,14 @@ static void abrir(const WCHAR *alvo, const WCHAR *args) {
   ShellExecuteW(NULL, L"open", alvo, args && args[0] ? args : NULL, pasta[0] ? pasta : NULL, SW_SHOWNORMAL);
 }
 
-/* Pedidos da página: D:\.inkterminal\abrir.txt, um caminho por linha, em UTF-8. */
+/* Pedidos da página: D:\.inkdoshub\abrir.txt, um caminho por linha, em UTF-8. */
 static void lerPedidos(void) {
-  HANDLE f = CreateFileW(L"D:\\.inkterminal\\abrir.txt", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+  HANDLE f = CreateFileW(L"D:\\.inkdoshub\\abrir.txt", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
   if (f == INVALID_HANDLE_VALUE) return;
   char buf[8192]; DWORD lido = 0;
   ReadFile(f, buf, sizeof(buf) - 1, &lido, NULL);
   CloseHandle(f);
-  DeleteFileW(L"D:\\.inkterminal\\abrir.txt");
+  DeleteFileW(L"D:\\.inkdoshub\\abrir.txt");
   buf[lido] = 0;
   WCHAR texto[8192];
   int n = MultiByteToWideChar(CP_UTF8, 0, buf, -1, texto, 8192);
@@ -228,10 +228,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE ant, LPWSTR linha, int mostrar) {
   CoInitialize(NULL);
 
   WNDCLASSW wc; ZeroMemory(&wc, sizeof(wc));
-  wc.lpfnWndProc = proc; wc.hInstance = inst; wc.lpszClassName = L"InkTerminalArea";
+  wc.lpfnWndProc = proc; wc.hInstance = inst; wc.lpszClassName = L"InkDOSHubArea";
   wc.hCursor = LoadCursorW(NULL, (LPCWSTR)IDC_ARROW);
   RegisterClassW(&wc);
-  janela = CreateWindowExW(WS_EX_TOOLWINDOW, L"InkTerminalArea", L"Desktop", WS_POPUP | WS_CLIPCHILDREN,
+  janela = CreateWindowExW(WS_EX_TOOLWINDOW, L"InkDOSHubArea", L"Desktop", WS_POPUP | WS_CLIPCHILDREN,
                            0, 0, 800, 600, NULL, NULL, inst, NULL);
   lista = CreateWindowExW(0, WC_LISTVIEWW, L"", WS_CHILD | WS_VISIBLE | LVS_ICON | LVS_AUTOARRANGE | LVS_SINGLESEL,
                           0, 0, 800, 600, janela, NULL, inst, NULL);
@@ -253,8 +253,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE ant, LPWSTR linha, int mostrar) {
   SetTimer(janela, 2, 1000, NULL);
 
   /* avisa a página que a área de trabalho apareceu */
-  CreateDirectoryW(L"D:\\.inkterminal", NULL);
-  HANDLE f = CreateFileW(L"D:\\.inkterminal\\pronto", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
+  CreateDirectoryW(L"D:\\.inkdoshub", NULL);
+  HANDLE f = CreateFileW(L"D:\\.inkdoshub\\pronto", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
   if (f != INVALID_HANDLE_VALUE) CloseHandle(f);
   lerPedidos();
   /* programa pedido na abertura (instalador recebido da tela inicial) */

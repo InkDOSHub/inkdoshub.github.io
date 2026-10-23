@@ -1,9 +1,9 @@
 {
   "name": "inkfs",
-  "displayName": "InkTerminal Folder",
+  "displayName": "InkDOS Hub Folder",
   "description": "Keeps the editor's files in this browser (IndexedDB).",
   "version": "1.0.0",
-  "publisher": "inkterminal",
+  "publisher": "inkdoshub",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0" },
   "activationEvents": ["onFileSystem:inkfs", "*"],

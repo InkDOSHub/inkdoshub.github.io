@@ -1,6 +1,6 @@
-# InkTerminal
+# InkDOS Hub
 
-A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), feita para o iPad e o iPhone (Safari e XeOS). O InkDOS fica com os documentos e o InkTerminal com o resto.
+A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), feita para o iPad e o iPhone (Safari e XeOS). O InkDOS fica com os documentos e o InkDOS Hub com o resto.
 
 **Abrir:** https://inkterminal.github.io/
 
@@ -87,7 +87,7 @@ Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou for
 | `terminal/vendor/v86/` | Emulador v86 0.5.471 (licença BSD-2) |
 | `terminal/vendor/xterm/` | xterm.js 6.0.0 + addon-fit (licença MIT) |
 | `terminal/bios/` | SeaBIOS e VGA BIOS (LGPL-3) |
-| `terminal/images/inkterminal-bzImage.bin` | Kernel Linux 6.6 com o Alpine embutido (GPL-2 e licenças do Alpine) |
+| `terminal/images/inkdoshub-bzImage.bin` | Kernel Linux 6.6 com o Alpine embutido (GPL-2 e licenças do Alpine) |
 | `tools/linux/` | Script e configurações para recompilar a imagem |
 
 ### Recompilar a imagem do Linux
@@ -98,4 +98,4 @@ Precisa de uma máquina Linux (ou um runner de CI) com `gcc make flex bison bc c
 ./tools/linux/build.sh
 ```
 
-O kernel vem de `torvalds/linux` na tag `v6.6`, sem modificações. O Alpine vem do minirootfs oficial x86 (`alpinelinux/docker-alpine`, branch `v3.22`), com o checksum conferido. Os arquivos próprios do InkTerminal ficam em `tools/linux/alpine-overlay/`.
+O kernel vem de `torvalds/linux` na tag `v6.6`, sem modificações. O Alpine vem do minirootfs oficial x86 (`alpinelinux/docker-alpine`, branch `v3.22`), com o checksum conferido. Os arquivos próprios do InkDOS Hub ficam em `tools/linux/alpine-overlay/`.

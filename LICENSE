@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 InkTerminal
+Copyright (c) 2026 InkDOS Hub
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
-This license covers the InkTerminal's own code only. Third-party code copied into
+This license covers the InkDOS Hub's own code only. Third-party code copied into
 this repository keeps its own license: see UPSTREAM-LICENSE.txt / UPSTREAM-SOURCE.txt
 in each folder and LICENCAS.md.

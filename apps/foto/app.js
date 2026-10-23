@@ -1,8 +1,8 @@
-// Fotos do InkTerminal: visualizador com <img> nativo (zoom, giro, lista) e
+// Fotos do InkDOS Hub: visualizador com <img> nativo (zoom, giro, lista) e
 // edição como segunda opção, no editor simples daqui (editor.js), que devolve uma cópia nova.
 const $ = (id) => document.getElementById(id);
 const t = InkIdioma.t;
-const bib = InkBiblioteca("inkterminal-fotos");
+const bib = InkBiblioteca("inkdoshub-fotos");
 let fotos = [], atual = -1, urls = new Map(), zoom = 0, giro = 0; // zoom 0 = ajustar à tela
 
 const urlDe = (f) => { if (!urls.has(f.id)) urls.set(f.id, URL.createObjectURL(f.blob)); return urls.get(f.id); };

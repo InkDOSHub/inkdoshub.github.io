@@ -15,7 +15,7 @@ const term = new Terminal({
   cursorBlink: true,
   fontFamily: 'ui-monospace, Menlo, "SF Mono", monospace',
   fontSize: Number(params.get("font")) || (Math.min(screen.width, screen.height) < 500 ? 12 : 15),
-  // Cores seguem o tema do InkTerminal (../assets/tema.js)
+  // Cores seguem o tema do InkDOS Hub (../assets/tema.js)
   theme: document.documentElement.dataset.theme === "dark"
     ? { background: "#0d1117", foreground: "#e6edf3", cursor: "#3fb950", selectionBackground: "#264f78" }
     : { background: "#ffffff", foreground: "#192235", cursor: "#1a7f37", selectionBackground: "#b6d7ff",
@@ -33,7 +33,7 @@ document.getElementById("term").addEventListener("click", () => term.focus());
 
 // ---------- Saved state (IndexedDB) ----------
 // KEY muda quando a máquina muda (kernel/dispositivos), porque um estado antigo não serve mais.
-const DB = "inkterminal", STORE = "state", KEY = "vm-v4";
+const DB = "inkdoshub", STORE = "state", KEY = "vm-v4";
 function idb() {
   return new Promise((ok, fail) => {
     const r = indexedDB.open(DB, 1);
@@ -61,7 +61,7 @@ const clearStateDb = () => idbOp("readwrite", (s) => s.delete(KEY));
 // de swap de 1 GB no armazenamento do site (OPFS), para onde o Linux manda o que
 // está pouco usado. Nesse modo a sessão não é salva, porque o swap é refeito a cada boot.
 let savedMem;
-try { savedMem = localStorage.getItem("inkterminal-memoria"); } catch {}
+try { savedMem = localStorage.getItem("inkdoshub-memoria"); } catch {}
 const MEM = params.get("memoria") || savedMem || "normal";
 const LIMITADA = MEM === "limitada";
 const SWAP_BYTES = 1024 * 1024 * 1024;
@@ -91,7 +91,7 @@ function abrirSwap() {
     set_state() {},
     tamanho: () => pedir({ op: "size" }).then((r) => r.size),
   };
-  return pedir({ op: "open", name: "inkterminal-swap.img" }).then((r) => {
+  return pedir({ op: "open", name: "inkdoshub-swap.img" }).then((r) => {
     if (!r.ok) { w.terminate(); throw new Error(r.error); }
     return disco;
   });
@@ -111,7 +111,7 @@ if (LIMITADA) {
 // Também aceita uma URL wss://, wisp:// ou wisps:// de outro servidor.
 const REDES = { wisp: "wisps://wisp.mercurywork.shop/v86/", relay: "wss://relay.widgetry.org/", off: undefined };
 let savedRede;
-try { savedRede = localStorage.getItem("inkterminal-rede2"); } catch {}
+try { savedRede = localStorage.getItem("inkdoshub-rede2"); } catch {}
 const REDE = params.get("rede") || savedRede || "wisp";
 const relayUrl = REDE in REDES ? REDES[REDE] : REDE;
 const config = {
@@ -120,7 +120,7 @@ const config = {
   vga_memory_size: 2 * 1024 * 1024,
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
-  bzimage: { url: "images/inkterminal-bzImage.bin?v=9" },
+  bzimage: { url: "images/inkdoshub-bzImage.bin?v=9" },
   cmdline: "console=ttyS0 quiet tsc=reliable mitigations=off random.trust_cpu=on" +
     (LIMITADA ? " inkzram=192M" + (swap ? " inkswap=1" : "") : ""),
   hda: swap || undefined,
@@ -281,7 +281,7 @@ function listFiles(dir) {
   for (const name of fs.read_dir(dir) || []) {
     const path = (dir === "/" ? "" : dir) + "/" + name;
     const p = fs.SearchPath(path);
-    if (p.id === -1 || path === "/.inkterminal") continue; // pasta do botão Sessão
+    if (p.id === -1 || path === "/.inkdoshub") continue; // pasta do botão Sessão
     if (fs.IsDirectory(p.id)) out.push(...listFiles(path));
     else out.push(path);
   }
@@ -327,7 +327,7 @@ redeBtn.textContent = REDE in NOMES ? NOMES[REDE] : t("Network: custom");
 redeBtn.addEventListener("click", () => {
   const ordem = ["wisp", "relay", "off"];
   const prox = ordem[(ordem.indexOf(atualRede) + 1) % ordem.length];
-  try { localStorage.setItem("inkterminal-rede2", prox); } catch {}
+  try { localStorage.setItem("inkdoshub-rede2", prox); } catch {}
   const q = new URLSearchParams(location.search);
   q.delete("rede");
   location.search = q.toString();
@@ -337,7 +337,7 @@ redeBtn.addEventListener("click", () => {
 const memBtn = document.getElementById("memoria");
 memBtn.textContent = t("Memory: {size}", { size: LIMITADA ? "640 MB + swap" : "256 MB" });
 memBtn.addEventListener("click", () => {
-  try { localStorage.setItem("inkterminal-memoria", LIMITADA ? "normal" : "limitada"); } catch {}
+  try { localStorage.setItem("inkdoshub-memoria", LIMITADA ? "normal" : "limitada"); } catch {}
   const q = new URLSearchParams(location.search);
   q.delete("memoria");
   location.search = q.toString();
@@ -356,10 +356,10 @@ if (window.inkGerenciador) {
 }
 
 // ---------- Sessão em arquivo (assets/sessao.js) ----------
-// O Linux roda /usr/local/sbin/inksessao (tools/linux/), que conversa pela pasta /mnt/ipad/.inkterminal:
+// O Linux roda /usr/local/sbin/inksessao (tools/linux/), que conversa pela pasta /mnt/ipad/.inkdoshub:
 // a página escreve "pedido" (salvar ou restaurar) e lê "estado" ("trabalhando ...", "ok ...",
 // "aviso ..." ou "erro ..."). A receita é um .tar.gz com a lista de pacotes do apk, /root, /home e /usr/local.
-const SESSAO = "/.inkterminal";
+const SESSAO = "/.inkdoshub";
 const fs9 = () => emulator.fs9p;
 function pastaSessao() {
   if (fs9().SearchPath(SESSAO).id === -1) fs9().CreateDirectory(SESSAO.slice(1), 0);
@@ -402,7 +402,7 @@ async function pedirAoLinux(pedido, aviso) {
       const r = await fetch("../tools/linux/alpine-overlay/usr/local/sbin/inksessao?v=4");
       if (!r.ok) throw new Error(t("could not download inksessao ({status})", { status: r.status }));
       await gravar9p(SESSAO + "/inksessao", new Uint8Array(await r.arrayBuffer()));
-      send("(sh /mnt/ipad/.inkterminal/inksessao </dev/null >/dev/null 2>&1 &)\n");
+      send("(sh /mnt/ipad/.inkdoshub/inksessao </dev/null >/dev/null 2>&1 &)\n");
     }
     if (i > 40 && !ligou) throw new Error(t("Linux did not respond. Wait for it to finish starting and try again."));
     if (i > 60) throw new Error(t("Linux did not respond."));
@@ -445,4 +445,4 @@ document.getElementById("sessao-abrir").addEventListener("click", async () => {
   term.focus();
 });
 
-window.inkterminal = { emulator, term, swap };
+window.inkdoshub = { emulator, term, swap };

@@ -2,13 +2,13 @@
    GitHub, então ele fica em pedaços em fs/. Quando o Boxedwine pede o .zip, este arquivo entrega os
    pedaços juntos, como se fosse um arquivo só.
 
-   Os pedaços ficam guardados no disco do aparelho (Cache Storage "inkterminal-wine"), então só a
+   Os pedaços ficam guardados no disco do aparelho (Cache Storage "inkdoshub-wine"), então só a
    primeira abertura baixa os 215 MB; as outras leem do disco. A cópia offline da tela inicial
-   ("inkterminal-offline") também serve. O sha256 de cada pedaço faz parte da chave, então uma
+   ("inkdoshub-offline") também serve. O sha256 de cada pedaço faz parte da chave, então uma
    versão nova do sistema é baixada de novo e a velha é apagada. */
 (function () {
   "use strict";
-  var CACHE = "inkterminal-wine";
+  var CACHE = "inkdoshub-wine";
   var PARTES = {
     "TinyCore15Wine11.0.zip": [
       ["TinyCore15Wine11.0.zip.part00", 94371840, "4c7cb6764f5080fa"],
@@ -37,7 +37,7 @@
   function guardado(url, chave, tamanho) {
     if (!("caches" in window)) return Promise.resolve(null);
     return caches.open(CACHE).then(function (c) { return c.match(chave); })
-      .then(function (r) { return r || caches.open("inkterminal-offline").then(function (c) { return c.match(url); }); })
+      .then(function (r) { return r || caches.open("inkdoshub-offline").then(function (c) { return c.match(url); }); })
       .then(function (r) { return r ? r.blob() : null; })
       .then(function (b) { return b && b.size === tamanho ? b : null; })
       .catch(function () { return null; });

@@ -1,12 +1,12 @@
 <!doctype html>
-<!-- Editor de código do InkTerminal (aberto dentro de index.html, abaixo da barra comum): VS Code para web (MIT), compilação do pacote npm vscode-web 1.91.1 -->
+<!-- Editor de código do InkDOS Hub (aberto dentro de index.html, abaixo da barra comum): VS Code para web (MIT), compilação do pacote npm vscode-web 1.91.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-<title>Code · InkTerminal</title>
+<title>Code · InkDOS Hub</title>
 <link rel="icon" href="vscode/favicon.ico" type="image/x-icon">
 <script src="../../assets/tema.js?v=1"></script>
 <link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="vscode/out/vs/workbench/workbench.web.main.css">
@@ -17,10 +17,10 @@
   const vs = new URL("vscode/", base).href;
   window.product = {
     productConfiguration: {
-      nameShort: "Code (InkTerminal)",
-      nameLong: "InkTerminal Code Editor",
-      applicationName: "inkterminal-codigo",
-      dataFolderName: ".inkterminal-codigo",
+      nameShort: "Code (InkDOS Hub)",
+      nameLong: "InkDOS Hub Code Editor",
+      applicationName: "inkdoshub-codigo",
+      dataFolderName: ".inkdoshub-codigo",
       version: "1.91.1",
       // Extensões do Open VSX (o catálogo aberto, o da Microsoft não pode ser usado fora do VS Code oficial)
       extensionsGallery: {
@@ -33,7 +33,7 @@
     additionalBuiltinExtensions: [
       { scheme: base.protocol.slice(0, -1), authority: base.host, path: new URL("ext/inkfs", base).pathname },
     ],
-    // Tema igual ao do InkTerminal
+    // Tema igual ao do InkDOS Hub
     configurationDefaults: {
       "workbench.colorTheme": inkTema.atual() === "dark" ? "Default Dark Modern" : "Default Light Modern",
       "window.commandCenter": false,

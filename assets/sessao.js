@@ -1,4 +1,4 @@
-/* Arquivo de sessão do InkTerminal (.inksessao): guarda o trabalho de um app (Linux, Wine) num
+/* Arquivo de sessão do InkDOS Hub (.inksessao): guarda o trabalho de um app (Linux, Wine) num
    arquivo no aparelho, para recuperar mesmo se o site apagar os dados. Sempre com senha.
 
    Formato: "INKSESSAO" + versão (1 byte) + sal (16) + iv (12) + dados cifrados com AES-GCM
@@ -49,8 +49,8 @@
     });
   }
   function decifrar(bytes, senha) {
-    if (dec.decode(bytes.subarray(0, MAGICO.length)) !== MAGICO) return Promise.reject(new Error(t("This file is not an InkTerminal session.")));
-    if (bytes[MAGICO.length] !== VERSAO) return Promise.reject(new Error(t("This session is from a newer version of InkTerminal.")));
+    if (dec.decode(bytes.subarray(0, MAGICO.length)) !== MAGICO) return Promise.reject(new Error(t("This file is not an InkDOS Hub session.")));
+    if (bytes[MAGICO.length] !== VERSAO) return Promise.reject(new Error(t("This session is from a newer version of InkDOS Hub.")));
     var i = MAGICO.length + 1, sal = bytes.slice(i, i + 16), iv = bytes.slice(i + 16, i + 28);
     return chave(senha, sal).then(function (k) {
       return crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, k, bytes.subarray(i + 28));
@@ -182,7 +182,7 @@
           return cifrar(Object.assign({ app: app }, r.meta), r.partes, senha);
         }).then(function (blob) {
           a.fechar();
-          entregar(blob, "InkTerminal " + nomeApp + " " + data() + ".inksessao",
+          entregar(blob, "InkDOS Hub " + nomeApp + " " + data() + ".inksessao",
             t("The file is {size}. Keep it in Files or iCloud Drive. To use it, tap Session and then Open file.", { size: mb(blob.size) }));
         }).catch(function (e) { a.fim(t("Could not save: {error}", { error: e && e.message || e }), true); });
       });

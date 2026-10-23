@@ -1,10 +1,10 @@
-// Player de música do InkTerminal: toca com o <audio> nativo do Safari.
+// Player de música do InkDOS Hub: toca com o <audio> nativo do Safari.
 // Os ajustes (equalizador, volume extra, balanço) só ligam o Web Audio quando
 // usados, para o player nativo continuar simples e leve.
 const $ = (id) => document.getElementById(id);
 const t = InkIdioma.t;
 const audio = $("audio"), lista = $("lista");
-const bib = InkBiblioteca("inkterminal-musica");
+const bib = InkBiblioteca("inkdoshub-musica");
 const FREQS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 const PRESETS = {
   Normal: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -16,8 +16,8 @@ const PRESETS = {
 const NOMES_PRESETS = { Normal: t("Normal"), Graves: t("Bass"), Voz: t("Vocal"), Agudos: t("Treble"), Rock: t("Rock") };
 let faixas = [], atual = -1, url = null, aleat = false, rep = "nao";
 let cfg = { eq: PRESETS.Normal.slice(), ganho: 0, bal: 0, vel: 1 };
-try { Object.assign(cfg, JSON.parse(localStorage.getItem("inkterminal-musica-ajustes") || "{}")); } catch (_) {}
-const salvar = () => { try { localStorage.setItem("inkterminal-musica-ajustes", JSON.stringify(cfg)); } catch (_) {} };
+try { Object.assign(cfg, JSON.parse(localStorage.getItem("inkdoshub-musica-ajustes") || "{}")); } catch (_) {}
+const salvar = () => { try { localStorage.setItem("inkdoshub-musica-ajustes", JSON.stringify(cfg)); } catch (_) {} };
 
 function nomeLimpo(n) { return n.replace(/\.[^.]+$/, "").replace(/_/g, " "); }
 function partes(n) {
@@ -64,9 +64,9 @@ function carregar(i, comecar) {
   $("sub").textContent = (p.artista ? p.artista + " · " : "") + faixa;
   document.title = t("{name} · Music", { name: p.titulo });
   if ("mediaSession" in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({ title: p.titulo, artist: p.artista, album: "InkTerminal" });
+    navigator.mediaSession.metadata = new MediaMetadata({ title: p.titulo, artist: p.artista, album: "InkDOS Hub" });
   }
-  try { localStorage.setItem("inkterminal-musica-atual", String(f.id)); } catch (_) {}
+  try { localStorage.setItem("inkdoshub-musica-atual", String(f.id)); } catch (_) {}
   desenhar();
   if (comecar) audio.play().catch(() => {});
 }
@@ -206,7 +206,7 @@ $("titulo").textContent = t("No music"); $("sub").textContent = t("Tap Open musi
 bib.listar().then((itens) => {
   faixas = itens;
   let ultimo = null;
-  try { ultimo = +localStorage.getItem("inkterminal-musica-atual"); } catch (_) {}
+  try { ultimo = +localStorage.getItem("inkdoshub-musica-atual"); } catch (_) {}
   const i = faixas.findIndex((f) => f.id === ultimo);
   if (faixas.length) carregar(i >= 0 ? i : 0, false); else desenhar();
   faixas.filter((f) => !f.duracao).forEach(medirDuracao);

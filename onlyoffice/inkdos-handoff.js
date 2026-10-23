@@ -1,4 +1,4 @@
-// Cópia no InkTerminal (onlyoffice/). O app do InkDOS copiado (inkdos/) guarda o documento no IndexedDB
+// Cópia no InkDOS Hub (onlyoffice/). O app do InkDOS copiado (inkdos/) guarda o documento no IndexedDB
 // deste site ("inkdos-tool-handoff") e a tela inicial abre editor.html?embed=1&inkdos-handoff=<id>.
 // Como tudo está no mesmo site, este arquivo lê o documento direto e o entrega ao editor pelo
 // protocolo de embed que ele já fala (document:ready -> document:open-file).

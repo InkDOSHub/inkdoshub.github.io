@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lista os textos da interface do InkTerminal (em inglês) e confere os pacotes de idioma.
+"""Lista os textos da interface do InkDOS Hub (em inglês) e confere os pacotes de idioma.
 
 O texto em inglês é a chave da tradução (assets/idioma.js). Ele vem de:
 - HTML: o texto dentro de <body data-idioma> e os atributos title, aria-label, placeholder e alt

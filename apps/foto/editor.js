@@ -1,4 +1,4 @@
-// Editor de fotos do InkTerminal: o básico de um editor de celular, feito aqui.
+// Editor de fotos do InkDOS Hub: o básico de um editor de celular, feito aqui.
 // Recortar (com proporções), girar 90°, espelhar, endireitar e ajustes de luz e cor.
 // Não tem camadas: a foto original fica como está e "Save copy" grava uma cópia nova.
 //

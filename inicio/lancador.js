@@ -1,15 +1,15 @@
 /* Lançador de arquivos da tela inicial, como na tela inicial do InkDOS.
 
-   Com o InkTerminal instalado (manifest.webmanifest, "file_handlers"), abrir um arquivo no XeOS
+   Com o InkDOS Hub instalado (manifest.webmanifest, "file_handlers"), abrir um arquivo no XeOS
    manda o arquivo para esta página (launchQueue). Ela escolhe o app pela extensão e abre o app
    com o arquivo.
 
    Como o arquivo chega a cada app:
    - apps do InkDOS (inkdos/): IndexedDB "inkdos-launch-handoff" e #inkdos-launch=<id>, o mesmo
      caminho da tela inicial do InkDOS original (runtime/platform/file-launch.js de cada app);
-   - Fotos, Vídeo, Música e Wine (.exe, .msi): IndexedDB "inkterminal-entrada" e #ink-arquivos=<id>; o app recebe pelo
+   - Fotos, Vídeo, Música e Wine (.exe, .msi): IndexedDB "inkdoshub-entrada" e #ink-arquivos=<id>; o app recebe pelo
      botão de abrir dele (assets/gerenciador-app.js);
-   - Código: o arquivo é gravado na pasta do editor (IndexedDB "inkterminal-codigo", em /Received)
+   - Código: o arquivo é gravado na pasta do editor (IndexedDB "inkdoshub-codigo", em /Received)
      e o editor o abre (apps/codigo/ext/inkfs). */
 (function () {
   "use strict";
@@ -81,17 +81,17 @@
       return bytes(files).then(function (l) {
         var p = Promise.resolve();
         // FileType do VS Code: 1 = arquivo, 2 = pasta
-        p = p.then(function () { return gravar("inkterminal-codigo", "files", { type: 2, ctime: agora, mtime: agora }, "/Received"); });
+        p = p.then(function () { return gravar("inkdoshub-codigo", "files", { type: 2, ctime: agora, mtime: agora }, "/Received"); });
         l.forEach(function (v) {
           var nome = v.name.replace(/[\/\\]/g, "_") || "arquivo", caminho = "/Received/" + nome;
           caminhos.push(caminho);
-          p = p.then(function () { return gravar("inkterminal-codigo", "files", { type: 1, ctime: agora, mtime: agora, data: new Uint8Array(v.data) }, caminho); });
+          p = p.then(function () { return gravar("inkdoshub-codigo", "files", { type: 1, ctime: agora, mtime: agora, data: new Uint8Array(v.data) }, caminho); });
         });
-        return p.then(function () { return gravar("inkterminal-codigo-abrir", "abrir", { caminhos: caminhos, at: agora }, "pedido"); });
+        return p.then(function () { return gravar("inkdoshub-codigo-abrir", "abrir", { caminhos: caminhos, at: agora }, "pedido"); });
       }).then(function () { return RAIZ + "apps/codigo/"; });
     }
     return bytes(files).then(function (l) {
-      return gravar("inkterminal-entrada", "arquivos", { arquivos: l, at: Date.now() }, id, true);
+      return gravar("inkdoshub-entrada", "arquivos", { arquivos: l, at: Date.now() }, id, true);
     }).then(function () { return RAIZ + P.apps.filter(function (a) { return a.id === rota.app; })[0].url + "#ink-arquivos=" + id; });
   }
 
