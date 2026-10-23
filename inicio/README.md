@@ -1,6 +1,6 @@
 # Tela inicial (index.html e inicio/)
 
-A tela inicial do InkTerminal é o único ponto de entrada. Cada cartão abre a ferramenta, ou um app
+A tela inicial do InkDOS Hub é o único ponto de entrada. Cada cartão abre a ferramenta, ou um app
 do InkDOS (cópia em `inkdos/`, veja `inkdos/UPSTREAM-SOURCE.txt`), na própria página (aba ou janela).
 Nada carrega antes de ser pedido.
 
@@ -9,15 +9,15 @@ para a raiz.
 
 ## Páginas abertas
 
-- Tocar num cartão abre o app numa página nova chamada `inkterminal-<app>`. Tocar de novo volta para
+- Tocar num cartão abre o app numa página nova chamada `inkdoshub-<app>`. Tocar de novo volta para
   essa página em vez de abrir outra (`window.open("", nome)`). Se o navegador bloquear a página nova,
   o app abre na mesma.
-- O botão "InkTerminal" da barra do app e o Home dos apps do InkDOS vão para a página da tela inicial
-  (`inkterminal-inicio`) sem fechar o app.
+- O botão "InkDOS Hub" da barra do app e o Home dos apps do InkDOS vão para a página da tela inicial
+  (`inkdoshub-inicio`) sem fechar o app.
 
 ## Lançador de arquivos (`lancador.js`, `../manifest.webmanifest`)
 
-Como a tela inicial do InkDOS original: com o InkTerminal instalado, o manifesto registra a tela
+Como a tela inicial do InkDOS original: com o InkDOS Hub instalado, o manifesto registra a tela
 inicial para os tipos de arquivo dos apps (`file_handlers`, ação `./`). Abrir um arquivo no XeOS manda
 o arquivo para ela (`launchQueue`), e ela escolhe o app pela extensão:
 
@@ -41,7 +41,7 @@ de apps diferentes aparecem em "Arquivos recebidos", com um botão para cada app
 ## Abas e memória (`../assets/gerenciador-app.js`)
 
 Cada ferramenta abre na própria aba, só quando é pedida. Tocar num cartão de um app que já está
-aberto volta para a aba dele (nome de janela `inkterminal-<app>`). As abas não se coordenam: cada
+aberto volta para a aba dele (nome de janela `inkdoshub-<app>`). As abas não se coordenam: cada
 app cuida da própria memória (o terminal, por exemplo, tem o botão de memória dele).
 
 O site não aplica limite de memória: o sistema (iOS, XeOS, navegador) decide quais abas fecha.
@@ -65,7 +65,7 @@ iOS ("Salvar em Arquivos") ou um download.
   (`../tools/linux/alpine-overlay/usr/local/sbin/inksessao`, ligado pelo `init`) faz um .tar.gz com
   `etc/apk/world`, os repositórios, `/root` (sem `~/files` e `~/.cache`), `/home` e `/usr/local`. Para abrir,
   instala pela internet os pacotes que faltam (`apk add`) e põe os arquivos de volta. A conversa é pela
-  pasta `/mnt/ipad/.inkterminal` (`pedido`, `estado`). Num Linux restaurado de um Salvar antigo, sem o
+  pasta `/mnt/ipad/.inkdoshub` (`pedido`, `estado`). Num Linux restaurado de um Salvar antigo, sem o
   `inksessao`, a página manda o programa pela pasta e digita o comando que o liga (pede antes).
 - **Wine** (`../apps/wine/`): guarda os discos inteiros, porque não há como reinstalar os programas
   sozinho: o que o Wine mudou em `/root` (o C:, com programas e registro) e o D:. Abrir troca os dois
@@ -81,22 +81,22 @@ WebAssembly no formato novo (Safari 18.4+). Pesa ~950 MB.
 - Todos os programas usam os mesmos discos (`storageKey=default`): o C: guarda o que for instalado
   e o D: guarda arquivos e programas da pessoa, os dois no IndexedDB do site.
 - **Iniciar o Wine** abre sempre a área de trabalho, do tamanho da tela: `explorer /desktop=shell,LxA`
-  rodando `D:\.inkterminal\area.exe` (código em `apps/wine/area/area.c`, compilado por
+  rodando `D:\.inkdoshub\area.exe` (código em `apps/wine/area/area.c`, compilado por
   `tools/wine-area.sh`). Ela pinta o fundo azul, mostra um ícone por atalho (área de trabalho e menu
-  Iniciar do Wine, mais `D:\.inkterminal\atalhos`) e abre com um toque. Ao aparecer grava
-  `D:\.inkterminal\pronto`, e a página tira o aviso de carregamento (com barra e tempo).
+  Iniciar do Wine, mais `D:\.inkdoshub\atalhos`) e abre com um toque. Ao aparecer grava
+  `D:\.inkdoshub\pronto`, e a página tira o aviso de carregamento (com barra e tempo).
 - **Instalar programa** (`wine.js`): com o Wine fechado, o .exe, .msi ou .zip vai para o IndexedDB
-  `inkterminal-wine` (loja `entrada`) e o Wine abre; com ele aberto, vai direto por mensagem.
-  `inkterminal-wine.js` grava em `D:\Recebidos` (instaladores) ou `D:\Programas` (extrai o .zip, cria
-  atalho) e escreve o caminho em `D:\.inkterminal\abrir.txt`, que a área de trabalho abre. Programas
+  `inkdoshub-wine` (loja `entrada`) e o Wine abre; com ele aberto, vai direto por mensagem.
+  `inkdoshub-wine.js` grava em `D:\Recebidos` (instaladores) ou `D:\Programas` (extrai o .zip, cria
+  atalho) e escreve o caminho em `D:\.inkdoshub\abrir.txt`, que a área de trabalho abre. Programas
   de 64 bits são recusados com um aviso.
 - **Disco D:**: o `-mount_drive` do Boxedwine põe o D: em `/mnt`, onde o Wine não pode gravar. Por isso
-  `inkterminal-wine.js` troca por `-mount /d_drive /home/username/d` e grava o link `dosdevices/d:`.
+  `inkdoshub-wine.js` troca por `-mount /d_drive /home/username/d` e grava o link `dosdevices/d:`.
   Arquivos que a página grava com o Wine aberto só aparecem depois de
   `boxedwineHostFolderSyncDirectories` (feito por `avisarWine()`).
 - **Segundo plano**: com a página oculta e nada gravado no disco há 1 minuto, o Wine pausa
   (`Module.pauseMainLoop`) e volta quando a página aparece; instalações seguem rodando porque gravam
-  o tempo todo. "Segundo plano: continua" nunca pausa (localStorage `inkterminal-wine-fundo`).
+  o tempo todo. "Segundo plano: continua" nunca pausa (localStorage `inkdoshub-wine-fundo`).
 - No iPad: **Teclado** foca um campo escondido dentro do emulador (o iPad mostra o teclado e as
   teclas chegam ao SDL), **Clique direito** faz o próximo toque valer como botão direito (segurar o
   dedo meio segundo também), **Enviar para D:** e **Baixar de D:** trocam arquivos com o aparelho.

@@ -6,7 +6,7 @@
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var t = InkIdioma.t;
-  var video = $("video"), faixa = $("faixa"), bib = InkBiblioteca("inkterminal-video");
+  var video = $("video"), faixa = $("faixa"), bib = InkBiblioteca("inkdoshub-video");
   var item = null, dur = 0, ini = 0, fim = 0, som = "com", altura = 0, url = null;
   var MIN = 0.5; // trecho mínimo, em segundos
 
@@ -170,7 +170,7 @@
     var arq = new File([blob], t("{name} (edited)", { name: base }) + ext, { type: blob.type });
     bib.adicionar([arq]).then(function (novos) {
       var novo = novos[0];
-      try { localStorage.setItem("inkterminal-video-atual", String(novo.id)); } catch (_) {}
+      try { localStorage.setItem("inkdoshub-video-atual", String(novo.id)); } catch (_) {}
       painel(t("Done"), t("{name} ({size}) is in the Video list.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
         { texto: t("Save to device"), acao: function () { partilhar(arq); } },
         { texto: t("View in Video"), principal: true, acao: function () { location.href = "../"; } },
@@ -180,8 +180,8 @@
   // só o som: vai para a lista da Música
   function guardarSom(blob, ext) {
     var arq = new File([blob], item.nome.replace(/\.[^.]+$/, "") + ext, { type: blob.type });
-    InkBiblioteca("inkterminal-musica").adicionar([arq]).then(function (novos) {
-      try { localStorage.setItem("inkterminal-musica-atual", String(novos[0].id)); } catch (_) {}
+    InkBiblioteca("inkdoshub-musica").adicionar([arq]).then(function (novos) {
+      try { localStorage.setItem("inkdoshub-musica-atual", String(novos[0].id)); } catch (_) {}
       painel(t("Done"), t("{name} ({size}) is in the Music list.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
         { texto: t("Save to device"), acao: function () { partilhar(arq); } },
         { texto: t("Open in Music"), principal: true, acao: function () { location.href = "../../musica/"; } },

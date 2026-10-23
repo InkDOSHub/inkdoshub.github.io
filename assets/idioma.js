@@ -1,13 +1,13 @@
-/* Idioma do InkTerminal.
+/* Idioma do InkDOS Hub.
 
    Só o inglês vem no site. Cada outro idioma é um pacote opcional, baixado quando a pessoa escolhe:
    a tradução da tela inicial e dos apps (idiomas/<código>.json), mais os arquivos de idioma dos
    editores ONLYOFFICE, do Quadro e dos apps do InkDOS. Fica um pacote por vez: escolher outro apaga
    o anterior do aparelho.
 
-   - Os textos da casca ficam em localStorage "inkterminal-idioma-textos" (só o idioma escolhido),
+   - Os textos da casca ficam em localStorage "inkdoshub-idioma-textos" (só o idioma escolhido),
      para a página já abrir traduzida.
-   - Os arquivos do pacote ficam no cache "inkterminal-idioma"; o service worker (sw-portal.js)
+   - Os arquivos do pacote ficam no cache "inkdoshub-idioma"; o service worker (sw-portal.js)
      serve esse cache quando não há rede.
    - A lista de arquivos e tamanhos de cada pacote vem de inicio/manifesto.json (chave "idiomas"),
      gerada por tools/portal_manifesto.py.
@@ -19,9 +19,9 @@
   "use strict";
   if (window.InkIdioma) return;
 
-  var CHAVE = "inkterminal-idioma";
-  var CHAVE_TEXTOS = "inkterminal-idioma-textos";
-  var CACHE = "inkterminal-idioma";
+  var CHAVE = "inkdoshub-idioma";
+  var CHAVE_TEXTOS = "inkdoshub-idioma-textos";
+  var CACHE = "inkdoshub-idioma";
   var script = document.currentScript;
   var RAIZ = new URL("../", script ? script.src : location.href);
 
@@ -231,7 +231,7 @@
   function escolher() {
     fechar();
     if (!document.getElementById("ink-idioma-css")) { var s = el("style"); s.id = "ink-idioma-css"; s.textContent = CSS; document.head.appendChild(s); }
-    var tema = ler("inkterminal-tema");
+    var tema = ler("inkdoshub-tema");
     if (tema !== "light" && tema !== "dark") tema = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     var fundo = el("div", "ink-idioma-fundo");
     var caixa = el("div", "ink-idioma" + (tema === "dark" ? " escuro" : ""));

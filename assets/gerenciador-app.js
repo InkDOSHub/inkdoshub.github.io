@@ -1,4 +1,4 @@
-/* Abertura dos apps do InkTerminal.
+/* Abertura dos apps do InkDOS Hub.
 
    Cada ferramenta abre na própria aba e só carrega quando é pedida. O site não aplica limite de
    memória: as abas não se coordenam e o sistema (iOS, XeOS, navegador) decide o que fecha.
@@ -13,7 +13,7 @@
   var APPS = [
     { id: "terminal", nome: "Linux terminal", url: "terminal/",
       // o modo "limitada" do terminal (640 MB + swap) deixa a aba perto de 1 GB
-      peso: function () { var m; try { m = localStorage.getItem("inkterminal-memoria"); } catch (_) {} return m === "limitada" ? 900 : 350; } },
+      peso: function () { var m; try { m = localStorage.getItem("inkdoshub-memoria"); } catch (_) {} return m === "limitada" ? 900 : 350; } },
     { id: "foto", nome: "Photos", url: "apps/foto/", peso: 120 },
     { id: "videoeditor", nome: "Edit video", url: "apps/video/cortar/", peso: 300 },
     { id: "video", nome: "Video", url: "apps/video/", peso: 150 },
@@ -56,9 +56,9 @@
   var topo = window.top === window;
 
   // o nome da janela é como a tela inicial acha a aba de cada app (window.open("", nome))
-  if (topo && (!window.name || /^inkterminal-/.test(window.name))) {
-    if (noInicio) window.name = "inkterminal-inicio";
-    else if (app && app.id !== "office") window.name = "inkterminal-" + app.id;
+  if (topo && (!window.name || /^inkdoshub-/.test(window.name))) {
+    if (noInicio) window.name = "inkdoshub-inicio";
+    else if (app && app.id !== "office") window.name = "inkdoshub-" + app.id;
   }
 
   function aplicarTema(t) {
@@ -66,7 +66,7 @@
     document.documentElement.dataset.theme = t;
     document.documentElement.style.colorScheme = t;
   }
-  addEventListener("storage", function (e) { if (e.key === "inkterminal-tema") aplicarTema(e.newValue); });
+  addEventListener("storage", function (e) { if (e.key === "inkdoshub-tema") aplicarTema(e.newValue); });
 
   /* Abre um app na aba dele, se já estiver aberta (mesmo nome de janela), ou numa nova. */
   function abrirUrl(url, janela) {
@@ -111,13 +111,13 @@
   }
 
   /* Arquivos mandados pela tela inicial (inicio/lancador.js): ficam no IndexedDB
-     "inkterminal-entrada" e chegam ao app pelo botão de abrir dele (o input #arquivos). */
+     "inkdoshub-entrada" e chegam ao app pelo botão de abrir dele (o input #arquivos). */
   function receber() {
     var m = /(?:^#|&)ink-arquivos=([A-Za-z0-9-]+)/.exec(location.hash);
     if (!m || !window.indexedDB) return;
     var id = m[1];
     try { history.replaceState(history.state, "", location.pathname + location.search); } catch (_) {}
-    var req = indexedDB.open("inkterminal-entrada", 1);
+    var req = indexedDB.open("inkdoshub-entrada", 1);
     req.onupgradeneeded = function () { req.result.createObjectStore("arquivos"); };
     req.onsuccess = function () {
       var db = req.result, tx = db.transaction("arquivos", "readwrite"), st = tx.objectStore("arquivos"), get = st.get(id);
@@ -147,7 +147,7 @@
     raiz: RAIZ,
     apps: APPS,
     peso: pesoDe,
-    abrir: function (id) { var a = appDe(id); if (a) abrirUrl(new URL(a.url, RAIZ).href, "inkterminal-" + id); },
+    abrir: function (id) { var a = appDe(id); if (a) abrirUrl(new URL(a.url, RAIZ).href, "inkdoshub-" + id); },
     /* O app do InkDOS guardou o documento no IndexedDB "inkdos-tool-handoff" (veja
        tools/adaptar_inkdos.py). win: a aba aberta no toque, antes de ler o documento. */
     abrirEditor: function (info, win) {

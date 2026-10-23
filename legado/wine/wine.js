@@ -1,6 +1,6 @@
 /* Página do Wine: "Iniciar o Wine", "Instalar programa", o aviso de carregamento e os botões da barra.
    O emulador roda em emulador.html (iframe), com a área de trabalho num tamanho padrão do formato da página.
-   inkterminal-wine.js, lá dentro, põe os arquivos recebidos no disco D:, mostra os programas
+   inkdoshub-wine.js, lá dentro, põe os arquivos recebidos no disco D:, mostra os programas
    instalados na área de trabalho (area/area.exe) e cuida do teclado e do clique direito no iPad. */
 (function () {
   "use strict";
@@ -26,7 +26,7 @@
      a barra de tarefas no meio da página. Vale o tamanho da lista com o formato mais parecido com o
      da área da página e, entre os de mesmo formato, o de lado menor mais perto de 800 pontos (menos
      e as janelas do Windows não cabem; mais e o texto fica miúdo). Página em pé: o mesmo tamanho
-     deitado de lado. inkterminal-wine.js reduz a imagem para caber, sem esticar. */
+     deitado de lado. inkdoshub-wine.js reduz a imagem para caber, sem esticar. */
   var TAMANHOS = [[1024, 768], [1152, 864], [1280, 960], [1280, 720], [1600, 900], [1440, 900], [1440, 960], [1280, 768], [1920, 800]];
   function tamanhoTela() {
     var r = document.querySelector(".ink-main").getBoundingClientRect();
@@ -81,7 +81,7 @@
     carregando(t("Opening Wine"), t("Loading the emulator…"), null);
     clearInterval(relogio); relogio = setInterval(tempo, 1000); tempo();
     $("tela").src = "emulador.html?" + q;
-    document.title = t("Wine · InkTerminal");
+    document.title = t("Wine · InkDOS Hub");
   }
   $("b-iniciar").onclick = function () { iniciar(null); };
 
@@ -122,7 +122,7 @@
   function guardarEntrada(valor) {
     var id = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
     return new Promise(function (ok, erro) {
-      var req = indexedDB.open("inkterminal-wine", 1);
+      var req = indexedDB.open("inkdoshub-wine", 1);
       req.onupgradeneeded = function () { req.result.createObjectStore("entrada"); };
       req.onerror = function () { erro(req.error); };
       req.onsuccess = function () {
@@ -167,7 +167,7 @@
 
   /* ---------- Sessão em arquivo (assets/sessao.js) ----------
      Salvar pede ao emulador os discos C: (o que o Wine mudou) e D: e cifra num arquivo.
-     Abrir guarda os discos no IndexedDB e liga o Wine de novo com ?ink-entrada: inkterminal-wine.js
+     Abrir guarda os discos no IndexedDB e liga o Wine de novo com ?ink-entrada: inkdoshub-wine.js
      troca os discos antes do Windows começar. */
   function pedirDiscos() {
     return new Promise(function (ok, erro) {
@@ -218,13 +218,13 @@
   $("b-abrir-sessao").onclick = abrirSessao;
 
   /* ---------- Segundo plano ----------
-     "pausa": oculto e parado, o Wine pausa para não gastar bateria (veja inkterminal-wine.js).
+     "pausa": oculto e parado, o Wine pausa para não gastar bateria (veja inkdoshub-wine.js).
      "continua": nunca pausa, para deixar algo rodando com a página escondida. */
-  function fundo() { try { return localStorage.getItem("inkterminal-wine-fundo") || "pausa"; } catch (_) { return "pausa"; } }
+  function fundo() { try { return localStorage.getItem("inkdoshub-wine-fundo") || "pausa"; } catch (_) { return "pausa"; } }
   function mostrarFundo() { $("b-fundo").textContent = fundo() === "continua" ? t("Background: keep running") : t("Background: pause"); }
   $("b-fundo").onclick = function () {
     var v = fundo() === "continua" ? "pausa" : "continua";
-    try { localStorage.setItem("inkterminal-wine-fundo", v); } catch (_) {}
+    try { localStorage.setItem("inkdoshub-wine-fundo", v); } catch (_) {}
     mostrarFundo();
     var w = janela(); if (w) w.postMessage({ tipo: "wine:fundo", manter: v === "continua" }, location.origin);
   };
@@ -268,7 +268,7 @@
     var w = janela(), f = [].slice.call($("enviar").files);
     $("enviar").value = "";
     if (w && f.length) {
-      // inkterminal-wine.js grava no D: e avisa o Wine para ver os arquivos novos
+      // inkdoshub-wine.js grava no D: e avisa o Wine para ver os arquivos novos
       w.postMessage({ tipo: "wine:enviar", arquivos: f }, location.origin);
       recado(f.length === 1 ? t("{name} on drive D:", { name: f[0].name }) : t("{n} files on drive D:", { n: f.length.toLocaleString(InkIdioma.atual) }));
     }
@@ -305,7 +305,7 @@
       if (d.fase === "pronto") pronto();
     }
     if (d.tipo === "wine:aviso") recado(d.texto);
-    if (d.tipo === "wine:pausa") document.title = d.pausado ? t("Wine paused (hidden) · InkTerminal") : t("Wine · InkTerminal");
+    if (d.tipo === "wine:pausa") document.title = d.pausado ? t("Wine paused (hidden) · InkDOS Hub") : t("Wine · InkDOS Hub");
     if (d.tipo === "wine:direito") marcarDireito(d.ligado);
     if (d.tipo === "wine:erro") recado(t("Error: {error}", { error: d.texto }), true);
   });

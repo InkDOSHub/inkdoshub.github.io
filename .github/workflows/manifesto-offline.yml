@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   manifesto:
-    # só no site publicado; o espelho vfydr2m9wk-ops/inkterminal recebe o resultado pela sincronização
+    # só no site publicado; o espelho vfydr2m9wk-ops/inkdoshub recebe o resultado pela sincronização
     if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
     runs-on: ubuntu-latest
     steps:

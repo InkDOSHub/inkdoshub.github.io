@@ -1,4 +1,4 @@
-export PS1='\[\e[1;32m\]root@inkterminal\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]# '
+export PS1='\[\e[1;32m\]root@inkdoshub\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]# '
 export TERM=xterm-256color
 alias ls='ls --color=auto'
 alias ll='ls -la'

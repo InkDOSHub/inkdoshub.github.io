@@ -13,48 +13,48 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    # só no site publicado; o espelho vfydr2m9wk-ops/inkterminal recebe só o código pela sincronização
+    # só no site publicado; o espelho vfydr2m9wk-ops/inkdoshub recebe só o código pela sincronização
     if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      - name: softcam (versão fixada, com o nome e o CLSID do InkTerminal)
+      - name: softcam (versão fixada, com o nome e o CLSID do InkDOS Hub)
         shell: pwsh
         run: |
           git clone -q https://github.com/tshino/softcam softcam
           git -C softcam checkout -q 8f545e2a3faa2c0d6e6e05378f945ee2a7adfc1d
           $f = "softcam/src/softcam/softcam.cpp"
           $c = Get-Content $f -Raw
-          $c = $c.Replace('L"DirectShow Softcam"', 'L"InkTerminal Webcam"')
+          $c = $c.Replace('L"DirectShow Softcam"', 'L"InkDOS Hub Webcam"')
           $c = $c.Replace('0xaef3b972, 0x5fa5, 0x4647, 0x95, 0x71, 0x35, 0x8e, 0xb4, 0x72, 0xbc, 0x9e', '0x4e1c6b1a, 0x2b7e, 0x4f0a, 0x9c, 0x55, 0x6a, 0x1d, 0x3b, 0x8e, 0x7f, 0x21')
-          if (-not $c.Contains('L"InkTerminal Webcam"') -or -not $c.Contains('0x4e1c6b1a')) { throw "o patch do softcam.cpp não aplicou" }
+          if (-not $c.Contains('L"InkDOS Hub Webcam"') -or -not $c.Contains('0x4e1c6b1a')) { throw "o patch do softcam.cpp não aplicou" }
           Set-Content $f $c -NoNewline
           msbuild softcam/softcam.sln /t:softcam /p:Configuration=Release /p:Platform=x64 /m /v:minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: App
-        run: dotnet build windows/webcam/InkTerminalWebcam.csproj -c Release -o out
+        run: dotnet build windows/webcam/InkDOSHubWebcam.csproj -c Release -o out
 
       - name: ZIP
         shell: pwsh
         run: |
-          $d = "pacote/InkTerminal Webcam"
+          $d = "pacote/InkDOS Hub Webcam"
           New-Item -ItemType Directory -Force $d | Out-Null
-          Copy-Item "out/InkTerminal Webcam.exe","out/InkTerminal Webcam.exe.config","out/Microsoft.Web.WebView2.Core.dll","out/Microsoft.Web.WebView2.WinForms.dll","out/runtimes/win-x64/native/WebView2Loader.dll" $d
+          Copy-Item "out/InkDOS Hub Webcam.exe","out/InkDOS Hub Webcam.exe.config","out/Microsoft.Web.WebView2.Core.dll","out/Microsoft.Web.WebView2.WinForms.dll","out/runtimes/win-x64/native/WebView2Loader.dll" $d
           $dll = Get-ChildItem softcam -Recurse -Filter softcam.dll | Where-Object { $_.FullName -match '\\x64\\Release\\' } | Select-Object -First 1
           if (-not $dll) { throw "softcam.dll não foi gerada" }
           Copy-Item $dll.FullName $d
           Copy-Item windows/webcam/LEIA-ME.txt $d
           Copy-Item softcam/LICENSE "$d/softcam-LICENSE.txt"
           Get-ChildItem $d | Format-Table Name, Length
-          Compress-Archive -Path $d -DestinationPath InkTerminal-Webcam-Windows.zip -Force
+          Compress-Archive -Path $d -DestinationPath InkDOSHub-Webcam-Windows.zip -Force
 
       - uses: actions/upload-artifact@v4
         with:
-          name: InkTerminal-Webcam-Windows
-          path: InkTerminal-Webcam-Windows.zip
+          name: InkDOSHub-Webcam-Windows
+          path: InkDOSHub-Webcam-Windows.zip
 
       - name: Publicar na release webcam-windows
         if: github.ref == 'refs/heads/main'
@@ -62,5 +62,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view webcam-windows >/dev/null 2>&1 || gh release create webcam-windows --title "InkTerminal Webcam for Windows" --latest=false --notes "Turns the iPhone camera (InkTerminal Webcam page) into a Windows webcam, without OBS. Source: windows/webcam/ (MIT) and softcam (MIT)."
-          gh release upload webcam-windows InkTerminal-Webcam-Windows.zip --clobber
+          gh release view webcam-windows >/dev/null 2>&1 || gh release create webcam-windows --title "InkDOS Hub Webcam for Windows" --latest=false --notes "Turns the iPhone camera (InkDOS Hub Webcam page) into a Windows webcam, without OBS. Source: windows/webcam/ (MIT) and softcam (MIT)."
+          gh release upload webcam-windows InkDOSHub-Webcam-Windows.zip --clobber

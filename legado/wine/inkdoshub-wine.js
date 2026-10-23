@@ -1,13 +1,13 @@
-/* Partes do InkTerminal dentro do emulador (emulador.html), carregadas depois do boxedwine-shell.js.
+/* Partes do InkDOS Hub dentro do emulador (emulador.html), carregadas depois do boxedwine-shell.js.
 
    1. Área de trabalho: o Wine sempre abre numa área de trabalho do tamanho pedido (?ink-tela=LxA),
-      com a nossa área de trabalho (area/area.exe, guardada em D:\.inkterminal) por baixo das
-      janelas: fundo azul e um ícone por programa instalado. Ela grava D:\.inkterminal\pronto quando
+      com a nossa área de trabalho (area/area.exe, guardada em D:\.inkdoshub) por baixo das
+      janelas: fundo azul e um ícone por programa instalado. Ela grava D:\.inkdoshub\pronto quando
       aparece; esta página avisa a de fora para tirar o aviso de carregamento.
    2. Arquivos recebidos (instaladores): index.html guarda o .exe, .msi ou .zip no IndexedDB
-      "inkterminal-wine" (loja "entrada") e abre o emulador com ?ink-entrada=<id>, ou, com o Wine já
+      "inkdoshub-wine" (loja "entrada") e abre o emulador com ?ink-entrada=<id>, ou, com o Wine já
       aberto, manda {tipo:"wine:arquivo"}. O arquivo vai para o D: e o caminho dele para
-      D:\.inkterminal\abrir.txt, que a área de trabalho abre.
+      D:\.inkdoshub\abrir.txt, que a área de trabalho abre.
    3. Toque no iPad: {tipo:"wine:teclado"} mostra o teclado e {tipo:"wine:direito", ligado} faz o
       próximo toque valer como clique com o botão direito. */
 (function () {
@@ -71,7 +71,7 @@
     marcadas = {};
     if (!l.length || typeof Module === "undefined" || typeof Module.ccall !== "function") return;
     try { Module.ccall("boxedwineHostFolderSyncDirectories", null, ["string", "string"], [D_GUEST, l.join("\n")]); }
-    catch (e) { console.error("InkTerminal: reler D:", e); }
+    catch (e) { console.error("InkDOS Hub: reler D:", e); }
   }
   function existe(c) { try { return FS.analyzePath(c).exists; } catch (_) { return false; } }
   function pasta(c) { try { FS.mkdirTree(c); } catch (_) {} marcar(c); }
@@ -104,7 +104,7 @@
     return new Uint8Array([].concat(cab, info, le(pastaTrabalho.length, 2), u16(pastaTrabalho), le(0, 4)));
   }
 
-  var INK = function () { return Config.d_drive + "/.inkterminal"; };
+  var INK = function () { return Config.d_drive + "/.inkdoshub"; };
   function pedirAbertura(caminhoWin) {
     pasta(INK());
     var antes = existe(INK() + "/abrir.txt") ? new TextDecoder().decode(FS.readFile(INK() + "/abrir.txt")) : "";
@@ -161,7 +161,7 @@
 
   function lerEntrada(id) {
     return new Promise(function (ok) {
-      var req = indexedDB.open("inkterminal-wine", 1);
+      var req = indexedDB.open("inkdoshub-wine", 1);
       req.onupgradeneeded = function () { req.result.createObjectStore("entrada"); };
       req.onerror = function () { ok(null); };
       req.onsuccess = function () {
@@ -228,13 +228,13 @@
         else if (entrada) return receberArquivo(entrada).then(function (t) { avisarFora({ tipo: "wine:aviso", texto: t }); });
       });
       passos.catch(function (err) {
-        console.error("InkTerminal:", err);
+        console.error("InkDOS Hub:", err);
         avisarFora({ tipo: "wine:erro", texto: String(err && err.message || err) });
       }).then(function () {
         primeira = !existe(ROOT + "/home/username/.wine/system.reg");
         Config.resolution = tela;
         Config.Program = "explorer";
-        Config.ProgramArgs = ["/desktop=shell," + tela, "D:\\.inkterminal\\area.exe"];
+        Config.ProgramArgs = ["/desktop=shell," + tela, "D:\\.inkdoshub\\area.exe"];
         Config.WorkingDir = "";
         ligarD();
         avisarFora({ tipo: "wine:fase", fase: "ligando", primeira: primeira });
@@ -251,7 +251,7 @@
      instalados e o registro, por cima do sistema que vem no .zip) e o disco D:.
      Pacote: tamanho do índice (4 bytes) + índice JSON [[caminho, tipo, tamanho]] + os dados.
      tipo: "d" pasta, "f" arquivo, "l" link (o destino vai nos dados). */
-  var FORA_C = /^tmp\//, FORA_D = /^\.inkterminal\/(area\.exe|pronto|abrir\.txt)$/;
+  var FORA_C = /^tmp\//, FORA_D = /^\.inkdoshub\/(area\.exe|pronto|abrir\.txt)$/;
   function empacotar(base, FORA) {
     var lista = [], dados = [], total = 0;
     (function andar(rel) {
@@ -311,7 +311,7 @@
   function ligarD() {
     var dir = ROOT + "/home/username/.wine/dosdevices";
     try { FS.mkdirTree(dir); } catch (_) {}
-    try { FS.writeFile(dir + "/d(_colon_).link", D_GUEST); } catch (e) { console.error("InkTerminal: link d:", e); }
+    try { FS.writeFile(dir + "/d(_colon_).link", D_GUEST); } catch (e) { console.error("InkDOS Hub: link d:", e); }
   }
   if (typeof getEmulatorParams === "function") {
     var paramsOriginal = getEmulatorParams;
@@ -319,7 +319,7 @@
       var p = paramsOriginal.apply(this, arguments);
       var i = p.indexOf("-mount_drive");
       if (i >= 0 && p[i + 2] === "d") p.splice(i, 3, "-mount", p[i + 1], D_GUEST);
-      console.log("InkTerminal params: " + p.join(" "));
+      console.log("InkDOS Hub params: " + p.join(" "));
       return p;
     };
   }
@@ -329,7 +329,7 @@
      disco há 1 minuto. Instalações e cópias gravam o tempo todo, então seguem rodando. A barra da
      página tem "Segundo plano: continua" para nunca pausar. Volta na hora quando a página aparece. */
   var ultimaGravacao = Date.now(), pausado = false, manterLigado = false;
-  try { manterLigado = localStorage.getItem("inkterminal-wine-fundo") === "continua"; } catch (_) {}
+  try { manterLigado = localStorage.getItem("inkdoshub-wine-fundo") === "continua"; } catch (_) {}
   function marcarGravacao() {
     if (typeof FS === "undefined" || !FS.write || FS.write.inkMarcado) return;
     var w = FS.write;

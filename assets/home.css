@@ -1,4 +1,4 @@
-/* Tela inicial do InkTerminal: o visual da tela inicial do InkDOS, sem sombras nem animações (mais leve). */
+/* Tela inicial do InkDOS Hub: o visual da tela inicial do InkDOS, sem sombras nem animações (mais leve). */
 :root{--bg:#f2f5f8;--card:#fff;--text:#192235;--muted:#697486;--border:#e3e8ef;--icon-base:#fff;--chevron:#a8b1bd;--pill-bg:#f0f2f5;--pill-text:#6f7988;--footer:#788394}
 html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5c3;--border:#323c49;--icon-base:#1c222a;--chevron:#8591a1;--pill-bg:#252d37;--pill-text:#aab5c3;--footer:#98a4b4}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}body{min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}

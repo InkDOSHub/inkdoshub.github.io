@@ -10,7 +10,7 @@ npm i -s vscode-web@1.91.1 @excalidraw/excalidraw@0.18.1 react@18.3.1 react-dom@
 
 # Fotos: galeria e editor são nossos (apps/foto/), sem ferramenta de fora
 
-# Música: não usa ferramenta de fora (apps/musica é do InkTerminal)
+# Música: não usa ferramenta de fora (apps/musica é do InkDOS Hub)
 
 # Vídeo: o player e o editor (apps/video/cortar/) são nossos; só o ffmpeg.wasm vem de fora
 mkdir -p vdeps && (cd vdeps && npm init -y >/dev/null && npm i -s --ignore-scripts @ffmpeg/core@0.12.5)

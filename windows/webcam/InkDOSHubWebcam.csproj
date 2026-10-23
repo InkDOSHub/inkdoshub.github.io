@@ -7,11 +7,11 @@
     <PlatformTarget>x64</PlatformTarget>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>7.3</LangVersion>
-    <AssemblyName>InkTerminal Webcam</AssemblyName>
-    <RootNamespace>InkTerminalWebcam</RootNamespace>
+    <AssemblyName>InkDOS Hub Webcam</AssemblyName>
+    <RootNamespace>InkDOSHubWebcam</RootNamespace>
     <ApplicationIcon>icone.ico</ApplicationIcon>
     <Version>0.1.0</Version>
-    <Product>InkTerminal Webcam</Product>
+    <Product>InkDOS Hub Webcam</Product>
     <Copyright>MIT</Copyright>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

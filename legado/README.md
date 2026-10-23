@@ -1,6 +1,6 @@
 # Legado
 
-Código congelado: fica guardado no repositório, mas não faz parte do InkTerminal. Nada no site
+Código congelado: fica guardado no repositório, mas não faz parte do InkDOS Hub. Nada no site
 aponta para esta pasta, e ela não é mantida nem testada (os caminhos relativos podem estar quebrados).
 
 - `wine/`: Wine (Boxedwine) que era `apps/wine/`. Saiu em 2026-10-20 para simplificar o app.

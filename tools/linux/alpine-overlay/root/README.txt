@@ -1,4 +1,4 @@
-Welcome to InkTerminal!
+Welcome to InkDOS Hub!
 This is a real Alpine Linux (kernel 6.6) emulated in WebAssembly.
 
 - Install programs with: apk add python3 git nano

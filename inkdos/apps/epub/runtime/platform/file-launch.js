@@ -45,9 +45,9 @@ function handOff(file,url){
   .then(()=>{url.searchParams.set('inkdos-handoff',id);url.searchParams.set('inkdos-return',g.location.href);g.location.href=url.href;return true});
 }
 function webEdition(){return !g.InkDOSDesktop&&doc?.documentElement.dataset.inkdosHost!=='tauri'}
-/* InkTerminal: editor ONLYOFFICE local */
-function inkTerminal(){return g.InkPaginas&&g.InkPaginas.abrirEditor?g.InkPaginas:null}
-function toInkTerminal(it,file,win){
+/* InkDOS Hub: editor ONLYOFFICE local */
+function inkDOSHub(){return g.InkPaginas&&g.InkPaginas.abrirEditor?g.InkPaginas:null}
+function toInkDOSHub(it,file,win){
  const id=g.crypto?.randomUUID?g.crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2,10);
  const lang=String(g.InkDOSLocalization?.currentLanguage||doc.documentElement.lang||g.navigator?.language||'en');
  const LOCALE={pt:'pt',es:'es',de:'de',ja:'ja',zh:'zh-CN',fr:'fr',ru:'ru'}[lang.toLowerCase().split('-')[0]];
@@ -57,8 +57,8 @@ function toInkTerminal(it,file,win){
   .then(()=>{it.abrirEditor({id,nome:file.name,locale:LOCALE||''},win);return true});
 }
 function openInOffice(file,light,win){
- const it=inkTerminal();
- if(it){toInkTerminal(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
+ const it=inkDOSHub();
+ if(it){toInkDOSHub(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
  return openInOfficeOriginal(file,light,win);
 }
 function openInOfficeOriginal(file,light,win){

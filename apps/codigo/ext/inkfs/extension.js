@@ -1,10 +1,10 @@
-// Sistema de arquivos "inkfs" do editor de código do InkTerminal.
+// Sistema de arquivos "inkfs" do editor de código do InkDOS Hub.
 // Os arquivos ficam na memória e são gravados no IndexedDB deste navegador,
 // então continuam lá na próxima visita. Para trocar arquivos com o iPad use
 // "Upload..." e "Download..." no menu do Explorer (botão direito / toque longo).
 const vscode = require("vscode");
 
-const DB = "inkterminal-codigo", STORE = "files";
+const DB = "inkdoshub-codigo", STORE = "files";
 function openDb() {
   return new Promise((ok, fail) => {
     const r = indexedDB.open(DB, 1);
@@ -39,7 +39,7 @@ class InkFS {
       this.entries.set("/README.md", {
         type: vscode.FileType.File, ctime: now, mtime: now,
         data: new TextEncoder().encode(
-          "# InkTerminal Code Editor\n\n" +
+          "# InkDOS Hub Code Editor\n\n" +
           "The files in this folder are kept in this browser.\n\n" +
           "- New file or folder: icons at the top of the Explorer.\n" +
           "- Bring files from the iPad: right-click (or long-press) in the Explorer > Upload...\n" +
@@ -135,10 +135,10 @@ exports.activate = async function (context) {
   abrirRecebidos();
 };
 
-// Arquivos mandados pela tela inicial do InkTerminal (inicio/lancador.js): já estão na pasta, em
+// Arquivos mandados pela tela inicial do InkDOS Hub (inicio/lancador.js): já estão na pasta, em
 // /Recebidos; o pedido diz quais abrir.
 function abrirRecebidos() {
-  const r = indexedDB.open("inkterminal-codigo-abrir", 1);
+  const r = indexedDB.open("inkdoshub-codigo-abrir", 1);
   r.onupgradeneeded = () => r.result.createObjectStore("abrir");
   r.onsuccess = () => {
     const db = r.result, tx = db.transaction("abrir", "readwrite"), st = tx.objectStore("abrir"), get = st.get("pedido");

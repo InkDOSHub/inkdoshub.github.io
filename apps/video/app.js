@@ -1,14 +1,14 @@
-// Player de vídeo do InkTerminal: <video> nativo do Safari, com lista guardada
+// Player de vídeo do InkDOS Hub: <video> nativo do Safari, com lista guardada
 // neste aparelho. "Editar" abre o vídeo atual no editor simples (cortar/).
 // "Extrair som" tira só o áudio (.m4a, para a Música) de um vídeo escolhido, sem guardar o vídeo
 // aqui: serve para gravações longas (uma aula de 1 h), que ocupariam gigabytes.
 const $ = (id) => document.getElementById(id);
 const t = InkIdioma.t;
 const video = $("video"), lista = $("lista");
-const bib = InkBiblioteca("inkterminal-video");
+const bib = InkBiblioteca("inkdoshub-video");
 let itens = [], atual = -1, url = null;
 let posicoes = {};
-try { posicoes = JSON.parse(localStorage.getItem("inkterminal-video-posicoes") || "{}"); } catch (_) {}
+try { posicoes = JSON.parse(localStorage.getItem("inkdoshub-video-posicoes") || "{}"); } catch (_) {}
 
 function desenhar() {
   lista.innerHTML = "";
@@ -46,7 +46,7 @@ function abrir(i, tocar) {
   $("titulo").textContent = v.nome;
   $("sub").textContent = inkTamanho(v.tamanho);
   document.title = t("{name} · Video", { name: v.nome });
-  try { localStorage.setItem("inkterminal-video-atual", String(v.id)); } catch (_) {}
+  try { localStorage.setItem("inkdoshub-video-atual", String(v.id)); } catch (_) {}
   desenhar();
   if (tocar) video.play().catch(() => {});
 }
@@ -54,7 +54,7 @@ function guardarPosicao() {
   const v = itens[atual];
   if (!v || !isFinite(video.currentTime)) return;
   posicoes[v.id] = video.ended ? 0 : Math.floor(video.currentTime);
-  try { localStorage.setItem("inkterminal-video-posicoes", JSON.stringify(posicoes)); } catch (_) {}
+  try { localStorage.setItem("inkdoshub-video-posicoes", JSON.stringify(posicoes)); } catch (_) {}
 }
 let ultimoSalvo = 0;
 video.addEventListener("timeupdate", () => { if (Date.now() - ultimoSalvo > 4000) { ultimoSalvo = Date.now(); guardarPosicao(); } });
@@ -85,7 +85,7 @@ $("limpar").onclick = async () => {
   await bib.limpar();
   itens = []; atual = -1; posicoes = {}; video.pause(); video.removeAttribute("src"); video.load();
   $("titulo").textContent = t("No video"); $("sub").textContent = "";
-  try { localStorage.removeItem("inkterminal-video-posicoes"); } catch (_) {}
+  try { localStorage.removeItem("inkdoshub-video-posicoes"); } catch (_) {}
   desenhar();
 };
 $("prox").onclick = () => itens.length && abrir((atual + 1) % itens.length, true);
@@ -159,8 +159,8 @@ $("arquivo-som").onchange = async (e) => {
     if (d.tipo === "pronto") {
       worker.terminate(); worker = null;
       const arq = new File([d.blob], arquivo.name.replace(/\.[^.]+$/, "") + d.ext, { type: d.blob.type });
-      InkBiblioteca("inkterminal-musica").adicionar([arq]).then((novos) => {
-        try { localStorage.setItem("inkterminal-musica-atual", String(novos[0].id)); } catch (_) {}
+      InkBiblioteca("inkdoshub-musica").adicionar([arq]).then((novos) => {
+        try { localStorage.setItem("inkdoshub-musica-atual", String(novos[0].id)); } catch (_) {}
         painel(t("Done"), t("{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
           { texto: t("Save to device"), acao: () => partilhar(arq) },
           { texto: t("Open in Music"), principal: true, acao: () => { location.href = "../musica/"; } },
@@ -177,7 +177,7 @@ $("titulo").textContent = t("No video");
 bib.listar().then((lst) => {
   itens = lst;
   let ultimo = null;
-  try { ultimo = +localStorage.getItem("inkterminal-video-atual"); } catch (_) {}
+  try { ultimo = +localStorage.getItem("inkdoshub-video-atual"); } catch (_) {}
   const i = itens.findIndex((v) => v.id === ultimo);
   if (itens.length) abrir(i >= 0 ? i : 0, false); else desenhar();
 });

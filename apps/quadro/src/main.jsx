@@ -1,11 +1,11 @@
-// Quadro branco do InkTerminal: o Excalidraw (MIT) abaixo da barra comum, com o
+// Quadro branco do InkDOS Hub: o Excalidraw (MIT) abaixo da barra comum, com o
 // desenho guardado neste navegador. Abrir/Salvar/Exportar vêm do próprio Excalidraw.
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
 import "../node_modules/@excalidraw/excalidraw/dist/prod/index.css";
 
-const KEY = "inkterminal-quadro";
+const KEY = "inkdoshub-quadro";
 let initialData = null;
 try {
   const s = JSON.parse(localStorage.getItem(KEY) || "null");
@@ -25,7 +25,7 @@ function onChange(elements, appState, files) {
 function App() {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      {/* O tema segue o do InkTerminal (assets/tema.js) e o idioma, o pacote escolhido (assets/idioma.js) */}
+      {/* O tema segue o do InkDOS Hub (assets/tema.js) e o idioma, o pacote escolhido (assets/idioma.js) */}
       <Excalidraw initialData={initialData} onChange={onChange} langCode={window.InkIdioma ? InkIdioma.excalidraw() : "en"} theme={window.inkTema ? inkTema.atual() : "light"}>
         <MainMenu>
           <MainMenu.DefaultItems.LoadScene />
