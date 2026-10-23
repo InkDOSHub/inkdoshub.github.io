@@ -149,15 +149,19 @@ namespace InkDOSHubWebcam
         }
         static readonly Qualidade[] Qualidades =
         {
-            new Qualidade("1080p 60 fps (high load)", 1920, 1080, 60),
-            new Qualidade("1080p 30 fps", 1920, 1080, 30),
-            new Qualidade("720p 60 fps", 1280, 720, 60),
-            new Qualidade("720p 30 fps (diagnostic)", 1280, 720, 30),
-            new Qualidade("4K 30 fps (heavy, for recording)", 3840, 2160, 30),
-            new Qualidade("4K 60 fps (heaviest)", 3840, 2160, 60),
+            // a primeira é a padrão; as outras só aparecem com "Custom resolutions"
+            // (bitrate médio = o que o iPhone manda em cada modo)
+            new Qualidade("1080p 30 fps · ~8 Mbps · light (recommended)", 1920, 1080, 30),
+            new Qualidade("720p 30 fps · ~4 Mbps · lightest", 1280, 720, 30),
+            new Qualidade("720p 60 fps · ~6 Mbps · light", 1280, 720, 60),
+            new Qualidade("1080p 60 fps · ~15 Mbps · medium", 1920, 1080, 60),
+            new Qualidade("4K 30 fps · ~25 Mbps · very heavy", 3840, 2160, 30),
+            new Qualidade("4K 60 fps · ~40 Mbps · extreme", 3840, 2160, 60),
         };
 
         readonly WebView2 web = new WebView2();
+        readonly CheckBox personalizadas = new CheckBox();
+        readonly Label rotuloBuffer = new Label();
         readonly ComboBox qualidade = new ComboBox();
         readonly Label estado = new Label();
         CoreWebView2SharedBuffer buffer;
@@ -188,41 +192,55 @@ namespace InkDOSHubWebcam
             var barra = new Panel { Dock = DockStyle.Top, Height = 44, Padding = new Padding(10, 9, 10, 6) };
             var rotulo = new Label { Text = "Quality:", AutoSize = true, Dock = DockStyle.Left, Padding = new Padding(0, 5, 6, 0) };
             qualidade.DropDownStyle = ComboBoxStyle.DropDownList;
-            qualidade.Width = 260;
+            qualidade.Width = 300;
             qualidade.Dock = DockStyle.Left;
-            qualidade.Items.AddRange(Qualidades);
+            personalizadas.Text = "Custom resolutions";
+            personalizadas.AutoSize = true;
+            personalizadas.Dock = DockStyle.Left;
+            personalizadas.Padding = new Padding(10, 3, 0, 0);
+            rotuloBuffer.AutoSize = true;
+            rotuloBuffer.Dock = DockStyle.Right;
+            rotuloBuffer.Padding = new Padding(8, 5, 0, 0);
+            rotuloBuffer.Text = "Buffer: –";
             estado.Dock = DockStyle.Fill;
             estado.TextAlign = ContentAlignment.MiddleLeft;
             estado.Padding = new Padding(12, 0, 0, 0);
             barra.Controls.Add(estado);
+            barra.Controls.Add(rotuloBuffer);
+            barra.Controls.Add(personalizadas);
             barra.Controls.Add(qualidade);
             barra.Controls.Add(rotulo);
             web.Dock = DockStyle.Fill;
             Controls.Add(web);
             Controls.Add(barra);
 
-            int salvo = 1; // Perfil padrão exigido: Full HD 1080p/30.
+            // qualidade salva = posição na lista completa (chave nova: a ordem mudou nesta versão)
+            int salvo = 0; bool todas = false;
             try
             {
                 using (var chave = Registry.CurrentUser.CreateSubKey(@"Software\InkDOS Hub Webcam"))
                 {
-                    int versaoMigracao = Convert.ToInt32(chave.GetValue("perfilDesempenhoMigrado", 0));
-                    if (versaoMigracao < 2)
-                    {
-                        // O perfil 720p foi aplicado automaticamente em uma versão anterior; volta ao requisito FHD.
-                        chave.SetValue("qualidade", 1);
-                        chave.SetValue("perfilDesempenhoMigrado", 2);
-                        salvo = 1;
-                    }
-                    else salvo = Convert.ToInt32(chave.GetValue("qualidade", 3));
+                    salvo = Convert.ToInt32(chave.GetValue("qualidade3", 0));
+                    todas = Convert.ToInt32(chave.GetValue("personalizadas", 0)) == 1;
                 }
             }
             catch (Exception) { }
-            qualidade.SelectedIndex = salvo >= 0 && salvo < Qualidades.Length ? salvo : 1;
+            if (salvo < 0 || salvo >= Qualidades.Length) salvo = 0;
+            if (salvo != 0) todas = true;
+            personalizadas.Checked = todas;
+            PreencherLista(Qualidades[salvo]);
             qualidade.SelectedIndexChanged += delegate
             {
-                try { Registry.CurrentUser.CreateSubKey(@"Software\InkDOS Hub Webcam").SetValue("qualidade", qualidade.SelectedIndex); } catch (Exception) { }
+                if (preenchendo) return;
+                Salvar();
                 AbrirCamera();
+            };
+            personalizadas.CheckedChanged += delegate
+            {
+                var antes = (Qualidade)qualidade.SelectedItem;
+                PreencherLista(personalizadas.Checked ? antes : Qualidades[0]);
+                Salvar();
+                if (qualidade.SelectedItem != antes) AbrirCamera();
             };
 
             envio = new Thread(Enviar) { IsBackground = true, Name = "envio" };
@@ -347,6 +365,31 @@ namespace InkDOSHubWebcam
             Program.Log("Camera initialization finished.");
         }
 
+        bool preenchendo;
+        /* Só a padrão (1080p 30) ou a lista completa, conforme "Custom resolutions". */
+        void PreencherLista(Qualidade escolhida)
+        {
+            preenchendo = true;
+            qualidade.Items.Clear();
+            if (personalizadas.Checked) qualidade.Items.AddRange(Qualidades);
+            else qualidade.Items.Add(Qualidades[0]);
+            int i = qualidade.Items.IndexOf(escolhida);
+            qualidade.SelectedIndex = i >= 0 ? i : 0;
+            preenchendo = false;
+        }
+        void Salvar()
+        {
+            try
+            {
+                using (var chave = Registry.CurrentUser.CreateSubKey(@"Software\InkDOS Hub Webcam"))
+                {
+                    chave.SetValue("qualidade3", Array.IndexOf(Qualidades, (Qualidade)qualidade.SelectedItem));
+                    chave.SetValue("personalizadas", personalizadas.Checked ? 1 : 0);
+                }
+            }
+            catch (Exception) { }
+        }
+
         void Mensagem(object s, CoreWebView2WebMessageReceivedEventArgs e)
         {
             if (!Permitida(e.Source)) return;
@@ -371,6 +414,12 @@ namespace InkDOSHubWebcam
                 }
                 fila.Enqueue(p);
                 temQuadro.Set();
+            }
+            else if (m != null && m.StartsWith("BUF ", StringComparison.Ordinal))
+            {
+                // atraso do buffer de vídeo agora, medido pela página a cada segundo
+                int ms;
+                if (int.TryParse(m.Substring(4), out ms)) rotuloBuffer.Text = "Buffer: " + (ms < 0 ? "–" : ms + " ms");
             }
             else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m.Length > 300 ? m.Substring(0, 300) : m);
         }
