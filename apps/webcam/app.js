@@ -643,7 +643,12 @@
       var v = { width: { ideal: Q.w }, height: { ideal: Q.h }, frameRate: { ideal: Q.fps } };
       if (cam === "environment" || cam === "user") v.facingMode = { ideal: cam };
       else v.deviceId = { exact: cam };
-      return navigator.mediaDevices.getUserMedia({ audio: false, video: v }).then(function (s) {
+      // pede o fps exato primeiro (o Safari ignora o "ideal" acima de 30); se a câmera recusar, abre com "ideal"
+      var exato = Q.fps > 30 ? Object.assign({}, v, { frameRate: { exact: Q.fps } }) : null;
+      var abrir = exato ? navigator.mediaDevices.getUserMedia({ audio: false, video: exato }).catch(function () {
+        return navigator.mediaDevices.getUserMedia({ audio: false, video: v });
+      }) : navigator.mediaDevices.getUserMedia({ audio: false, video: v });
+      return abrir.then(function (s) {
         var tr = s.getVideoTracks()[0];
         try { tr.contentHint = "motion"; } catch (_) {}
         // o Safari costuma abrir a câmera a 30 fps mesmo pedindo 60 como "ideal": insiste com mínimo
@@ -799,8 +804,10 @@
       lerStats(chamada.peerConnection, "outbound-rtp", ant, function (s) {
         if (!s) return;
         ant = s;
-        var r = s.rtp, cfgs = stream && stream.getVideoTracks()[0] ? stream.getVideoTracks()[0].getSettings() : {};
-        $("hstats").textContent = t("Camera") + ": " + (cfgs.width || "?") + "×" + (cfgs.height || "?") + " · " + Math.round(cfgs.frameRate || 0) + " fps\n" +
+        var tr0 = stream && stream.getVideoTracks()[0], cfgs = tr0 ? tr0.getSettings() : {}, r = s.rtp;
+        var caps = tr0 && tr0.getCapabilities ? tr0.getCapabilities() : {};
+        var maxFps = caps.frameRate && caps.frameRate.max ? " (max " + Math.round(caps.frameRate.max) + ")" : "";
+        $("hstats").textContent = t("Camera") + ": " + (cfgs.width || "?") + "×" + (cfgs.height || "?") + " · " + Math.round(cfgs.frameRate || 0) + " fps" + maxFps + "\n" +
           t("Sent") + ": " + (r.frameWidth || "?") + "×" + (r.frameHeight || "?") + " · " + Math.round(r.framesPerSecond || 0) + " fps\n" +
           s.codec + (r.encoderImplementation ? " (" + r.encoderImplementation + ")" : "") + " · " + mbps(s.taxa) +
           (r.qualityLimitationReason && r.qualityLimitationReason !== "none" ? "\n" + t("Limited by") + ": " + r.qualityLimitationReason : "") + "\n" + s.rede;
