@@ -143,7 +143,7 @@
     if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = novoCodigo();
     gravar(CHAVE_CODIGO, codigo);
     if (q.get("guest") !== codigo) history.replaceState(null, "", "?guest=" + codigo + (obs ? "&obs=1" : ""));
-    var video = $("vguest"), peer = null, chamada = null, ant = null, timer = 0, reconectarTimer = 0, encerrando = false, statsVisivel = false;
+    var video = $("vguest"), peer = null, chamada = null, ant = null, timer = 0, reconectarTimer = 0, encerrando = false, statsVisivel = false, reiniciando = false;
     var linkHost = BASE + "?host=" + codigo;
     $("gcodigo").textContent = codigo;
     $("linkobs").value = BASE + "?guest=" + codigo + "&obs=1";
@@ -156,12 +156,16 @@
     /* App de Windows: pede ao iPhone a mesma resolução e fps da câmera escolhida no app, para o quadro
        chegar já no tamanho certo e ir pelo caminho rápido (sem redimensionar). */
     function pedirQualidade() {
-      var alvo = bomba && bomba.alvo(), c = chamada;
-      if (!alvo || !c || !peer || !c.peer) return;
+      var alvo = bomba && bomba.alvo();
+      if (alvo) avisarHost({ type: "inkdoshub-quality", w: alvo.w, h: alvo.h, fps: alvo.fps });
+    }
+    function avisarHost(msg) {
+      var c = chamada;
+      if (!c || !peer || !c.peer) return;
       try {
         var conn = peer.connect(c.peer, { reliable: true });
         conn.on("open", function () {
-          try { conn.send({ type: "inkdoshub-quality", w: alvo.w, h: alvo.h, fps: alvo.fps }); } catch (_) {}
+          try { conn.send(msg); } catch (_) {}
           setTimeout(function () { try { conn.close(); } catch (_) {} }, 1000);
         });
       } catch (_) {}
@@ -233,7 +237,9 @@
         var estadoAtual = anterior.peerConnection && anterior.peerConnection.connectionState;
         // Uma chamada presa em "disconnected" após modo avião também é obsoleta:
         // aceite a nova chamada do Host para que a reconexão possa se completar.
-        if (estadoAtual !== "connected") {
+        // (ou um reinício pedido por esta página para tirar o atraso do buffer)
+        if (estadoAtual !== "connected" || reiniciando) {
+          reiniciando = false;
           chamada = null;
           try { anterior.close(); } catch (_) {}
         } else { try { c.close(); } catch (_) {} return; }
@@ -297,15 +303,37 @@
 
     function stats() {
       if (!chamada || !chamada.peerConnection) return;
+      var c = chamada;
       lerStats(chamada.peerConnection, "inbound-rtp", ant, function (s) {
         if (!s) return;
+        var a = ant && ant.rtp;
         ant = s;
-        var r = s.rtp, atraso = r.jitterBufferEmittedCount ? Math.round(r.jitterBufferDelay / r.jitterBufferEmittedCount * 1000) : 0;
+        var r = s.rtp, atraso = 0;
+        // atraso do buffer AGORA (no último segundo), não a média desde o início
+        if (a && r.jitterBufferEmittedCount > a.jitterBufferEmittedCount)
+          atraso = Math.round((r.jitterBufferDelay - a.jitterBufferDelay) / (r.jitterBufferEmittedCount - a.jitterBufferEmittedCount) * 1000);
+        vigiarAtraso(c, atraso);
         $("gstats").textContent = (r.frameWidth || "?") + "×" + (r.frameHeight || "?") + " · " + Math.round(r.framesPerSecond || 0) + " fps\n" +
           s.codec + (r.decoderImplementation ? " (" + r.decoderImplementation + ")" : "") + " · " + mbps(s.taxa) + "\n" +
           t("Buffer") + ": " + atraso + " ms · " + t("lost") + ": " + (r.packetsLost || 0) + "\n" + s.rede;
         $("gstats").hidden = !statsVisivel;
       });
+    }
+
+    /* O buffer do Chrome às vezes cresce sem parar (≈1 ms por segundo na média) e o vídeo fica
+       segundos atrás. Se passar de 400 ms por 3 s seguidos, refaz a chamada: o iPhone reconecta
+       sozinho em poucos segundos e o atraso volta a ~30 ms. No máximo uma vez a cada 30 s. */
+    var acimaDoLimite = 0, ultimoReinicio = 0;
+    function vigiarAtraso(c, ms) {
+      if (c !== chamada) return;
+      acimaDoLimite = ms > 400 ? acimaDoLimite + 1 : 0;
+      if (acimaDoLimite < 3 || Date.now() - ultimoReinicio < 30000) return;
+      acimaDoLimite = 0;
+      ultimoReinicio = Date.now();
+      estado(t("Video fell behind; reconnecting to catch up…"));
+      reiniciando = true;
+      setTimeout(function () { reiniciando = false; }, 10000);
+      avisarHost({ type: "inkdoshub-restart" });
     }
 
     function diagnosticar() {
@@ -718,6 +746,7 @@
           conn.on("data", function (msg) {
             if (conn.peer !== PREFIXO + limpo($("hcodigo").value) || !msg || typeof msg !== "object") return;
             if (msg.type === "inkdoshub-stop") pararLocal(t("Transmission stopped by the PC."));
+            else if (msg.type === "inkdoshub-restart" && ligado) { clearTimeout(tentativa); ligar(); } // o PC pediu uma chamada nova (atraso acumulado)
             else if (msg.type === "inkdoshub-quality") {
               // o app de Windows pede a resolução da câmera dele (ex.: 1080p60); só aceita as da lista
               var chave = (msg.h >= 2160 ? "2160p" : msg.h >= 1080 ? "1080p" : "720p") + (msg.fps >= 60 ? "60" : "30");
