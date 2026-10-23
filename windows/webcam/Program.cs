@@ -161,6 +161,9 @@ namespace InkDOSHubWebcam
 
         readonly WebView2 web = new WebView2();
         readonly CheckBox personalizadas = new CheckBox();
+        readonly CheckBox nativo = new CheckBox();
+        ReceptorNativo receptor;
+        string codigoNativo;
         readonly Label rotuloBuffer = new Label();
         readonly ComboBox qualidade = new ComboBox();
         readonly Label estado = new Label();
@@ -198,6 +201,10 @@ namespace InkDOSHubWebcam
             personalizadas.AutoSize = true;
             personalizadas.Dock = DockStyle.Left;
             personalizadas.Padding = new Padding(10, 3, 0, 0);
+            nativo.Text = "Native receiver (beta)";
+            nativo.AutoSize = true;
+            nativo.Dock = DockStyle.Left;
+            nativo.Padding = new Padding(10, 3, 0, 0);
             rotuloBuffer.AutoSize = true;
             rotuloBuffer.Dock = DockStyle.Right;
             rotuloBuffer.Padding = new Padding(8, 5, 0, 0);
@@ -207,6 +214,7 @@ namespace InkDOSHubWebcam
             estado.Padding = new Padding(12, 0, 0, 0);
             barra.Controls.Add(estado);
             barra.Controls.Add(rotuloBuffer);
+            barra.Controls.Add(nativo);
             barra.Controls.Add(personalizadas);
             barra.Controls.Add(qualidade);
             barra.Controls.Add(rotulo);
@@ -222,6 +230,7 @@ namespace InkDOSHubWebcam
                 {
                     salvo = Convert.ToInt32(chave.GetValue("qualidade3", 0));
                     todas = Convert.ToInt32(chave.GetValue("personalizadas", 0)) == 1;
+                    nativo.Checked = Convert.ToInt32(chave.GetValue("nativo", 0)) == 1;
                 }
             }
             catch (Exception) { }
@@ -241,6 +250,13 @@ namespace InkDOSHubWebcam
                 PreencherLista(personalizadas.Checked ? antes : Qualidades[0]);
                 Salvar();
                 if (qualidade.SelectedItem != antes) AbrirCamera();
+            };
+
+            nativo.CheckedChanged += delegate
+            {
+                Salvar();
+                PararNativo();
+                if (web.CoreWebView2 != null) web.CoreWebView2.Navigate(Endereco());
             };
 
             envio = new Thread(Enviar) { IsBackground = true, Name = "envio" };
@@ -282,13 +298,14 @@ namespace InkDOSHubWebcam
                 Program.Log("Navigation completed. success=" + e.IsSuccess + "; webError=" + e.WebErrorStatus);
                 AbrirCamera();
             };
-                Program.Log("Navigating to " + Pagina);
-                web.CoreWebView2.Navigate(Pagina);
+                Program.Log("Navigating to " + Endereco());
+                web.CoreWebView2.Navigate(Endereco());
             };
             FormClosing += delegate
             {
                 rodando = false;
                 temQuadro.Set();
+                PararNativo();
                 lock (trava)
                 {
                     if (camera != IntPtr.Zero) Softcam.scDeleteCamera(camera);
@@ -385,6 +402,7 @@ namespace InkDOSHubWebcam
                 {
                     chave.SetValue("qualidade3", Array.IndexOf(Qualidades, (Qualidade)qualidade.SelectedItem));
                     chave.SetValue("personalizadas", personalizadas.Checked ? 1 : 0);
+                    chave.SetValue("nativo", nativo.Checked ? 1 : 0);
                 }
             }
             catch (Exception) { }
@@ -421,7 +439,75 @@ namespace InkDOSHubWebcam
                 int ms;
                 if (int.TryParse(m.Substring(4), out ms)) rotuloBuffer.Text = "Buffer: " + (ms < 0 ? "–" : ms + " ms");
             }
+            else if (m != null && m.StartsWith("NATIVO ", StringComparison.Ordinal)) IniciarNativo(m.Substring(7).Trim());
             else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m.Length > 300 ? m.Substring(0, 300) : m);
+        }
+
+        string Endereco() { return Pagina + (nativo.Checked ? "&nativo=1" : ""); }
+
+        /* Receptor nativo (Nativo.cs): o app recebe o vídeo com o GStreamer e a página só mostra o QR. */
+        void IniciarNativo(string codigo)
+        {
+            if (!nativo.Checked || codigo.Length != 10) return;
+            if (receptor != null && codigo == codigoNativo) return;
+            PararNativo();
+            var erro = Gst.Iniciar();
+            if (erro != null)
+            {
+                Program.Log("NATIVO: unavailable: " + erro);
+                estado.Text = "Native receiver unavailable: " + erro;
+                ParaPagina("nat:estado:Native receiver unavailable. Uncheck \"Native receiver (beta)\".");
+                return;
+            }
+            codigoNativo = codigo;
+            receptor = new ReceptorNativo(codigo, EntregarNativo);
+            receptor.Estado += s => ParaPagina("nat:estado:" + s);
+            receptor.Conectado += ligado => ParaPagina(ligado ? "nat:on" : "nat:off");
+        }
+        void PararNativo()
+        {
+            if (receptor != null) { receptor.Dispose(); receptor = null; }
+            codigoNativo = null;
+        }
+        void ParaPagina(string m)
+        {
+            try { BeginInvoke((Action)delegate { if (web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsString(m); }); } catch (Exception) { }
+        }
+
+        long nativoJanela = Stopwatch.GetTimestamp(), nativoQuadros;
+        double nativoConversao;
+        /* Quadro BGRA do GStreamer (thread do receptor) para a câmera virtual. */
+        void EntregarNativo(IntPtr bgra, int sw, int sh)
+        {
+            var r = receptor;
+            string view = r != null ? r.Visualizacao : "preencher";
+            int giro = view == "gira90" ? 90 : view == "gira270" ? 270 : 0;
+            lock (trava)
+            {
+                if (camera == IntPtr.Zero || bgr == null || atual == null) return;
+                long t0 = Stopwatch.GetTimestamp();
+                unsafe
+                {
+                    fixed (byte* d = bgr)
+                    {
+                        if (sw == atual.W && sh == atual.H && giro == 0) Converter(bgra, (IntPtr)d, sw * sh, true);
+                        else Transformar(bgra, sw, sh, giro, view == "ajustar", (IntPtr)d, atual.W, atual.H);
+                        Softcam.scSendFrame(camera, (IntPtr)d);
+                    }
+                }
+                nativoConversao += (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
+            }
+            nativoQuadros++;
+            long agora = Stopwatch.GetTimestamp();
+            double seg = (agora - nativoJanela) / (double)Stopwatch.Frequency;
+            if (seg >= 1)
+            {
+                double fps = nativoQuadros / seg, ms = nativoConversao / Math.Max(1, nativoQuadros);
+                string texto = "Native: " + sw + "×" + sh + " · " + fps.ToString("F0") + " fps";
+                try { BeginInvoke((Action)delegate { rotuloBuffer.Text = texto; }); } catch (Exception) { }
+                if (DateTime.Now.Second % 5 == 0) Program.Log("PERF native in=" + sw + "x" + sh + " fps=" + fps.ToString("F1") + " copy_avg_ms=" + ms.ToString("F2"));
+                nativoJanela = agora; nativoQuadros = 0; nativoConversao = 0;
+            }
         }
 
         /* 4 bytes por pixel (BGRX ou RGBA) para os 3 bytes BGR que o softcam pede, em faixas paralelas. */

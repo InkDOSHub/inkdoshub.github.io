@@ -16,6 +16,8 @@ jobs:
     # só no site publicado; o espelho vfydr2m9wk-ops/inkdoshub recebe só o código pela sincronização
     if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
     runs-on: windows-latest
+    env:
+      GST_VER: 1.28.8
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
@@ -34,6 +36,16 @@ jobs:
           msbuild softcam/softcam.sln /t:softcam /p:Configuration=Release /p:Platform=x64 /m /v:minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: GStreamer (receptor nativo, só os plugins usados)
+        shell: pwsh
+        run: |
+          $exe = "gst.exe"
+          Invoke-WebRequest "https://gstreamer.freedesktop.org/data/pkg/windows/$env:GST_VER/msvc/gstreamer-1.0-msvc-x86_64-$env:GST_VER.exe" -OutFile $exe
+          Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/DIR=C:\gst' -Wait
+          python -m pip install -q pefile
+          python windows/webcam/gst_minimo.py C:\gst gstmin
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: App
         run: dotnet build windows/webcam/InkDOSHubWebcam.csproj -c Release -o out
 
@@ -48,7 +60,10 @@ jobs:
           Copy-Item $dll.FullName $d
           Copy-Item windows/webcam/LEIA-ME.txt $d
           Copy-Item softcam/LICENSE "$d/softcam-LICENSE.txt"
+          Copy-Item -Recurse gstmin "$d/gstreamer"
+          Set-Content "$d/gstreamer/LEIA-ME.txt" "GStreamer $env:GST_VER (https://gstreamer.freedesktop.org), LGPL-2.1. Usado pela opcao Native receiver (beta). Codigo-fonte: https://gitlab.freedesktop.org/gstreamer/gstreamer"
           Get-ChildItem $d | Format-Table Name, Length
+          "{0:N1} MB no pacote" -f ((Get-ChildItem $d -Recurse -File | Measure-Object Length -Sum).Sum / 1MB)
           Compress-Archive -Path $d -DestinationPath InkDOSHub-Webcam-Windows.zip -Force
 
       - uses: actions/upload-artifact@v4
