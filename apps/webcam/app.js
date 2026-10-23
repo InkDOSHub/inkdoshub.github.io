@@ -308,11 +308,13 @@
         if (!s) return;
         var a = ant && ant.rtp;
         ant = s;
-        var r = s.rtp, atraso = 0;
+        var r = s.rtp, atraso = 0, parado = false;
         // atraso do buffer AGORA (no último segundo), não a média desde o início
         if (a && r.jitterBufferEmittedCount > a.jitterBufferEmittedCount)
           atraso = Math.round((r.jitterBufferDelay - a.jitterBufferDelay) / (r.jitterBufferEmittedCount - a.jitterBufferEmittedCount) * 1000);
-        vigiarAtraso(c, atraso);
+        // pacotes chegando sem quadro nenhum sair do buffer: o PC está atrás (conta como atraso)
+        else if (a && r.packetsReceived > a.packetsReceived) parado = true;
+        vigiarAtraso(c, parado ? Infinity : atraso);
         $("gstats").textContent = (r.frameWidth || "?") + "×" + (r.frameHeight || "?") + " · " + Math.round(r.framesPerSecond || 0) + " fps\n" +
           s.codec + (r.decoderImplementation ? " (" + r.decoderImplementation + ")" : "") + " · " + mbps(s.taxa) + "\n" +
           t("Buffer") + ": " + atraso + " ms · " + t("lost") + ": " + (r.packetsLost || 0) + "\n" + s.rede;
@@ -326,7 +328,7 @@
     var acimaDoLimite = 0, ultimoReinicio = 0;
     function vigiarAtraso(c, ms) {
       if (c !== chamada) return;
-      acimaDoLimite = ms > 400 ? acimaDoLimite + 1 : 0;
+      acimaDoLimite = ms > 400 ? acimaDoLimite + 1 : 0; // (Infinity: nenhum quadro saiu do buffer neste segundo)
       if (acimaDoLimite < 3 || Date.now() - ultimoReinicio < 30000) return;
       acimaDoLimite = 0;
       ultimoReinicio = Date.now();
