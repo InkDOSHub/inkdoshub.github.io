@@ -511,7 +511,12 @@
       ultimo = Math.max(ultimo + periodo, agora - periodo / 2);
       var buf = slots[slot];
       var f = formatoAtual(), t0 = performance.now();
-      if (quadro && bgrxOk && largura === W && altura === H && f !== "gira90" && f !== "gira270") {
+      // quadro "deitado" que o iPhone marcou para girar (celular em pé) e que o formato escolhido gira
+      // de volta: os pixels crus já são a imagem final, então também vai pelo caminho rápido
+      var g = f === "gira90" ? 90 : f === "gira270" ? 270 : 0, rot = quadro ? (quadro.rotation || 0) : 0;
+      var cru = quadro && quadro.visibleRect && quadro.visibleRect.width === W && quadro.visibleRect.height === H &&
+        !quadro.flip && (rot + g) % 360 === 0;
+      if (quadro && bgrxOk && (cru || (largura === W && altura === H && g === 0 && rot === 0))) {
         // caminho rápido: o Chrome converte para BGRX e copia direto para a memória do app
         quadro.copyTo(buf, { format: "BGRX", layout: [{ offset: 0, stride: W * 4 }] }).then(function () {
           fechar();

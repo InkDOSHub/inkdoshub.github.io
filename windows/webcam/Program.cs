@@ -154,6 +154,7 @@ namespace InkDOSHubWebcam
             new Qualidade("720p 60 fps", 1280, 720, 60),
             new Qualidade("720p 30 fps (diagnostic)", 1280, 720, 30),
             new Qualidade("4K 30 fps (heavy, for recording)", 3840, 2160, 30),
+            new Qualidade("4K 60 fps (heaviest)", 3840, 2160, 60),
         };
 
         readonly WebView2 web = new WebView2();
