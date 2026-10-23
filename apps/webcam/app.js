@@ -36,6 +36,7 @@
   if (app) document.body.classList.add("app-webcam");
   // app de Windows com "Native receiver (beta)": o próprio app recebe o vídeo (GStreamer); a página só mostra o QR e o estado
   var nativo = app && q.get("nativo") === "1";
+  if (nativo) document.body.classList.add("nativo");
 
   function ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
   function gravar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
@@ -481,8 +482,8 @@
     chrome.webview.addEventListener("message", function (e) {
       var m = typeof e.data === "string" ? e.data : "";
       if (m.indexOf("nat:estado:") === 0) estado(t(m.slice(11)));
-      else if (m === "nat:on") $("parear").hidden = true;
-      else if (m === "nat:off") $("parear").hidden = false;
+      else if (m === "nat:on") $("parear").classList.add("ligado");   // conectado: some o QR, fica o estado
+      else if (m === "nat:off") $("parear").classList.remove("ligado");
     });
     chrome.webview.postMessage("NATIVO " + codigo);
   }
