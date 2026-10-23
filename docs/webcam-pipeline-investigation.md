@@ -100,7 +100,7 @@ A implementação deve ter flag de experimento e fallback automático para o pip
 
 **Critério da meta final:** 3840×2160 a 60 fps de ponta a ponta por pelo menos 10 minutos, com média ≥59 fps, p95 de idade do quadro <50 ms (alvo de engenharia, a validar), sem backlog crescente, sem crescimento contínuo de memória e sem queda sustentada de resolução/fps. Medir CPU/GPU, bitrate, perdas, drops e temperatura/limitação térmica. Testar separadamente a saída da câmera virtual nos consumidores suportados. Se o iPhone, a rede, o runtime WebView2, o codec ou o dispositivo virtual não suportarem 4K60, reportar o gargalo e o melhor perfil realmente sustentado; não declarar a meta cumprida com base apenas em fps do WebRTC.
 
-## Próxima implementação recomendada
+## Próxima implementação recomendada na análise inicial (histórico; ver revisão 4K60 ao final)
 
 1. Criar pipeline nativo de frames com buffer limitado (double/triple buffer), “newest frame wins”, timestamps e contadores.
 2. Provar a leitura de frames no WebView2 usando `MediaStreamTrackProcessor` em Dedicated Worker e `VideoFrame.copyTo`; feature-detect e manter fallback.
@@ -109,7 +109,7 @@ A implementação deve ter flag de experimento e fallback automático para o pip
 5. Projetar o pipeline para 4K60 desde o início: evitar RGBA e cópias repetidas, usar buffers limitados, converter no formato nativo mais adequado e medir aceleração por hardware/D3D11. Se houver readback GPU→CPU inevitável, avaliar compartilhamento de superfícies GPU.
 6. Testar separadamente limites reais de captura do iPhone/Safari, resolução negociada do WebRTC, codec/encoder, bitrate e capacidades do softcam e dos aplicativos consumidores. Não presumir que 4K60 é suportado só porque a tela de configuração oferece esse perfil.
 
-## Prompt de implementação para o agente de código
+## Prompt da análise inicial (histórico; substituído pelo prompt final 4K60 ao final)
 
 > Trabalhe no repositório `Inkterminal/Inkterminal.github.io`, em branch isolada. Implemente a hipótese B como prova de conceito opt-in para o InkTerminal Webcam Windows, projetando para a meta final de 4K (3840×2160) a 60 fps; 1080p30 é somente o piso mínimo: substitua o pipeline Canvas → getImageData → cópia RGBA → conversão manual BGR por captura de VideoFrames do MediaStream WebRTC no WebView2, preferencialmente via MediaStreamTrackProcessor em Dedicated Worker, e um pipeline nativo C++ com libyuv.
 >
