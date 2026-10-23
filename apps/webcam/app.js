@@ -646,6 +646,10 @@
       return navigator.mediaDevices.getUserMedia({ audio: false, video: v }).then(function (s) {
         var tr = s.getVideoTracks()[0];
         try { tr.contentHint = "motion"; } catch (_) {}
+        // o Safari costuma abrir a câmera a 30 fps mesmo pedindo 60 como "ideal": insiste com mínimo
+        var cf = tr.getSettings ? tr.getSettings() : {};
+        if (Q.fps > 30 && cf.frameRate && cf.frameRate < Q.fps - 1 && tr.applyConstraints)
+          tr.applyConstraints({ width: { ideal: Q.w }, height: { ideal: Q.h }, frameRate: { min: Q.fps - 2, ideal: Q.fps } }).catch(function () {});
         tr.addEventListener("ended", function () { if (ligado) trocarCamera(); });
         listarCameras();
         return s;
