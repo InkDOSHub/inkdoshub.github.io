@@ -324,13 +324,13 @@
     }
 
     /* O buffer do Chrome cresce sem parar quando o PC não decodifica no ritmo (quanto mais pesada a
-       qualidade, mais rápido) e o vídeo fica segundos atrás. Se passar de 2 s por 2 leituras seguidas,
+       qualidade, mais rápido) e o vídeo fica segundos atrás. Se passar de 0,5 s por 3 leituras seguidas,
        refaz a chamada: o iPhone reconecta sozinho e o atraso volta a ~30 ms. No máximo a cada 10 s. */
     var acimaDoLimite = 0, ultimoReinicio = 0;
     function vigiarAtraso(c, ms) {
       if (c !== chamada) return;
-      acimaDoLimite = ms > 2000 ? acimaDoLimite + 1 : 0; // (Infinity: nenhum quadro saiu do buffer neste segundo)
-      if (acimaDoLimite < 2 || Date.now() - ultimoReinicio < 10000) return;
+      acimaDoLimite = ms > 500 ? acimaDoLimite + 1 : 0; // (Infinity: nenhum quadro saiu do buffer neste segundo)
+      if (acimaDoLimite < 3 || Date.now() - ultimoReinicio < 10000) return;
       acimaDoLimite = 0;
       ultimoReinicio = Date.now();
       estado(t("Video fell behind; reconnecting to catch up…"));
