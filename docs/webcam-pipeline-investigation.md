@@ -45,23 +45,23 @@ Os números históricos do log informado no projeto mostram, em 1080p, aproximad
 
 ## Confronto das hipóteses
 
-### A — receptor WebRTC nativo + decoder + Media Foundation Virtual Camera (hipótese principal a investigar)
-
-- Mantém o servidor de pareamento PeerJS, a negociação de codec, ICE, reconexão e permissões do iPhone que já funcionam.
-- Retira Canvas e `getImageData` do caminho de cada frame.
-- O frame deve ser entregue a um worker via `MediaStreamTrackProcessor`, copiado para memória em seu formato nativo (preferencialmente I420/NV12 quando suportado), e entregue ao pipeline nativo com buffer de tamanho limitado.
-- O pipeline nativo faz rotação, espelhamento, fit/fill e conversão usando libyuv, evitando RGBA intermediário.
-- Mantém a câmera DirectShow existente durante a prova de conceito; isso minimiza regressão com Zoom.
-- Risco principal: suporte/contexto de `MediaStreamTrackProcessor` no WebView2 runtime e custo de readback se o frame estiver na GPU. A implementação deve testar capacidades reais, usar software decode como experimento controlado e manter fallback atual.
-- Risco secundário: formatos/strides/colorimetria devem ser tratados corretamente. Não assumir I420 contíguo sem verificar layout.
-
-### B — Chromium/WebView2 WebRTC + VideoFrame/YUV + pipeline nativo + DirectShow atual (segunda hipótese)
+### A — receptor WebRTC nativo + decoder H.264/VP8 + Media Foundation Virtual Camera (hipótese principal a investigar)
 
 - Potencial de evitar inteiramente o readback de pixels do Chromium e obter maior controle do buffer/decoder.
 - Requer trocar ou compatibilizar o protocolo de sinalização PeerJS; um receptor nativo não se conecta magicamente ao servidor PeerJS existente.
 - `libdatachannel` não decodifica o vídeo por conta própria; precisa de decoder e do trabalho de media pipeline, além de manter jitter, timestamps, perdas, retransmissões, keyframes e renegociação.
 - MF Virtual Camera é suportada no Windows 11, mas precisa de uma media source COM e de integração correta ao Frame Server; compatibilidade real com Zoom/Brave/Meet deve ser validada separadamente.
-- Maior custo de implementação, manutenção e risco de regressão. É a segunda hipótese, apropriada se A continuar limitada pelo readback ou se a exigência futura incluir aplicativos que não reconhecem DirectShow.
+- Maior custo de implementação, manutenção e risco de regressão. A simulação só verifica a aritmética da fila; não há base para afirmar que a decodificação nativa será mais rápida neste computador.
+
+### B — Chromium/WebView2 WebRTC + VideoFrame/YUV + pipeline nativo + DirectShow atual (segunda hipótese)
+
+- Mantém o servidor de pareamento PeerJS, a negociação de codec, ICE, reconexão e permissões do iPhone que já funcionam.
+- Retira Canvas e `getImageData` do caminho de cada frame.
+- O frame deve ser entregue a um worker via `MediaStreamTrackProcessor`, copiado para memória em seu formato nativo quando suportado, e entregue ao pipeline nativo com buffer de tamanho limitado.
+- O pipeline nativo faz rotação, espelhamento, fit/fill e conversão usando libyuv, evitando RGBA intermediário.
+- Mantém a câmera DirectShow existente durante a prova de conceito; isso minimiza regressão com Zoom.
+- Risco principal: suporte/contexto de `MediaStreamTrackProcessor` no WebView2 runtime e custo de readback se o frame estiver na GPU. A implementação deve testar capacidades reais, usar software decode como experimento controlado e manter fallback atual.
+- Risco secundário: formatos/strides/colorimetria devem ser tratados corretamente. Não assumir I420 contíguo sem verificar layout.
 
 ## Mini-teste teórico (não é benchmark físico)
 
