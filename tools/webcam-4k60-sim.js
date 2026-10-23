@@ -141,6 +141,15 @@ const scenarios = [
     ]
   },
   {
+    name: "Browser hardware decode with 4K GPU readback extrapolated from 1080p (assumption)",
+    stages: [
+      { name: "VideoFrame.copyTo GPU readback", ms: 48, sd: 6 },
+      { name: "IPC/shared memory", ms: 2.5, sd: 0.5 },
+      { name: "transform/I420-to-NV12", ms: 5, sd: 1.5 },
+      { name: "MF handoff", ms: 1.5, sd: 0.5 }
+    ]
+  },
+  {
     name: "Native WebRTC + hardware decode/D3D11 + MF NV12 (assumptions)",
     stages: [
       { name: "native WebRTC/jitter", ms: 1.5, sd: 0.5 },
@@ -162,12 +171,14 @@ const results = scenarios.map(scenario => simulate(scenario));
 for (const result of results) console.log(JSON.stringify(result));
 
 // Guardrails validate only the simulator's math, not real-world 4K60 performance.
-const [legacy, browserNative, nativeGpu, nativeGpuHeadroom] = results;
+const [legacy, browserNative, browserGpuReadback, nativeGpu, nativeGpuHeadroom] = results;
 if (!(legacy.outputFps < 59 &&
       browserNative.outputFps >= 59 &&
+      browserGpuReadback.outputFps < 59 &&
       nativeGpu.outputFps >= 59 &&
       nativeGpuHeadroom.outputFps >= 59 &&
       browserNative.p95LatencyMs < 50 &&
+      browserGpuReadback.p95LatencyMs > 50 &&
       nativeGpu.p95LatencyMs < 50 &&
       nativeGpuHeadroom.p95LatencyMs < 50)) {
   console.error("SIMULATION CHECK FAILED: review assumptions and queue model.");
