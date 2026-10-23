@@ -646,7 +646,9 @@
       return navigator.mediaDevices.getUserMedia({ audio: false, video: v }).then(function (s) {
         var tr = s.getVideoTracks()[0];
         try { tr.contentHint = "motion"; } catch (_) {}
-        tr.addEventListener("ended", function () { if (ligado) trocarCamera(); });
+        // só reabre se a câmera que caiu ainda é a atual (o Safari também avisa "ended" quando a
+        // própria página para a câmera antiga ao trocar, e isso virava um laço de troca a cada ~2 s)
+        tr.addEventListener("ended", function () { if (ligado && stream && stream.getVideoTracks()[0] === tr) trocarCamera(); });
         listarCameras();
         return s;
       });
@@ -815,6 +817,7 @@
       salvar();
       if (!ligado) return;
       var velho = stream;
+      stream = null;
       if (velho) velho.getTracks().forEach(function (x) { x.stop(); }); // o iPhone abre uma câmera por vez
       abrirCamera().then(function (s) {
         stream = s;
