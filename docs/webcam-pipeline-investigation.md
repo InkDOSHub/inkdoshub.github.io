@@ -75,7 +75,7 @@ Modelo discreto de fila única com “último quadro vence”, 30 fps de entrada
 | A: receptor/decoder nativo + MF (hipótese) | 6 ms ± 2 ms | ~30 fps; ~6 ms de latência média |
 | B: VideoFrame/YUV + pipeline nativo (hipótese) | 3 ms ± 1 ms | ~30 fps; ~3 ms de latência média |
 
-O modelo confirma apenas a aritmética da fila: se o serviço excede 33,33 ms continuamente, 30 fps não se sustentam; se fica bem abaixo do período e a fila não acumula, há margem. Não modela CPU real, codecs, rede, GPU, Frame Server, Zoom, pausas do iOS nem comportamento térmico. Os valores de A derivam parcialmente de medições publicadas por OmniCam em outro equipamento; os de B são apenas cenário de sensibilidade. Portanto, o teste não prova que A alcançará 30 fps no computador-alvo.
+O modelo confirma apenas a aritmética da fila: se o serviço excede 33,33 ms continuamente, 30 fps não se sustentam; se fica bem abaixo do período e a fila não acumula, há margem. Não modela CPU real, codecs, rede, GPU, Frame Server, Zoom, pausas do iOS nem comportamento térmico. Os valores de B derivam parcialmente de medições publicadas por OmniCam em outro equipamento; os de A são apenas cenário de sensibilidade. Portanto, o teste não prova que A alcançará 30 fps no computador-alvo.
 
 ## Critérios para uma prova de conceito real
 
