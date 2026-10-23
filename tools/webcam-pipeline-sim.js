@@ -99,4 +99,18 @@ const scenarios = [
   { name: "A: native WebRTC/decoder + MF (assumption)", serviceMeanMs: 6, serviceSdMs: 2, seed: 42 },
   { name: "B: VideoFrame/YUV + native pipeline (assumption)", serviceMeanMs: 3, serviceSdMs: 1, seed: 42 }
 ];
-for (const scenario of scenarios) console.log(JSON.stringify(simulate(scenario)));
+const results = scenarios.map(simulate);
+for (const result of results) console.log(JSON.stringify(result));
+
+// Guardrails for the simulation itself only; these do not assert real-world performance.
+const [current, nativeMf, framePipeline] = results;
+if (!(current.outputFps < 29.5 &&
+      nativeMf.outputFps >= 29.5 &&
+      framePipeline.outputFps >= 29.5 &&
+      nativeMf.p95LatencyMs < 100 &&
+      framePipeline.p95LatencyMs < 100)) {
+  console.error("SIMULATION CHECK FAILED: adjust the model or review queue behavior.");
+  process.exitCode = 1;
+} else {
+  console.log("SIMULATION CHECK PASSED (theoretical model only; not a hardware benchmark).");
+}
