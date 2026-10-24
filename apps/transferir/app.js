@@ -32,8 +32,11 @@
     peer = new Peer(PREFIXO + codigo, { debug: 0 });
     peer.on("open", function () { estado(t("Waiting for the other device…")); });
     peer.on("connection", function (c) {
-      if (c.metadata && c.metadata.via) { if (conn) via(c); else c.close(); return; }
+      // canais extras só do mesmo aparelho já aceito
+      if (c.metadata && c.metadata.via) { if (conn && c.peer === conn.peer) via(c); else c.close(); return; }
       if (conn) { c.close(); return; }
+      // confirmação: quem acertar o código não entra sem o dono aceitar
+      if (!confirm(t("A device wants to connect. Accept only if it is yours."))) { c.close(); return; }
       ligar(c);
     });
     peer.on("error", function (e) { estado(t("Error: {msg}", { msg: e.type || e.message }), true); });

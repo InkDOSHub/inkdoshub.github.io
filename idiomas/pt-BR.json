@@ -542,6 +542,7 @@
 "The control panel opens in the PC browser and creates the network.": "O painel abre no navegador do PC e cria a rede.",
 "Connecting to the pairing server…": "Conectando ao servidor de pareamento…",
 "Waiting for the other device…": "Aguardando o outro aparelho…",
+"A device wants to connect. Accept only if it is yours.": "Um aparelho quer conectar. Aceite só se for seu.",
 "Error: {msg}": "Erro: {msg}",
 "Type the 6-character code shown on the other device.": "Digite o código de 6 caracteres mostrado no outro aparelho.",
 "Connecting…": "Conectando…",

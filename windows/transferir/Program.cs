@@ -114,6 +114,8 @@ namespace InkDOSHubTransferir
         string ssid = "", senha = "", statusDireto = "";
         // chave que vai no QR: sem ela, outro aparelho da mesma rede não acessa nada
         readonly string chave = Aleatorio("abcdefghjkmnpqrstuvwxyz23456789", 8);
+        // token do painel do PC: sem ele, sites abertos no navegador do PC não usam as rotas locais
+        readonly string tokPc = Aleatorio("abcdefghjkmnpqrstuvwxyz23456789", 24);
 
         public Servidor(Form ui) { this.ui = ui; }
 
@@ -138,17 +140,42 @@ namespace InkDOSHubTransferir
             try { tcp.Stop(); } catch { }
         }
 
-        public void AbrirPainel() { try { Process.Start("http://localhost:" + Porta + "/pc"); } catch { } }
+        public void AbrirPainel() { try { Process.Start("http://localhost:" + Porta + "/pc?t=" + tokPc); } catch { } }
         public void AbrirPasta() { try { Process.Start("explorer.exe", "\"" + Pasta + "\""); } catch { } }
 
         // ---------- Wi-Fi direto ----------
 
-        static readonly Random rnd = new Random();
+        // gerador criptográfico (Random comum é previsível)
         static string Aleatorio(string alfabeto, int n)
         {
             var sb = new StringBuilder();
-            lock (rnd) for (int i = 0; i < n; i++) sb.Append(alfabeto[rnd.Next(alfabeto.Length)]);
+            var b = new byte[1];
+            using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+                while (sb.Length < n)
+                {
+                    rng.GetBytes(b);
+                    if (b[0] < 256 - 256 % alfabeto.Length) sb.Append(alfabeto[b[0] % alfabeto.Length]);
+                }
             return sb.ToString();
+        }
+
+        static bool Igual(string a, string b)
+        {
+            if (a == null || b == null || a.Length != b.Length) return false;
+            int d = 0;
+            for (int i = 0; i < a.Length; i++) d |= a[i] ^ b[i];
+            return d == 0;
+        }
+
+        // contra DNS rebinding: só aceita Host que seja um IP ou localhost
+        static bool HostOk(Dictionary<string, string> cab)
+        {
+            string h;
+            if (!cab.TryGetValue("host", out h) || h.Length == 0) return false;
+            if (h.StartsWith("[")) { int f = h.IndexOf(']'); h = f > 0 ? h.Substring(1, f - 1) : h; }
+            else { int i = h.LastIndexOf(':'); if (i > 0) h = h.Substring(0, i); }
+            IPAddress ip;
+            return h == "localhost" || IPAddress.TryParse(h, out ip);
         }
 
         void IniciarDireto()
@@ -231,7 +258,17 @@ namespace InkDOSHubTransferir
                 if (cab.TryGetValue("content-length", out cl)) long.TryParse(cl, out tam);
                 var corpo = new Corpo(s, sobra, tam);
                 string k;
-                if (!local && caminho != "/qrcode.js" && (!q.TryGetValue("k", out k) || k != chave))
+                if (!HostOk(cab)) { Texto(s, 403, "host recusado"); return; }
+                if (local)
+                {
+                    // o PC também precisa do token: sem isso qualquer site no navegador chamaria estas rotas
+                    if (caminho != "/qrcode.js" && (!q.TryGetValue("t", out k) || !Igual(k, tokPc)))
+                    {
+                        Texto(s, 403, "Abra o painel pelo ícone do InkDOS Hub Transferir.");
+                        return;
+                    }
+                }
+                else if (caminho != "/qrcode.js" && (!q.TryGetValue("k", out k) || !Igual(k, chave)))
                 {
                     Texto(s, 403, "Abra pelo QR code mostrado no PC.");
                     return;
@@ -322,6 +359,13 @@ namespace InkDOSHubTransferir
             string nome; q.TryGetValue("nome", out nome);
             nome = Limpar(nome);
             string destino = Path.Combine(Pasta, nome);
+            // limite: tamanho declarado e espaço livre (deixa 1 GB sobrando no disco)
+            try
+            {
+                long livre = new DriveInfo(Path.GetPathRoot(Pasta)).AvailableFreeSpace;
+                if (tam < 0 || tam > livre - (1L << 30)) { Texto(s, 507, "sem espaco no PC"); return; }
+            }
+            catch { }
             for (int i = 2; File.Exists(destino); i++)
                 destino = Path.Combine(Pasta, Path.GetFileNameWithoutExtension(nome) + " (" + i + ")" + Path.GetExtension(nome));
             var t = NovaTransf(Path.GetFileName(destino), "recebendo", tam);

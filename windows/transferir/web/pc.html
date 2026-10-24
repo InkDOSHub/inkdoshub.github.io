@@ -98,14 +98,16 @@ function esc(t){ var d = document.createElement("div"); d.textContent = t == nul
 function tam(b){ return b >= 1073741824 ? (b/1073741824).toFixed(2).replace(".", ",") + " GB" : (b/1048576).toFixed(1).replace(".", ",") + " MB"; }
 function vel(b){ return (b/1048576).toFixed(1).replace(".", ",") + " MB/s"; }
 function qrSvg(txt){ var q = qrcode(0, "M"); q.addData(txt); q.make(); return q.createSvgTag({cellSize: 4, margin: 2, scalable: true}); }
-function get(c){ return fetch(c, {cache: "no-store"}).then(function(r){ return r.json(); }); }
+var TOK = new URLSearchParams(location.search).get("t") || "";
+function comT(c){ return c + (c.indexOf("?") < 0 ? "?" : "&") + "t=" + encodeURIComponent(TOK); }
+function get(c){ return fetch(comT(c), {cache: "no-store"}).then(function(r){ return r.json(); }); }
 
 var est = null, qrFeito = "";
 
 var iniciado = false;
 function iniciarDireto(){ iniciado = true; get("/modo?m=direto").then(function(j){ est = j; desenhar(); }); }
 $("bescolher").onclick = function(){ get("/escolher").then(ofertas); };
-$("bpasta").onclick = function(e){ e.preventDefault(); fetch("/pasta"); };
+$("bpasta").onclick = function(e){ e.preventDefault(); fetch(comT("/pasta")); };
 
 function ipPara(modo){
   var l = est.ips;
@@ -204,7 +206,7 @@ $("bdiag").onclick = function(){
   diagEsperando = true; diagAntes = est && est.diagCelular ? est.diagCelular.quando : 0;
   $("diag").innerHTML = '<span class="muted">Lendo o Wi-Fi do PC…</span>';
   get("/wifi").then(function(j){ wifi = j; mostrarDiagCelular(); });
-  fetch("/pedirdiag");
+  fetch(comT("/pedirdiag"));
 };
 
 function mostrarDiagCelular(){
