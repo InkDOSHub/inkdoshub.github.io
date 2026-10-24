@@ -84,4 +84,4 @@ iPad, o Safari pergunta onde guardar).
   O arquivo vai dentro do endereço (não sai do aparelho), então serve para arquivos de poucos MB e abre
   no Safari. Ações do Atalho: Mostrar na Folha de Compartilhamento (Arquivos) → Codificar em Base64
   (Quebras de linha: Nenhuma) → Texto `https://inkdoshub.github.io/#abrir=` + Extensão do Arquivo + `,` + Texto
-  Codificado → Abrir URLs.
+  Codificado → Abrir URLs. O guia fica em `atalho.html` (botão "Atalho iOS"); ponha o link do iCloud do atalho em `LINK_ICLOUD` para virar um botão Instalar.

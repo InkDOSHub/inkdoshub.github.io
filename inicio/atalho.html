@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>iOS shortcut · InkDOS Hub</title>
+<!-- Guia do Atalho do iOS que manda um arquivo do menu Compartilhar para a tela inicial (#abrir=, lancador.js).
+     Quando houver o link do iCloud do atalho, ponha em LINK_ICLOUD: aparece o botão Instalar. -->
+<script src="../assets/tema.js?v=1"></script>
+<script src="../assets/idioma.js?v=1"></script>
+<link rel="stylesheet" href="../assets/home.css?v=9">
+<style>
+  body{margin:0;padding:16px;box-sizing:border-box}
+  .caixa{max-width:560px;margin:24px auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+  h1{margin:0 0 8px;font-size:20px}
+  h2{margin:22px 0 8px;font-size:16px}
+  p,li{color:var(--muted);font-size:14.5px;line-height:1.5}
+  li{margin:6px 0}
+  b{color:var(--text)}
+  code{font-size:13px;word-break:break-all;background:var(--border);padding:1px 5px;border-radius:5px;color:var(--text)}
+  .acoes{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+  .botao{font:inherit;font-size:14px;padding:9px 14px;border-radius:8px;border:1px solid #3fb950;background:#3fb950;color:#0d1117;font-weight:600;text-decoration:none;cursor:pointer}
+  .botao.secundario{background:transparent;border-color:var(--border);color:var(--text);font-weight:500}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body data-idioma>
+<main class="caixa">
+  <h1>iOS shortcut</h1>
+  <div id="en" lang="en" data-idioma-nao>
+  <p>Adds <b>InkDOS Hub</b> to the <b>Share</b> menu of the Files app: the file opens in the right app of the Hub. Works for files of a few MB; for bigger files use the <b>Open file</b> button on the home screen.</p>
+
+  <div class="com-link" hidden>
+    <h2>Install</h2>
+    <ol>
+      <li>Tap <b>Install shortcut</b> and then <b>Add Shortcut</b>.</li>
+      <li>In the Files app, touch and hold a file, tap <b>Share</b> and choose <b>InkDOS Hub</b>.</li>
+    </ol>
+    <div class="acoes"><a class="botao instalar" href="#">Install shortcut</a></div>
+  </div>
+
+  <div class="sem-link">
+    <h2>Create the shortcut (once, about 1 minute)</h2>
+    <ol>
+      <li>Open the <b>Shortcuts</b> app, tap <b>+</b> and name it <b>InkDOS Hub</b>.</li>
+      <li>Tap the <b>ⓘ</b> (details) and turn on <b>Show in Share Sheet</b>. At the top, “Receive” should say <b>Files</b>.</li>
+      <li>Add the action <b>Base64 Encode</b> (input: Shortcut Input). Tap the arrow and set <b>Line Breaks: None</b>.</li>
+      <li>Add the action <b>Text</b>. Paste the address below, then add the variables <b>Shortcut Input → File Extension</b>, a comma <code>,</code> and <b>Base64 Encoded</b>.</li>
+      <li>Add the action <b>Open URLs</b> (input: Text) and tap <b>Done</b>.</li>
+    </ol>
+    <p><code id="endereco">https://inkdoshub.github.io/#abrir=</code></p>
+    <div class="acoes"><button class="botao copiar" type="button">Copy address</button><a class="botao secundario" href="shortcuts://">Open Shortcuts</a></div>
+    <h2>Use</h2>
+    <p>In the Files app, touch and hold a file, tap <b>Share</b> and choose <b>InkDOS Hub</b>. The file opens in Safari, in the right app.</p>
+  </div>
+
+  </div>
+  <div id="pt" lang="pt-BR" data-idioma-nao hidden>
+  <p>Coloca o <b>InkDOS Hub</b> no menu <b>Compartilhar</b> do app Arquivos: o arquivo abre no app certo do Hub. Serve para arquivos de poucos MB; para arquivos maiores, use o botão <b>Abrir arquivo</b> da tela inicial.</p>
+  <div class="com-link" hidden>
+    <h2>Instalar</h2>
+    <ol>
+      <li>Toque em <b>Instalar atalho</b> e depois em <b>Adicionar Atalho</b>.</li>
+      <li>No app Arquivos, toque e segure um arquivo, toque em <b>Compartilhar</b> e escolha <b>InkDOS Hub</b>.</li>
+    </ol>
+    <div class="acoes"><a class="botao instalar" href="#">Instalar atalho</a></div>
+  </div>
+  <div class="sem-link">
+    <h2>Crie o atalho (uma vez, cerca de 1 minuto)</h2>
+    <ol>
+      <li>Abra o app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>InkDOS Hub</b>.</li>
+      <li>Toque no <b>ⓘ</b> (detalhes) e ligue <b>Mostrar na Folha de Compartilhamento</b>. No topo, “Receber” deve dizer <b>Arquivos</b>.</li>
+      <li>Adicione a ação <b>Codificar em Base64</b> (entrada: Entrada do Atalho). Toque na seta e escolha <b>Quebras de linha: Nenhuma</b>.</li>
+      <li>Adicione a ação <b>Texto</b>. Cole o endereço abaixo e depois adicione as variáveis <b>Entrada do Atalho → Extensão do Arquivo</b>, uma vírgula <code>,</code> e <b>Texto Codificado</b>.</li>
+      <li>Adicione a ação <b>Abrir URLs</b> (entrada: Texto) e toque em <b>OK</b>.</li>
+    </ol>
+    <p><code>https://inkdoshub.github.io/#abrir=</code></p>
+    <div class="acoes"><button class="botao copiar" type="button">Copiar endereço</button><a class="botao secundario" href="shortcuts://">Abrir Atalhos</a></div>
+    <h2>Uso</h2>
+    <p>No app Arquivos, toque e segure um arquivo, toque em <b>Compartilhar</b> e escolha <b>InkDOS Hub</b>. O arquivo abre no Safari, no app certo.</p>
+  </div>
+  </div>
+
+  <div class="acoes"><a class="botao secundario" href="../">Home screen</a></div>
+</main>
+<script>
+(function () {
+  var LINK_ICLOUD = ""; // ex.: https://www.icloud.com/shortcuts/...
+  var pt = window.InkIdioma && /^pt/.test(InkIdioma.atual);
+  document.getElementById("pt").hidden = !pt;
+  document.getElementById("en").hidden = pt;
+  var q = function (c) { return document.querySelectorAll(c); };
+  [].forEach.call(q(".com-link"), function (e) { e.hidden = !LINK_ICLOUD; });
+  [].forEach.call(q(".sem-link"), function (e) { e.hidden = !!LINK_ICLOUD; });
+  [].forEach.call(q(".instalar"), function (e) { e.href = LINK_ICLOUD || "#"; });
+  [].forEach.call(q(".copiar"), function (b) {
+    b.addEventListener("click", function () {
+      var txt = "https://inkdoshub.github.io/#abrir=";
+      (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { b.textContent = pt ? "Copiado" : "Copied"; });
+    });
+  });
+})();
+</script>
+</body>
+</html>
