@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=4">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/inkdoshub-icone-180.png?v=4">
+<title>Transfer · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<script src="../../assets/gerenciador-app.js?v=8"></script>
+<link rel="stylesheet" href="../../assets/barra.css?v=2">
+<style>
+  :root{--tc:#2563eb}
+  .ink-main{overflow:auto}
+  .centro{max-width:760px;margin:0 auto;padding:24px 16px 40px;box-sizing:border-box}
+  .centro h1{margin:6px 0 4px;font-size:28px}
+  .nota{color:var(--muted);font-size:13.5px;line-height:1.5;margin:8px 0}
+  .selo{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a4a00;background:#ffe2a8;border-radius:6px;padding:2px 7px;vertical-align:4px}
+  .baixar{display:inline-block;text-decoration:none;font-weight:700;background:var(--tc);border-color:var(--tc);color:#fff;padding:9px 14px}
+  .passos{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px 12px 34px;font-size:13.5px;line-height:1.55}
+  .grade{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+  @media (max-width:640px){.grade{grid-template-columns:1fr}}
+  .grade div{background:var(--card);border:1px solid var(--border);border-left:5px solid var(--tc);border-radius:12px;padding:14px;font-size:13.5px;line-height:1.5}
+  .grade strong{display:block;font-size:16px;margin-bottom:4px}
+</style>
+</head>
+<body class="ink-app" data-idioma>
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Transfer (test)</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+</header>
+<main class="ink-main">
+  <section class="centro">
+    <h1>Transfer <span class="selo">Test</span></h1>
+    <p class="nota">Fast file transfer between the phone (iPhone or Android) and a Windows PC, without internet, without a server and without administrator rights. Nothing is installed on the phone.</p>
+    <p><a class="ink-btn baixar" href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/transferir-windows/InkDOSHub-Transferir.exe">Download for Windows (.exe)</a></p>
+    <ol class="passos">
+      <li>Open "InkDOSHub-Transferir.exe". If SmartScreen warns, click "More info" › "Run anyway" (the app is not signed).</li>
+      <li>The control panel opens in the PC browser. Choose how to connect: Direct Wi-Fi or Through the router.</li>
+      <li>Scan the QR codes with the phone camera and send or receive files. The speed shows in real time.</li>
+    </ol>
+    <div class="grade">
+      <div><strong>Direct Wi-Fi</strong>The PC creates its own Wi-Fi network for the phone. Fastest: the file goes in a single hop through the air. Needs a PC with Wi-Fi.</div>
+      <div><strong>Through the router</strong>Uses the network the PC already has, even by cable. The phone stays on the local Wi-Fi. Public networks may isolate the devices.</div>
+    </div>
+    <p class="nota">Windows 10 or 11. Keep the app open during the transfer. Received files go to Downloads › InkDOS Hub Transferir. Use Diagnostics to measure the signal, delay and real speed. Source code: windows/transferir (MIT).</p>
+  </section>
+</main>
+</body>
+</html>

@@ -512,5 +512,20 @@
 "{size} to update": "atualizar {size}",
 "{start} to {end} · {length}": "{start} até {end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "“Extrair som” guarda só o som de uma gravação longa, sem guardar o vídeo."
-}
+},
+"Transfer · InkDOS Hub": "Transferir · InkDOS Hub",
+"Transfer (test)": "Transferir (teste)",
+"Transfer": "Transferir",
+"Test": "Teste",
+"Send files between the phone and a Windows PC at full speed, without internet.": "Envie arquivos entre o celular e um PC Windows na velocidade máxima, sem internet.",
+"Fast file transfer between the phone (iPhone or Android) and a Windows PC, without internet, without a server and without administrator rights. Nothing is installed on the phone.": "Transferência rápida de arquivos entre o celular (iPhone ou Android) e um PC Windows, sem internet, sem servidor e sem permissão de administrador. Nada é instalado no celular.",
+"Download for Windows (.exe)": "Baixar para Windows (.exe)",
+"Open \"InkDOSHub-Transferir.exe\". If SmartScreen warns, click \"More info\" › \"Run anyway\" (the app is not signed).": "Abra o \"InkDOSHub-Transferir.exe\". Se o SmartScreen avisar, clique em \"Mais informações\" › \"Executar assim mesmo\" (o app não é assinado).",
+"The control panel opens in the PC browser. Choose how to connect: Direct Wi-Fi or Through the router.": "O painel abre no navegador do PC. Escolha como conectar: Wi-Fi direto ou Pelo roteador.",
+"Scan the QR codes with the phone camera and send or receive files. The speed shows in real time.": "Aponte a câmera do celular para os QR codes e envie ou receba arquivos. A velocidade aparece em tempo real.",
+"Direct Wi-Fi": "Wi-Fi direto",
+"The PC creates its own Wi-Fi network for the phone. Fastest: the file goes in a single hop through the air. Needs a PC with Wi-Fi.": "O PC cria uma rede Wi-Fi própria para o celular. Mais rápido: o arquivo vai num salto só pelo ar. Precisa de PC com Wi-Fi.",
+"Through the router": "Pelo roteador",
+"Uses the network the PC already has, even by cable. The phone stays on the local Wi-Fi. Public networks may isolate the devices.": "Usa a rede que o PC já tem, até por cabo. O celular continua na Wi-Fi do local. Redes públicas podem isolar os aparelhos.",
+"Windows 10 or 11. Keep the app open during the transfer. Received files go to Downloads › InkDOS Hub Transferir. Use Diagnostics to measure the signal, delay and real speed. Source code: windows/transferir (MIT).": "Windows 10 ou 11. Mantenha o app aberto durante a transferência. Os recebidos vão para Downloads › InkDOS Hub Transferir. Use o Diagnóstico para medir o sinal, o atraso e a velocidade real. Código-fonte: windows/transferir (MIT)."
 }
