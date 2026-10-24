@@ -6,9 +6,9 @@
   };
   var $ = function (id) { return document.getElementById(id); };
   var PREFIXO = "inkdoshub-transferir-";
-  var PEDACO = 65536;            // tamanho de cada mensagem (seguro no Safari)
-  var LIMITE = 8 * 1048576;      // fila máxima no canal antes de esperar
-  var peer = null, conn = null;
+  var VIAS = 4;                  // conexões extras só para dados, em paralelo (um canal só fica lento no Safari)
+  var LIMITE = 4 * 1048576;      // fila máxima em cada via antes de esperar
+  var peer = null, conn = null, vias = [], destino = null;
 
   function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + " GB" : (b / 1048576).toFixed(1) + " MB"; }
   function vel(b) { return (b / 1048576).toFixed(1) + " MB/s"; }
@@ -31,7 +31,11 @@
     estado(t("Connecting to the pairing server…"));
     peer = new Peer(PREFIXO + codigo, { debug: 0 });
     peer.on("open", function () { estado(t("Waiting for the other device…")); });
-    peer.on("connection", function (c) { if (conn) { c.close(); return; } ligar(c); });
+    peer.on("connection", function (c) {
+      if (c.metadata && c.metadata.via) { if (conn) via(c); else c.close(); return; }
+      if (conn) { c.close(); return; }
+      ligar(c);
+    });
     peer.on("error", function (e) { estado(t("Error: {msg}", { msg: e.type || e.message }), true); });
   };
 
@@ -41,7 +45,8 @@
     $("inicio").hidden = true;
     estado(t("Connecting…"));
     peer = new Peer({ debug: 0 });
-    peer.on("open", function () { ligar(peer.connect(PREFIXO + codigo, { reliable: true, serialization: "raw" })); });
+    destino = PREFIXO + codigo;
+    peer.on("open", function () { ligar(peer.connect(destino, { reliable: true, serialization: "raw" })); });
     peer.on("error", function (e) {
       estado(e.type == "peer-unavailable" ? t("Code not found. Check the code and try again.") : t("Error: {msg}", { msg: e.type || e.message }), true);
       $("inicio").hidden = false;
@@ -60,12 +65,47 @@
       $("espera").hidden = true; $("sala").hidden = false;
       estado(t("Connected. The files go directly between the two devices."));
       var dc = conn.dataChannel; dc.binaryType = "arraybuffer"; dc.bufferedAmountLowThreshold = 1048576;
+      if (destino) for (var i = 1; i <= VIAS; i++) via(peer.connect(destino, { reliable: true, serialization: "raw", metadata: { via: i } }));
     };
     if (conn.open) aberto(); else conn.on("open", aberto);
     conn.on("data", receber);
     conn.on("close", function () { estado(t("The other device disconnected. Reload the page to connect again."), true); $("sala").hidden = true; });
     conn.on("error", function (e) { estado(t("Error: {msg}", { msg: e.message || e }), true); });
   }
+
+  function via(c) {
+    c.on("open", function () {
+      var dc = c.dataChannel; dc.binaryType = "arraybuffer"; dc.bufferedAmountLowThreshold = 1048576;
+      vias.push(c);
+    });
+    c.on("data", function (d) { if (typeof d != "string") receberPedaco(d); });
+    c.on("close", function () { vias = vias.filter(function (x) { return x !== c; }); });
+  }
+  function canais() { return vias.length ? vias : [conn]; }
+  // tamanho de cada pedaço: o maior que o outro lado aceita, até 256 KB (8 bytes de cabeçalho: id e número)
+  function tamPedaco() {
+    var pc = canais()[0].peerConnection, max = pc && pc.sctp && pc.sctp.maxMessageSize;
+    return Math.min(262144, max && isFinite(max) ? max : 65536) - 8;
+  }
+  async function enviarPedacos(id, total, ler, aoBloco) {
+    var CH = tamPedaco(), BLOCO = CH * 16, k = 0, cs = canais();
+    for (var o = 0; o < total; o += BLOCO) {
+      var bloco = await ler(o, Math.min(o + BLOCO, total));
+      for (var p = 0; p < bloco.byteLength; p += CH) {
+        var c = cs[k % cs.length], dc = c.dataChannel;
+        await esperarFila(dc);
+        while (pausado && !cancelado) await dormir(200);
+        if (cancelado) throw "cancelado";
+        var n = Math.min(CH, bloco.byteLength - p), msg = new Uint8Array(8 + n), dv = new DataView(msg.buffer);
+        dv.setUint32(0, id); dv.setUint32(4, k);
+        msg.set(new Uint8Array(bloco, p, n), 8);
+        dc.send(msg.buffer); bytes += n; k++;
+      }
+      if (aoBloco) aoBloco(Math.min(o + BLOCO, total));
+    }
+    for (var i = 0; i < cs.length; i++) while (cs[i].dataChannel.bufferedAmount > 0) await dormir(20);
+  }
+  function novoId() { return Math.floor(Math.random() * 4294967295); }
 
   var vAnt = 0, tAnt = performance.now(), vSuave = 0;
   setInterval(function () {
@@ -95,24 +135,39 @@
     if (typeof d == "string") {
       var m = JSON.parse(d);
       if (diagMensagem(m) || controle(m)) return;
-      if (m.t == "ini") { rx = { nome: m.nome, tam: m.tam, tipo: m.tipo, partes: [], feito: 0, t0: performance.now() }; controles(); }
-      else if (m.t == "fim" && rx) {
-        var s = (performance.now() - rx.t0) / 1000;
-        var url = URL.createObjectURL(new Blob(rx.partes, { type: rx.tipo || "application/octet-stream" }));
-        linha(rx.nome, mb(rx.tam) + " · " + vel(rx.tam / s), url);
-        progresso(rx.nome, rx.tam, rx.tam, false);
-        rx = null; controles();
+      if (m.t == "ini") {
+        rx = { id: m.id, nome: m.nome, tam: m.tam, tipo: m.tipo, partes: [], feito: 0, t0: performance.now() };
+        controles(); conn.send(JSON.stringify({ t: "ini-ok" }));
       }
+      else if (m.t == "fim" && rx && rx.id === m.id) { rx.fim = true; concluir(); }
       return;
     }
-    if (teste) { teste.feito += d.byteLength; bytes += d.byteLength; return; }
-    if (!rx) return;
-    rx.partes.push(d); rx.feito += d.byteLength; bytes += d.byteLength;
+    receberPedaco(d);
+  }
+  function receberPedaco(buf) {
+    var dv = new DataView(buf), id = dv.getUint32(0), idx = dv.getUint32(4), n = buf.byteLength - 8;
+    bytes += n;
+    if (teste && teste.id === id) {
+      teste.feito += n;
+      if (teste.feito >= teste.tam) { teste = null; conn.send(JSON.stringify({ t: "teste-ok" })); }
+      return;
+    }
+    if (!rx || rx.id !== id) return;
+    rx.partes[idx] = new Uint8Array(buf, 8); rx.feito += n;
     progresso(rx.nome, rx.feito, rx.tam, false);
+    concluir();
+  }
+  function concluir() {
+    if (!rx || !rx.fim || rx.feito < rx.tam) return;
+    var s = (performance.now() - rx.t0) / 1000;
+    var url = URL.createObjectURL(new Blob(rx.partes, { type: rx.tipo || "application/octet-stream" }));
+    linha(rx.nome, mb(rx.tam) + " · " + vel(rx.tam / s), url);
+    progresso(rx.nome, rx.tam, rx.tam, false);
+    rx = null; controles();
   }
 
   // ---------- diagnóstico ----------
-  var TESTE = 24 * 1048576, teste = null, espera = {}, diagRes = {}, diagRodando = false;
+  var TESTE = 64 * 1048576, teste = null, espera = {}, diagRes = {}, diagRodando = false;
   function nota(v) { var m = v / 1048576; return m >= 25 ? t("Excellent") : m >= 10 ? t("Good") : m >= 3 ? t("Fair") : t("Weak"); }
   function mostrarDiag() {
     var r = diagRes, l = [
@@ -130,29 +185,25 @@
   function aguardar(tipo) { return new Promise(function (ok) { espera[tipo] = ok; }); }
   function diagMensagem(m) {
     if (m.t == "ping") { conn.send(JSON.stringify({ t: "pong", i: m.i })); return true; }
-    if (m.t == "teste-ini") { teste = { feito: 0, tam: m.tam, t0: performance.now() }; return true; }
-    if (m.t == "teste-fim") {
-      var ms = performance.now() - teste.t0; teste = null;
-      conn.send(JSON.stringify({ t: "teste-ok", ms: ms })); return true;
-    }
+    if (m.t == "teste-ini") { teste = { id: m.id, feito: 0, tam: m.tam }; conn.send(JSON.stringify({ t: "teste-pronto" })); return true; }
     if (m.t == "teste-pedir") { if (!diagRodando) { diagRes = {}; mostrarDiag(); } enviarTeste().then(function (v) { conn.send(JSON.stringify({ t: "teste-res", v: v })); }); return true; }
     if (m.t == "diag-res") { var r = m.r; diagRes = { rota: r.rota, ping: r.ping, jitter: r.jitter, sobe: r.desce, desce: r.sobe }; mostrarDiag(); return true; }
     if (espera[m.t]) { var f = espera[m.t]; delete espera[m.t]; f(m); return true; }
     return false;
   }
   async function enviarTeste() {
-    var dc = conn.dataChannel, pedaco = new Uint8Array(PEDACO);
-    for (var i = 0; i < PEDACO; i += 65536) crypto.getRandomValues(pedaco.subarray(i, i + 65536));
-    var t0 = performance.now();
-    conn.send(JSON.stringify({ t: "teste-ini", tam: TESTE }));
-    for (var o = 0; o < TESTE; o += PEDACO) { await esperarFila(dc); dc.send(pedaco.buffer.slice(0)); bytes += PEDACO; }
-    conn.send(JSON.stringify({ t: "teste-fim" }));
-    await aguardar("teste-ok");
+    var lixo = new Uint8Array(262144 * 16), id = novoId();
+    for (var i = 0; i < lixo.length; i += 65536) crypto.getRandomValues(lixo.subarray(i, i + 65536));
+    conn.send(JSON.stringify({ t: "teste-ini", id: id, tam: TESTE }));
+    await aguardar("teste-pronto");
+    var t0 = performance.now(), ok = aguardar("teste-ok");
+    await enviarPedacos(id, TESTE, function (a, b) { return Promise.resolve(lixo.buffer.slice(0, b - a)); });
+    await ok;
     return TESTE / ((performance.now() - t0) / 1000);
   }
   async function rota() {
     try {
-      var pc = conn.peerConnection, st = await pc.getStats(), par = null, loc = {}, rem = {};
+      var pc = canais()[0].peerConnection, st = await pc.getStats(), par = null, loc = {}, rem = {};
       st.forEach(function (r) {
         if (r.type == "candidate-pair" && (r.nominated || r.selected) && r.state == "succeeded") par = r;
         if (r.type == "local-candidate") loc[r.id] = r;
@@ -231,22 +282,13 @@
   async function proximo() {
     if (enviando || diagRodando || !fila.length) return;
     enviando = true; cancelado = false; controles();
-    var f = fila.shift(), dc = conn.dataChannel, t0 = performance.now();
+    var f = fila.shift(), id = novoId(), t0 = performance.now();
     try {
-      conn.send(JSON.stringify({ t: "ini", nome: f.name, tam: f.size, tipo: f.type }));
-      for (var o = 0; o < f.size; o += 4194304) {
-        var bloco = await f.slice(o, Math.min(o + 4194304, f.size)).arrayBuffer();
-        for (var p = 0; p < bloco.byteLength; p += PEDACO) {
-          await esperarFila(dc);
-          while (pausado && !cancelado) await dormir(200);
-          if (cancelado) throw "cancelado";
-          var pedaco = bloco.slice(p, p + PEDACO);
-          dc.send(pedaco); bytes += pedaco.byteLength;
-        }
-        progresso(f.name, Math.min(o + 4194304, f.size), f.size, true);
-      }
-      conn.send(JSON.stringify({ t: "fim" }));
-      await esperarFila(dc);
+      conn.send(JSON.stringify({ t: "ini", id: id, nome: f.name, tam: f.size, tipo: f.type }));
+      await aguardar("ini-ok");
+      await enviarPedacos(id, f.size, function (a, b) { return f.slice(a, b).arrayBuffer(); },
+        function (feito) { progresso(f.name, feito, f.size, true); });
+      conn.send(JSON.stringify({ t: "fim", id: id }));
       linha(f.name, mb(f.size) + " · " + vel(f.size / ((performance.now() - t0) / 1000)));
     } catch (e) {
       if (e === "cancelado") { conn.send(JSON.stringify({ t: "cancelar" })); linhaCancelada(f.name); }
