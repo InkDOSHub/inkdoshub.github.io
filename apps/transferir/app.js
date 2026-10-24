@@ -87,9 +87,10 @@
     var pc = canais()[0].peerConnection, max = pc && pc.sctp && pc.sctp.maxMessageSize;
     return Math.min(262144, max && isFinite(max) ? max : 65536) - 8;
   }
-  async function enviarPedacos(id, total, ler, aoBloco) {
-    var CH = tamPedaco(), BLOCO = CH * 16, k = 0, cs = canais();
+  async function enviarPedacos(id, total, ler, aoBloco, limiteMs) {
+    var CH = tamPedaco(), BLOCO = CH * 16, k = 0, cs = canais(), ini = performance.now(), enviado = 0;
     for (var o = 0; o < total; o += BLOCO) {
+      if (limiteMs && performance.now() - ini > limiteMs) break;
       var bloco = await ler(o, Math.min(o + BLOCO, total));
       for (var p = 0; p < bloco.byteLength; p += CH) {
         var c = cs[k % cs.length], dc = c.dataChannel;
@@ -99,11 +100,12 @@
         var n = Math.min(CH, bloco.byteLength - p), msg = new Uint8Array(8 + n), dv = new DataView(msg.buffer);
         dv.setUint32(0, id); dv.setUint32(4, k);
         msg.set(new Uint8Array(bloco, p, n), 8);
-        dc.send(msg.buffer); bytes += n; k++;
+        dc.send(msg.buffer); bytes += n; enviado += n; k++;
       }
       if (aoBloco) aoBloco(Math.min(o + BLOCO, total));
     }
     for (var i = 0; i < cs.length; i++) while (cs[i].dataChannel.bufferedAmount > 0) await dormir(20);
+    return enviado;
   }
   function novoId() { return Math.floor(Math.random() * 4294967295); }
 
@@ -149,7 +151,9 @@
     bytes += n;
     if (teste && teste.id === id) {
       teste.feito += n;
-      if (teste.feito >= teste.tam) { teste = null; conn.send(JSON.stringify({ t: "teste-ok" })); }
+      if (!teste.ta && teste.feito >= 4194304) { teste.ta = performance.now(); teste.fa = teste.feito; }
+      teste.tz = performance.now();
+      fimTeste();
       return;
     }
     if (!rx || rx.id !== id) return;
@@ -167,7 +171,7 @@
   }
 
   // ---------- diagnóstico ----------
-  var TESTE = 64 * 1048576, teste = null, espera = {}, diagRes = {}, diagRodando = false;
+  var TESTE = 256 * 1048576, teste = null, espera = {}, diagRes = {}, diagRodando = false;
   function nota(v) { var m = v / 1048576; return m >= 25 ? t("Excellent") : m >= 10 ? t("Good") : m >= 3 ? t("Fair") : t("Weak"); }
   function mostrarDiag() {
     var r = diagRes, l = [
@@ -185,21 +189,30 @@
   function aguardar(tipo) { return new Promise(function (ok) { espera[tipo] = ok; }); }
   function diagMensagem(m) {
     if (m.t == "ping") { conn.send(JSON.stringify({ t: "pong", i: m.i })); return true; }
-    if (m.t == "teste-ini") { teste = { id: m.id, feito: 0, tam: m.tam }; conn.send(JSON.stringify({ t: "teste-pronto" })); return true; }
+    if (m.t == "teste-ini") { teste = { id: m.id, feito: 0, tam: Infinity }; conn.send(JSON.stringify({ t: "teste-pronto" })); return true; }
+    if (m.t == "teste-fim" && teste && teste.id === m.id) { teste.tam = m.tam; fimTeste(); return true; }
     if (m.t == "teste-pedir") { if (!diagRodando) { diagRes = {}; mostrarDiag(); } enviarTeste().then(function (v) { conn.send(JSON.stringify({ t: "teste-res", v: v })); }); return true; }
     if (m.t == "diag-res") { var r = m.r; diagRes = { rota: r.rota, ping: r.ping, jitter: r.jitter, sobe: r.desce, desce: r.sobe }; mostrarDiag(); return true; }
     if (espera[m.t]) { var f = espera[m.t]; delete espera[m.t]; f(m); return true; }
     return false;
   }
+  function fimTeste() {
+    if (!teste || teste.feito < teste.tam) return;
+    var v = teste.ta && teste.tz > teste.ta ? (teste.feito - teste.fa) / ((teste.tz - teste.ta) / 1000) : 0;
+    teste = null;
+    conn.send(JSON.stringify({ t: "teste-ok", v: v }));
+  }
+  // manda dados de teste por até 5 s; quem recebe mede a velocidade (sem contar o começo, que é mais lento)
   async function enviarTeste() {
     var lixo = new Uint8Array(262144 * 16), id = novoId();
     for (var i = 0; i < lixo.length; i += 65536) crypto.getRandomValues(lixo.subarray(i, i + 65536));
-    conn.send(JSON.stringify({ t: "teste-ini", id: id, tam: TESTE }));
+    conn.send(JSON.stringify({ t: "teste-ini", id: id }));
     await aguardar("teste-pronto");
     var t0 = performance.now(), ok = aguardar("teste-ok");
-    await enviarPedacos(id, TESTE, function (a, b) { return Promise.resolve(lixo.buffer.slice(0, b - a)); });
-    await ok;
-    return TESTE / ((performance.now() - t0) / 1000);
+    var total = await enviarPedacos(id, TESTE, function (a, b) { return Promise.resolve(lixo.buffer.slice(0, b - a)); }, null, 5000);
+    conn.send(JSON.stringify({ t: "teste-fim", id: id, tam: total }));
+    var r = await ok;
+    return r.v || total / ((performance.now() - t0) / 1000);
   }
   async function rota() {
     try {
