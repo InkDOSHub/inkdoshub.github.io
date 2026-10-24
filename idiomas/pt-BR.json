@@ -599,5 +599,9 @@
 "Show {app} again": "Mostrar {app} de novo",
 "To send these files to another site, add it with the Add webapp card.": "Para mandar esses arquivos para outro site, adicione o site no cartão Adicionar webapp.",
 "The file arrived incomplete ({size} KB). Use the Open file button.": "O arquivo chegou incompleto ({size} KB). Use o botão Abrir arquivo.",
-"Optional: iOS shortcut": "Opcional: atalho do iOS"
+"Optional: iOS shortcut": "Opcional: atalho do iOS",
+"Desktop version, in Safari": "Versão de computador, no Safari",
+"Keeps the site in Safari instead of its app. Some sites (like YouTube) also open their desktop version; on others, use aA › Request Desktop Website in Safari once.": "Mantém o site no Safari em vez do app dele. Alguns sites (como o YouTube) também abrem a versão de computador; nos outros, use uma vez aA › Solicitar Site para Computador no Safari.",
+"Opening…": "Abrindo…",
+"Unknown address.": "Endereço desconhecido."
 }

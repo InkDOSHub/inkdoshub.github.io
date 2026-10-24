@@ -101,6 +101,8 @@
       <h2>Add webapp</h2>
       <label class="linha">Site address<input id="webapp-url" type="text" autocapitalize="off" spellcheck="false" inputmode="url" autocomplete="url" placeholder="example.com" required></label>
       <label class="linha">Name<input id="webapp-nome" type="text" maxlength="40" placeholder="Name on the card"></label>
+      <label class="linha marcar"><span><input id="webapp-desktop" type="checkbox" checked> Desktop version, in Safari</span></label>
+      <p class="nota">Keeps the site in Safari instead of its app. Some sites (like YouTube) also open their desktop version; on others, use aA › Request Desktop Website in Safari once.</p>
       <p class="nota aviso">The site is not part of InkDOS Hub. Use it at your own risk: there is no guarantee about it, its content or what it does with your files. The Hub only keeps the link, on this device.</p>
       <p class="nota erro" id="webapp-erro" aria-live="polite"></p>
       <div class="acoes"><button id="webapp-cancelar" class="botao secundario" type="button">Cancel</button><button class="botao" type="submit">Add</button></div>
@@ -115,7 +117,7 @@
 
 <script src="assets/gerenciador-app.js?v=8"></script>
 <script src="inicio/inicio.js?v=10"></script>
-<script src="inicio/meus-apps.js?v=1"></script>
+<script src="inicio/meus-apps.js?v=2"></script>
 <script src="inicio/lancador.js?v=7"></script>
 </body>
 </html>
