@@ -568,5 +568,8 @@
 "Pause": "Pausar",
 "Resume": "Continuar",
 "Cancel": "Cancelar",
-"Cancelled": "Cancelado"
+"Cancelled": "Cancelado",
+"Open file": "Abrir arquivo",
+"Open any file in the right app": "Abrir qualquer arquivo no app certo",
+"Could not read the shared file.": "Não deu para ler o arquivo compartilhado."
 }

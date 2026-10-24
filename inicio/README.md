@@ -75,3 +75,13 @@ IndexedDB `inkdos-tool-handoff` e leva essa página para `onlyoffice/editor.html
 (`InkPaginas.abrirEditor`, veja `tools/adaptar_inkdos.py`). O documento fica guardado (até 7 dias)
 para o editor reabrir o mesmo arquivo se for recarregado. O Salvar do editor baixa o arquivo (no
 iPad, o Safari pergunta onde guardar).
+
+## Botão "Abrir arquivo" e Atalho do iOS (`lancador.js`)
+
+- **Abrir arquivo** (topo da tela inicial): abre o seletor do sistema (no iPhone, o app Arquivos), qualquer
+  tipo, e manda o arquivo para o app certo pela mesma tabela acima. Sem limite de tamanho.
+- **Atalho do iOS** (menu Compartilhar): o Atalho abre `https://inkdoshub.github.io/#abrir=<extensão ou nome>,<base64>`.
+  O arquivo vai dentro do endereço (não sai do aparelho), então serve para arquivos de poucos MB e abre
+  no Safari. Ações do Atalho: Mostrar na Folha de Compartilhamento (Arquivos) → Codificar em Base64
+  (Quebras de linha: Nenhuma) → Texto `https://inkdoshub.github.io/#abrir=` + Extensão do Arquivo + `,` + Texto
+  Codificado → Abrir URLs.

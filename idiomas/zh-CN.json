@@ -389,5 +389,8 @@
 "{size} to update": "需更新 {size}",
 "{start} to {end} · {length}": "{start} 至 {end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "“提取声音”只保留长录像的声音，不保存视频。"
-}
+},
+"Open file": "打开文件",
+"Open any file in the right app": "用合适的应用打开任意文件",
+"Could not read the shared file.": "无法读取共享的文件。"
 }

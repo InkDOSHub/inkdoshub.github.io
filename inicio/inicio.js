@@ -31,7 +31,7 @@
 
   // endereços antigos (#terminal), da versão em que os apps abriam dentro desta página
   var pedido = location.hash.slice(1), cartao = pedido && document.querySelector('[data-app="' + pedido.replace(/[^a-z]/g, "") + '"]');
-  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  if (location.hash && !/^#abrir=/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
   try { localStorage.removeItem("inkdoshub-inicio"); localStorage.removeItem("inkdoshub-paginas"); } catch (_) {}
   if (cartao) location.href = cartao.href;
 })();

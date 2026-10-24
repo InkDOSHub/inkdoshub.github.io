@@ -486,5 +486,8 @@
  "{n} files in {app}": "inicio/lancador.js",
  "{n} photos": "apps/foto/app.js",
  "{start} to {end} · {length}": "apps/video/cortar/cortar.js",
- "“Extract sound” keeps only the sound of a long recording, without storing the video.": "apps/video/index.html"
+ "“Extract sound” keeps only the sound of a long recording, without storing the video.": "apps/video/index.html",
+ "Open file": "index.html",
+ "Open any file in the right app": "index.html",
+ "Could not read the shared file.": "inicio/lancador.js"
 }
