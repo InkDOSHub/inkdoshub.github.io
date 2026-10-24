@@ -571,5 +571,13 @@
 "Cancelled": "Cancelado",
 "Open file": "Abrir arquivo",
 "Open any file in the right app": "Abrir qualquer arquivo no app certo",
-"Could not read the shared file.": "Não deu para ler o arquivo compartilhado."
+"Could not read the shared file.": "Não deu para ler o arquivo compartilhado.",
+"iOS shortcut": "Atalho iOS",
+"Install": "Instalar",
+"Install shortcut": "Instalar atalho",
+"Create the shortcut (once, about 1 minute)": "Crie o atalho (uma vez, cerca de 1 minuto)",
+"Use": "Uso",
+"Copy address": "Copiar endereço",
+"Open Shortcuts": "Abrir Atalhos",
+"Home screen": "Tela inicial"
 }

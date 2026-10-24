@@ -489,5 +489,12 @@
  "“Extract sound” keeps only the sound of a long recording, without storing the video.": "apps/video/index.html",
  "Open file": "index.html",
  "Open any file in the right app": "index.html",
- "Could not read the shared file.": "inicio/lancador.js"
+ "Could not read the shared file.": "inicio/lancador.js",
+ "iOS shortcut": "inicio/atalho.html",
+ "Install": "inicio/atalho.html",
+ "Install shortcut": "inicio/atalho.html",
+ "Create the shortcut (once, about 1 minute)": "inicio/atalho.html",
+ "Use": "inicio/atalho.html",
+ "Copy address": "inicio/atalho.html",
+ "Open Shortcuts": "inicio/atalho.html"
 }
