@@ -34,32 +34,10 @@
     return caixa;
   }
 
-  /* Versão de computador: parâmetros conhecidos de alguns sites. Nos outros, o Safari decide. */
-  function versaoDesktop(u) {
-    u = new URL(u);
-    var h = u.hostname.replace(/^(www|m)\./, "");
-    if (h === "youtube.com") { u.hostname = "www.youtube.com"; u.searchParams.set("app", "desktop"); u.searchParams.set("persist_app", "1"); }
-    else if (h === "facebook.com" || h === "reddit.com") u.hostname = "www." + h;
-    else if (/^m\./.test(u.hostname)) u.hostname = u.hostname.slice(2);
-    return u.href;
-  }
-
-  /* Parâmetros que o próprio site declara para não abrir o app (no arquivo
-     /.well-known/apple-app-site-association dele, conferido em 2026-10-24). inicio/ir.html tira o
-     parâmetro para conferir o endereço. */
-  var SEM_APP = [[/(^|\.)youtube\.com$/, "noapp"], [/(^|\.)facebook\.com$/, "deoia"], [/(^|\.)netflix\.com$/, "no_ul"],
-    [/(^|\.)amazon\.[a-z.]+$/, "nodl"], [/(^|\.)twitch\.tv$/, "web"]];
-  function semApp(u) {
-    u = new URL(u);
-    SEM_APP.forEach(function (r) { if (r[0].test(u.hostname)) u.searchParams.set(r[1], "1"); });
-    return u.href;
-  }
-  function ponte(app) { return "inicio/ir.html#" + encodeURIComponent(semApp(app.ir || app.url)); }
-
   function cartaoMeu(app) {
     var a = el("a", "workspace-card meu");
-    // passa pela ponte inicio/ir.html: no Safari o iOS não troca o site pelo app
-    a.href = ponte(app);
+    // link direto: se a pessoa tiver o app do site, o iOS pode abrir o app
+    a.href = app.url; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.dataset.meu = app.url;
     a.appendChild(el("span", "accent"));
     a.appendChild(icone(app));
@@ -94,7 +72,7 @@
   var dlg = $("dlg-webapp"), campoUrl = $("webapp-url"), campoNome = $("webapp-nome"), erro = $("webapp-erro");
   novo.addEventListener("click", function () {
     if (editando) return;
-    campoUrl.value = ""; campoNome.value = ""; $("webapp-desktop").checked = true; erro.textContent = "";
+    campoUrl.value = ""; campoNome.value = ""; erro.textContent = "";
     dlg.showModal ? dlg.showModal() : dlg.setAttribute("open", "");
     campoUrl.focus();
   });
@@ -112,7 +90,6 @@
     var nome = campoNome.value.trim().slice(0, 40) || u.hostname.replace(/^www\./, "");
     meus = meus.filter(function (a) { return a.url !== u.href; });
     var item = { url: u.href, nome: nome };
-    if ($("webapp-desktop").checked) item.ir = versaoDesktop(u.href);
     meus.push(item);
     salvar(K_APPS, meus);
     dlg.close();
@@ -163,6 +140,6 @@
   window.InkMeusApps = {
     escondido: function (app) { return escondidos.indexOf(app) >= 0; },
     mostrar: function (app) { escondidos = escondidos.filter(function (a) { return a !== app; }); salvar(K_ESC, escondidos); desenhar(); },
-    webapps: function () { return meus.map(function (a) { return { nome: a.nome, url: ponte(a) }; }); },
+    webapps: function () { return meus.map(function (a) { return { nome: a.nome, url: a.url }; }); },
   };
 })();
