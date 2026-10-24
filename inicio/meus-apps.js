@@ -44,11 +44,14 @@
     return u.href;
   }
 
-  /* Parâmetros que o próprio site declara para não abrir o app (arquivo apple-app-site-association
-     dele). O YouTube exclui qualquer endereço com "noapp". inicio/ir.html tira o parâmetro para conferir. */
+  /* Parâmetros que o próprio site declara para não abrir o app (no arquivo
+     /.well-known/apple-app-site-association dele, conferido em 2026-10-24). inicio/ir.html tira o
+     parâmetro para conferir o endereço. */
+  var SEM_APP = [[/(^|\.)youtube\.com$/, "noapp"], [/(^|\.)facebook\.com$/, "deoia"], [/(^|\.)netflix\.com$/, "no_ul"],
+    [/(^|\.)amazon\.[a-z.]+$/, "nodl"], [/(^|\.)twitch\.tv$/, "web"]];
   function semApp(u) {
     u = new URL(u);
-    if (/(^|\.)youtube\.com$/.test(u.hostname)) u.searchParams.set("noapp", "1");
+    SEM_APP.forEach(function (r) { if (r[0].test(u.hostname)) u.searchParams.set(r[1], "1"); });
     return u.href;
   }
   function ponte(app) { return "inicio/ir.html#" + encodeURIComponent(semApp(app.ir || app.url)); }
