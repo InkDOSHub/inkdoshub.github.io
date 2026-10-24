@@ -48,45 +48,14 @@
   <h1>InkDOS Hub Transferir</h1>
   <div class="muted">Transferência direta entre o celular e este PC, sem internet. <span id="cel"></span></div>
 
-  <h2 style="margin-top:22px">1. Escolha como conectar</h2>
-  <div class="grade">
-    <button class="modo" id="mdireto" data-m="direto">
-      <strong>📶 Wi-Fi direto</strong><span class="tag">Mais rápido · sem internet</span>
-      <div class="muted" style="margin-top:6px">O PC cria uma rede Wi-Fi só para o celular. O arquivo vai direto, num salto só pelo ar.</div>
-      <h4>Benefícios</h4>
-      <ul class="bom">
-        <li>A maior velocidade possível: o arquivo não passa por roteador</li>
-        <li>Não precisa de internet nem da rede do local</li>
-        <li>Funciona com iPhone e Android, sem instalar nada no celular</li>
-      </ul>
-      <h4>Limites</h4>
-      <ul class="lim">
-        <li>O PC precisa ter placa Wi-Fi (PC só com cabo: use a outra opção)</li>
-        <li>Enquanto estiver conectado, o celular sai da Wi-Fi atual (os dados móveis continuam)</li>
-        <li>A faixa (2,4 ou 5 GHz) é escolhida pelo Windows conforme a placa</li>
-        <li>Alguns PCs públicos bloqueiam a criação da rede ou o firewall</li>
-      </ul>
-    </button>
-    <button class="modo" id="mroteador" data-m="roteador">
-      <strong>🔌 Pelo roteador</strong><span class="tag">Para PC só com cabo</span>
-      <div class="muted" style="margin-top:6px">Usa a rede que o PC já tem. O celular entra na Wi-Fi do mesmo local.</div>
-      <h4>Benefícios</h4>
-      <ul class="bom">
-        <li>Funciona em PC sem placa Wi-Fi (ligado por cabo)</li>
-        <li>O celular continua na Wi-Fi do local, com internet</li>
-        <li>Com o PC no cabo, a velocidade fica perto da do Wi-Fi direto</li>
-      </ul>
-      <h4>Limites</h4>
-      <ul class="lim">
-        <li>Celular e PC precisam estar na mesma rede</li>
-        <li>Redes públicas e de visitantes costumam isolar os aparelhos, e aí não conecta</li>
-        <li>Se o PC também estiver na Wi-Fi, o arquivo passa duas vezes pelo ar e a velocidade cai cerca de pela metade</li>
-      </ul>
-    </button>
+  <div class="card">
+    <h2>📶 Wi-Fi direto</h2>
+    <div class="muted">O PC cria uma rede Wi-Fi só para o celular. O arquivo vai direto, num salto só pelo ar, sem internet e sem roteador. Funciona com iPhone e Android, sem instalar nada no celular.</div>
+    <div class="muted" style="margin-top:6px">Precisa de PC com placa Wi-Fi. Enquanto estiver conectado, o celular sai da Wi-Fi atual (os dados móveis continuam). Para transferir pela rede do local, sem este app, use a página Transferir do InkDOS Hub no navegador.</div>
   </div>
 
   <div class="card" id="conexao" hidden>
-    <h2>2. Conecte o celular</h2>
+    <h2>Conecte o celular</h2>
     <div id="passos"></div>
     <div class="qrs" id="qrs"></div>
     <p class="muted" id="dica"></p>
@@ -133,9 +102,8 @@ function get(c){ return fetch(c, {cache: "no-store"}).then(function(r){ return r
 
 var est = null, qrFeito = "";
 
-document.querySelectorAll(".modo").forEach(function(b){
-  b.onclick = function(){ get("/modo?m=" + b.dataset.m).then(function(j){ est = j; desenhar(); }); };
-});
+var iniciado = false;
+function iniciarDireto(){ iniciado = true; get("/modo?m=direto").then(function(j){ est = j; desenhar(); }); }
 $("bescolher").onclick = function(){ get("/escolher").then(ofertas); };
 $("bpasta").onclick = function(e){ e.preventDefault(); fetch("/pasta"); };
 
@@ -152,8 +120,6 @@ function ipPara(modo){
 
 function desenhar(){
   if (!est) return;
-  $("mdireto").classList.toggle("ativo", est.modo == "direto");
-  $("mroteador").classList.toggle("ativo", est.modo == "roteador");
   $("pasta").textContent = est.pasta;
   $("cel").innerHTML = est.celular ? '<b class="ok">● Celular conectado (' + esc(est.celularIp) + ")</b>" : "";
   $("conexao").hidden = !est.modo;
@@ -164,8 +130,8 @@ function desenhar(){
     var st = est.statusDireto || "", ok = st.indexOf("Started") == 0, erro = /Erro|Aborted|\(/.test(st);
     $("passos").innerHTML = "<p>Rede: <code>" + esc(est.ssid) + "</code> &nbsp; Senha: <code>" + esc(est.senha) + "</code> &nbsp; " +
       (ok ? '<b class="ok">● Rede ativa</b>' : erro ? '<b class="erro">● Não foi possível criar a rede (' + esc(st) + ")</b>" : '<b class="aviso">● ' + esc(st || "Criando…") + "</b>") + "</p>";
-    $("dica").innerHTML = erro ? "Este PC pode não ter placa Wi-Fi compatível ou pode estar bloqueado. Tente <b>Pelo roteador</b>." :
-      "Se o celular entrar na rede mas a página não abrir, o firewall do PC está bloqueando (sem admin não dá para liberar). Tente <b>Pelo roteador</b>.";
+    $("dica").innerHTML = erro ? "Este PC pode não ter placa Wi-Fi compatível ou pode estar bloqueado. <a href=# onclick=\"iniciarDireto();return false\">Tentar de novo</a> ou use a página Transferir do InkDOS Hub, pelo roteador." :
+      "Se o celular entrar na rede mas a página não abrir, o firewall do PC está bloqueando (sem admin não dá para liberar). Nesse caso, use a página Transferir do InkDOS Hub, pelo roteador.";
     if (qrFeito != chave) {
       $("qrs").innerHTML =
         '<div class="qr">' + qrSvg("WIFI:T:WPA;S:" + est.ssid + ";P:" + est.senha + ";;") + "<b>A. Entre na rede</b><span class=muted>Aponte a câmera do celular</span></div>" +
@@ -224,7 +190,7 @@ function ofertas(j){
 
 function ciclo(){
   get("/estado").then(function(j){
-    est = j; desenhar(); transfs();
+    est = j; if (!est.modo && !iniciado) iniciarDireto(); desenhar(); transfs();
     hist.push(j.vel); if (hist.length > 120) hist.shift(); grafico();
     mostrarDiagCelular();
   }).catch(function(){ $("cel").innerHTML = '<b class="erro">● O programa foi fechado.</b>'; });

@@ -1,7 +1,8 @@
 // InkDOS Hub Transferir (protótipo).
 //
 // Transferência rápida celular <-> PC sem internet, sem servidor e sem admin.
-// Duas formas de conexão:
+// Este app faz só o Wi-Fi direto (o painel inicia a rede sozinho); "pelo roteador" fica na página do Hub.
+// O servidor ainda aceita as duas formas:
 //  - Wi-Fi direto: o PC cria uma rede Wi-Fi própria (Wi-Fi Direct no modo "legado", API do Windows
 //    que não pede admin). O celular entra nela como numa Wi-Fi comum.
 //  - Pelo roteador: usa a rede que o PC já tem (cabo ou Wi-Fi); o celular precisa estar na mesma rede.
