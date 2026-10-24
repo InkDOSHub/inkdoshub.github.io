@@ -79,3 +79,4 @@ jobs:
         run: |
           gh release view webcam-windows >/dev/null 2>&1 || gh release create webcam-windows --title "InkDOS Hub Webcam for Windows" --latest=false --notes "Turns the iPhone camera (InkDOS Hub Webcam page) into a Windows webcam, without OBS. Source: windows/webcam/ (MIT) and softcam (MIT)."
           gh release upload webcam-windows InkDOSHub-Webcam-Windows.zip --clobber
+          git push -f origin "HEAD:refs/tags/webcam-windows"
