@@ -44,10 +44,19 @@
     return u.href;
   }
 
+  /* Parâmetros que o próprio site declara para não abrir o app (arquivo apple-app-site-association
+     dele). O YouTube exclui qualquer endereço com "noapp". inicio/ir.html tira o parâmetro para conferir. */
+  function semApp(u) {
+    u = new URL(u);
+    if (/(^|\.)youtube\.com$/.test(u.hostname)) u.searchParams.set("noapp", "1");
+    return u.href;
+  }
+  function ponte(app) { return "inicio/ir.html#" + encodeURIComponent(semApp(app.ir || app.url)); }
+
   function cartaoMeu(app) {
     var a = el("a", "workspace-card meu");
     // passa pela ponte inicio/ir.html: no Safari o iOS não troca o site pelo app
-    a.href = "inicio/ir.html#" + encodeURIComponent(app.ir || app.url);
+    a.href = ponte(app);
     a.dataset.meu = app.url;
     a.appendChild(el("span", "accent"));
     a.appendChild(icone(app));
@@ -151,6 +160,6 @@
   window.InkMeusApps = {
     escondido: function (app) { return escondidos.indexOf(app) >= 0; },
     mostrar: function (app) { escondidos = escondidos.filter(function (a) { return a !== app; }); salvar(K_ESC, escondidos); desenhar(); },
-    webapps: function () { return meus.map(function (a) { return { nome: a.nome, url: "inicio/ir.html#" + encodeURIComponent(a.ir || a.url) }; }); },
+    webapps: function () { return meus.map(function (a) { return { nome: a.nome, url: ponte(a) }; }); },
   };
 })();
