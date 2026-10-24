@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Transferir · InkDOS Hub</title>
+<style>
+  :root{--bg:#f4f5f7;--card:#fff;--txt:#16181d;--muted:#666b75;--borda:#dde0e5;--cor:#2563eb;--ok:#15803d;--erro:#b91c1c}
+  @media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1b1e25;--txt:#eceef2;--muted:#9aa0ab;--borda:#2c313b;--cor:#60a5fa;--ok:#4ade80;--erro:#f87171}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;padding-bottom:40px}
+  h1{font-size:22px;margin:4px 0 2px}
+  .muted{color:var(--muted);font-size:14px}
+  .card{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:16px;margin:14px 0}
+  h2{font-size:17px;margin:0 0 10px}
+  .btn{display:block;width:100%;font:inherit;font-weight:600;border:0;border-radius:12px;padding:14px;background:var(--cor);color:#fff;text-align:center;text-decoration:none;cursor:pointer}
+  .btn.sec{background:transparent;color:var(--cor);border:1px solid var(--cor)}
+  .vel{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
+  .barra{height:8px;background:var(--borda);border-radius:4px;overflow:hidden;margin:6px 0}
+  .barra i{display:block;height:100%;width:0;background:var(--cor)}
+  .item{padding:10px 0;border-top:1px solid var(--borda);font-size:14px}
+  .item:first-child{border-top:0}
+  .item a{color:var(--cor);font-weight:600;text-decoration:none;word-break:break-all}
+  .linha{display:flex;justify-content:space-between;gap:10px;font-variant-numeric:tabular-nums}
+  .ok{color:var(--ok)} .erro{color:var(--erro)}
+  table{width:100%;border-collapse:collapse;font-size:14px} td{padding:4px 0} td+td{text-align:right;font-weight:600}
+  input[type=file]{display:none}
+</style>
+</head>
+<body>
+<h1>InkDOS Hub Transferir</h1>
+<div class="muted" id="estado">Conectado ao PC.</div>
+
+<div class="card">
+  <h2>Enviar para o PC</h2>
+  <label class="btn" for="arq">Escolher arquivos</label>
+  <input type="file" id="arq" multiple>
+  <div id="envio" hidden>
+    <div class="vel" id="vel">0 MB/s</div>
+    <div class="linha muted"><span id="nomeEnv"></span><span id="resta"></span></div>
+    <div class="barra"><i id="prog"></i></div>
+    <div class="linha muted"><span id="qtd"></span><span id="media"></span></div>
+  </div>
+  <div id="feitos"></div>
+</div>
+
+<div class="card">
+  <h2>Arquivos do PC</h2>
+  <div id="lista" class="muted">Nenhum arquivo. No PC, clique em "Escolher arquivos para o celular".</div>
+</div>
+
+<div class="card">
+  <h2>Diagnóstico</h2>
+  <p class="muted" style="margin-top:0">Mede o atraso e a velocidade real entre este celular e o PC, nos dois sentidos.</p>
+  <button class="btn sec" id="bdiag">Medir conexão</button>
+  <div id="diag"></div>
+</div>
+
+<script>
+var K = new URLSearchParams(location.search).get("k") || "";
+function u(c){ return c + (c.indexOf("?") < 0 ? "?" : "&") + "k=" + encodeURIComponent(K); }
+function $(i){ return document.getElementById(i); }
+function mb(b){ return (b/1048576).toFixed(b < 10485760 ? 1 : 0) + " MB"; }
+function tam(b){ return b >= 1073741824 ? (b/1073741824).toFixed(2) + " GB" : mb(b); }
+function vel(bps){ return (bps/1048576).toFixed(1) + " MB/s"; }
+function hora(s){ s = Math.round(s); return s >= 60 ? Math.floor(s/60) + " min " + (s%60) + " s" : s + " s"; }
+function esc(t){ var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+
+// ---------- envio ----------
+var fila = [], enviando = false;
+$("arq").onchange = function(){ for (var i = 0; i < this.files.length; i++) fila.push(this.files[i]); this.value = ""; proximo(); };
+
+function proximo(){
+  if (enviando || !fila.length) { if (!fila.length) $("envio").hidden = true; return; }
+  enviando = true;
+  var f = fila.shift(), x = new XMLHttpRequest(), t0 = performance.now(), ult = t0, ultB = 0, v = 0;
+  $("envio").hidden = false; $("nomeEnv").textContent = f.name; $("prog").style.width = "0";
+  $("qtd").textContent = fila.length ? "mais " + fila.length + " na fila" : "";
+  x.upload.onprogress = function(e){
+    var ag = performance.now(), dt = (ag - ult) / 1000;
+    if (dt >= 0.3) { var vi = (e.loaded - ultB) / dt; v = v ? v*0.5 + vi*0.5 : vi; ult = ag; ultB = e.loaded; }
+    $("vel").textContent = vel(v);
+    $("prog").style.width = (e.loaded / f.size * 100) + "%";
+    $("resta").textContent = tam(e.loaded) + " de " + tam(f.size) + (v > 0 ? " · falta " + hora((f.size - e.loaded) / v) : "");
+    $("media").textContent = "média " + vel(e.loaded / ((ag - t0) / 1000));
+  };
+  x.onloadend = function(){
+    var s = (performance.now() - t0) / 1000, ok = x.status == 200;
+    var d = document.createElement("div"); d.className = "item";
+    d.innerHTML = '<div class="linha"><span>' + esc(f.name) + '</span><span class="' + (ok ? "ok" : "erro") + '">' +
+      (ok ? "✓ " + vel(f.size / s) : "falhou") + '</span></div><div class="muted">' + tam(f.size) + " em " + hora(s) + "</div>";
+    $("feitos").prepend(d);
+    enviando = false; proximo();
+  };
+  x.open("POST", u("/enviar?nome=" + encodeURIComponent(f.name)));
+  x.send(f);
+}
+
+// ---------- arquivos do PC + pedido de diagnóstico ----------
+var diagVisto = -1, falhas = 0;
+function atualizar(){
+  fetch(u("/arquivos"), {cache: "no-store"}).then(function(r){ return r.json(); }).then(function(j){
+    falhas = 0; $("estado").textContent = "Conectado ao PC."; $("estado").className = "muted";
+    $("lista").innerHTML = j.arquivos.length ? j.arquivos.map(function(a){
+      return '<div class="item"><a href="' + u("/baixar?id=" + a.id) + '" download="' + esc(a.nome) + '">⬇ ' + esc(a.nome) + '</a><div class="muted">' + tam(a.tam) + '</div></div>';
+    }).join("") : 'Nenhum arquivo. No PC, clique em "Escolher arquivos para o celular".';
+    if (diagVisto >= 0 && j.diag > diagVisto && !medindo) medir();
+    diagVisto = j.diag;
+  }).catch(function(){
+    if (++falhas > 1) { $("estado").textContent = "Sem conexão com o PC. Verifique a rede."; $("estado").className = "erro"; }
+  });
+}
+setInterval(atualizar, 2000); atualizar();
+
+// ---------- diagnóstico ----------
+var medindo = false;
+$("bdiag").onclick = function(){ if (!medindo) medir(); };
+
+function linhaDiag(r){
+  return "<table>" +
+    "<tr><td>Atraso (ping)</td><td>" + (r.ping != null ? r.ping.toFixed(0) + " ms" : "…") + "</td></tr>" +
+    "<tr><td>Variação do atraso</td><td>" + (r.jitter != null ? r.jitter.toFixed(0) + " ms" : "…") + "</td></tr>" +
+    "<tr><td>PC → celular</td><td>" + (r.desce != null ? vel(r.desce) : "…") + "</td></tr>" +
+    "<tr><td>Celular → PC</td><td>" + (r.sobe != null ? vel(r.sobe) : "…") + "</td></tr>" +
+    "<tr><td>Qualidade</td><td>" + (r.nota || "…") + "</td></tr></table>";
+}
+
+function nota(r){
+  var m = Math.min(r.desce, r.sobe) / 1048576;
+  if (m >= 25) return "Excelente";
+  if (m >= 10) return "Boa";
+  if (m >= 3) return "Regular";
+  return "Fraca";
+}
+
+async function medir(){
+  medindo = true; $("bdiag").disabled = true; $("bdiag").textContent = "Medindo…";
+  var r = {ping: null, jitter: null, desce: null, sobe: null};
+  $("diag").innerHTML = linhaDiag(r);
+  try {
+    var ps = [];
+    for (var i = 0; i < 10; i++) {
+      var t = performance.now();
+      await fetch(u("/ping?n=" + i), {cache: "no-store"});
+      ps.push(performance.now() - t);
+    }
+    ps.sort(function(a, b){ return a - b; });
+    r.ping = ps[Math.floor(ps.length / 2)];
+    r.jitter = ps[ps.length - 2] - ps[1];
+    $("diag").innerHTML = linhaDiag(r);
+
+    var MB = 40, t0 = performance.now();
+    var resp = await fetch(u("/teste?mb=" + MB), {cache: "no-store"});
+    var rd = resp.body.getReader(), lido = 0;
+    while (true) { var c = await rd.read(); if (c.done) break; lido += c.value.length; }
+    r.desce = lido / ((performance.now() - t0) / 1000);
+    $("diag").innerHTML = linhaDiag(r);
+
+    var dados = new Uint8Array(MB * 1048576);
+    for (var o = 0; o < dados.length; o += 65536) crypto.getRandomValues(dados.subarray(o, o + 65536));
+    t0 = performance.now();
+    await new Promise(function(ok, falha){
+      var x = new XMLHttpRequest();
+      x.onload = ok; x.onerror = falha;
+      x.open("POST", u("/teste")); x.send(new Blob([dados]));
+    });
+    r.sobe = dados.length / ((performance.now() - t0) / 1000);
+    r.nota = nota(r);
+    $("diag").innerHTML = linhaDiag(r);
+    r.quando = Date.now(); r.aparelho = navigator.userAgent;
+    fetch(u("/diag"), {method: "POST", body: JSON.stringify(r)});
+  } catch (e) {
+    $("diag").innerHTML += '<p class="erro">A medição falhou: ' + esc(String(e)) + "</p>";
+  }
+  medindo = false; $("bdiag").disabled = false; $("bdiag").textContent = "Medir conexão";
+}
+</script>
+</body>
+</html>
