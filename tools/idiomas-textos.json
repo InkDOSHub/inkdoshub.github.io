@@ -497,5 +497,6 @@
  "Use": "inicio/atalho.html",
  "Copy address": "inicio/atalho.html",
  "Open Shortcuts": "inicio/atalho.html",
- "The file arrived incomplete ({size} KB). Use the Open file button.": "inicio/lancador.js"
+ "The file arrived incomplete ({size} KB). Use the Open file button.": "inicio/lancador.js",
+ "Optional: iOS shortcut": "index.html"
 }
