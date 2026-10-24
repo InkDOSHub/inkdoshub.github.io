@@ -34,6 +34,7 @@
   .item a{color:var(--tc);font-weight:700}
   .ok{color:#15803d}.erro{color:#b91c1c}
   input[type=file]{display:none}
+  .diag{width:100%;border-collapse:collapse;font-size:14px}.diag td{padding:4px 0}.diag td+td{text-align:right;font-weight:700}
 </style>
 </head>
 <body class="ink-app" data-idioma>
@@ -73,6 +74,11 @@
         <div class="nota" id="atual">&nbsp;</div>
         <div class="barra"><i id="prog"></i></div>
         <div id="lista"></div>
+        <div style="margin-top:16px">
+          <button class="ink-btn" id="bdiag" type="button">Diagnostics</button>
+          <p class="nota">Measures the route, the delay and the real speed in both directions. The result shows on both devices.</p>
+          <table id="diag" class="diag"></table>
+        </div>
       </div>
     </div>
 

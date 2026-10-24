@@ -94,6 +94,7 @@
   function receber(d) {
     if (typeof d == "string") {
       var m = JSON.parse(d);
+      if (diagMensagem(m)) return;
       if (m.t == "ini") rx = { nome: m.nome, tam: m.tam, tipo: m.tipo, partes: [], feito: 0, t0: performance.now() };
       else if (m.t == "fim" && rx) {
         var s = (performance.now() - rx.t0) / 1000;
@@ -104,10 +105,84 @@
       }
       return;
     }
+    if (teste) { teste.feito += d.byteLength; bytes += d.byteLength; return; }
     if (!rx) return;
     rx.partes.push(d); rx.feito += d.byteLength; bytes += d.byteLength;
     progresso(rx.nome, rx.feito, rx.tam, false);
   }
+
+  // ---------- diagnóstico ----------
+  var TESTE = 24 * 1048576, teste = null, espera = {}, diagRes = {}, diagRodando = false;
+  function nota(v) { var m = v / 1048576; return m >= 25 ? t("Excellent") : m >= 10 ? t("Good") : m >= 3 ? t("Fair") : t("Weak"); }
+  function mostrarDiag() {
+    var r = diagRes, l = [
+      [t("Route"), r.rota], [t("Delay (ping)"), r.ping != null ? r.ping.toFixed(0) + " ms" : null],
+      [t("Delay variation"), r.jitter != null ? r.jitter.toFixed(0) + " ms" : null],
+      [t("This device → other"), r.sobe != null ? vel(r.sobe) : null], [t("Other → this device"), r.desce != null ? vel(r.desce) : null],
+      [t("Quality"), r.sobe != null && r.desce != null ? nota(Math.min(r.sobe, r.desce)) : null]
+    ];
+    $("diag").innerHTML = "";
+    l.forEach(function (x) {
+      var tr = document.createElement("tr"), a = document.createElement("td"), b = document.createElement("td");
+      a.textContent = x[0]; b.textContent = x[1] == null ? "…" : x[1]; tr.appendChild(a); tr.appendChild(b); $("diag").appendChild(tr);
+    });
+  }
+  function aguardar(tipo) { return new Promise(function (ok) { espera[tipo] = ok; }); }
+  function diagMensagem(m) {
+    if (m.t == "ping") { conn.send(JSON.stringify({ t: "pong", i: m.i })); return true; }
+    if (m.t == "teste-ini") { teste = { feito: 0, tam: m.tam, t0: performance.now() }; return true; }
+    if (m.t == "teste-fim") {
+      var ms = performance.now() - teste.t0; teste = null;
+      conn.send(JSON.stringify({ t: "teste-ok", ms: ms })); return true;
+    }
+    if (m.t == "teste-pedir") { if (!diagRodando) { diagRes = {}; mostrarDiag(); } enviarTeste().then(function (v) { conn.send(JSON.stringify({ t: "teste-res", v: v })); }); return true; }
+    if (m.t == "diag-res") { var r = m.r; diagRes = { rota: r.rota, ping: r.ping, jitter: r.jitter, sobe: r.desce, desce: r.sobe }; mostrarDiag(); return true; }
+    if (espera[m.t]) { var f = espera[m.t]; delete espera[m.t]; f(m); return true; }
+    return false;
+  }
+  async function enviarTeste() {
+    var dc = conn.dataChannel, pedaco = new Uint8Array(PEDACO);
+    for (var i = 0; i < PEDACO; i += 65536) crypto.getRandomValues(pedaco.subarray(i, i + 65536));
+    var t0 = performance.now();
+    conn.send(JSON.stringify({ t: "teste-ini", tam: TESTE }));
+    for (var o = 0; o < TESTE; o += PEDACO) { await esperarFila(dc); dc.send(pedaco.buffer.slice(0)); bytes += PEDACO; }
+    conn.send(JSON.stringify({ t: "teste-fim" }));
+    await aguardar("teste-ok");
+    return TESTE / ((performance.now() - t0) / 1000);
+  }
+  async function rota() {
+    try {
+      var pc = conn.peerConnection, st = await pc.getStats(), par = null, loc = {}, rem = {};
+      st.forEach(function (r) {
+        if (r.type == "candidate-pair" && (r.nominated || r.selected) && r.state == "succeeded") par = r;
+        if (r.type == "local-candidate") loc[r.id] = r;
+        if (r.type == "remote-candidate") rem[r.id] = r;
+      });
+      if (!par) return t("Unknown");
+      var a = loc[par.localCandidateId] || {}, b = rem[par.remoteCandidateId] || {};
+      if (a.candidateType == "relay" || b.candidateType == "relay") return t("Through a relay server (slow)");
+      if (a.candidateType == "host" && b.candidateType == "host") return t("Direct, on the local network");
+      return t("Direct, through the internet");
+    } catch (e) { return t("Unknown"); }
+  }
+  $("bdiag").onclick = async function () {
+    if (diagRodando || !conn || !conn.open || enviando) return;
+    diagRodando = true; $("bdiag").disabled = true; diagRes = {}; mostrarDiag();
+    try {
+      diagRes.rota = await rota(); mostrarDiag();
+      var ps = [];
+      for (var i = 0; i < 10; i++) {
+        var t0 = performance.now(); conn.send(JSON.stringify({ t: "ping", i: i })); await aguardar("pong"); ps.push(performance.now() - t0);
+      }
+      ps.sort(function (a, b) { return a - b; });
+      diagRes.ping = ps[5]; diagRes.jitter = ps[8] - ps[1]; mostrarDiag();
+      diagRes.sobe = await enviarTeste(); mostrarDiag();
+      conn.send(JSON.stringify({ t: "teste-pedir" }));
+      diagRes.desce = (await aguardar("teste-res")).v; mostrarDiag();
+      conn.send(JSON.stringify({ t: "diag-res", r: diagRes }));
+    } catch (e) { estado(t("Error: {msg}", { msg: e.message || e }), true); }
+    diagRodando = false; $("bdiag").disabled = false; proximo();
+  };
 
   // ---------- envio ----------
   var fila = [], enviando = false;
@@ -121,7 +196,7 @@
   }
 
   async function proximo() {
-    if (enviando || !fila.length) return;
+    if (enviando || diagRodando || !fila.length) return;
     enviando = true;
     var f = fila.shift(), dc = conn.dataChannel, t0 = performance.now();
     try {

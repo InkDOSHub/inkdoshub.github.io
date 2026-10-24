@@ -547,5 +547,21 @@
 "Connecting…": "Conectando…",
 "Code not found. Check the code and try again.": "Código não encontrado. Confira o código e tente de novo.",
 "Connected. The files go directly between the two devices.": "Conectado. Os arquivos vão direto de um aparelho ao outro.",
-"The other device disconnected. Reload the page to connect again.": "O outro aparelho desconectou. Recarregue a página para conectar de novo."
+"The other device disconnected. Reload the page to connect again.": "O outro aparelho desconectou. Recarregue a página para conectar de novo.",
+"Diagnostics": "Diagnóstico",
+"Measures the route, the delay and the real speed in both directions. The result shows on both devices.": "Mede a rota, o atraso e a velocidade real nos dois sentidos. O resultado aparece nos dois aparelhos.",
+"Excellent": "Excelente",
+"Good": "Boa",
+"Fair": "Regular",
+"Weak": "Fraca",
+"Route": "Rota",
+"Delay (ping)": "Atraso (ping)",
+"Delay variation": "Variação do atraso",
+"This device → other": "Este aparelho → outro",
+"Other → this device": "Outro → este aparelho",
+"Quality": "Qualidade",
+"Unknown": "Desconhecida",
+"Through a relay server (slow)": "Por um servidor intermediário (lento)",
+"Direct, on the local network": "Direta, na rede local",
+"Direct, through the internet": "Direta, pela internet"
 }
