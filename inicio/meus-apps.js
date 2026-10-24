@@ -46,8 +46,8 @@
 
   function cartaoMeu(app) {
     var a = el("a", "workspace-card meu");
-    // com "desktop", passa pela ponte inicio/ir.html para o iOS não trocar o site pelo app
-    a.href = app.ir ? "inicio/ir.html#" + encodeURIComponent(app.ir) : app.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+    // abre dentro do Hub, numa moldura (inicio/ir.html); se o site bloquear, a página oferece abrir fora
+    a.href = "inicio/ir.html#" + encodeURIComponent(app.ir || app.url);
     a.dataset.meu = app.url;
     a.appendChild(el("span", "accent"));
     a.appendChild(icone(app));
@@ -151,6 +151,6 @@
   window.InkMeusApps = {
     escondido: function (app) { return escondidos.indexOf(app) >= 0; },
     mostrar: function (app) { escondidos = escondidos.filter(function (a) { return a !== app; }); salvar(K_ESC, escondidos); desenhar(); },
-    webapps: function () { return meus.map(function (a) { return { nome: a.nome, url: a.ir ? "inicio/ir.html#" + encodeURIComponent(a.ir) : a.url }; }); },
+    webapps: function () { return meus.map(function (a) { return { nome: a.nome, url: "inicio/ir.html#" + encodeURIComponent(a.ir || a.url) }; }); },
   };
 })();

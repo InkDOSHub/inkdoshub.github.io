@@ -603,5 +603,7 @@
 "Desktop version, in Safari": "Versão de computador, no Safari",
 "Keeps the site in Safari instead of its app. Some sites (like YouTube) also open their desktop version; on others, use aA › Request Desktop Website in Safari once.": "Mantém o site no Safari em vez do app dele. Alguns sites (como o YouTube) também abrem a versão de computador; nos outros, use uma vez aA › Solicitar Site para Computador no Safari.",
 "Opening…": "Abrindo…",
-"Unknown address.": "Endereço desconhecido."
+"Unknown address.": "Endereço desconhecido.",
+"Open outside": "Abrir fora",
+"Blank page or an error? This site does not allow being shown inside the Hub. Use Open outside.": "Página em branco ou com erro? Este site não deixa ser mostrado dentro do Hub. Use Abrir fora."
 }
