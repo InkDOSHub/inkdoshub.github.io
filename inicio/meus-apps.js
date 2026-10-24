@@ -34,9 +34,20 @@
     return caixa;
   }
 
+  /* Versão de computador: parâmetros conhecidos de alguns sites. Nos outros, o Safari decide. */
+  function versaoDesktop(u) {
+    u = new URL(u);
+    var h = u.hostname.replace(/^(www|m)\./, "");
+    if (h === "youtube.com") { u.hostname = "www.youtube.com"; u.searchParams.set("app", "desktop"); u.searchParams.set("persist_app", "1"); }
+    else if (h === "facebook.com" || h === "reddit.com") u.hostname = "www." + h;
+    else if (/^m\./.test(u.hostname)) u.hostname = u.hostname.slice(2);
+    return u.href;
+  }
+
   function cartaoMeu(app) {
     var a = el("a", "workspace-card meu");
-    a.href = app.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+    // com "desktop", passa pela ponte inicio/ir.html para o iOS não trocar o site pelo app
+    a.href = app.ir ? "inicio/ir.html#" + encodeURIComponent(app.ir) : app.url; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.dataset.meu = app.url;
     a.appendChild(el("span", "accent"));
     a.appendChild(icone(app));
@@ -71,7 +82,7 @@
   var dlg = $("dlg-webapp"), campoUrl = $("webapp-url"), campoNome = $("webapp-nome"), erro = $("webapp-erro");
   novo.addEventListener("click", function () {
     if (editando) return;
-    campoUrl.value = ""; campoNome.value = ""; erro.textContent = "";
+    campoUrl.value = ""; campoNome.value = ""; $("webapp-desktop").checked = true; erro.textContent = "";
     dlg.showModal ? dlg.showModal() : dlg.setAttribute("open", "");
     campoUrl.focus();
   });
@@ -88,7 +99,9 @@
     if (!u || !/^https?:$/.test(u.protocol) || !u.hostname.includes(".")) { erro.textContent = t("Type a site address, like example.com."); return; }
     var nome = campoNome.value.trim().slice(0, 40) || u.hostname.replace(/^www\./, "");
     meus = meus.filter(function (a) { return a.url !== u.href; });
-    meus.push({ url: u.href, nome: nome });
+    var item = { url: u.href, nome: nome };
+    if ($("webapp-desktop").checked) item.ir = versaoDesktop(u.href);
+    meus.push(item);
     salvar(K_APPS, meus);
     dlg.close();
     desenhar();
@@ -138,6 +151,6 @@
   window.InkMeusApps = {
     escondido: function (app) { return escondidos.indexOf(app) >= 0; },
     mostrar: function (app) { escondidos = escondidos.filter(function (a) { return a !== app; }); salvar(K_ESC, escondidos); desenhar(); },
-    webapps: function () { return meus.slice(); },
+    webapps: function () { return meus.map(function (a) { return { nome: a.nome, url: a.ir ? "inicio/ir.html#" + encodeURIComponent(a.ir) : a.url }; }); },
   };
 })();
