@@ -16,9 +16,9 @@
 (function () {
   var alvo = "";
   try { alvo = decodeURIComponent(location.hash.slice(1)); } catch (_) {}
-  // o cartão pode acrescentar "noapp" (meus-apps.js); confere sem ele
+  // o cartão pode acrescentar "noapp" e afins (meus-apps.js); confere sem ele
   var base = alvo;
-  try { var u = new URL(alvo); u.searchParams.delete("noapp"); base = u.href; } catch (_) {}
+  try { var u = new URL(alvo); ["noapp", "deoia", "no_ul", "nodl", "web"].forEach(function (k) { u.searchParams.delete(k); }); base = u.href; } catch (_) {}
   var ok = false;
   try { ok = JSON.parse(localStorage.getItem("inkdoshub-meus-apps") || "[]").some(function (a) { return a && (a.ir === base || a.url === base); }); } catch (_) {}
   if (!ok || !/^https?:\/\//.test(alvo)) { document.getElementById("msg").textContent = "Unknown address."; return; }
