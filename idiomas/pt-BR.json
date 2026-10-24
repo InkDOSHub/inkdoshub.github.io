@@ -434,7 +434,7 @@
 "Uploaded {n} files to ~/files": "Enviados {n} arquivos para ~/files",
 "Uploaded: ~/files/{name}": "Enviado: ~/files/{name}",
 "Use at least 6 characters.": "Use pelo menos 6 caracteres.",
-"Use the iPhone camera as a webcam on the PC, for Zoom with OBS. Up to 4K 60 fps.": "Use a câmera do iPhone como webcam no PC, para o Zoom com o OBS. Até 4K 60 fps.",
+"Use the iPhone camera as a webcam on the PC, for Zoom with OBS. Up to 4K 30 fps.": "Use a câmera do iPhone como webcam no PC, para o Zoom com o OBS. Até 4K 30 fps.",
 "Use the iPhone camera as a webcam on the PC. Open this page on both devices: the PC shows a QR code and the iPhone sends the image straight to it, over Wi-Fi.": "Use a câmera do iPhone como webcam no PC. Abra esta página nos dois aparelhos: o PC mostra um QR code e o iPhone manda a imagem direto para ele, pelo Wi-Fi.",
 "Use without internet": "Uso sem internet",
 "Use “Edit” to trim, remove the sound and export.": "Use “Editar” para cortar, tirar o som e exportar.",

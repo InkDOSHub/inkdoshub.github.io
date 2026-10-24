@@ -201,10 +201,7 @@ namespace InkDOSHubWebcam
             personalizadas.AutoSize = true;
             personalizadas.Dock = DockStyle.Left;
             personalizadas.Padding = new Padding(10, 3, 0, 0);
-            nativo.Text = "Native receiver (beta)";
-            nativo.AutoSize = true;
-            nativo.Dock = DockStyle.Left;
-            nativo.Padding = new Padding(10, 3, 0, 0);
+            nativo.Checked = true; // o app só funciona no modo nativo; a opção saiu da tela
             rotuloBuffer.AutoSize = true;
             rotuloBuffer.Dock = DockStyle.Right;
             rotuloBuffer.Padding = new Padding(8, 5, 0, 0);
@@ -214,7 +211,6 @@ namespace InkDOSHubWebcam
             estado.Padding = new Padding(12, 0, 0, 0);
             barra.Controls.Add(estado);
             barra.Controls.Add(rotuloBuffer);
-            barra.Controls.Add(nativo);
             barra.Controls.Add(personalizadas);
             barra.Controls.Add(qualidade);
             barra.Controls.Add(rotulo);
@@ -230,7 +226,6 @@ namespace InkDOSHubWebcam
                 {
                     salvo = Convert.ToInt32(chave.GetValue("qualidade3", 0));
                     todas = Convert.ToInt32(chave.GetValue("personalizadas", 0)) == 1;
-                    nativo.Checked = Convert.ToInt32(chave.GetValue("nativo", 0)) == 1;
                 }
             }
             catch (Exception) { }
@@ -253,13 +248,6 @@ namespace InkDOSHubWebcam
             };
 
             Tamanho();
-            nativo.CheckedChanged += delegate
-            {
-                Tamanho();
-                Salvar();
-                PararNativo();
-                if (web.CoreWebView2 != null) web.CoreWebView2.Navigate(Endereco());
-            };
 
             envio = new Thread(Enviar) { IsBackground = true, Name = "envio" };
             envio.Start();
@@ -404,7 +392,6 @@ namespace InkDOSHubWebcam
                 {
                     chave.SetValue("qualidade3", Array.IndexOf(Qualidades, (Qualidade)qualidade.SelectedItem));
                     chave.SetValue("personalizadas", personalizadas.Checked ? 1 : 0);
-                    chave.SetValue("nativo", nativo.Checked ? 1 : 0);
                 }
             }
             catch (Exception) { }
@@ -465,7 +452,7 @@ namespace InkDOSHubWebcam
             {
                 Program.Log("NATIVO: unavailable: " + erro);
                 estado.Text = "Native receiver unavailable: " + erro;
-                ParaPagina("nat:estado:Native receiver unavailable. Uncheck \"Native receiver (beta)\".");
+                ParaPagina("nat:estado:Native receiver unavailable. Reinstall the Windows app.");
                 return;
             }
             codigoNativo = codigo;
