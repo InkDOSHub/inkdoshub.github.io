@@ -34,7 +34,9 @@ function openInOffice(file,light,win){
 }
 function openInOfficeOriginal(file,light,win){"""
 
-TROCAS = [("function openInOffice(file,light,win){", FUNCAO)]
+TROCAS = [("function openInOffice(file,light,win){", FUNCAO),
+          # aba nova para o editor só quando o Hub abre abas (XeOS); veja assets/gerenciador-app.js
+          ("async function editInOffice(pt){let win=null;if(webEdition()){", "async function editInOffice(pt){let win=null;if(webEdition()&&(!g.InkPaginas||g.InkPaginas.novaAba)){")]
 
 SCRIPT = '<script src="../../../assets/gerenciador-app.js?v=7"></script>'
 IDIOMA = '<script src="../../../assets/idioma.js?v=1"></script>'

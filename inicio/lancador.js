@@ -125,7 +125,7 @@
       b.addEventListener("click", function () {
         // a página nova abre no toque; o endereço chega depois de o arquivo ser guardado
         var w = null;
-        try { w = window.open("", "_blank"); } catch (_) {}
+        if (!window.InkPaginas || InkPaginas.novaAba) try { w = window.open("", "_blank"); } catch (_) {}
         b.disabled = true;
         preparar(x.rota, x.files).then(function (url) {
           if (w) { w.location.replace(url); b.textContent = t("Opened: {name}", { name: b.textContent }); }
