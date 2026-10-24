@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head><script src="../../../assets/idioma.js?v=1"></script>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-wsAsX4UmOqJBCFKo6yzO/qi5JelUdcneLUMNZG1dS+M='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'self' https://inkdos-tools.github.io; manifest-src 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f8fa">
+<title>Presentations — InkDOS</title>
+<link rel="icon" href="assets/presentations.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="runtime/tokens/base.css">
+<link rel="stylesheet" href="runtime/frame/app-frame.css">
+<link rel="stylesheet" href="ui/editor.css">
+<link rel="stylesheet" href="view/presentation-surface.css">
+<style>
+/* InkDOS 2.0.2 — Presentations first-open gate. Spreadsheets is the visual baseline. */
+.presentation-workspace{position:relative}.start-state{position:absolute;inset:0;z-index:80;display:grid!important;place-items:center;padding:18px;background:var(--bg);pointer-events:auto}.start-state[hidden]{display:none!important}.start-card{width:min(430px,calc(100% - 36px));padding:28px;border:1px solid var(--line);border-radius:22px;background:var(--chrome);box-shadow:var(--shadow);text-align:center;pointer-events:auto}.start-icon{width:68px;height:68px;border-radius:16px}.start-card h1{margin:14px 0 6px}.start-card p{margin:0 0 18px;color:var(--muted)}.start-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}html[data-ui-density="desktop"] .start-actions{flex-flow:row nowrap}.start-actions button{min-height:44px;border:1px solid var(--line);border-radius:11px;background:var(--panel);padding:0 16px;color:inherit}.start-actions .primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+</style>
+  <link rel="stylesheet" href="../../shared/ui-density.css"><link rel="stylesheet" href="ui/zoom-menu.css">
+  <!-- tool bar look (ui/visual-system.css) inline: XeOS kept the linked copy from applying -->
+  <style id="toolbarLook">
+/* InkDOS visual system (docs/visual-system.md): presentation-only toolbar alignment with Documents. */
+.presentations-icon-defs{position:absolute;width:0;height:0;overflow:hidden}
+.editbar .tool-btn,.editbar select{height:28px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.editbar .tool-btn.icon-only,.editbar .tool-btn.labeled-tool{width:28px;min-width:28px;padding:0;gap:0;display:inline-grid;place-items:center}
+.editbar .tool-btn.labeled-tool .tool-label{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.editbar .tool-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.editbar .tool-btn:hover,.editbar .tool-btn:focus-visible,.editbar select:hover,.editbar select:focus-visible{background:var(--accent-soft);border-color:var(--line);outline:none}
+.editbar .tool-btn.active,.editbar .tool-btn.is-active,.editbar .tool-btn[aria-pressed="true"]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 70%,var(--line));color:var(--accent)}
+.editbar .tool-btn:disabled,.editbar select:disabled{opacity:.35;background:var(--panel)}
+.editbar .tool-btn.ppt-background-btn{width:28px!important;min-width:28px!important;padding:0!important}
+.editbar .tool-btn.ppt-background-btn::after{left:6px;right:6px;bottom:2px;height:2px}
+
+/* Round 2 (generated): id-level toolbar metrics, value pickers as icon controls, zoom as a plain percentage, no stacked dividers. */
+#editbar,#editbar .tool-group{gap:3px!important}
+#editbar .tool-btn{height:28px!important;min-height:28px!important;border-radius:10px}
+#editbar .tool-btn.icon-only,#editbar .tool-btn.labeled-tool{width:28px!important;min-width:28px!important;padding:0!important}
+#editbar .tool-btn svg{width:18px!important;height:18px!important;stroke-width:1.75}
+#editbar #pptP1Shape,#editbar #pptP1Layout,#editbar #pptP2Transition,#editbar #fontFamily,#editbar #alignSelect,#editbar #pptP1BorderWidth,#editbar #pptP1BorderStyle,#editbar #pptP1Arrange,
+#editbar .inkdos-picker[data-for="pptP1Shape"],#editbar .inkdos-picker[data-for="pptP1Layout"],#editbar .inkdos-picker[data-for="pptP2Transition"],#editbar .inkdos-picker[data-for="fontFamily"],#editbar .inkdos-picker[data-for="alignSelect"],#editbar .inkdos-picker[data-for="pptP1BorderWidth"],#editbar .inkdos-picker[data-for="pptP1BorderStyle"],#editbar .inkdos-picker[data-for="pptP1Arrange"]{-webkit-appearance:none;appearance:none;width:28px!important;min-width:28px!important;max-width:28px!important;height:28px!important;padding:0!important;color:transparent!important;text-indent:-9999px;background-color:var(--panel);background-repeat:no-repeat;background-position:center;background-size:18px 18px;border-radius:10px;cursor:pointer}
+#editbar #pptP1Shape option,#editbar #pptP1Layout option,#editbar #pptP2Transition option,#editbar #fontFamily option,#editbar #alignSelect option,#editbar #pptP1BorderWidth option,#editbar #pptP1BorderStyle option,#editbar #pptP1Arrange option{color:var(--text,#1b1f27);text-indent:0}
+#editbar #pptP1Shape,
+#editbar .inkdos-picker[data-for="pptP1Shape"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223.5%22%20y=%2210.5%22%20width=%2210%22%20height=%2210%22%20rx=%221.5%22/%3E%3Ccircle%20cx=%2215.5%22%20cy=%228.5%22%20r=%225%22/%3E%3C/svg%3E")}
+#editbar #pptP1Layout,
+#editbar .inkdos-picker[data-for="pptP1Layout"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223.5%22%20y=%224.5%22%20width=%2217%22%20height=%2215%22%20rx=%222%22/%3E%3Cpath%20d=%22M3.5%209.5h17M10%209.5v10%22/%3E%3C/svg%3E")}
+#editbar #pptP2Transition,
+#editbar .inkdos-picker[data-for="pptP2Transition"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223%22%20y=%226%22%20width=%2210%22%20height=%2212%22%20rx=%221.5%22/%3E%3Cpath%20d=%22M16%208h2.5a2%202%200%200%201%202%202v4a2%202%200%200%201-2%202H16%22/%3E%3Cpath%20d=%22m8%2010%202%202-2%202%22/%3E%3C/svg%3E")}
+#editbar #fontFamily,
+#editbar .inkdos-picker[data-for="fontFamily"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m3%2019%205-14%205%2014%22/%3E%3Cpath%20d=%22M4.8%2014h6.4%22/%3E%3Ccircle%20cx=%2217.5%22%20cy=%2215.5%22%20r=%223%22/%3E%3Cpath%20d=%22M20.5%2012v7%22/%3E%3C/svg%3E")}
+#editbar #alignSelect,
+#editbar .inkdos-picker[data-for="alignSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16M4%2010h10M4%2014h16M4%2018h10%22/%3E%3C/svg%3E")}
+#editbar #pptP1BorderWidth,
+#editbar .inkdos-picker[data-for="pptP1BorderWidth"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16%22%20stroke-width=%221%22/%3E%3Cpath%20d=%22M4%2012h16%22%20stroke-width=%222.25%22/%3E%3Cpath%20d=%22M4%2018h16%22%20stroke-width=%223.5%22/%3E%3C/svg%3E")}
+#editbar #pptP1BorderStyle,
+#editbar .inkdos-picker[data-for="pptP1BorderStyle"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16%22/%3E%3Cpath%20d=%22M4%2012h3.5M10.25%2012h3.5M16.5%2012H20%22/%3E%3Cpath%20d=%22M4%2018h1M9.5%2018h1M15%2018h1M19.5%2018h.5%22/%3E%3C/svg%3E")}
+#editbar #pptP1Arrange,
+#editbar .inkdos-picker[data-for="pptP1Arrange"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m12%204%208%204-8%204-8-4z%22/%3E%3Cpath%20d=%22m4%2012%208%204%208-4%22/%3E%3Cpath%20d=%22m4%2016%208%204%208-4%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #editbar #pptP1Shape,
+:root[data-appearance-resolved="dark"] #editbar .inkdos-picker[data-for="pptP1Shape"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223.5%22%20y=%2210.5%22%20width=%2210%22%20height=%2210%22%20rx=%221.5%22/%3E%3Ccircle%20cx=%2215.5%22%20cy=%228.5%22%20r=%225%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #editbar #pptP1Layout,
+:root[data-appearance-resolved="dark"] #editbar .inkdos-picker[data-for="pptP1Layout"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223.5%22%20y=%224.5%22%20width=%2217%22%20height=%2215%22%20rx=%222%22/%3E%3Cpath%20d=%22M3.5%209.5h17M10%209.5v10%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #editbar #pptP2Transition,
+:root[data-appearance-resolved="dark"] #editbar .inkdos-picker[data-for="pptP2Transition"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223%22%20y=%226%22%20width=%2210%22%20height=%2212%22%20rx=%221.5%22/%3E%3Cpath%20d=%22M16%208h2.5a2%202%200%200%201%202%202v4a2%202%200%200%201-2%202H16%22/%3E%3Cpath%20d=%22m8%2010%202%202-2%202%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #editbar #fontFamily,
+:root[data-appearance-resolved="dark"] #editbar .inkdos-picker[data-for="fontFamily"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m3%2019%205-14%205%2014%22/%3E%3Cpath%20d=%22M4.8%2014h6.4%22/%3E%3Ccircle%20cx=%2217.5%22%20cy=%2215.5%22%20r=%223%22/%3E%3Cpath%20d=%22M20.5%2012v7%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #editbar #alignSelect,
+:root[data-appearance-resolved="dark"] #editbar .inkdos-picker[data-for="alignSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16M4%2010h10M4%2014h16M4%2018h10%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #editbar #pptP1BorderWidth,
+:root[data-appearance-resolved="dark"] #editbar .inkdos-picker[data-for="pptP1BorderWidth"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16%22%20stroke-width=%221%22/%3E%3Cpath%20d=%22M4%2012h16%22%20stroke-width=%222.25%22/%3E%3Cpath%20d=%22M4%2018h16%22%20stroke-width=%223.5%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #editbar #pptP1BorderStyle,
+:root[data-appearance-resolved="dark"] #editbar .inkdos-picker[data-for="pptP1BorderStyle"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16%22/%3E%3Cpath%20d=%22M4%2012h3.5M10.25%2012h3.5M16.5%2012H20%22/%3E%3Cpath%20d=%22M4%2018h1M9.5%2018h1M15%2018h1M19.5%2018h.5%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #editbar #pptP1Arrange,
+:root[data-appearance-resolved="dark"] #editbar .inkdos-picker[data-for="pptP1Arrange"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m12%204%208%204-8%204-8-4z%22/%3E%3Cpath%20d=%22m4%2012%208%204%208-4%22/%3E%3Cpath%20d=%22m4%2016%208%204%208-4%22/%3E%3C/svg%3E")}
+#editbar #fontSize{-webkit-appearance:none;appearance:none;width:44px!important;min-width:44px!important;max-width:44px!important;height:28px!important;padding:0 4px!important;text-align:center;text-align-last:center;background-image:none;border-radius:10px;font-size:14px;cursor:pointer}
+#editbar #zoomMenuBtn svg{display:none!important}
+#editbar #zoomMenuBtn{min-width:0!important;width:auto!important;padding:0 8px!important;gap:0!important;font-size:14px}
+#editbar .tool-divider{height:24px;margin:0 3px}
+#editbar .tool-divider:has(+ .tool-group[hidden]){display:none}
+  /* XeOS restyles native dropdowns after load: each icon picker is a fixed-size icon box with the dropdown, invisible, on top */
+.inkdos-picker{position:relative;display:inline-block;flex:0 0 auto;overflow:hidden;vertical-align:middle;box-sizing:border-box;border:1px solid var(--line,#d7dde5)}
+.inkdos-picker>*{position:absolute!important;inset:0 auto 0 0!important;width:max-content!important;height:100%!important;min-width:260px!important;max-width:none!important;margin:0!important;opacity:0!important}
+.inkdos-value-picker{display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:44px;padding:0 8px;border-radius:10px;background:var(--panel,#fff);color:var(--text,#1b1f27);font-size:14px;white-space:nowrap}
+.inkdos-value-picker[data-for="functionSelect"]{height:auto;align-self:stretch;padding:0 12px}
+.inkdos-picker>.inkdos-picker-label{position:static!important;width:auto!important;min-width:0!important;height:auto!important;line-height:1.2;opacity:1!important;pointer-events:none}
+/* a disabled picker looks disabled, as its select did */
+.inkdos-picker:has(>select:disabled){opacity:.35;cursor:default}
+.inkdos-picker:has(>select[hidden]){display:none}
+</style>
+  <script src="../../shared/ui-density.js"></script><script src="../../shared/work-safety.js"></script>
+  <script src="runtime/platform/file-launch.js"></script>
+<script src="../../../assets/gerenciador-app.js?v=7"></script></head>
+<body>
+<svg class="presentations-icon-defs" aria-hidden="true" width="0" height="0" focusable="false"><defs><linearGradient id="inkdosPresentationsGradient" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ee7247"/><stop offset="1" stop-color="#d55229"/></linearGradient><symbol id="inkdosPresentationsIcon" viewBox="0 0 512 512"><rect x="24" y="24" width="464" height="464" rx="112" fill="url(#inkdosPresentationsGradient)"/><rect x="102" y="109" width="308" height="235" rx="34" fill="#fff"/><path d="M154 284h62a14 14 0 0 0 14-14v-52a14 14 0 0 1 14-14h42v-50a14 14 0 0 1 14-14h58" fill="none" stroke="#dd4b26" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/><circle cx="358" cy="160" r="18" fill="#f19a7e"/><path d="M256 344v62M198 406h116" fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round"/></symbol></defs></svg>
+<div class="app-shell" id="appShell">
+  <header class="topbar" id="topbar">
+    <div class="frame-side frame-left"><a class="frame-btn" href="../../index.html" aria-label="Home" title="Home" style="color:inherit;text-decoration:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.5 12 4l8.5 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg></a></div>
+    <div class="presentation-title"><svg class="presentations-icon" aria-hidden="true" focusable="false"><use href="#inkdosPresentationsIcon"></use></svg><input id="titleText" class="title-input" value="Untitled.pptx" aria-label="Presentation name" spellcheck="false" autocomplete="off"><span id="dirtyDot" class="dirty-dot" aria-hidden="true"></span></div>
+    <div class="frame-side frame-right" aria-hidden="true"></div>
+  </header>
+
+  <div id="editbar" class="editbar" tabindex="0" aria-label="Horizontally scrollable presentation editing toolbar">
+    <div id="pptToolbarHistory" class="tool-group" role="group" aria-label="History and navigation">
+      <button id="undoBtn" class="tool-btn icon-only" type="button" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/></svg></button>
+      <button id="redoBtn" class="tool-btn icon-only" type="button" title="Redo" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/></svg></button>
+      <button id="slidePanelBtn" class="tool-btn icon-only active" type="button" title="Show or hide slide thumbnails" aria-label="Show or hide slide thumbnails" aria-controls="slidePanel" aria-expanded="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/></svg></button>
+      <button id="prevSlideBtn" class="tool-btn icon-only" type="button" title="Previous slide" aria-label="Previous slide"><svg viewBox="0 0 24 24"><path d="m14 7-5 5 5 5"/></svg></button>
+      <button id="nextSlideBtn" class="tool-btn icon-only" type="button" title="Next slide" aria-label="Next slide"><svg viewBox="0 0 24 24"><path d="m10 7 5 5-5 5"/></svg></button>
+    </div>
+    <span class="tool-divider" aria-hidden="true"></span>
+    <div id="pptToolbarSlides" class="tool-group" role="group" aria-label="Slides">
+      <button id="addSlideBtn" class="tool-btn labeled-tool" type="button" title="New slide" aria-label="New slide"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M12 8v8M8 12h8"/></svg><span class="tool-label">Slide</span></button>
+      <button id="duplicateSlideBtn" class="tool-btn labeled-tool" type="button" title="Duplicate slide" aria-label="Duplicate slide"><svg viewBox="0 0 24 24"><rect x="8" y="7" width="11" height="12" rx="2"/><path d="M5 16H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1"/></svg><span class="tool-label">Duplicate</span></button>
+      <button id="deleteSlideBtn" class="tool-btn labeled-tool" type="button" title="Delete slide" aria-label="Delete slide"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg><span class="tool-label">Delete</span></button>
+    </div>
+    <span class="tool-divider" aria-hidden="true"></span>
+    <div id="pptToolbarInsert" class="tool-group" role="group" aria-label="Insert">
+      <button id="insertTextBtn" class="tool-btn labeled-tool" type="button" title="Insert text box" aria-label="Insert text box"><svg viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M8 19h8"/></svg><span class="tool-label">Text</span></button>
+    </div>
+    <span class="tool-divider" aria-hidden="true"></span>
+    <div id="pptToolbarText" class="tool-group" role="group" aria-label="Text formatting">
+      <select id="fontFamily" class="ppt-font-family-select" title="Font family" aria-label="Font family"><option value="Arial">Arial</option><option value="Aptos">Aptos</option><option value="Calibri">Calibri</option><option value="Georgia">Georgia</option><option value="Times New Roman">Times New Roman</option><option value="Verdana">Verdana</option></select>
+      <select id="fontSize" class="font-size-select" title="Font size" aria-label="Font size"><option>12</option><option>16</option><option>20</option><option selected>24</option><option>28</option><option>32</option><option>36</option><option>44</option><option>54</option><option>72</option></select>
+      <button id="boldBtn" class="tool-btn icon-only" type="button" title="Bold" aria-label="Bold"><b>B</b></button>
+      <button id="italicBtn" class="tool-btn icon-only" type="button" title="Italic" aria-label="Italic"><i>I</i></button>
+      <button id="underlineBtn" class="tool-btn icon-only" type="button" title="Underline" aria-label="Underline"><u>U</u></button>
+      <select id="alignSelect" class="align-select" title="Alignment" aria-label="Text alignment"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
+    </div>
+    <span class="tool-divider" aria-hidden="true"></span>
+    <div id="pptToolbarObjectStyle" class="tool-group" role="group" aria-label="Object style"></div>
+    <span class="tool-divider" aria-hidden="true"></span>
+    <div id="pptToolbarView" class="tool-group" role="group" aria-label="View and presentation">
+      <span id="zoomGroup" class="zoom-group" role="group" aria-label="Zoom"><button id="zoomOut" class="tool-btn zoom-step" type="button" title="Zoom out (−25%)" aria-label="Zoom out"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/></svg></button><span class="zoom-field"><input id="zoomInput" class="zoom-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="4" value="100%" title="Type a zoom from 1 to 800%" aria-label="Slide zoom percentage"><button id="zoomMenuBtn" class="tool-btn zoom-tool" type="button" title="Zoom presets" aria-label="Slide zoom presets" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></span><button id="zoomIn" class="tool-btn zoom-step" type="button" title="Zoom in (+25%)" aria-label="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8M12 8v8"/></svg></button></span>
+      <button id="presentBtn" class="tool-btn labeled-tool" type="button" title="Present from current slide" aria-label="Present from current slide"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="12" rx="1.5"/><path d="M9.5 7.5 15 10l-5.5 2.5z"/><path d="M12 16v4M8.5 20h7"/></svg><span class="tool-label">Present</span></button>
+    </div>
+    <span class="toolbar-end-spacer" aria-hidden="true"></span>
+  </div>
+
+  <main id="workspace" class="presentation-workspace" data-panel-open="true">
+    <div id="startState" class="start-state"><div class="start-card"><svg class="start-icon" aria-hidden="true" focusable="false"><use href="#inkdosPresentationsIcon"></use></svg><h1>Presentations</h1><p>Create a presentation or open a PPT/PPTX file locally.</p><div class="start-actions"><button id="startNew" type="button">New presentation</button><button id="startOpen" class="primary" type="button">Open presentation</button></div></div></div>
+    <aside id="slidePanel" class="slide-panel" aria-label="Slide thumbnails"><div id="slidePanelInner" class="slide-panel-inner"></div></aside>
+    <section id="viewport" class="content-viewport" tabindex="0" aria-label="Presentation content viewport"><div id="stage" class="slide-stage"><div id="slideShell" class="slide-shell"><div id="slideCanvas" class="slide-canvas"></div></div></div></section>
+  </main>
+
+  <footer class="statusbar"><span id="statusText">Ready</span><span id="slideStatus">Slide 1 of 1</span></footer>
+  <input id="fileInput" type="file" accept=".ppt,.pptx,.odp,.key,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.presentation,application/vnd.apple.keynote" hidden>
+
+  <div id="menuBackdrop" class="backdrop" hidden></div>
+  <aside data-inkdos-commands id="generalMenu" class="drawer" aria-label="Presentations menu" hidden>
+    <div class="drawer-head"><div class="drawer-title"><svg class="drawer-icon" aria-hidden="true" focusable="false"><use href="#inkdosPresentationsIcon"></use></svg><span>Presentations</span></div></div>
+    <div class="drawer-section-label">File</div><div class="menu-list">
+      <button id="newMenuBtn" class="menu-item" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New presentation</span><span class="hint">⌘N</span></button>
+      <button id="openMenuBtn" class="menu-item" type="button"><svg viewBox="0 0 24 24"><path d="M3.5 7h6l2 2h9v9.5A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M3.5 10h17"/></svg><span>Open PPT / PPTX</span><span class="hint">⌘O</span></button>
+      <button id="saveMenuBtn" class="menu-item" type="button"><svg viewBox="0 0 24 24"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg><span>Save copy</span><span class="hint">⌘S</span></button>
+      <button id="presentStartMenuBtn" class="menu-item" type="button"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="12" rx="1.5"/><path d="M9.5 7.5 15 10l-5.5 2.5z"/><path d="M12 16v4M8.5 20h7"/></svg><span>Present from start</span><span></span></button>
+    </div>
+    <div class="drawer-section"><div class="drawer-section-label">Appearance</div><div class="appearance-switch" role="group" aria-label="App appearance"><button class="appearance-choice" type="button" data-appearance-choice="light">Light</button><button class="appearance-choice" type="button" data-appearance-choice="dark">Dark</button></div></div>
+  </aside>
+
+  <div id="zoomPopover" class="zoom-popover zoom-menu" role="menu" aria-label="Slide zoom" hidden><button class="zoom-item" type="button" role="menuitemradio" data-zoom="10">10%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="25">25%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="50">50%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="75">75%</button><button id="zoom100" class="zoom-item" type="button" role="menuitemradio" data-zoom="100">100%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="125">125%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="150">150%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="200">200%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="300">300%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="400">400%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="800">800%</button><hr class="zoom-sep"><button id="fitPage" class="zoom-item with-icon" type="button" role="menuitemradio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M12 8v8M9.5 10.5 12 8l2.5 2.5M9.5 13.5 12 16l2.5-2.5"/></svg><span>Fit page</span></button><button id="fitWidth" class="zoom-item with-icon" type="button" role="menuitemradio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 12h8M10.5 9.5 8 12l2.5 2.5M13.5 9.5 16 12l-2.5 2.5"/></svg><span>Fit width</span></button></div>
+
+  <section id="presentOverlay" hidden tabindex="0" aria-label="Presentation mode" style="position:fixed;inset:0;z-index:300;background:#090909;display:grid;place-items:center;overflow:hidden"><button data-present-exit type="button" aria-label="Exit presentation" style="position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:2;min-width:44px;min-height:44px;border:0;border-radius:12px;background:rgba(30,30,30,.72);color:white">×</button><div id="presentHost" style="position:relative;width:min(100vw,177.78vh);height:min(100vh,56.25vw);max-width:100vw;max-height:100vh;background:white"></div><div id="presentCounter" style="position:fixed;bottom:max(10px,env(safe-area-inset-bottom));right:max(12px,env(safe-area-inset-right));color:white;background:rgba(0,0,0,.45);padding:5px 8px;border-radius:8px;font-size:12px">1 / 1</div></section>
+</div>
+<script src="vendor/jszip.min.js"></script>
+<script src="runtime/frame/frame-menu.js"></script>
+<script src="runtime/platform/content-viewport-adapter.js"></script>
+<script src="state/appearance.js"></script>
+<script src="engine/presentation-session.js"></script>
+<script src="engine/presentation-policy.js"></script>
+<script src="state/history-controller.js"></script>
+<script src="state/selection-controller.js"></script>
+<script src="io/metafile-render.js"></script>
+<script src="io/ppt-legacy-reader.js"></script>
+<script src="io/external-viewer.js"></script>
+<script src="io/pptx-open-controller.js"></script>
+<script src="io/pptx-writer.js"></script>
+<script src="io/pptx-preservation-writer.js"></script>
+<script src="io/file-delivery.js"></script>
+<script src="io/save-controller.js"></script>
+<script src="view/slide-surface.js"></script>
+<script src="view/zoom-controller.js"></script>
+<script src="ui/slide-panel-controller.js"></script>
+<script src="ui/chrome-controller.js"></script>
+<script src="ui/zoom-controls.js"></script>
+<script src="ui/editing-controller.js"></script>
+<script src="presentation/slideshow-controller.js?v=7"></script>
+<script src="ui/command-controller.js"></script>
+<script src="help/help.js"></script>
+<script src="app.js?v=20"></script>
+<script>
+(function presentationStartGate(){
+  const state=document.getElementById('startState');
+  const startNew=document.getElementById('startNew');
+  const startOpen=document.getElementById('startOpen');
+  const fileInput=document.getElementById('fileInput');
+  const menuNew=document.getElementById('newMenuBtn');
+  const app=globalThis.__inkdosPresentations;
+  if(!state||!startNew||!startOpen||!fileInput||!app)return;
+
+  function showStart(){
+    state.hidden=false;
+    state.removeAttribute('hidden');
+    state.dataset.active='true';
+    state.style.setProperty('display','grid','important');
+  }
+  function hideStart(){
+    state.dataset.active='false';
+    state.style.removeProperty('display');
+    state.hidden=true;
+  }
+  function waitForOpenCommit(beforeRevision){
+    let frames=0;
+    function check(){
+      const kind=app.session.sourceKind;
+      if((kind==='ppt'||kind==='pptx')&&app.session.revision>beforeRevision){hideStart();return}
+      if(++frames<900&&state.dataset.active==='true')requestAnimationFrame(check);
+    }
+    requestAnimationFrame(check);
+  }
+
+  /* The presentation engine creates its blank slide model during construction.
+     Keep that implementation untouched and place a deterministic first-open gate
+     above it until the user explicitly chooses New or a file open commits. */
+  showStart();
+
+  startNew.addEventListener('click',()=>{
+    const accepted=app.newPresentation();
+    if(accepted!==false)hideStart();
+  });
+  startOpen.addEventListener('click',()=>fileInput.click());
+
+  fileInput.addEventListener('change',()=>{
+    if(fileInput.files&&fileInput.files.length)waitForOpenCommit(app.session.revision);
+  });
+
+  if(menuNew)menuNew.addEventListener('click',()=>{
+    const before=app.session.revision;
+    setTimeout(()=>{if(app.session.sourceKind==='new'&&app.session.revision>before)hideStart()},0);
+  },true);
+
+  document.addEventListener('keydown',event=>{
+    if(state.dataset.active!=='true'||!(event.metaKey||event.ctrlKey)||event.key.toLowerCase()!=='n')return;
+    const before=app.session.revision;
+    setTimeout(()=>{if(app.session.sourceKind==='new'&&app.session.revision>before)hideStart()},0);
+  },true);
+})();
+</script>
+
+<script src="ui/toolbar-pickers.js"></script>
+</body>
+</html>

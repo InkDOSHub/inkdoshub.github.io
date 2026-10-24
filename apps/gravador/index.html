@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=4">
+<link rel="icon" type="image/png" sizes="192x192" href="../../assets/inkdoshub-icone-192.png?v=4">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/inkdoshub-icone-180.png?v=4">
+<title>Recorder · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<script src="../../assets/gerenciador-app.js?v=7"></script>
+<link rel="stylesheet" href="../../assets/barra.css?v=2">
+<style>
+  .pagina{max-width:640px;margin:0 auto;padding:20px 16px calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:16px;overflow:auto;height:100%;box-sizing:border-box}
+  .cartao{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .cartao h2{margin:0;font-size:15px}
+  .cartao p,.cartao li{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+  .cartao ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+  .linha{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .linha label{color:var(--muted);font-size:14px;min-width:70px}
+  .linha input[type=text]{flex:1;min-width:160px;font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text)}
+  .pasta{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grande{font-size:16px;padding:10px 18px;font-weight:600}
+  .principal{background:var(--accent);border-color:var(--accent);color:#0d1117}
+  .parar{background:#d64545;border-color:#d64545;color:#fff}
+  .tempo{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
+  .nivel{height:8px;border-radius:4px;background:var(--border);overflow:hidden}
+  .nivel span{display:block;height:100%;width:0;background:var(--accent);transition:width .1s linear}
+  .aviso{color:#d64545 !important}
+  .md-hide{display:none !important}
+  .ink-btn:disabled{opacity:.45;cursor:default}
+  .grupo{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+  .grupo .ink-btn{border:0;border-radius:0;border-right:1px solid var(--border)}
+  .grupo .ink-btn:last-child{border-right:0}
+  .grupo .ink-btn[aria-pressed=true]{background:var(--accent);color:#0d1117}
+</style>
+</head>
+<body class="ink-app" data-idioma>
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Recorder</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+</header>
+<main class="ink-main">
+  <div class="pagina">
+    <section class="cartao" id="sem-suporte" hidden>
+      <h2>This browser cannot record the computer’s sound</h2>
+      <p>Use Chrome or Edge on a Windows computer. Safari (iPad, iPhone, Mac) does not let websites capture other windows’ sound.</p>
+    </section>
+    <section class="cartao">
+      <div class="linha" id="modos"><label>Record</label>
+        <span class="grupo">
+          <button class="ink-btn" data-modo="sistema" aria-pressed="true">Computer sound</button>
+          <button class="ink-btn" data-modo="mic">Microphone</button>
+          <button class="ink-btn" data-modo="tela">Screen recording</button>
+        </span>
+      </div>
+    </section>
+    <section class="cartao md-hide" id="cartao-tela">
+      <h2>Screen recording (iPad)</h2>
+      <ol>
+        <li>Open Control Center and touch and hold Screen Recording. Turn the microphone on if you also want your voice mixed in.</li>
+        <li>Start the recording, watch what you want, then stop it. It goes to Photos.</li>
+        <li>Tap “Choose the recording” below: only the sound is kept (.m4a, in the Music list). The video is not stored here; delete it from Photos if you no longer need it.</li>
+      </ol>
+      <div class="linha"><button class="ink-btn grande principal" id="escolher-tela">Choose the recording</button></div>
+      <div class="nivel"><span id="nivel-tela"></span></div>
+      <p id="estado-tela" data-idioma-nao></p>
+    </section>
+    <section class="cartao" id="cartao-sistema">
+      <h2>Records only the sound of the computer, in a small file</h2>
+      <ol>
+        <li>Open what you want to record in another tab or window.</li>
+        <li>Tap Record. In the window that appears, choose the tab with the sound (keep “Also share tab audio” on) or Entire screen (turn on “Also share system audio”).</li>
+        <li>Keep this tab open. Tap Stop, or “Stop sharing”, when you are done.</li>
+      </ol>
+      <p>About 22 MB per hour (Opus, .webm). Nothing is sent anywhere: the file stays on this computer.</p>
+    </section>
+    <section class="cartao" id="cartao-gravar">
+      <p id="dica-mic" class="md-hide">Records the microphone (the iPad’s, or the one chosen in the browser).</p>
+      <div class="linha"><label for="nome">Name</label><input type="text" id="nome" value="Recording" data-idioma-nao></div>
+      <div class="linha" id="linha-pasta"><label>Save to</label><span class="pasta" id="pasta" data-idioma-nao></span><button class="ink-btn" id="escolher">Choose folder</button></div>
+      <p id="nota-pasta">With a folder, the file is written while it records and appears there when you stop. Without one, it goes to Downloads and to the Music list.</p>
+      <div class="linha">
+        <button class="ink-btn grande principal" id="gravar">Record</button>
+        <button class="ink-btn grande parar md-hide" id="parar">Stop</button>
+        <span class="tempo" id="tempo" data-idioma-nao>0:00:00</span>
+      </div>
+      <div class="nivel" title="Sound level"><span id="nivel"></span></div>
+      <p id="estado" data-idioma-nao></p>
+    </section>
+  </div>
+</main>
+<script src="../../assets/midia.js?v=2"></script>
+<script src="../../assets/icones.js?v=2"></script>
+<input id="arquivo-tela" type="file" accept="video/*,.mp4,.mov,.m4v" hidden>
+<script src="../musica/gravar/gravar.js?v=5"></script>
+</body>
+</html>

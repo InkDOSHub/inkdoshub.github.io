@@ -1,0 +1,18 @@
+/* Terminal do InkDOS Hub: a barra e as cores vêm de ../assets/barra.css (as mesmas de todas as ferramentas). */
+body.ink-app { position: fixed; inset: 0; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
+.ink-bar { flex-wrap: wrap; row-gap: 6px; }
+#term { padding: 6px 4px 0 8px; background: var(--term-bg); }
+:root { --term-bg: #ffffff; }
+html[data-theme="dark"] { --term-bg: #0d1117; }
+.ink-keys { flex: 0 0 auto; display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; background: var(--card); border-top: 1px solid var(--border); }
+.ink-keys .ink-btn { min-width: 44px; padding: 8px 10px; font-family: ui-monospace, Menlo, monospace; }
+body.embed .ink-bar { display: none; }
+dialog { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; width: min(420px, calc(100% - 32px)); padding: 16px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+dialog h2 { font-size: 16px; margin: 0 0 12px; }
+#download-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 50vh; overflow-y: auto; }
+#download-list button { text-align: left; font-family: ui-monospace, Menlo, monospace; }
+#download-list code { color: var(--accent); }
+
+dialog .nota { color: var(--muted); font-size: 14px; line-height: 1.4; margin: 0 0 14px; }
+.sessao-botoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }

@@ -1,0 +1,39 @@
+:root[data-ui-density="desktop"]{--control:30px;--compact-control:28px;--inkdos-frame-gap:3px;--inkdos-frame-pad:4px}
+
+:root[data-ui-density="desktop"] .topbar{min-height:44px;height:44px;padding-top:2px;padding-bottom:2px}
+:root[data-ui-density="desktop"] .frame-btn{width:30px;height:30px;min-width:30px;min-height:30px;padding:0}
+:root[data-ui-density="desktop"] .frame-btn svg{width:16px;height:16px}
+:root[data-ui-density="desktop"] .title-input{height:30px;min-height:30px}
+:root[data-ui-density="desktop"] .editbar,
+:root[data-ui-density="desktop"] .formatbar,
+:root[data-ui-density="desktop"] .pdf-toolbar{min-height:36px;padding-top:2px;padding-bottom:2px;gap:3px}
+:root[data-ui-density="desktop"] .tool-group{gap:1px}
+:root[data-ui-density="desktop"] .tool-btn,
+:root[data-ui-density="desktop"] .editbar select,
+:root[data-ui-density="desktop"] .formatbar select{height:30px;min-height:30px}
+:root[data-ui-density="desktop"] .tool-btn{padding-left:7px;padding-right:7px}
+:root[data-ui-density="desktop"] .tool-btn.icon-only{width:30px;min-width:30px;padding:0}
+:root[data-ui-density="desktop"] .tool-btn svg{width:16px;height:16px}
+:root[data-ui-density="desktop"] .tool-divider{height:20px;margin-left:0;margin-right:0}
+:root[data-ui-density="desktop"] .statusbar{min-height:26px;height:26px;padding-top:2px;padding-bottom:2px}
+:root[data-ui-density="desktop"] .drawer-head{padding-top:9px;padding-bottom:9px}
+:root[data-ui-density="desktop"] .drawer-section-label{margin-top:8px;margin-bottom:4px}
+:root[data-ui-density="desktop"] .menu-item{min-height:36px;padding-top:6px;padding-bottom:6px}
+:root[data-ui-density="desktop"] .appearance-choice{min-height:30px;padding-top:4px;padding-bottom:4px}
+:root[data-ui-density="desktop"] .slide-panel-inner{gap:6px;padding:7px}
+
+/* Keep native form controls aligned with the workspace-selected appearance.
+   WebKit/XeOS can otherwise retain the host system scheme for native selects. */
+:root[data-appearance-resolved="light"] button,
+:root[data-appearance-resolved="light"] input,
+:root[data-appearance-resolved="light"] select,
+:root[data-appearance-resolved="light"] textarea,
+:root[data-appearance-resolved="light"] option{color-scheme:light}
+:root[data-appearance-resolved="dark"] button,
+:root[data-appearance-resolved="dark"] input,
+:root[data-appearance-resolved="dark"] select,
+:root[data-appearance-resolved="dark"] textarea,
+:root[data-appearance-resolved="dark"] option{color-scheme:dark}
+
+/* Native dropdowns follow the InkDOS theme, not the device: with the device dark and InkDOS light they were drawn dark */
+:root[data-theme="light"] select{color-scheme:light}:root[data-theme="dark"] select{color-scheme:dark}

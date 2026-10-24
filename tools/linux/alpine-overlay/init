@@ -1,0 +1,47 @@
+#!/bin/sh
+# InkDOS Hub init: mounts the system, brings up the network and opens the shell on the serial console.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root TERM=xterm-256color
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev 2>/dev/null
+mkdir -p /dev/pts /dev/shm
+mount -t devpts devpts /dev/pts
+mount -t tmpfs shm /dev/shm
+mount -t tmpfs tmp /tmp
+mount -t tmpfs run /run
+hostname inkdoshub
+ip link set lo up
+
+# Folder shared with the device (the page's Upload/Download buttons)
+mkdir -p /mnt/ipad
+mount -t 9p -o trans=virtio,version=9p2000.L,cache=none host9p /mnt/ipad 2>/dev/null
+ln -sfn /mnt/ipad /root/files
+
+# Limited memory mode (the page's "Memory" option): zram and swap on the v86 disk
+for a in $(cat /proc/cmdline); do
+  case "$a" in inkzram=*) ZRAM=${a#inkzram=} ;; inkswap=1) SWAPDISK=1 ;; esac
+done
+if [ -n "$ZRAM" ] && [ -e /sys/block/zram0 ]; then
+  echo lz4 > /sys/block/zram0/comp_algorithm 2>/dev/null
+  echo "$ZRAM" > /sys/block/zram0/disksize && mkswap /dev/zram0 >/dev/null && swapon -p 100 /dev/zram0
+  echo 100 > /proc/sys/vm/swappiness
+fi
+if [ -n "$SWAPDISK" ] && [ -b /dev/sda ]; then
+  mkswap /dev/sda >/dev/null && swapon -p 10 /dev/sda
+fi
+
+# Network (in the background, so it does not slow down boot)
+if [ -e /sys/class/net/eth0 ]; then
+  ( ip link set eth0 up; udhcpc -i eth0 -q -n -t 5 -T 2 -s /usr/share/udhcpc/default.script >/dev/null 2>&1 ) &
+fi
+
+# The page's Session button: save and open this Linux's "recipe" in a file
+/usr/local/sbin/inksessao </dev/null >/dev/null 2>&1 &
+
+cd /root
+cat /etc/motd
+while true; do
+  setsid -c /bin/sh -l </dev/ttyS0 >/dev/ttyS0 2>&1
+  echo "Shell exited, starting another one..."
+done

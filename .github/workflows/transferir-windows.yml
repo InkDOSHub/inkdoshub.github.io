@@ -1,0 +1,38 @@
+name: App Transferir para Windows
+# Compila windows/transferir/ (um .exe só) e publica na release "transferir-windows",
+# que o app Transferir do site oferece para baixar.
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths: [windows/transferir/**, .github/workflows/transferir-windows.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: transferir-windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: App
+        run: dotnet build windows/transferir/InkDOSHubTransferir.csproj -c Release -o out
+      - name: Arquivo
+        shell: pwsh
+        run: |
+          Copy-Item "out/InkDOS Hub Transferir.exe" InkDOSHub-Transferir.exe
+          Get-ChildItem out | Format-Table Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InkDOSHub-Transferir
+          path: InkDOSHub-Transferir.exe
+      - name: Publicar na release transferir-windows
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view transferir-windows >/dev/null 2>&1 || gh release create transferir-windows --title "InkDOS Hub Transferir for Windows" --latest=false --notes "Fast phone <-> PC file transfer without internet, server or admin. Source: windows/transferir/ (MIT)."
+          gh release upload transferir-windows InkDOSHub-Transferir.exe --clobber

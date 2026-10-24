@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head><script src="../../../assets/idioma.js?v=1"></script>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-+j0d5CZaVtB5SJ2+qtCCi6AaKaNs/aVHTyHc2qUIP0o='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'self' https://inkdos-tools.github.io; manifest-src 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f8fa">
+<title>Documents — InkDOS</title>
+<link rel="icon" href="assets/documents.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="runtime/tokens/base.css">
+<link rel="stylesheet" href="runtime/frame/app-frame.css">
+<link rel="stylesheet" href="ui/editor.css">
+<link rel="stylesheet" href="view/document-surface.css">
+<style>
+/* InkDOS 2.0.1 — app-local first-open card; metrics mirror Spreadsheets. */
+.viewport{position:relative}.start-state{position:absolute;inset:0;z-index:5;display:grid;place-items:center;padding:18px;background:var(--app-bg,#eef1f5);pointer-events:none}.start-card{width:min(430px,100%);padding:28px;border:1px solid var(--line,#d9dee7);border-radius:22px;background:var(--chrome,#fff);box-shadow:var(--shadow,0 12px 32px rgba(15,23,42,.10));text-align:center;pointer-events:auto}.start-icon{width:68px;height:68px}.start-card h1{margin:14px 0 6px}.start-card p{margin:0 0 18px;color:var(--muted,#697386)}.start-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}html[data-ui-density="desktop"] .start-actions{flex-flow:row nowrap}.start-actions button{min-height:44px;border:1px solid var(--line,#d9dee7);border-radius:11px;background:var(--chrome,#fff);padding:0 16px;color:inherit}.start-actions .primary{background:var(--accent,#4673e8);color:#fff;border-color:var(--accent,#4673e8)}
+</style>
+  <link rel="stylesheet" href="../../shared/ui-density.css"><link rel="stylesheet" href="ui/zoom-menu.css">
+  <!-- tool bar look (ui/visual-system.css) inline: XeOS kept the linked copy from applying -->
+  <style id="toolbarLook">
+/* InkDOS visual system (docs/visual-system.md): value pickers as icon controls, zoom as a plain percentage. Generated; presentation-only. */
+#formatbar #styleSelect,#formatbar #fontSelect,#formatbar #alignmentSelect,#formatbar #lineSpacing,#formatbar .inkdos-picker[data-for="fontSelect"],#formatbar .inkdos-picker[data-for="alignmentSelect"],#formatbar .inkdos-picker[data-for="lineSpacing"],#formatbar .inkdos-picker[data-for="styleSelect"]{-webkit-appearance:none;appearance:none;width:28px!important;min-width:28px!important;max-width:28px!important;height:28px!important;padding:0!important;color:transparent!important;text-indent:-9999px;background-color:var(--panel);background-repeat:no-repeat;background-position:center;background-size:18px 18px;border-radius:10px;cursor:pointer}
+#formatbar #styleSelect option,#formatbar #fontSelect option,#formatbar #alignmentSelect option,#formatbar #lineSpacing option{color:var(--text,#1b1f27);text-indent:0}
+#formatbar #styleSelect,
+#formatbar .inkdos-picker[data-for="styleSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M13%204v16M17%204v16%22/%3E%3Cpath%20d=%22M20%204H9.5a4%204%200%200%200%200%208H13%22/%3E%3C/svg%3E")}
+#formatbar #fontSelect,
+#formatbar .inkdos-picker[data-for="fontSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m3%2019%205-14%205%2014%22/%3E%3Cpath%20d=%22M4.8%2014h6.4%22/%3E%3Ccircle%20cx=%2217.5%22%20cy=%2215.5%22%20r=%223%22/%3E%3Cpath%20d=%22M20.5%2012v7%22/%3E%3C/svg%3E")}
+#formatbar #alignmentSelect,
+#formatbar .inkdos-picker[data-for="alignmentSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16M4%2010h10M4%2014h16M4%2018h10%22/%3E%3C/svg%3E")}
+#formatbar #lineSpacing,
+#formatbar .inkdos-picker[data-for="lineSpacing"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M11%206h9M11%2012h9M11%2018h9%22/%3E%3Cpath%20d=%22M5%204v16M3%206.5%205%204l2%202.5M3%2017.5%205%2020l2-2.5%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #formatbar #styleSelect,
+:root[data-appearance-resolved="dark"] #formatbar .inkdos-picker[data-for="styleSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M13%204v16M17%204v16%22/%3E%3Cpath%20d=%22M20%204H9.5a4%204%200%200%200%200%208H13%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #formatbar #fontSelect,
+:root[data-appearance-resolved="dark"] #formatbar .inkdos-picker[data-for="fontSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m3%2019%205-14%205%2014%22/%3E%3Cpath%20d=%22M4.8%2014h6.4%22/%3E%3Ccircle%20cx=%2217.5%22%20cy=%2215.5%22%20r=%223%22/%3E%3Cpath%20d=%22M20.5%2012v7%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #formatbar #alignmentSelect,
+:root[data-appearance-resolved="dark"] #formatbar .inkdos-picker[data-for="alignmentSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16M4%2010h10M4%2014h16M4%2018h10%22/%3E%3C/svg%3E")}
+:root[data-appearance-resolved="dark"] #formatbar #lineSpacing,
+:root[data-appearance-resolved="dark"] #formatbar .inkdos-picker[data-for="lineSpacing"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M11%206h9M11%2012h9M11%2018h9%22/%3E%3Cpath%20d=%22M5%204v16M3%206.5%205%204l2%202.5M3%2017.5%205%2020l2-2.5%22/%3E%3C/svg%3E")}
+#formatbar #sizeSelect{-webkit-appearance:none;appearance:none;width:44px!important;min-width:44px!important;max-width:44px!important;height:28px!important;padding:0 4px!important;text-align:center;text-align-last:center;background-image:none;border-radius:10px;font-size:14px;cursor:pointer}
+#formatbar #zoomMenuBtn svg{display:none!important}
+#formatbar #zoomMenuBtn{min-width:0!important;width:auto!important;padding:0 8px!important;gap:0!important;font-size:14px}
+  /* XeOS restyles native dropdowns after load: each icon picker is a fixed-size icon box with the dropdown, invisible, on top */
+.inkdos-picker{position:relative;display:inline-block;flex:0 0 auto;overflow:hidden;vertical-align:middle;box-sizing:border-box;border:1px solid var(--line,#d7dde5)}
+.inkdos-picker>*{position:absolute!important;inset:0 auto 0 0!important;width:max-content!important;height:100%!important;min-width:260px!important;max-width:none!important;margin:0!important;opacity:0!important}
+.inkdos-value-picker{display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:44px;padding:0 8px;border-radius:10px;background:var(--panel,#fff);color:var(--text,#1b1f27);font-size:14px;white-space:nowrap}
+.inkdos-value-picker[data-for="functionSelect"]{height:auto;align-self:stretch;padding:0 12px}
+.inkdos-picker>.inkdos-picker-label{position:static!important;width:auto!important;min-width:0!important;height:auto!important;line-height:1.2;opacity:1!important;pointer-events:none}
+/* a disabled picker looks disabled, as its select did */
+.inkdos-picker:has(>select:disabled){opacity:.35;cursor:default}
+.inkdos-picker:has(>select[hidden]){display:none}
+</style>
+  <script src="../../shared/ui-density.js"></script><script src="../../shared/work-safety.js"></script>
+  <script src="runtime/platform/file-launch.js"></script>
+<script src="../../../assets/gerenciador-app.js?v=7"></script></head>
+<body>
+<div class="app-shell" id="appShell">
+  <header class="topbar" id="topbar">
+    <div class="frame-side frame-left"><a class="frame-btn" href="../../index.html" aria-label="Home" title="Home" style="color:inherit;text-decoration:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.5 12 4l8.5 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg></a>
+    </div>
+    <div class="document-title" id="documentTitle">
+      <img src="assets/documents.svg" class="documents-icon" alt="">
+      <input id="titleText" class="title-input" value="Untitled.docx" aria-label="Document name" spellcheck="false" autocomplete="off">
+      <span id="dirtyDot" class="dirty-dot" aria-hidden="true"></span>
+    </div>
+    <div class="frame-side frame-right" aria-hidden="true"></div>
+  </header>
+
+  <div id="formatbar" class="formatbar command-scroll" tabindex="0" aria-label="Horizontally scrollable editing toolbar">
+    <button id="undoBtn" class="fmt-btn icon-only" type="button" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/></svg></button>
+    <button id="redoBtn" class="fmt-btn icon-only" type="button" title="Redo" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/></svg></button>
+    <button id="printBtn" class="fmt-btn icon-only" type="button" title="Print" aria-label="Print"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5"/><path d="M7 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/></svg></button>
+    <button id="formatPainterBtn" class="fmt-btn icon-only" type="button" title="Format painter: copy formatting, then select target and press again" aria-label="Format painter" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12v6H4z"/><path d="M16 7h3v5h-7v8"/><path d="M10 20h4"/></svg></button>
+    <span id="zoomGroup" class="zoom-group" role="group" aria-label="Zoom"><button id="zoomOut" class="fmt-btn zoom-step" type="button" title="Zoom out (−25%)" aria-label="Zoom out"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/></svg></button><span class="zoom-field"><input id="zoomInput" class="zoom-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="4" value="100%" title="Type a zoom from 1 to 800%" aria-label="Document zoom percentage"><button id="zoomMenuBtn" class="fmt-btn zoom-tool" type="button" title="Zoom presets" aria-label="Document zoom presets" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></span><button id="zoomIn" class="fmt-btn zoom-step" type="button" title="Zoom in (+25%)" aria-label="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8M12 8v8"/></svg></button></span>
+    <span class="separator"></span>
+    <select id="styleSelect" title="Paragraph style"><option value="p">Normal</option><option value="h1">Title</option><option value="h2">Heading 1</option><option value="h3">Heading 2</option></select>
+    <select id="fontSelect" title="Font"><option>Calibri</option><option>Arial</option><option>Times New Roman</option><option>Georgia</option><option>Verdana</option><option>Courier New</option></select>
+    <select id="sizeSelect" title="Font size"><option value="1">8</option><option value="2">10</option><option value="3" selected>12</option><option value="4">14</option><option value="5">18</option><option value="6">24</option><option value="7">36</option></select>
+    <span class="separator"></span>
+    <button class="fmt-btn" data-cmd="bold" aria-pressed="false" title="Bold" aria-label="Bold"><b>B</b></button>
+    <button class="fmt-btn" data-cmd="italic" aria-pressed="false" title="Italic" aria-label="Italic"><i>I</i></button>
+    <button class="fmt-btn" data-cmd="underline" aria-pressed="false" title="Underline" aria-label="Underline"><u>U</u></button>
+    <button id="d1FormatBtn" class="fmt-btn icon-only" type="button" title="Text color and highlight" aria-label="Text color and highlight"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 16 6-12 6 12"/><path d="M8.5 11h7"/><path d="M4 20h16"/></svg></button>
+    <button id="hyperlinkBtn" class="fmt-btn icon-only" type="button" title="Insert or edit hyperlink" aria-label="Insert or edit hyperlink"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg></button>
+    <button id="commentBtn" class="fmt-btn icon-only" type="button" title="Comment on selected text" aria-label="Comment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v11H9l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></button>
+    <label class="fmt-btn file-label icon-only" for="imageInput" title="Insert image" aria-label="Insert image"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m20.5 16-5-5-8.5 8.5"/></svg></label>
+    <input id="imageInput" type="file" accept="image/png,image/jpeg,image/gif" hidden>
+    <span class="separator"></span>
+    <select id="alignmentSelect" title="Alignment"><option value="" selected>Align</option><option value="justifyLeft">Left</option><option value="justifyCenter">Center</option><option value="justifyRight">Right</option><option value="justifyFull">Justify</option></select>
+    <select id="lineSpacing" title="Line spacing"><option value="1">1.0</option><option value="1.15" selected>1.15</option><option value="1.5">1.5</option><option value="2">2.0</option></select>
+    <button id="checklistBtn" class="fmt-btn icon-only" type="button" title="Checklist" aria-label="Checklist"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="5.5" height="5.5" rx="1"/><rect x="3.5" y="14.5" width="5.5" height="5.5" rx="1"/><path d="m4.8 17.3 1.3 1.3 2-2.6"/><path d="M12 6.8h8.5M12 17.2h8.5"/></svg></button>
+    <button class="fmt-btn icon-only" data-cmd="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></button>
+    <button class="fmt-btn icon-only" data-cmd="insertOrderedList" title="Numbered list" aria-label="Numbered list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 4.5h1.5V9"/><path d="M4 9h3"/><path d="M4 14.5a1.5 1.5 0 0 1 3 0c0 1.3-3 2-3 4h3"/></svg></button>
+    <button id="alphaList" class="fmt-btn icon-only" title="Alphabetic list" aria-label="Alphabetic list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6h9M11 12h9M11 18h9"/><path d="m3.5 9.5 2-6 2 6"/><path d="M4.2 7.7h2.6"/><path d="M4 13.5h2a1.3 1.3 0 0 1 0 2.6H4zm0 2.6h2.4a1.45 1.45 0 0 1 0 2.9H4z"/></svg></button>
+    <button class="fmt-btn icon-only" data-cmd="outdent" title="Decrease indent" aria-label="Decrease indent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M11 10h9M11 14h9M4 19h16"/><path d="M8 9.5 5.5 12 8 14.5"/></svg></button>
+    <button class="fmt-btn icon-only" data-cmd="indent" title="Increase indent" aria-label="Increase indent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M11 10h9M11 14h9M4 19h16"/><path d="m5 9.5 2.5 2.5L5 14.5"/></svg></button>
+    <button id="clearFormattingBtn" class="fmt-btn icon-only" type="button" title="Clear formatting" aria-label="Clear formatting"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 7-7"/><path d="m14 4 6 6-8 8H6l-2-2 10-12Z"/><path d="M13 20h7"/></svg></button>
+    <span class="separator"></span>
+    <button id="tableBtn" class="fmt-btn icon-only" title="Insert table" aria-label="Insert table"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 4.5v15M14.5 4.5v15"/></svg></button>
+    <button id="rowBtn" class="fmt-btn icon-only" title="Add row" aria-label="Add row"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="11" rx="2"/><path d="M3.5 9h17M9 3.5v11M15 3.5v11"/><path d="M12 17v5M9.5 19.5h5"/></svg></button>
+    <button id="colBtn" class="fmt-btn icon-only" title="Add column" aria-label="Add column"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="11" height="17" rx="2"/><path d="M3.5 9h11M3.5 15h11M9 3.5v17"/><path d="M19.5 9.5v5M17 12h5"/></svg></button>
+    <span class="separator"></span>
+    <button id="contextBtn" class="fmt-btn icon-only" type="button" title="Document panel" aria-label="Open document panel" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/></svg></button>
+    <span class="toolbar-end-spacer" aria-hidden="true"></span>
+  </div>
+
+  <div id="ruler" class="ruler" aria-label="Paragraph ruler"><div class="ruler-track">
+    <div id="firstIndent" class="ruler-handle first-line" title="First line indent"></div>
+    <div id="hangingIndent" class="ruler-handle hanging" title="Hanging indent"></div>
+    <div id="leftIndent" class="ruler-handle left-block" title="Left indent"></div>
+    <div id="rightIndent" class="ruler-handle right-indent" title="Right indent"></div>
+  </div></div>
+
+  <main id="viewport" class="viewport" tabindex="0" aria-label="Document viewport">
+    <div id="welcome" class="start-state">
+      <div class="start-card">
+        <img src="assets/documents.svg" class="start-icon" alt="">
+        <h1>Documents</h1>
+        <p>Create a document or open a DOCX, RTF, or legacy DOC file locally.</p>
+        <div class="start-actions"><button id="startNew" type="button">New document</button><button id="startOpen" class="primary" type="button">Open document</button></div>
+      </div>
+    </div>
+    <div id="pagesHost" class="pages-host" hidden></div>
+  </main>
+
+  <footer class="statusbar">
+    <span id="statusText">Ready</span>
+    <span id="pageStatus">—</span>
+  </footer>
+
+  <input id="fileInput" type="file" accept=".docx,.rtf,.doc,.odt,.pages,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.apple.pages" hidden>
+
+  <div id="menuBackdrop" class="backdrop" hidden></div>
+  <aside data-inkdos-commands id="generalMenu" class="drawer general-drawer" aria-label="Documents menu" hidden>
+    <div class="drawer-head">
+      <div class="drawer-title"><img src="assets/documents.svg" class="drawer-icon" alt=""><span>Documents</span></div>
+      
+    </div>
+    <div class="drawer-section-label">File</div>
+    <div class="menu-list">
+      <button id="newMenuBtn" class="menu-item" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New document</span><span class="hint">⌘N</span></button>
+      <button id="openMenuBtn" class="menu-item" type="button"><svg viewBox="0 0 24 24"><path d="M3.5 7h6l2 2h9v9.5A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M3.5 10h17"/></svg><span>Open document</span><span class="hint">⌘O</span></button>
+      <button id="saveMenuBtn" class="menu-item" type="button" disabled><svg viewBox="0 0 24 24"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg><span>Save copy</span><span class="hint">⌘S</span></button>
+    </div>
+    <div class="drawer-section"><div class="drawer-section-label">Appearance</div>
+      <div class="appearance-switch" role="group" aria-label="App appearance">
+        <button class="appearance-choice" type="button" data-appearance-choice="light" aria-pressed="false">Light</button>
+        <button class="appearance-choice" type="button" data-appearance-choice="dark" aria-pressed="false">Dark</button>
+        </div>
+    </div>
+  </aside>
+
+  <div id="contextBackdrop" class="backdrop" hidden></div>
+  <aside id="contextDrawer" class="drawer context-drawer" role="dialog" aria-modal="true" aria-label="Document panel" hidden>
+    <div class="drawer-head">
+      <div class="drawer-title"><span>Document</span></div>
+      <button id="closeContextBtn" class="close-btn" type="button" aria-label="Close document panel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="sidebar-tabs" role="tablist">
+      <button class="tab active" data-panel="pagesPanel">Pages</button>
+      <button class="tab" data-panel="outlinePanel">Outline</button>
+      <button class="tab" data-panel="searchPanel">Search</button>
+    </div>
+    <div id="pagesPanel" class="side-panel active"><div id="pageList"><p class="muted">Open a DOCX document.</p></div></div>
+    <div id="outlinePanel" class="side-panel"><div id="outlineList"><p class="muted">No outline available.</p></div></div>
+    <div id="searchPanel" class="side-panel"><div class="search-box"><input id="searchInput" type="search" placeholder="Search document"></div><div class="search-meta"><span id="searchCount">0 results</span><span><button id="prevHit" class="mini-btn">↑</button><button id="nextHit" class="mini-btn">↓</button></span></div><div id="searchResults"><p class="muted">Type a word or phrase.</p></div></div>
+  </aside>
+
+  <div id="zoomPopover" class="zoom-popover zoom-menu" role="menu" aria-label="Document zoom" hidden><button class="zoom-item" type="button" role="menuitemradio" data-zoom="10">10%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="25">25%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="50">50%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="75">75%</button><button id="zoom100" class="zoom-item" type="button" role="menuitemradio" data-zoom="100">100%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="125">125%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="150">150%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="200">200%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="300">300%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="400">400%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="800">800%</button><hr class="zoom-sep"><button id="fitPage" class="zoom-item with-icon" type="button" role="menuitemradio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M12 8v8M9.5 10.5 12 8l2.5 2.5M9.5 13.5 12 16l2.5-2.5"/></svg><span>Fit page</span></button><button id="fitWidth" class="zoom-item with-icon" type="button" role="menuitemradio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 12h8M10.5 9.5 8 12l2.5 2.5M13.5 9.5 16 12l-2.5 2.5"/></svg><span>Fit width</span></button></div>
+<script src="state/appearance.js"></script>
+<script src="engine/document-session.js"></script>
+<script src="engine/document-state.js"></script>
+<script src="engine/page-spec.js"></script>
+<script src="runtime/frame/frame-menu.js"></script>
+<script src="runtime/platform/content-viewport-adapter.js"></script>
+<script src="io/file-delivery.js"></script>
+<script src="vendor/pako_inflate.min.js"></script>
+<script src="io/package-reader.js"></script>
+<script src="view/drawing-layout.js"></script>
+<script src="engine/docx-parser.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="io/docx-writer.js"></script>
+<script src="view/zoom-controller.js"></script>
+<script src="view/pagination-engine.js"></script>
+<script src="ui/chrome-controller.js"></script>
+<script src="ui/navigation-panel.js"></script>
+<script src="view/page-surface.js"></script>
+<script src="ui/editor-controller.js"></script>
+<script src="ui/ruler-controller.js"></script>
+<script src="ui/zoom-controls.js"></script>
+<script src="ui/session-dialog.js"></script>
+<script src="io/legacy-doc-reader.js"></script>
+<script src="io/external-viewer.js"></script>
+<script src="io/file-open-controller.js"></script>
+<script src="io/save-controller.js"></script>
+<script src="ui/command-controller.js"></script>
+<script src="help/help.js"></script>
+<script src="app.js"></script>
+<script>
+(function(){const n=document.getElementById('startNew'),o=document.getElementById('startOpen');if(n)n.addEventListener('click',()=>document.getElementById('newMenuBtn')?.click());if(o)o.addEventListener('click',()=>document.getElementById('openMenuBtn')?.click());})();
+</script>
+
+<script src="ui/toolbar-pickers.js"></script>
+</body></html>

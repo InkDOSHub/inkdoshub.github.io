@@ -1,0 +1,8 @@
+Vídeo do InkDOS Hub: o player (index.html, app.js) e o editor (cortar/) são feitos aqui.
+
+ffmpeg.wasm: @ffmpeg/core 0.12.5 (GPL-2.0 ou posterior), versão de uma thread só, em cortar/ffmpeg-core/
+  (dist/esm do pacote npm, sem mudanças). Código-fonte: https://github.com/ffmpegwasm/ffmpeg.wasm
+  (tag v0.12.5) e as bibliotecas listadas no configure do próprio .wasm (x264, x265, libvpx, lame, opus...).
+  Copiado por tools/build_apps.sh.
+
+Até 2026-10-18 o editor era o omniclip (MIT); o Paulo pediu um editor simples, como o do iPhone.

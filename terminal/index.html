@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="InkDOS Hub">
+<title>InkDOS Hub</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/inkdoshub-icone-32.png?v=4">
+<link rel="icon" type="image/png" sizes="192x192" href="../assets/inkdoshub-icone-192.png?v=4">
+<link rel="apple-touch-icon" sizes="180x180" href="../assets/inkdoshub-icone-180.png?v=4">
+<script src="../assets/tema.js?v=1"></script>
+<script src="../assets/idioma.js?v=1"></script>
+<script src="../assets/icones.js?v=2" defer></script>
+<script src="../assets/gerenciador-app.js?v=7"></script>
+<link rel="stylesheet" href="../assets/barra.css?v=2">
+<link rel="stylesheet" href="vendor/xterm/xterm.css">
+<link rel="stylesheet" href="style.css?v=6">
+</head>
+<body class="ink-app" data-idioma>
+<header class="ink-bar" id="topbar">
+  <a class="ink-home" href="../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Linux</span>
+  <span class="ink-status" id="status">Loading…</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn" id="rede" title="How Linux reaches the internet (tap to switch)">Network: wisp</button>
+  <button class="ink-btn" id="memoria" title="How much RAM Linux uses (tap to switch and restart)">Memory: 256 MB</button>
+  <button class="ink-btn" id="btn-upload" title="Send files from this device to ~/files">Upload</button>
+  <button class="ink-btn" id="btn-download" title="Download files from ~/files">Download</button>
+  <button class="ink-btn" id="btn-save" title="Save the machine state in this browser">Save</button>
+  <button class="ink-btn" id="btn-sessao" title="Save or open a session file on the device (packages and home folder, password-protected)">Session</button>
+  <button class="ink-btn" id="btn-reset" title="Erase the saved state and start over from scratch">Restart</button>
+</header>
+<main class="ink-main" id="term"></main>
+<nav id="keys" class="ink-keys" aria-label="Extra keys">
+  <button class="ink-btn" id="key-colar" title="Paste the copied text">Paste</button>
+  <button class="ink-btn" data-key="esc">Esc</button>
+  <button class="ink-btn" data-key="tab">Tab</button>
+  <button class="ink-btn" data-key="ctrl" id="key-ctrl">Ctrl</button>
+  <button class="ink-btn" data-key="up" aria-label="Up arrow" data-icone="cima"></button>
+  <button class="ink-btn" data-key="down" aria-label="Down arrow" data-icone="baixo"></button>
+  <button class="ink-btn" data-key="left" aria-label="Left arrow" data-icone="anterior"></button>
+  <button class="ink-btn" data-key="right" aria-label="Right arrow" data-icone="proxima"></button>
+  <button class="ink-btn" data-text="|">|</button>
+  <button class="ink-btn" data-text="/">/</button>
+  <button class="ink-btn" data-text="-">-</button>
+  <button class="ink-btn" data-text="~">~</button>
+  <button class="ink-btn" data-key="ctrl-c">^C</button>
+</nav>
+<input type="file" id="file-picker" multiple hidden>
+<dialog id="download-dialog">
+  <h2>Download from the ~/files folder</h2>
+  <div id="download-list" data-idioma-nao></div>
+  <button class="ink-btn" id="download-close">Close</button>
+</dialog>
+<dialog id="sessao-dialog">
+  <h2>Session file</h2>
+  <p class="nota">Saves the list of packages you installed and your home folder (~, without ~/files) to a password-protected file. When you open it on another device or after clearing site data, Linux reinstalls the packages from the internet and restores your files.</p>
+  <div class="sessao-botoes">
+    <button class="ink-btn" id="sessao-fechar">Close</button>
+    <button class="ink-btn" id="sessao-abrir">Open file</button>
+    <button class="ink-btn" id="sessao-salvar">Save to file</button>
+  </div>
+</dialog>
+<script src="../assets/sessao.js?v=2"></script>
+<script type="module" src="app.js?v=10"></script>
+</body>
+</html>

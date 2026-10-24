@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Put away · InkDOS Hub</title>
+<!-- Página leve que fica no lugar de um app guardado para liberar memória (assets/gerenciador-app.js).
+     O endereço do app vem depois do #; um toque em Reabrir carrega o app de novo nesta mesma página. -->
+<script src="../assets/tema.js?v=1"></script>
+<script src="../assets/idioma.js?v=1"></script>
+<script src="../assets/gerenciador-app.js?v=7"></script>
+<link rel="stylesheet" href="../assets/home.css?v=7">
+<style>
+  body{display:flex;min-height:100dvh;align-items:center;justify-content:center;margin:0;padding:16px;box-sizing:border-box}
+  .caixa{width:min(420px,100%);background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+  h1{margin:0 0 8px;font-size:19px}
+  p{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.45}
+  .acoes{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+  .botao{font:inherit;font-size:14px;padding:8px 14px;border-radius:8px;border:1px solid #3fb950;background:#3fb950;color:#0d1117;font-weight:600;text-decoration:none;cursor:pointer}
+  .botao.secundario{background:transparent;border-color:var(--border);color:var(--text);font-weight:500}
+</style>
+</head>
+<body data-idioma>
+<main class="caixa">
+  <h1 id="titulo" data-idioma-nao>App put away</h1>
+  <p>It left the memory so another page could open. What it saves by itself is still kept on this device.</p>
+  <div class="acoes">
+    <a class="botao secundario" href="../">Home screen</a>
+    <button class="botao" id="reabrir" type="button">Reopen</button>
+  </div>
+</main>
+<script src="guardada.js"></script>
+</body>
+</html>
