@@ -1,7 +1,7 @@
 /* Service worker do portal offline do InkDOS Hub.
 
    Ele é registrado pela tela inicial. A cópia offline é
-   baixada pela própria página (legado/offline.js, fora de uso) para o cache "inkdoshub-offline"; este arquivo
+   baixada pela própria página (antiga, já removida) para o cache "inkdoshub-offline"; este arquivo
    apenas serve essa cópia quando não há rede. Com rede, tudo vem do site normalmente, então uma
    versão nova do site nunca se mistura com arquivos antigos da cópia. */
 "use strict";

@@ -6,8 +6,6 @@ Como recriar cada parte do site. Tudo o que vem de fora tem a origem em `UPSTREA
 |---|---|
 | `terminal/images/` (Linux) | `tools/linux/build.sh` (kernel 6.6 + Alpine 3.22; arquivos próprios em `tools/linux/alpine-overlay/`) |
 | `apps/video/cortar/ffmpeg-core/`, `apps/quadro/`, `apps/codigo/vscode/` | `tools/build_apps.sh` |
-| `legado/wine/area/area.exe` | `tools/wine-area.sh` (mingw-w64) |
-| `legado/wine/boxedwine/` | compilado à mão; versão e passos em `legado/wine/UPSTREAM-SOURCE.txt` |
 | `onlyoffice/` | copiado de inkdos-tools/inkdos-tools.github.io; mudanças em `onlyoffice/UPSTREAM-SOURCE.txt` |
 | `inkdos/` | `tools/copiar_inkdos.sh <clone do InkDOS>` (chama `adaptar_inkdos.py`) |
 | `idiomas/*.json` | traduções da interface; `tools/idiomas_textos.py` mostra os textos que faltam em cada pacote |

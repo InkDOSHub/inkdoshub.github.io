@@ -22,8 +22,6 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | Kernel Linux 6.6 | GPL-2.0 | oferecer o código-fonte correspondente. Usamos a tag `v6.6` sem mudanças, mais `tools/linux/kernel-extra.config` e `tools/linux/build.sh`, então basta apontar para eles |
 | Programas do Alpine dentro da imagem (BusyBox, musl, apk-tools etc.) | GPL-2.0, MIT e outras | mesmo caso: são os pacotes oficiais do Alpine 3.22 sem mudanças, com o código-fonte público no Alpine |
 | SeaBIOS / VGA BIOS | LGPL-3.0 | manter a licença (`terminal/bios/COPYING.LESSER`) e indicar onde está o código-fonte |
-| Boxedwine (Wine, `legado/wine/`) | GPL-2.0 | oferecer o código-fonte: compilado sem mudanças do commit `cc787bf` de https://github.com/danoon2/Boxedwine; licença em `legado/wine/UPSTREAM-LICENSE.txt` |
-| Wine 11.0 e TinyCore Linux 15 (dentro de `legado/wine/`) | Wine LGPL-2.1+, TinyCore GPL | pacotes oficiais sem mudanças, com o código-fonte público nos projetos; origem e sha256 em `legado/wine/UPSTREAM-SOURCE.txt` |
 | Editores ONLYOFFICE (`onlyoffice/`, "Editar com ONLYOFFICE" nos documentos) | AGPL-3.0 | oferecer o código-fonte correspondente, inclusive das mudanças: origem e lista de mudanças em `onlyoffice/UPSTREAM-SOURCE.txt` (ranuts/document e o branch source de inkdos-tools/inkdos-tools.github.io). A AGPL vale também para quem usa pela rede, então num produto pago estas pastas precisam continuar com o código aberto |
 | jschardet (dentro do VS Code) | LGPL-2.1 | manter a licença; o arquivo não foi alterado |
 | ffmpeg.wasm 0.12.5 (`apps/video/cortar/ffmpeg-core/`, usado ao exportar) | GPL-2.0 ou posterior | oferecer o código-fonte: é o pacote `@ffmpeg/core@0.12.5` sem mudanças, com o código em https://github.com/ffmpegwasm/ffmpeg.wasm |

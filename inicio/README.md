@@ -56,7 +56,7 @@ Os pesos da lista `APPS` são só estimativas informativas.
 
 ## Sessão em arquivo (`../assets/sessao.js`)
 
-O botão **Sessão** do Linux e do Wine guarda o trabalho num arquivo `.inksessao` no aparelho (Arquivos,
+O botão **Sessão** do Linux guarda o trabalho num arquivo `.inksessao` no aparelho (Arquivos,
 iCloud Drive), para recuperar mesmo se o site apagar os dados. Sempre com senha: AES-GCM com chave
 PBKDF2-SHA256 (310 mil rodadas); sem a senha o arquivo não abre. A entrega usa a folha de compartilhar do
 iOS ("Salvar em Arquivos") ou um download.
@@ -67,42 +67,6 @@ iOS ("Salvar em Arquivos") ou um download.
   instala pela internet os pacotes que faltam (`apk add`) e põe os arquivos de volta. A conversa é pela
   pasta `/mnt/ipad/.inkdoshub` (`pedido`, `estado`). Num Linux restaurado de um Salvar antigo, sem o
   `inksessao`, a página manda o programa pela pasta e digita o comando que o liga (pede antes).
-- **Wine** (`../apps/wine/`): guarda os discos inteiros, porque não há como reinstalar os programas
-  sozinho: o que o Wine mudou em `/root` (o C:, com programas e registro) e o D:. Abrir troca os dois
-  discos antes do Windows ligar (`?ink-entrada` com `{sessao: true}`).
-
-## Wine (`../apps/wine/`)
-
-Roda programas do Windows com o Boxedwine (emulador x86 compilado para WebAssembly, alvo "jit" de
-uma thread só, então funciona sem modo isolado). O sistema do Wine (~215 MB) fica em pedaços em
-`apps/wine/fs/`, e `partes.js` junta as partes e guarda no Cache Storage. Precisa de exceções
-WebAssembly no formato novo (Safari 18.4+). Pesa ~950 MB.
-
-- Todos os programas usam os mesmos discos (`storageKey=default`): o C: guarda o que for instalado
-  e o D: guarda arquivos e programas da pessoa, os dois no IndexedDB do site.
-- **Iniciar o Wine** abre sempre a área de trabalho, do tamanho da tela: `explorer /desktop=shell,LxA`
-  rodando `D:\.inkdoshub\area.exe` (código em `apps/wine/area/area.c`, compilado por
-  `tools/wine-area.sh`). Ela pinta o fundo azul, mostra um ícone por atalho (área de trabalho e menu
-  Iniciar do Wine, mais `D:\.inkdoshub\atalhos`) e abre com um toque. Ao aparecer grava
-  `D:\.inkdoshub\pronto`, e a página tira o aviso de carregamento (com barra e tempo).
-- **Instalar programa** (`wine.js`): com o Wine fechado, o .exe, .msi ou .zip vai para o IndexedDB
-  `inkdoshub-wine` (loja `entrada`) e o Wine abre; com ele aberto, vai direto por mensagem.
-  `inkdoshub-wine.js` grava em `D:\Recebidos` (instaladores) ou `D:\Programas` (extrai o .zip, cria
-  atalho) e escreve o caminho em `D:\.inkdoshub\abrir.txt`, que a área de trabalho abre. Programas
-  de 64 bits são recusados com um aviso.
-- **Disco D:**: o `-mount_drive` do Boxedwine põe o D: em `/mnt`, onde o Wine não pode gravar. Por isso
-  `inkdoshub-wine.js` troca por `-mount /d_drive /home/username/d` e grava o link `dosdevices/d:`.
-  Arquivos que a página grava com o Wine aberto só aparecem depois de
-  `boxedwineHostFolderSyncDirectories` (feito por `avisarWine()`).
-- **Segundo plano**: com a página oculta e nada gravado no disco há 1 minuto, o Wine pausa
-  (`Module.pauseMainLoop`) e volta quando a página aparece; instalações seguem rodando porque gravam
-  o tempo todo. "Segundo plano: continua" nunca pausa (localStorage `inkdoshub-wine-fundo`).
-- No iPad: **Teclado** foca um campo escondido dentro do emulador (o iPad mostra o teclado e as
-  teclas chegam ao SDL), **Clique direito** faz o próximo toque valer como botão direito (segurar o
-  dedo meio segundo também), **Enviar para D:** e **Baixar de D:** trocam arquivos com o aparelho.
-- A tela inicial manda .exe e .msi para cá (`#ink-arquivos`, o mesmo caminho de Fotos e Música).
-
-Origem e licenças em `apps/wine/UPSTREAM-SOURCE.txt`.
 
 ## Editores ONLYOFFICE (`../onlyoffice/`)
 

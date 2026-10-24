@@ -27,7 +27,7 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Transferir | Manda arquivos entre o celular e um PC com Windows pela rede local (WebRTC), sem internet, com diagnóstico de conexão; o app de Windows opcional fica em `windows/transferir/` | `apps/transferir/` |
 | Documentos, Planilhas, Apresentações, PDF, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS) (editores ONLYOFFICE), copiados para cá (`tools/copiar_inkdos.sh`); "Editar com ONLYOFFICE" abre os editores copiados em `onlyoffice/` | `inkdos/`, `onlyoffice/` |
 
-Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória. O Wine e o botão de cópia offline ficaram congelados em `legado/` (fora do app; veja legado/README.md).
+Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
 
 Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas.
 
@@ -42,7 +42,7 @@ Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`ass
 O site vem só em inglês. Os outros idiomas (português, espanhol, alemão, francês, chinês simplificado, japonês e russo) são pacotes opcionais: o botão de idioma, na tela inicial e na barra de cada app, abre o mesmo aviso, que diz o que o pacote traduz, o que continua em inglês e quantos MB ele ocupa a mais ou a menos. Fica um pacote por vez no aparelho; escolher outro apaga o anterior.
 
 - Cada pacote traz a tradução da tela inicial e dos apps (`idiomas/<código>.json`), os textos dos editores ONLYOFFICE e os nomes das fórmulas, o idioma do Quadro e o dos apps do InkDOS. A lista de arquivos e tamanhos é gerada por `tools/portal_manifesto.py` (chave `idiomas` de `inicio/manifesto.json`); a cópia offline leva só o inglês.
-- Código (VS Code), o sistema Linux e os programas do Wine ficam em inglês; só a barra do topo deles é traduzida.
+- Código (VS Code) e o sistema Linux ficam em inglês; só a barra do topo deles é traduzida.
 - Como funciona: `assets/idioma.js`. Textos novos na interface são escritos em inglês (no HTML dentro de `<body data-idioma>`, ou no JavaScript com `InkIdioma.t("...")`); `python3 tools/idiomas_textos.py` lista os textos e mostra o que falta traduzir em cada pacote.
 
 ## Linux terminal
@@ -50,7 +50,7 @@ O site vem só em inglês. Os outros idiomas (português, espanhol, alemão, fra
 - Roda Alpine Linux 3.22 com kernel Linux 6.6 (i386), emulado pelo [v86](https://github.com/copy/v86) em WebAssembly.
 - Instala qualquer programa do Alpine com `apk add` (por exemplo `apk add python3 git nano`).
 - Tem internet de verdade dentro do Linux, com http e https (veja "Rede" abaixo).
-- **Sessão:** guarda num arquivo com senha a lista de pacotes instalados e a pasta pessoal, e no outro aparelho (ou depois de apagar os dados) reinstala os pacotes e devolve os arquivos. O Wine tem o mesmo botão, que guarda os discos C: e D:. Detalhes em `inicio/README.md`.
+- **Sessão:** guarda num arquivo com senha a lista de pacotes instalados e a pasta pessoal, e no outro aparelho (ou depois de apagar os dados) reinstala os pacotes e devolve os arquivos. Detalhes em `inicio/README.md`.
 - O kernel e o Alpine embutido são recompilados por `tools/linux/build.sh`.
 - A pasta `~/files` troca arquivos com o aparelho. **Enviar** coloca arquivos do iPad nela, e **Baixar** salva arquivos dela no app Arquivos.
 - **Salvar** guarda a máquina inteira (arquivos, programas instalados e a pasta `~/files`) no navegador. Na próxima visita ela volta do mesmo ponto. **Reiniciar** apaga tudo e começa do zero.
