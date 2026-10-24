@@ -43,3 +43,26 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 #btn-atalho{margin-left:auto;text-decoration:none;padding:9px 14px}
 #btn-abrir{display:inline-flex;align-items:center;gap:8px;padding:9px 16px}
 #btn-abrir svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+
+/* Webapps da pessoa e apps escondidos (meus-apps.js) */
+.intro-acoes{display:flex;flex-wrap:wrap;gap:8px}
+.workspace-card.escondido{display:none}
+.editando .workspace-card.escondido{display:grid;opacity:.45}
+.editando .workspace-card{cursor:pointer}
+.marca{position:absolute;top:10px;right:12px;padding:3px 9px;border-radius:999px;background:var(--btn);border:1px solid var(--border);font-size:12px;font-weight:700;color:var(--text)}
+.editando .workspace-card .chevron{display:none}
+.workspace-card.meu{--accent:#64748b}
+.workspace-card.meu .app-icon img{border-radius:9px}
+.app-icon .letra{font-size:26px;font-weight:760;color:var(--accent)}
+.workspace-card.novo{font:inherit;color:inherit;text-align:left;width:100%;border:2px dashed var(--border);background:transparent;cursor:pointer}
+.workspace-card.novo .app-icon{background:var(--pill-bg)}
+.workspace-card.novo .app-icon svg{stroke:var(--muted)}
+.editando .workspace-card.novo{opacity:.4;cursor:default}
+.painel-dlg{width:min(420px,calc(100vw - 32px));background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:16px}
+.painel-dlg::backdrop{background:rgba(0,0,0,.4)}
+.painel-dlg h2{margin:0 0 8px;font-size:16px}
+.painel-dlg input{font:inherit;font-size:16px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+.nota.aviso{color:var(--warn)}
+.nota.erro{color:var(--danger)}
+.recebidos .bloqueado{margin:10px 0 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.recebidos .bloqueado .nota{width:100%;margin:0}

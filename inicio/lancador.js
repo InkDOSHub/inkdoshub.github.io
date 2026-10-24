@@ -97,14 +97,20 @@
 
   /* Agrupa os arquivos por app. Apps do InkDOS abrem um arquivo por página. */
   function grupos(files) {
-    var g = [], semApp = [];
+    var g = [], semApp = [], bloq = [], M = window.InkMeusApps;
     files.forEach(function (f) {
       var r = rotaDe(f);
       if (!r) { semApp.push(f); return; }
+      // app escondido pela pessoa (meus-apps.js): o tipo dele não abre aqui
+      if (M && M.escondido(r.app)) {
+        var b = bloq.filter(function (y) { return y.rota === r; })[0];
+        if (b) b.files.push(f); else bloq.push({ rota: r, files: [f] });
+        return;
+      }
       var x = r.varios ? g.filter(function (y) { return y.rota === r; })[0] : null;
       if (x) x.files.push(f); else g.push({ rota: r, files: [f] });
     });
-    return { grupos: g, semApp: semApp };
+    return { grupos: g, semApp: semApp, bloq: bloq };
   }
   var t = window.InkIdioma ? InkIdioma.t : function (s, p) { return s.replace(/\{(\w+)\}/g, function (m, k) { return p && k in p ? p[k] : m; }); };
   function nomeApp(id) {
@@ -134,6 +140,29 @@
       });
       lista.appendChild(b);
     });
+    Array.prototype.forEach.call(sec.querySelectorAll(".bloqueado"), function (d) { d.remove(); });
+    r.bloq.forEach(function (x) {
+      var d = document.createElement("div"), p = document.createElement("p"), web = window.InkMeusApps.webapps();
+      d.className = "bloqueado";
+      p.className = "nota erro";
+      p.textContent = t("{app} is hidden, so {files} cannot open here. Open a webapp of yours and choose the file there, or show the app again.",
+        { app: nomeApp(x.rota.app), files: x.files.map(function (f) { return f.name; }).join(", ") });
+      d.appendChild(p);
+      web.forEach(function (w) {
+        var a = document.createElement("a");
+        a.className = "botao secundario"; a.href = w.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+        a.textContent = t("Open {app}", { app: w.nome });
+        a.setAttribute("data-idioma-nao", "");
+        d.appendChild(a);
+      });
+      var m = document.createElement("button");
+      m.type = "button"; m.className = "botao";
+      m.textContent = t("Show {app} again", { app: nomeApp(x.rota.app) });
+      m.addEventListener("click", function () { window.InkMeusApps.mostrar(x.rota.app); d.remove(); abrirArquivos(x.files); });
+      d.appendChild(m);
+      if (!web.length) { var q = document.createElement("p"); q.className = "nota"; q.textContent = t("To send these files to another site, add it with the Add webapp card."); d.appendChild(q); }
+      sec.insertBefore(d, nota);
+    });
     nota.textContent = r.semApp.length ? t("No app here opens: {files}.", { files: r.semApp.map(function (f) { return f.name; }).join(", ") }) : "";
     sec.hidden = false;
     sec.scrollIntoView({ block: "nearest" });
@@ -144,7 +173,7 @@
     files = [].filter.call(files || [], Boolean);
     if (!files.length) return;
     var r = grupos(files);
-    if (r.grupos.length === 1 && !r.semApp.length) {
+    if (r.grupos.length === 1 && !r.semApp.length && !r.bloq.length) {
       document.documentElement.classList.add("abrindo-arquivo");
       return preparar(r.grupos[0].rota, r.grupos[0].files).then(function (url) { location.replace(url); },
         function () { document.documentElement.classList.remove("abrindo-arquivo"); mostrar(r); });
