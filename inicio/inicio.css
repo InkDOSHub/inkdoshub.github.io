@@ -67,4 +67,3 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 .nota.erro{color:var(--danger)}
 .recebidos .bloqueado{margin:10px 0 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .recebidos .bloqueado .nota{width:100%;margin:0}
-.linha.marcar{flex-direction:row;font-size:14px}.linha.marcar input{width:auto;margin:0 6px 0 0}
