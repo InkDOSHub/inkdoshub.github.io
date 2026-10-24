@@ -36,3 +36,4 @@ jobs:
         run: |
           gh release view transferir-windows >/dev/null 2>&1 || gh release create transferir-windows --title "InkDOS Hub Transferir for Windows" --latest=false --notes "Fast phone <-> PC file transfer without internet, server or admin. Source: windows/transferir/ (MIT)."
           gh release upload transferir-windows InkDOSHub-Transferir.exe --clobber
+          git push -f origin "HEAD:refs/tags/transferir-windows"
