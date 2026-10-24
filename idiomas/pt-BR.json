@@ -598,5 +598,6 @@
 "Open {app}": "Abrir {app}",
 "Show {app} again": "Mostrar {app} de novo",
 "To send these files to another site, add it with the Add webapp card.": "Para mandar esses arquivos para outro site, adicione o site no cartão Adicionar webapp.",
-"The file arrived incomplete ({size} KB). Use the Open file button.": "O arquivo chegou incompleto ({size} KB). Use o botão Abrir arquivo."
+"The file arrived incomplete ({size} KB). Use the Open file button.": "O arquivo chegou incompleto ({size} KB). Use o botão Abrir arquivo.",
+"Optional: iOS shortcut": "Opcional: atalho do iOS"
 }
