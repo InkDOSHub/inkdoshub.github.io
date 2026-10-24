@@ -1,0 +1,8 @@
+Webcam do InkDOS Hub (versão de teste): a página (index.html, app.js) é feita aqui.
+
+PeerJS 1.5.5 (MIT), lib/peerjs.min.js: dist/peerjs.min.js do pacote npm peerjs@1.5.5, sem mudanças.
+  Código-fonte: https://github.com/peers/peerjs (tag v1.5.5).
+  O pareamento usa o servidor público gratuito do PeerJS (0.peerjs.com) e o STUN do Google; o vídeo vai
+  direto de um aparelho para o outro (WebRTC) e não passa por esses servidores.
+qrcode-generator 2.0.4 (MIT), lib/qrcode.js: dist/qrcode.js do pacote npm qrcode-generator@2.0.4, sem mudanças.
+  Código-fonte: https://github.com/kazuhikoarase/qrcode-generator

@@ -1,0 +1,42 @@
+/* Tela inicial: botões do topo, painéis e arquivos recebidos.
+   Usa as cores de assets/home.css. */
+:root{--accent-ok:#3fb950;--warn:#d29922;--danger:#da3633;--btn:#f0f2f5;--btn-active:#e3e8ef}
+html[data-theme="dark"]{--btn:#252d37;--btn-active:#323c49}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+
+.home-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.home-actions .theme-button{margin-left:0}
+.theme-button.wide{width:auto;padding:0 12px;gap:8px;display:inline-flex;align-items:center;font-size:13px;font-weight:600;color:var(--muted)}
+.theme-button[aria-expanded="true"]{background:var(--btn);color:var(--text)}
+#btn-offline.pronto{color:var(--accent-ok)}
+@media(max-width:620px){.theme-button.wide .rotulo{display:none}.theme-button.wide{width:38px;padding:0;justify-content:center}}
+.grupo,.home-shell h2.grupo{margin:30px 0 14px;font-size:15px;font-weight:700;color:var(--muted);letter-spacing:-.01em}
+.grupo small,.home-shell h2.grupo small{font-weight:500;font-size:13px;margin-left:6px}
+.intro + .grupo{margin-top:0}
+
+/* Painéis */
+.painel{position:fixed;top:calc(env(safe-area-inset-top) + 92px);right:max(16px,calc((100vw - 1180px)/2));z-index:60;width:min(380px,calc(100vw - 32px));max-height:calc(100dvh - 110px);overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
+.painel[hidden]{display:none}
+.painel h2{margin:0 0 8px;font-size:16px}
+.nota{margin:8px 0;color:var(--muted);font-size:13px;line-height:1.45}
+.linha{display:flex;flex-direction:column;gap:6px;margin:12px 0;font-size:14px}
+.lista{list-style:none;margin:10px 0;padding:0;border:1px solid var(--border);border-radius:10px}
+.lista li{display:flex;align-items:center;gap:8px;padding:9px 10px;border-top:1px solid var(--border);font-size:14px}
+.lista li:first-child{border-top:0}
+.lista li span{flex:1 0 auto}
+.lista li small{flex:0 1 auto}
+.lista li small{color:var(--muted);font-size:12.5px;text-align:right}
+.lista li.ok small{color:var(--accent-ok)}
+.acoes{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.botao{font-size:14px;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-ok);background:var(--accent-ok);color:#0d1117;font-weight:600}
+.botao.secundario{background:var(--btn);border-color:var(--border);color:var(--text);font-weight:500}
+.botao.pequeno{padding:4px 10px;font-size:13px}
+.botao:disabled{opacity:.5;cursor:default}
+
+@media(max-width:720px){.painel{top:calc(env(safe-area-inset-top) + 76px);right:14px;width:calc(100vw - 28px)}}
+
+/* Lançador de arquivos */
+.intro{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.recebidos[hidden]{display:none}
+.recebidos-lista{display:flex;flex-wrap:wrap;gap:8px}
+html.abrindo-arquivo .home-shell{visibility:hidden}

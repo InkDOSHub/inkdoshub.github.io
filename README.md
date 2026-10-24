@@ -1,0 +1,113 @@
+# InkDOS Hub
+
+**English:** A free, open-source home screen of power tools for iPad and iPhone (Safari), running entirely in the browser: a real Alpine Linux terminal (v86/WebAssembly, with `apk add` and internet), photo, video and music editors, VS Code for the web, Excalidraw, ONLYOFFICE document editors, a screen/audio recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay in your browser. Optional Windows helpers (`.exe`, not code-signed yet, so SmartScreen may warn) live in `windows/`.
+
+**Open:** https://inkdoshub.github.io/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md)) · Personal project, no support promised.
+
+<p><img src=".github/prints/hub-ipad.png" width="68%" alt="InkDOS Hub on iPad"> <img src=".github/prints/hub-iphone.png" width="28%" alt="InkDOS Hub on iPhone, dark theme"></p>
+
+---
+
+A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), feita para o iPad e o iPhone (Safari e XeOS). O InkDOS fica com os documentos e o InkDOS Hub com o resto.
+
+**Abrir:** https://inkdoshub.github.io/
+
+> **Sem promessa de suporte.** O InkDOS Hub é um projeto pessoal, feito no tempo livre, e está aqui do jeito que está porque funcionou para quem criou. Foi testado no iPhone, no iPad e num notebook com Windows; em outros aparelhos pode funcionar, ou não. Fique à vontade para usar, copiar e adaptar, só não dá para garantir correções, novidades ou respostas rápidas. 🙂
+
+| Cartão | Ferramenta (código aberto) | Pasta |
+|---|---|---|
+| Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
+| Fotos | Galeria, visualizador e editor simples (recortar, girar, espelhar, endireitar, exposição, brilho, contraste, saturação, calor e tom) feitos aqui | `apps/foto/` (o editor é `apps/foto/editor.js`) |
+| Vídeo | Player nativo do Safari e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
+| Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
+| Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
+| Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
+| Webcam | A câmera do iPhone (Safari) vira webcam do PC: o iPhone manda o vídeo por WebRTC, até 4K 60 fps, para a página aberta no PC, pareada por QR code ([PeerJS](https://github.com/peers/peerjs), MIT, com o servidor público gratuito dele só para o pareamento). No Windows, o OBS Studio transforma a imagem em webcam (fonte de navegador + câmera virtual); as instruções estão no próprio app | `apps/webcam/` |
+| Gravador | Grava o áudio do computador, o microfone ou o som da tela, separado do app Música, feito aqui | `apps/gravador/` |
+| Transferir | Manda arquivos entre o celular e um PC com Windows pela rede local (WebRTC), sem internet, com diagnóstico de conexão; o app de Windows opcional fica em `windows/transferir/` | `apps/transferir/` |
+| Documentos, Planilhas, Apresentações, PDF, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS) (editores ONLYOFFICE), copiados para cá (`tools/copiar_inkdos.sh`); "Editar com ONLYOFFICE" abre os editores copiados em `onlyoffice/` | `inkdos/`, `onlyoffice/` |
+
+Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
+
+Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas.
+
+Fotos, Vídeo e Música seguem a mesma ideia: primeiro o visualizador nativo do Safari, e a edição como segunda opção. Os arquivos abertos ficam guardados no próprio navegador (IndexedDB deste site), neste aparelho, e nada é enviado. Tudo é servido por este site; nenhuma ferramenta abre outro site nem busca código em CDNs.
+
+O editor de vídeo (`apps/video/cortar/`) corta o trecho, tira ou deixa o som e exporta no original (só corta, sem converter) ou em 1080p, 720p ou 480p, com o ffmpeg.wasm 0.12.5 de uma thread só (não precisa de isolamento entre origens). O resultado vira um vídeo novo na lista do Vídeo.
+
+Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no botão da tela inicial.
+
+## Idiomas
+
+O site vem só em inglês. Os outros idiomas (português, espanhol, alemão, francês, chinês simplificado, japonês e russo) são pacotes opcionais: o botão de idioma, na tela inicial e na barra de cada app, abre o mesmo aviso, que diz o que o pacote traduz, o que continua em inglês e quantos MB ele ocupa a mais ou a menos. Fica um pacote por vez no aparelho; escolher outro apaga o anterior.
+
+- Cada pacote traz a tradução da tela inicial e dos apps (`idiomas/<código>.json`), os textos dos editores ONLYOFFICE e os nomes das fórmulas, o idioma do Quadro e o dos apps do InkDOS. A lista de arquivos e tamanhos é gerada por `tools/portal_manifesto.py` (chave `idiomas` de `inicio/manifesto.json`); a cópia offline leva só o inglês.
+- Código (VS Code) e o sistema Linux ficam em inglês; só a barra do topo deles é traduzida.
+- Como funciona: `assets/idioma.js`. Textos novos na interface são escritos em inglês (no HTML dentro de `<body data-idioma>`, ou no JavaScript com `InkIdioma.t("...")`); `python3 tools/idiomas_textos.py` lista os textos e mostra o que falta traduzir em cada pacote.
+
+## Linux terminal
+
+- Roda Alpine Linux 3.22 com kernel Linux 6.6 (i386), emulado pelo [v86](https://github.com/copy/v86) em WebAssembly.
+- Instala qualquer programa do Alpine com `apk add` (por exemplo `apk add python3 git nano`).
+- Tem internet de verdade dentro do Linux, com http e https (veja "Rede" abaixo).
+- **Sessão:** guarda num arquivo com senha a lista de pacotes instalados e a pasta pessoal, e no outro aparelho (ou depois de apagar os dados) reinstala os pacotes e devolve os arquivos. Detalhes em `inicio/README.md`.
+- O kernel e o Alpine embutido são recompilados por `tools/linux/build.sh`.
+- A pasta `~/files` troca arquivos com o aparelho. **Enviar** coloca arquivos do iPad nela, e **Baixar** salva arquivos dela no app Arquivos.
+- **Salvar** guarda a máquina inteira (arquivos, programas instalados e a pasta `~/files`) no navegador. Na próxima visita ela volta do mesmo ponto. **Reiniciar** apaga tudo e começa do zero.
+- **Memória:** o botão alterna entre 256 MB (padrão, a sessão pode ser salva) e **640 MB + swap**. No segundo modo o Linux tem 640 MB de RAM, 192 MB de zram (memória comprimida) e 1 GB de swap num arquivo do armazenamento privado do site (OPFS), gravado aos pedaços por um worker (`terminal/swap-worker.js`) sem passar pela RAM da página. A aba fica abaixo de 1 GB mesmo com o Linux usando mais memória do que tem. Nesse modo a sessão não é salva, porque o swap recomeça a cada boot.
+- Tem uma barra de teclas extras para o teclado do celular: Esc, Tab, Ctrl, setas, `|`, `/`, `-`, `~` e Ctrl+C.
+
+### Rede
+
+Igual aos outros emuladores de Linux no navegador (como o [copy.sh/v86](https://copy.sh/v86/)), o Linux sai para a internet por um servidor de rede público. Com isso funcionam `apk add` de qualquer pacote do Alpine, `http://`, `https://`, `git clone`, `pip install` e `ssh`.
+
+| Opção | Como funciona |
+|---|---|
+| Rede: wisp (padrão) | Conexões TCP pelo servidor [Wisp](https://github.com/MercuryWorkshop/wisp-protocol) público `wisps://wisp.mercurywork.shop/v86/` (o mesmo que o copy.sh/v86 oferece). Os nomes de sites são resolvidos por DNS-over-HTTPS da Cloudflare. |
+| Rede: relay | Rede completa pelo relay público do v86 (`wss://relay.widgetry.org/`). Use se o wisp estiver fora do ar. |
+| Sem rede | O Linux fica sem internet. |
+
+Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou fora do ar. A escolha fica guardada no navegador. Também dá para passar `?rede=wisp`, `?rede=relay`, `?rede=off` ou a URL `wss://`, `wisp://` ou `wisps://` de outro servidor.
+
+### Parâmetros de URL (terminal/)
+
+| Parâmetro | Efeito |
+|---|---|
+| `?embed=1` | Esconde a barra do topo (para usar dentro de um iframe no InkDOS) |
+| `?fresh=1` | Ignora o estado salvo e liga do zero |
+| `?font=18` | Muda o tamanho da fonte |
+| `?rede=…` | Escolhe a rede (veja acima) |
+| `?memoria=limitada` | Liga o modo 640 MB + swap (`?memoria=normal` volta para 256 MB) |
+
+### Usar dentro de outra página
+
+```html
+<iframe src="https://inkdoshub.github.io/terminal/?embed=1" style="width:100%;height:100%;border:0"></iframe>
+```
+
+### Limitações
+
+- É emulação, então é bem mais lento que um computador de verdade. Instalar Python leva alguns minutos.
+- O sistema fica na memória (256 MB). Programas instalados só continuam lá depois de tocar em **Salvar**.
+- O estado salvo pesa de 20 a 100 MB, conforme o que estiver instalado.
+
+### Estrutura
+
+| Caminho | O que é |
+|---|---|
+| `terminal/index.html`, `app.js`, `style.css` | A página do terminal |
+| `terminal/vendor/v86/` | Emulador v86 0.5.471 (licença BSD-2) |
+| `terminal/vendor/xterm/` | xterm.js 6.0.0 + addon-fit (licença MIT) |
+| `terminal/bios/` | SeaBIOS e VGA BIOS (LGPL-3) |
+| `terminal/images/inkdoshub-bzImage.bin` | Kernel Linux 6.6 com o Alpine embutido (GPL-2 e licenças do Alpine) |
+| `tools/linux/` | Script e configurações para recompilar a imagem |
+
+### Recompilar a imagem do Linux
+
+Precisa de uma máquina Linux (ou um runner de CI) com `gcc make flex bison bc cpio libelf-dev git`:
+
+```sh
+./tools/linux/build.sh
+```
+
+O kernel vem de `torvalds/linux` na tag `v6.6`, sem modificações. O Alpine vem do minirootfs oficial x86 (`alpinelinux/docker-alpine`, branch `v3.22`), com o checksum conferido. Os arquivos próprios do InkDOS Hub ficam em `tools/linux/alpine-overlay/`.

@@ -1,0 +1,81 @@
+name: App Webcam para Windows
+# Compila windows/webcam/ (o app) e o softcam (a câmera virtual) e publica o ZIP na release
+# "webcam-windows", que o app Webcam do site oferece para baixar.
+on:
+  push:
+    branches: [main]
+    paths: [windows/webcam/**, .github/workflows/webcam-windows.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: webcam-windows
+  cancel-in-progress: true
+jobs:
+  build:
+    # só no site publicado; o espelho vfydr2m9wk-ops/inkdoshub recebe só o código pela sincronização
+    if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
+    runs-on: windows-latest
+    env:
+      GST_VER: 1.28.8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: softcam (versão fixada, com o nome e o CLSID do InkDOS Hub)
+        shell: pwsh
+        run: |
+          git clone -q https://github.com/tshino/softcam softcam
+          git -C softcam checkout -q 8f545e2a3faa2c0d6e6e05378f945ee2a7adfc1d
+          $f = "softcam/src/softcam/softcam.cpp"
+          $c = Get-Content $f -Raw
+          $c = $c.Replace('L"DirectShow Softcam"', 'L"InkDOS Hub Webcam"')
+          $c = $c.Replace('0xaef3b972, 0x5fa5, 0x4647, 0x95, 0x71, 0x35, 0x8e, 0xb4, 0x72, 0xbc, 0x9e', '0x4e1c6b1a, 0x2b7e, 0x4f0a, 0x9c, 0x55, 0x6a, 0x1d, 0x3b, 0x8e, 0x7f, 0x21')
+          if (-not $c.Contains('L"InkDOS Hub Webcam"') -or -not $c.Contains('0x4e1c6b1a')) { throw "o patch do softcam.cpp não aplicou" }
+          Set-Content $f $c -NoNewline
+          msbuild softcam/softcam.sln /t:softcam /p:Configuration=Release /p:Platform=x64 /m /v:minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: GStreamer (receptor nativo, só os plugins usados)
+        shell: pwsh
+        run: |
+          $exe = "gst.exe"
+          Invoke-WebRequest "https://gstreamer.freedesktop.org/data/pkg/windows/$env:GST_VER/msvc/gstreamer-1.0-msvc-x86_64-$env:GST_VER.exe" -OutFile $exe
+          Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/DIR=C:\gst' -Wait
+          python -m pip install -q pefile
+          python windows/webcam/gst_minimo.py C:\gst gstmin
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: App
+        run: dotnet build windows/webcam/InkDOSHubWebcam.csproj -c Release -o out
+
+      - name: ZIP
+        shell: pwsh
+        run: |
+          $d = "pacote/InkDOS Hub Webcam"
+          New-Item -ItemType Directory -Force $d | Out-Null
+          Copy-Item "out/InkDOS Hub Webcam.exe","out/InkDOS Hub Webcam.exe.config","out/Microsoft.Web.WebView2.Core.dll","out/Microsoft.Web.WebView2.WinForms.dll","out/runtimes/win-x64/native/WebView2Loader.dll" $d
+          $dll = Get-ChildItem softcam -Recurse -Filter softcam.dll | Where-Object { $_.FullName -match '\\x64\\Release\\' } | Select-Object -First 1
+          if (-not $dll) { throw "softcam.dll não foi gerada" }
+          Copy-Item $dll.FullName $d
+          Copy-Item windows/webcam/LEIA-ME.txt $d
+          Copy-Item softcam/LICENSE "$d/softcam-LICENSE.txt"
+          Copy-Item -Recurse gstmin "$d/gstreamer"
+          Set-Content "$d/gstreamer/LEIA-ME.txt" "GStreamer $env:GST_VER (https://gstreamer.freedesktop.org), LGPL-2.1. Usado pela opcao Native receiver (beta). Codigo-fonte: https://gitlab.freedesktop.org/gstreamer/gstreamer"
+          Get-ChildItem $d | Format-Table Name, Length
+          "{0:N1} MB no pacote" -f ((Get-ChildItem $d -Recurse -File | Measure-Object Length -Sum).Sum / 1MB)
+          Compress-Archive -Path $d -DestinationPath InkDOSHub-Webcam-Windows.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InkDOSHub-Webcam-Windows
+          path: InkDOSHub-Webcam-Windows.zip
+
+      - name: Publicar na release webcam-windows
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view webcam-windows >/dev/null 2>&1 || gh release create webcam-windows --title "InkDOS Hub Webcam for Windows" --latest=false --notes "Turns the iPhone camera (InkDOS Hub Webcam page) into a Windows webcam, without OBS. Source: windows/webcam/ (MIT) and softcam (MIT)."
+          gh release upload webcam-windows InkDOSHub-Webcam-Windows.zip --clobber

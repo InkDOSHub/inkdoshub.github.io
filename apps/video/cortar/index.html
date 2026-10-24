@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Edit video · InkDOS Hub</title>
+<script src="../../../assets/tema.js?v=1"></script>
+<script src="../../../assets/idioma.js?v=1"></script>
+<script src="../../../assets/gerenciador-app.js?v=7"></script>
+<link rel="stylesheet" href="../../../assets/barra.css?v=2">
+<style>
+  .tela{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center}
+  video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
+  .painel{background:var(--card);border-top:1px solid var(--border);padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+  .linha{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .tocar{width:44px;height:44px;border-radius:50%;padding:0;font-size:18px;flex:none}
+  .faixa{position:relative;flex:1;min-width:200px;height:52px;border-radius:8px;background:#222;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+  .faixa canvas{position:absolute;inset:0;width:100%;height:100%}
+  .fora{position:absolute;top:0;bottom:0;background:rgba(0,0,0,.6)}
+  .janela{position:absolute;top:0;bottom:0;border:3px solid #f5c400;border-left-width:14px;border-right-width:14px;border-radius:8px;box-sizing:border-box;pointer-events:none}
+  .alca{position:absolute;top:0;bottom:0;width:34px;margin-left:-17px;cursor:ew-resize}
+  .cursor{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:#fff;pointer-events:none}
+  .tempos{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .tempos b{color:var(--text)}
+  .grupo{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .grupo button{border:0;border-radius:0;border-right:1px solid var(--border)}
+  .grupo button:last-child{border-right:0}
+  .grupo button[aria-pressed=true],.ink-btn[aria-pressed=true]{background:var(--accent);color:#0d1117}
+  .rotulo{font-size:14px;color:var(--muted)}
+  .principal{background:var(--accent);border-color:var(--accent);color:#0d1117;font-weight:600}
+  #progresso{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10}
+  #progresso.on{display:flex}
+  #progresso .caixa{background:var(--card);color:var(--text);border-radius:12px;padding:18px;width:min(380px,calc(100% - 32px));display:flex;flex-direction:column;gap:10px}
+  #progresso .barra{height:8px;border-radius:4px;background:var(--border);overflow:hidden}
+  #progresso .barra span{display:block;height:100%;width:0;background:var(--accent)}
+  #progresso .botoes{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  #progresso p{margin:0;color:var(--muted);font-size:14px;line-height:1.4}
+</style>
+</head>
+<body class="ink-app" data-idioma>
+<header class="ink-bar">
+  <a class="ink-home" href="../" data-icone="voltar">Video</a>
+  <span class="ink-title" id="nome" data-idioma-nao>Edit</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
+  <button class="ink-btn principal" id="exportar" disabled>Export</button>
+</header>
+<main class="ink-main" style="display:flex;flex-direction:column">
+  <div class="tela"><video id="video" playsinline preload="auto"></video></div>
+  <div class="painel">
+    <div class="linha">
+      <button class="ink-btn tocar" id="tocar" aria-label="Play">▶</button>
+      <div class="faixa" id="faixa">
+        <canvas id="miniaturas"></canvas>
+        <div class="fora" id="fora-ini" style="left:0"></div><div class="fora" id="fora-fim" style="right:0"></div>
+        <div class="janela" id="janela"></div>
+        <div class="cursor" id="cursor"></div>
+        <div class="alca" id="alca-ini" aria-label="Start"></div><div class="alca" id="alca-fim" aria-label="End"></div>
+      </div>
+    </div>
+    <div class="linha">
+      <span class="tempos" id="tempos" data-idioma-nao></span>
+      <span class="ink-spacer" style="flex:1"></span>
+      <div class="grupo" id="som">
+        <button class="ink-btn" data-som="com" aria-pressed="true">With sound</button>
+        <button class="ink-btn" data-som="sem">Without sound</button>
+        <button class="ink-btn" data-som="so" title="Saves only the audio (.m4a) in Music">Only sound</button>
+      </div>
+    </div>
+    <div class="linha" id="linha-qualidade">
+      <span class="rotulo">Quality</span>
+      <div class="grupo" id="qualidade">
+        <button class="ink-btn" data-h="0" aria-pressed="true" title="Same quality as the original, only trims (fast)">Original</button>
+        <button class="ink-btn" data-h="1080">1080p</button>
+        <button class="ink-btn" data-h="720">720p</button>
+        <button class="ink-btn" data-h="480">480p</button>
+      </div>
+    </div>
+  </div>
+</main>
+<div id="progresso" role="dialog" aria-live="polite" data-idioma-nao><div class="caixa">
+  <strong id="p-titulo">Exporting</strong>
+  <p id="p-texto"></p>
+  <div class="barra" id="p-barra"><span></span></div>
+  <div class="botoes" id="p-botoes"></div>
+</div></div>
+<script src="../../../assets/midia.js?v=2"></script>
+<script src="../../../assets/icones.js?v=2"></script>
+<script src="cortar.js?v=4"></script>
+</body>
+</html>

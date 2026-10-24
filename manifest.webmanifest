@@ -1,0 +1,184 @@
+{
+  "id": "./",
+  "name": "InkDOS Hub",
+  "short_name": "InkDOS Hub",
+  "description": "Advanced tools: Linux, photos, video, code, whiteboard, music and the InkDOS document apps. Everything on this device.",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f5f8",
+  "theme_color": "#f2f5f8",
+  "categories": [
+    "productivity",
+    "utilities",
+    "developer"
+  ],
+  "icons": [
+    {
+      "src": "./assets/inkdoshub-icone-512.png?v=4",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/inkdoshub-icone-192.png?v=4",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+          ".docx"
+        ],
+        "application/rtf": [
+          ".rtf"
+        ],
+        "application/msword": [
+          ".doc"
+        ],
+        "application/vnd.oasis.opendocument.text": [
+          ".odt"
+        ],
+        "application/vnd.apple.pages": [
+          ".pages"
+        ],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx"
+        ],
+        "application/vnd.ms-excel": [
+          ".xls"
+        ],
+        "text/csv": [
+          ".csv"
+        ],
+        "text/tab-separated-values": [
+          ".tsv"
+        ],
+        "application/vnd.oasis.opendocument.spreadsheet": [
+          ".ods"
+        ],
+        "application/vnd.apple.numbers": [
+          ".numbers"
+        ],
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
+          ".pptx"
+        ],
+        "application/vnd.ms-powerpoint": [
+          ".ppt"
+        ],
+        "application/vnd.oasis.opendocument.presentation": [
+          ".odp"
+        ],
+        "application/vnd.apple.keynote": [
+          ".key"
+        ],
+        "application/pdf": [
+          ".pdf"
+        ],
+        "application/epub+zip": [
+          ".epub"
+        ],
+        "text/plain": [
+          ".bash",
+          ".bat",
+          ".c",
+          ".cc",
+          ".cfg",
+          ".cjs",
+          ".cmake",
+          ".conf",
+          ".cpp",
+          ".cs",
+          ".css",
+          ".dart",
+          ".diff",
+          ".fish",
+          ".go",
+          ".gradle",
+          ".h",
+          ".hpp",
+          ".htm",
+          ".html",
+          ".ini",
+          ".ipynb",
+          ".java",
+          ".js",
+          ".json",
+          ".jsonl",
+          ".jsx",
+          ".kt",
+          ".less",
+          ".log",
+          ".lua",
+          ".markdown",
+          ".md",
+          ".mjs",
+          ".mk",
+          ".ndjson",
+          ".patch",
+          ".php",
+          ".pl",
+          ".properties",
+          ".ps1",
+          ".py",
+          ".r",
+          ".rb",
+          ".rs",
+          ".scss",
+          ".sh",
+          ".sql",
+          ".svelte",
+          ".swift",
+          ".tex",
+          ".toml",
+          ".ts",
+          ".tsx",
+          ".txt",
+          ".vue",
+          ".xml",
+          ".yaml",
+          ".yml",
+          ".zsh"
+        ],
+        "image/*": [
+          ".avif",
+          ".bmp",
+          ".gif",
+          ".heic",
+          ".heif",
+          ".jpeg",
+          ".jpg",
+          ".png",
+          ".svg",
+          ".tif",
+          ".tiff",
+          ".webp"
+        ],
+        "video/*": [
+          ".m4v",
+          ".mkv",
+          ".mov",
+          ".mp4",
+          ".webm"
+        ],
+        "audio/*": [
+          ".aac",
+          ".flac",
+          ".m4a",
+          ".mp3",
+          ".oga",
+          ".ogg",
+          ".opus",
+          ".wav"
+        ]
+      }
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-new"
+  }
+}

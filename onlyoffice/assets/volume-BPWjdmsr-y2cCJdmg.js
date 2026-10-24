@@ -1,0 +1,2 @@
+import{k as e}from"./input-DEoPNM0j-L5ZEllWb.js";var t=e({default:()=>n}),n={success:!0,_identification:!0,data:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19.5 5.5a9 9 0 0 1 0 13"/></g></svg>
+`};export{t as n};

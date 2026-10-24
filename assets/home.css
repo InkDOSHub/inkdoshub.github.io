@@ -1,0 +1,26 @@
+/* Tela inicial do InkDOS Hub: o visual da tela inicial do InkDOS, sem sombras nem animações (mais leve). */
+:root{--bg:#f2f5f8;--card:#fff;--text:#192235;--muted:#697486;--border:#e3e8ef;--icon-base:#fff;--chevron:#a8b1bd;--pill-bg:#f0f2f5;--pill-text:#6f7988;--footer:#788394}
+html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5c3;--border:#323c49;--icon-base:#1c222a;--chevron:#8591a1;--pill-bg:#252d37;--pill-text:#aab5c3;--footer:#98a4b4}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}body{min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}
+.home-shell{width:min(1180px,calc(100% - 64px));min-height:100vh;margin:0 auto;padding:38px 0 26px;display:flex;flex-direction:column}
+.brand-row{min-height:54px;display:flex;align-items:center;gap:12px}.brand{display:inline-flex;align-items:center;gap:13px}
+.brand-mark{width:46px;height:46px;flex-shrink:0;border-radius:11px;overflow:hidden;display:grid;place-items:center}
+/* o PNG do ícone tem margem clara em volta do quadro (igual ao do InkDOS); ampliar 1,104x deixa só o quadro, também no tema escuro */
+.brand-mark img{display:block;width:100%;height:100%;transform:scale(1.104)}
+.brand-copy{display:flex;flex-direction:column;gap:3px;line-height:1.04}.brand-copy strong{font-size:20px;font-weight:760;letter-spacing:-.02em}.brand-copy small{font-size:13px;font-weight:500;color:var(--muted)}
+.theme-button{margin-left:auto;width:38px;height:38px;padding:0;border:1px solid var(--border);border-radius:11px;background:var(--card);color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.theme-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.intro{padding:54px 0 30px}.intro h1{margin:0;font-size:clamp(36px,4.1vw,58px);line-height:1.02;letter-spacing:-.045em;font-weight:790}
+.workspace-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.workspace-card{--accent:#6b7280;position:relative;min-height:154px;padding:27px 50px 25px 31px;background:var(--card);border:1px solid var(--border);border-radius:20px;display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;column-gap:20px;overflow:hidden}
+.workspace-card:active{background:var(--pill-bg)}
+.workspace-card .accent{position:absolute;left:0;top:20px;bottom:20px;width:5px;border-radius:0 5px 5px 0;background:var(--accent)}
+.terminal{--accent:#3fb950}.foto{--accent:#9a6b1f}.video{--accent:#475569}.codigo{--accent:#4338ca}.quadro{--accent:#0891b2}.musica{--accent:#db2777}.wine{--accent:#8c1d40}.documentos{--accent:#2f6fed}.planilhas{--accent:#267a45}.apresentacoes{--accent:#d64a24}.pdf{--accent:#b42318}.texto{--accent:#d9a514}.epub{--accent:#7655c7}.webcam{--accent:#0e8a7e}.transferir{--accent:#2563eb}.gravador{--accent:#e5484d}
+.app-icon{width:58px;height:58px;border-radius:15px;background:color-mix(in srgb,var(--accent) 11%,var(--icon-base));display:grid;place-items:center}
+.app-icon img{display:block;width:40px;height:40px;object-fit:contain}
+.app-icon svg{width:34px;height:34px;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.workspace-copy{min-width:0}.workspace-copy strong{display:block;font-size:19px;line-height:1.15;font-weight:745;letter-spacing:-.018em}.workspace-copy small{display:block;margin-top:8px;font-size:13px;line-height:1.35;color:var(--muted)}
+.external-badge{display:inline-flex;margin-top:9px;padding:3px 8px;border-radius:999px;background:var(--pill-bg);color:var(--pill-text);font-size:11px;font-weight:700}
+.chevron{position:absolute;right:25px;top:50%;transform:translateY(-50%);font-size:32px;line-height:1;color:var(--chevron);font-weight:300}
+.home-footer{margin-top:auto;padding-top:42px;display:flex;align-items:center;gap:24px;color:var(--footer);font-size:12px}.home-footer p{margin:0}.home-footer nav{margin-left:auto;display:flex;gap:22px}
+@media(max-width:720px){.home-shell{width:min(100% - 28px,560px);padding:22px 0 20px}.intro{padding:36px 2px 22px}.intro h1{font-size:36px}.workspace-grid{grid-template-columns:1fr;gap:14px}.workspace-card{min-height:112px;padding:20px 46px 20px 24px;border-radius:17px;grid-template-columns:50px minmax(0,1fr);column-gap:16px}.workspace-card .accent{top:16px;bottom:16px;width:4px}.app-icon{width:50px;height:50px;border-radius:13px}.app-icon img{width:34px;height:34px}.workspace-copy strong{font-size:17px}.workspace-copy small{font-size:12px;margin-top:5px}.chevron{right:20px;font-size:29px}.home-footer{padding-top:28px;align-items:flex-start;flex-direction:column;gap:14px}.home-footer nav{margin-left:0;gap:16px;flex-wrap:wrap}}

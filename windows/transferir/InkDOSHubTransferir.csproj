@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- .NET Framework 4.8 já vem no Windows 10 e 11: um .exe só, sem instalar nada e sem admin. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>InkDOS Hub Transferir</AssemblyName>
+    <RootNamespace>InkDOSHubTransferir</RootNamespace>
+    <ApplicationIcon>icone.ico</ApplicationIcon>
+    <Version>0.1.0</Version>
+    <Product>InkDOS Hub Transferir</Product>
+    <Copyright>MIT</Copyright>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="web\*" LogicalName="%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- APIs do Windows (Wi-Fi Direct) dentro do .NET Framework -->
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.2" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

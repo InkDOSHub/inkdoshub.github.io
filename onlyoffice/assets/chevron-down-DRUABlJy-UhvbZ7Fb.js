@@ -1,0 +1,2 @@
+import{n as e}from"./rolldown-runtime-hePW80VL.js";import{k as t}from"./input-DEoPNM0j-L5ZEllWb.js";var n=e({n:()=>r,t:()=>i}),r=t({default:()=>i}),i={success:!0,_identification:!0,data:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></g></svg>
+`};export{i as n,n as t};
