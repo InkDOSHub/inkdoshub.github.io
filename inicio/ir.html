@@ -16,11 +16,10 @@
 (function () {
   var alvo = "";
   try { alvo = decodeURIComponent(location.hash.slice(1)); } catch (_) {}
-  // o cartão pode acrescentar "noapp" e afins (meus-apps.js); confere sem ele
-  var base = alvo;
-  try { var u = new URL(alvo); ["noapp", "deoia", "no_ul", "nodl", "web"].forEach(function (k) { u.searchParams.delete(k); }); base = u.href; } catch (_) {}
-  var ok = false;
-  try { ok = JSON.parse(localStorage.getItem("inkdoshub-meus-apps") || "[]").some(function (a) { return a && (a.ir === base || a.url === base); }); } catch (_) {}
+  // confere só o site (o cartão acrescenta parâmetros como "noapp" e "app=desktop", veja meus-apps.js)
+  function site(x) { try { var u = new URL(x); return /^https?:$/.test(u.protocol) ? u.hostname.replace(/^(www|m)\./, "") : ""; } catch (_) { return ""; } }
+  var ok = false, s = site(alvo);
+  try { ok = !!s && JSON.parse(localStorage.getItem("inkdoshub-meus-apps") || "[]").some(function (a) { return a && (site(a.url) === s || site(a.ir) === s); }); } catch (_) {}
   if (!ok || !/^https?:\/\//.test(alvo)) { document.getElementById("msg").textContent = "Unknown address."; return; }
   setTimeout(function () { location.replace(alvo); }, 60);
 })();
