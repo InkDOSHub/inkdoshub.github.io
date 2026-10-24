@@ -2,48 +2,24 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>Webapp</title>
-<script src="../assets/tema.js?v=1"></script>
-<script src="../assets/idioma.js?v=1"></script>
-<link rel="stylesheet" href="../assets/home.css?v=9">
-<style>
-html,body{height:100%;overflow:hidden}
-body{display:flex;flex-direction:column;min-height:0}
-.barra{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 6px) 10px 6px;background:var(--card);border-bottom:1px solid var(--border);font-size:13px}
-.barra a{padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--pill-bg);font-weight:600;white-space:nowrap}
-.barra strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dica{padding:6px 12px;background:var(--pill-bg);color:var(--muted);font-size:12.5px;line-height:1.4}
-.dica[hidden]{display:none}
-iframe{flex:1;width:100%;border:0;background:#fff}
-</style>
+<title>Opening…</title>
+<style>html{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#697486}</style>
 </head>
-<body data-idioma>
-<div class="barra">
-  <a href="../">‹ Hub</a>
-  <strong id="nome" data-idioma-nao></strong>
-  <a id="fora" href="#" target="_blank" rel="noopener noreferrer">Open outside</a>
-</div>
-<p class="dica" id="dica">Blank page or an error? This site does not allow being shown inside the Hub. Use Open outside.</p>
-<iframe id="moldura" title="Webapp" referrerpolicy="no-referrer" allow="fullscreen; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+<body>
+<p id="msg">Opening…</p>
 <script>
-/* Abre um webapp da pessoa (inicio/meus-apps.js) dentro do Hub, numa moldura. Muitos sites proíbem
-   isso (X-Frame-Options/CSP) e o navegador não conta para a página quando bloqueia; por isso o aviso
-   fica visível uns segundos e o botão "Open outside" fica sempre na barra.
-   Só abre endereços guardados num cartão, nunca outro. */
+/* Ponte para os webapps (abre na mesma aba) da pessoa (meus-apps.js). O iOS só troca o site pelo app nativo
+   (universal link) quando a pessoa toca num link; um redirecionamento feito pela página, um instante
+   depois, costuma ficar no Safari. Só vai para endereços guardados no cartão, nunca para outro. */
 (function () {
-  var t = window.InkIdioma ? InkIdioma.t : function (s) { return s; };
-  var alvo = "", app = null;
+  var alvo = "";
   try { alvo = decodeURIComponent(location.hash.slice(1)); } catch (_) {}
-  try { app = JSON.parse(localStorage.getItem("inkdoshub-meus-apps") || "[]").filter(function (a) { return a && (a.ir === alvo || a.url === alvo); })[0]; } catch (_) {}
-  if (!app || !/^https?:\/\//.test(alvo)) { document.getElementById("dica").textContent = t("Unknown address."); return; }
-  document.getElementById("nome").textContent = app.nome;
-  document.title = app.nome + " · InkDOS Hub";
-  document.getElementById("fora").href = alvo;
-  document.getElementById("moldura").src = alvo;
-  setTimeout(function () { document.getElementById("dica").hidden = true; }, 8000);
+  var ok = false;
+  try { ok = JSON.parse(localStorage.getItem("inkdoshub-meus-apps") || "[]").some(function (a) { return a && (a.ir === alvo || a.url === alvo); }); } catch (_) {}
+  if (!ok || !/^https?:\/\//.test(alvo)) { document.getElementById("msg").textContent = "Unknown address."; return; }
+  setTimeout(function () { location.replace(alvo); }, 60);
 })();
 </script>
 </body>
