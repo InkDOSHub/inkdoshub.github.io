@@ -496,5 +496,6 @@
  "Create the shortcut (once, about 1 minute)": "inicio/atalho.html",
  "Use": "inicio/atalho.html",
  "Copy address": "inicio/atalho.html",
- "Open Shortcuts": "inicio/atalho.html"
+ "Open Shortcuts": "inicio/atalho.html",
+ "The file arrived incomplete ({size} KB). Use the Open file button.": "inicio/lancador.js"
 }

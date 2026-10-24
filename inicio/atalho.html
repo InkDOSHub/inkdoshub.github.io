@@ -41,7 +41,7 @@
   </div>
 
   <div class="sem-link">
-    <h2>Create the shortcut (once, about 1 minute)</h2>
+    <h2>Or create the shortcut yourself (about 1 minute)</h2>
     <ol>
       <li>Open the <b>Shortcuts</b> app, tap <b>+</b> and name it <b>InkDOS Hub</b>.</li>
       <li>Tap the <b>ⓘ</b> (details) and turn on <b>Show in Share Sheet</b>. At the top, “Receive” should say <b>Files</b>.</li>
@@ -67,7 +67,7 @@
     <div class="acoes"><a class="botao instalar" href="#">Instalar atalho</a></div>
   </div>
   <div class="sem-link">
-    <h2>Crie o atalho (uma vez, cerca de 1 minuto)</h2>
+    <h2>Ou crie o atalho você mesmo (cerca de 1 minuto)</h2>
     <ol>
       <li>Abra o app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>InkDOS Hub</b>.</li>
       <li>Toque no <b>ⓘ</b> (detalhes) e ligue <b>Mostrar na Folha de Compartilhamento</b>. No topo, “Receber” deve dizer <b>Arquivos</b>.</li>
@@ -86,13 +86,13 @@
 </main>
 <script>
 (function () {
-  var LINK_ICLOUD = ""; // ex.: https://www.icloud.com/shortcuts/...
+  var LINK_ICLOUD = "https://www.icloud.com/shortcuts/177f7202a26b44928a8ddd01505f105e"; // ex.: https://www.icloud.com/shortcuts/...
   var pt = window.InkIdioma && /^pt/.test(InkIdioma.atual);
   document.getElementById("pt").hidden = !pt;
   document.getElementById("en").hidden = pt;
   var q = function (c) { return document.querySelectorAll(c); };
   [].forEach.call(q(".com-link"), function (e) { e.hidden = !LINK_ICLOUD; });
-  [].forEach.call(q(".sem-link"), function (e) { e.hidden = !!LINK_ICLOUD; });
+  
   [].forEach.call(q(".instalar"), function (e) { e.href = LINK_ICLOUD || "#"; });
   [].forEach.call(q(".copiar"), function (b) {
     b.addEventListener("click", function () {

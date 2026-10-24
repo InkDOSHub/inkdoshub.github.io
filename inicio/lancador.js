@@ -206,12 +206,21 @@
     try {
       var nome = virgula > 0 ? decodeURIComponent(pedido.slice(0, virgula)).trim() : "";
       var dados = pedido.slice(virgula + 1);
-      if (dados.indexOf("%") >= 0) dados = decodeURIComponent(dados);
-      dados = dados.replace(/[\s]/g, "").replace(/-/g, "+").replace(/_/g, "/");
+      if (dados.indexOf("%") >= 0) try { dados = decodeURIComponent(dados); } catch (_) { dados = unescape(dados); }
+      // no caminho até aqui o "+" do base64 pode virar espaço: volta a ser "+"; quebras de linha saem
+      dados = dados.replace(/[\r\n\t]/g, "").replace(/ /g, "+").replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, "");
+      while (dados.length % 4) dados += "=";
       var bin = atob(dados), u8 = new Uint8Array(bin.length);
       for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
       if (nome.indexOf(".") < 0) nome = "arquivo." + (nome || "bin").toLowerCase();
-      abrirArquivos([new File([u8], nome)]);
+      // endereço longo demais chega cortado: confere o fim do PDF e dos formatos ZIP (docx, xlsx, epub...)
+      var ext = nome.split(".").pop().toLowerCase(), fim = String.fromCharCode.apply(null, u8.subarray(Math.max(0, u8.length - 1024)));
+      var cortado = (ext === "pdf" && fim.indexOf("%%EOF") < 0) ||
+        (/^(docx|xlsx|pptx|odt|ods|odp|epub|pages|numbers|key)$/.test(ext) && fim.indexOf("PK\x05\x06") < 0);
+      if (cortado) {
+        sec.hidden = false;
+        nota.textContent = t("The file arrived incomplete ({size} KB). Use the Open file button.", { size: Math.round(u8.length / 1024) });
+      } else abrirArquivos([new File([u8], nome)]);
     } catch (_) {
       sec.hidden = false;
       nota.textContent = t("Could not read the shared file.");

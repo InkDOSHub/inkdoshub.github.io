@@ -597,5 +597,6 @@
 "{app} is hidden, so {files} cannot open here. Open a webapp of yours and choose the file there, or show the app again.": "{app} está escondido, então {files} não abre aqui. Abra um webapp seu e escolha o arquivo nele, ou mostre o app de novo.",
 "Open {app}": "Abrir {app}",
 "Show {app} again": "Mostrar {app} de novo",
-"To send these files to another site, add it with the Add webapp card.": "Para mandar esses arquivos para outro site, adicione o site no cartão Adicionar webapp."
+"To send these files to another site, add it with the Add webapp card.": "Para mandar esses arquivos para outro site, adicione o site no cartão Adicionar webapp.",
+"The file arrived incomplete ({size} KB). Use the Open file button.": "O arquivo chegou incompleto ({size} KB). Use o botão Abrir arquivo."
 }
