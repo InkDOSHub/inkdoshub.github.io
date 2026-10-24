@@ -389,5 +389,8 @@
 "{size} to update": "アップデート: {size}",
 "{start} to {end} · {length}": "{start}～{end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "「サウンドを抽出」は長い録画のサウンドだけを残し、ビデオは保存しません。"
-}
+},
+"Open file": "ファイルを開く",
+"Open any file in the right app": "ファイルを適切なアプリで開く",
+"Could not read the shared file.": "共有されたファイルを読み込めませんでした。"
 }

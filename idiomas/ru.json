@@ -389,5 +389,8 @@
 "{size} to update": "Обновить: {size}",
 "{start} to {end} · {length}": "{start} – {end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "«Извлечь звук» сохраняет только звук длинной записи, не сохраняя видео."
-}
+},
+"Open file": "Открыть файл",
+"Open any file in the right app": "Открыть любой файл в подходящем приложении",
+"Could not read the shared file.": "Не удалось прочитать файл."
 }

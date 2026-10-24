@@ -389,5 +389,8 @@
 "{size} to update": "{size} por actualizar",
 "{start} to {end} · {length}": "{start} a {end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "“Extraer sonido” guarda solo el sonido de una grabación larga, sin guardar el vídeo."
-}
+},
+"Open file": "Abrir archivo",
+"Open any file in the right app": "Abrir cualquier archivo en la app correcta",
+"Could not read the shared file.": "No se pudo leer el archivo compartido."
 }

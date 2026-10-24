@@ -160,5 +160,34 @@
     });
   }
 
+  /* Botão "Abrir arquivo": o seletor do sistema (no iPhone, o app Arquivos) aceita qualquer tipo e o
+     arquivo vai para o app certo, como no launchQueue. */
+  var botao = document.getElementById("btn-abrir"), entrada = document.getElementById("abrir-arquivo");
+  if (botao && entrada) {
+    botao.addEventListener("click", function () { entrada.value = ""; entrada.click(); });
+    entrada.addEventListener("change", function () { abrirArquivos([].slice.call(entrada.files || [])); });
+  }
+
+  /* Atalho do iOS (menu Compartilhar do app Arquivos): abre esta página com
+     #abrir=<extensão>,<base64> (ou #abrir=<nome>,<base64>). O arquivo vai no próprio endereço, que não
+     sai do aparelho; por isso serve só para arquivos de poucos MB. */
+  if (/^#abrir=/.test(location.hash)) {
+    var pedido = location.hash.slice(7), virgula = pedido.indexOf(",");
+    history.replaceState(null, "", location.pathname + location.search);
+    try {
+      var nome = virgula > 0 ? decodeURIComponent(pedido.slice(0, virgula)).trim() : "";
+      var dados = pedido.slice(virgula + 1);
+      if (dados.indexOf("%") >= 0) dados = decodeURIComponent(dados);
+      dados = dados.replace(/[\s]/g, "").replace(/-/g, "+").replace(/_/g, "/");
+      var bin = atob(dados), u8 = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      if (nome.indexOf(".") < 0) nome = "arquivo." + (nome || "bin").toLowerCase();
+      abrirArquivos([new File([u8], nome)]);
+    } catch (_) {
+      sec.hidden = false;
+      nota.textContent = t("Could not read the shared file.");
+    }
+  }
+
   window.InkLancador = { rotaDe: rotaDe, abrirArquivos: abrirArquivos };
 })();
