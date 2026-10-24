@@ -40,6 +40,7 @@
     <div class="linha muted"><span id="nomeEnv"></span><span id="resta"></span></div>
     <div class="barra"><i id="prog"></i></div>
     <div class="linha muted"><span id="qtd"></span><span id="media"></span></div>
+    <button class="btn sec" id="bcancela" style="margin-top:10px">Cancelar</button>
   </div>
   <div id="feitos"></div>
 </div>
@@ -67,13 +68,14 @@ function hora(s){ s = Math.round(s); return s >= 60 ? Math.floor(s/60) + " min "
 function esc(t){ var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 
 // ---------- envio ----------
-var fila = [], enviando = false;
+var fila = [], enviando = false, xAtual = null;
+$("bcancela").onclick = function(){ fila = []; if (xAtual) xAtual.abort(); };
 $("arq").onchange = function(){ for (var i = 0; i < this.files.length; i++) fila.push(this.files[i]); this.value = ""; proximo(); };
 
 function proximo(){
   if (enviando || !fila.length) { if (!fila.length) $("envio").hidden = true; return; }
   enviando = true;
-  var f = fila.shift(), x = new XMLHttpRequest(), t0 = performance.now(), ult = t0, ultB = 0, v = 0;
+  var f = fila.shift(), x = xAtual = new XMLHttpRequest(), t0 = performance.now(), ult = t0, ultB = 0, v = 0;
   $("envio").hidden = false; $("nomeEnv").textContent = f.name; $("prog").style.width = "0";
   $("qtd").textContent = fila.length ? "mais " + fila.length + " na fila" : "";
   x.upload.onprogress = function(e){
@@ -88,7 +90,7 @@ function proximo(){
     var s = (performance.now() - t0) / 1000, ok = x.status == 200;
     var d = document.createElement("div"); d.className = "item";
     d.innerHTML = '<div class="linha"><span>' + esc(f.name) + '</span><span class="' + (ok ? "ok" : "erro") + '">' +
-      (ok ? "✓ " + vel(f.size / s) : "falhou") + '</span></div><div class="muted">' + tam(f.size) + " em " + hora(s) + "</div>";
+      (ok ? "✓ " + vel(f.size / s) : x.status == 0 && !fila.length ? "cancelado" : "falhou") + '</span></div><div class="muted">' + tam(f.size) + " em " + hora(s) + "</div>";
     $("feitos").prepend(d);
     enviando = false; proximo();
   };

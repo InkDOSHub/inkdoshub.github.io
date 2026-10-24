@@ -563,5 +563,9 @@
 "Unknown": "Desconhecida",
 "Through a relay server (slow)": "Por um servidor intermediário (lento)",
 "Direct, on the local network": "Direta, na rede local",
-"Direct, through the internet": "Direta, pela internet"
+"Direct, through the internet": "Direta, pela internet",
+"Pause": "Pausar",
+"Resume": "Continuar",
+"Cancel": "Cancelar",
+"Cancelled": "Cancelado"
 }

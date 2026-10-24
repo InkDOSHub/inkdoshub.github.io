@@ -94,14 +94,14 @@
   function receber(d) {
     if (typeof d == "string") {
       var m = JSON.parse(d);
-      if (diagMensagem(m)) return;
-      if (m.t == "ini") rx = { nome: m.nome, tam: m.tam, tipo: m.tipo, partes: [], feito: 0, t0: performance.now() };
+      if (diagMensagem(m) || controle(m)) return;
+      if (m.t == "ini") { rx = { nome: m.nome, tam: m.tam, tipo: m.tipo, partes: [], feito: 0, t0: performance.now() }; controles(); }
       else if (m.t == "fim" && rx) {
         var s = (performance.now() - rx.t0) / 1000;
         var url = URL.createObjectURL(new Blob(rx.partes, { type: rx.tipo || "application/octet-stream" }));
         linha(rx.nome, mb(rx.tam) + " · " + vel(rx.tam / s), url);
         progresso(rx.nome, rx.tam, rx.tam, false);
-        rx = null;
+        rx = null; controles();
       }
       return;
     }
@@ -184,6 +184,39 @@
     diagRodando = false; $("bdiag").disabled = false; proximo();
   };
 
+  // ---------- pausar / cancelar ----------
+  var pausado = false, cancelado = false;
+  function dormir(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+  function controles() {
+    $("ctrl").hidden = !(enviando || rx);
+    $("bpausa").textContent = pausado ? t("Resume") : t("Pause");
+    if (!enviando && !rx) pausado = false;
+  }
+  function controle(m) {
+    if (m.t == "pausar" || m.t == "retomar") { pausado = m.t == "pausar"; controles(); return true; }
+    if (m.t == "cancelar") {
+      if (enviando) cancelado = true;
+      if (rx) { linhaCancelada(rx.nome); rx = null; }
+      controles(); return true;
+    }
+    return false;
+  }
+  function linhaCancelada(nome) {
+    var d = document.createElement("div"); d.className = "item";
+    var a = document.createElement("span"); a.textContent = "✕ " + nome;
+    var b = document.createElement("span"); b.className = "erro"; b.textContent = t("Cancelled");
+    d.appendChild(a); d.appendChild(b); $("lista").prepend(d);
+    $("prog").style.width = "0"; $("atual").textContent = "\u00a0";
+  }
+  $("bpausa").onclick = function () {
+    pausado = !pausado; controles();
+    conn.send(JSON.stringify({ t: pausado ? "pausar" : "retomar" }));
+  };
+  $("bcancela").onclick = function () {
+    if (enviando) { cancelado = true; fila = []; }
+    else if (rx) { conn.send(JSON.stringify({ t: "cancelar" })); linhaCancelada(rx.nome); rx = null; controles(); }
+  };
+
   // ---------- envio ----------
   var fila = [], enviando = false;
   $("arq").onchange = function () { for (var i = 0; i < this.files.length; i++) fila.push(this.files[i]); this.value = ""; proximo(); };
@@ -197,7 +230,7 @@
 
   async function proximo() {
     if (enviando || diagRodando || !fila.length) return;
-    enviando = true;
+    enviando = true; cancelado = false; controles();
     var f = fila.shift(), dc = conn.dataChannel, t0 = performance.now();
     try {
       conn.send(JSON.stringify({ t: "ini", nome: f.name, tam: f.size, tipo: f.type }));
@@ -205,6 +238,8 @@
         var bloco = await f.slice(o, Math.min(o + 4194304, f.size)).arrayBuffer();
         for (var p = 0; p < bloco.byteLength; p += PEDACO) {
           await esperarFila(dc);
+          while (pausado && !cancelado) await dormir(200);
+          if (cancelado) throw "cancelado";
           var pedaco = bloco.slice(p, p + PEDACO);
           dc.send(pedaco); bytes += pedaco.byteLength;
         }
@@ -214,9 +249,10 @@
       await esperarFila(dc);
       linha(f.name, mb(f.size) + " · " + vel(f.size / ((performance.now() - t0) / 1000)));
     } catch (e) {
-      estado(t("Error: {msg}", { msg: e.message || e }), true);
+      if (e === "cancelado") { conn.send(JSON.stringify({ t: "cancelar" })); linhaCancelada(f.name); }
+      else estado(t("Error: {msg}", { msg: e.message || e }), true);
     }
-    enviando = false;
+    enviando = false; controles();
     proximo();
   }
 })();
