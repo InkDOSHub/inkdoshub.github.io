@@ -46,7 +46,7 @@
 
   function cartaoMeu(app) {
     var a = el("a", "workspace-card meu");
-    // abre dentro do Hub, numa moldura (inicio/ir.html); se o site bloquear, a página oferece abrir fora
+    // passa pela ponte inicio/ir.html: no Safari o iOS não troca o site pelo app
     a.href = "inicio/ir.html#" + encodeURIComponent(app.ir || app.url);
     a.dataset.meu = app.url;
     a.appendChild(el("span", "accent"));
