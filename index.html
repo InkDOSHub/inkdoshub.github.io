@@ -33,9 +33,12 @@
   </header>
 
   <section class="intro"><h1>Choose a tool</h1>
+    <span class="intro-acoes">
     <button id="btn-abrir" class="botao" type="button" title="Open any file in the right app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Open file</span></button>
     <a id="btn-atalho" class="botao secundario" href="inicio/atalho.html">iOS shortcut</a>
+    <button id="btn-editar" class="botao secundario" type="button" aria-pressed="false" title="Hide apps or remove your webapps">Customize</button>
     <input id="abrir-arquivo" type="file" multiple hidden>
+    </span>
   </section>
 
   <section class="recebidos" id="recebidos" hidden aria-label="Received files">
@@ -94,6 +97,17 @@
       <span class="workspace-copy"><strong>Linux terminal</strong><small>Real Alpine Linux in the browser: shell, apk, internet and the ~/files folder.</small></span><span class="chevron">›</span></a>
   </section>
 
+  <dialog id="dlg-webapp" class="painel-dlg">
+    <form method="dialog">
+      <h2>Add webapp</h2>
+      <label class="linha">Site address<input id="webapp-url" type="text" autocapitalize="off" spellcheck="false" inputmode="url" autocomplete="url" placeholder="example.com" required></label>
+      <label class="linha">Name<input id="webapp-nome" type="text" maxlength="40" placeholder="Name on the card"></label>
+      <p class="nota aviso">The site is not part of InkDOS Hub. Use it at your own risk: there is no guarantee about it, its content or what it does with your files. The Hub only keeps the link, on this device.</p>
+      <p class="nota erro" id="webapp-erro" aria-live="polite"></p>
+      <div class="acoes"><button id="webapp-cancelar" class="botao secundario" type="button">Cancel</button><button class="botao" type="submit">Add</button></div>
+    </form>
+  </dialog>
+
   <footer class="home-footer">
     <p>Files stay on this device and nothing is uploaded. The tools are open source projects; see the licenses in each folder.</p>
     <nav><a href="https://vfydr2m9wk-ops.github.io/InkDOS/">InkDOS</a><a href="https://github.com/InkDOSHub/inkdoshub.github.io">Source code</a></nav>
@@ -102,6 +116,7 @@
 
 <script src="assets/gerenciador-app.js?v=8"></script>
 <script src="inicio/inicio.js?v=10"></script>
-<script src="inicio/lancador.js?v=5"></script>
+<script src="inicio/meus-apps.js?v=1"></script>
+<script src="inicio/lancador.js?v=6"></script>
 </body>
 </html>
