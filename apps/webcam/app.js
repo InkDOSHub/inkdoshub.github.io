@@ -34,7 +34,7 @@
   var obs = q.get("obs") === "1" || !!window.obsstudio || app;
   if (obs) document.body.classList.add("obs");
   if (app) document.body.classList.add("app-webcam");
-  // app de Windows com "Native receiver (beta)": o próprio app recebe o vídeo (GStreamer); a página só mostra o QR e o estado
+  // app de Windows (sempre no receptor nativo): o próprio app recebe o vídeo (GStreamer); a página só mostra o QR e o estado
   var nativo = app && q.get("nativo") === "1";
   if (nativo) document.body.classList.add("nativo");
 

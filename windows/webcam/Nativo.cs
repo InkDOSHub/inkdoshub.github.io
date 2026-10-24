@@ -1,4 +1,4 @@
-// Receptor nativo (beta): recebe o vídeo do iPhone direto com o GStreamer, sem passar pelo
+// Receptor nativo: recebe o vídeo do iPhone direto com o GStreamer, sem passar pelo
 // navegador interno.
 //
 // O iPhone continua igual (página Host no Safari). Este arquivo faz o papel da página Guest:
