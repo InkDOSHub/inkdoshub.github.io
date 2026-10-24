@@ -150,7 +150,7 @@
       d.appendChild(p);
       web.forEach(function (w) {
         var a = document.createElement("a");
-        a.className = "botao secundario"; a.href = w.url;
+        a.className = "botao secundario"; a.href = w.url; a.target = "_blank"; a.rel = "noopener noreferrer";
         a.textContent = t("Open {app}", { app: w.nome });
         a.setAttribute("data-idioma-nao", "");
         d.appendChild(a);
