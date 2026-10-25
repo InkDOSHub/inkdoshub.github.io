@@ -16,7 +16,7 @@ jobs:
     if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: App
         run: dotnet build windows/transferir/InkDOSHubTransferir.csproj -c Release -o out
       - name: Arquivo
