@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible InkDOS Hub problem.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Privacy:** do not attach real files, screenshots, recordings or private filenames. Use synthetic material.
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Tool
+      options: [Home, Photos, Video, Music, Recorder, Webcam, Transfer, Whiteboard, Code, Linux terminal, Documents/ONLYOFFICE, Windows helper, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device, system and browser
+      placeholder: iPad Air, iPadOS 26, Safari
+    validations:
+      required: true

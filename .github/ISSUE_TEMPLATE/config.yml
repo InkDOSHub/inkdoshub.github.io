@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security
+    url: https://github.com/InkDOSHub/inkdoshub.github.io/security
+    about: Report security issues privately.
+  - name: Document editor bugs (InkDOS)
+    url: https://github.com/vfydr2m9wk-ops/InkDOS/issues
+    about: Documents, spreadsheets, presentations and PDF come from InkDOS.
