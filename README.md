@@ -4,6 +4,8 @@
 
 **Open:** https://inkdoshub.github.io/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md)) · Personal project, no support promised.
 
+Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
+
 <p><img src=".github/prints/hub-ipad.png" width="68%" alt="InkDOS Hub on iPad"> <img src=".github/prints/hub-iphone.png" width="28%" alt="InkDOS Hub on iPhone, dark theme"></p>
 
 ---
