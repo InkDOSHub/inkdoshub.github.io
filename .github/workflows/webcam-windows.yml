@@ -20,7 +20,7 @@ jobs:
       GST_VER: 1.28.8
     steps:
       - uses: actions/checkout@v4
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
 
       - name: softcam (versão fixada, com o nome e o CLSID do InkDOS Hub)
         shell: pwsh
