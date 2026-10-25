@@ -66,7 +66,7 @@ jobs:
           "{0:N1} MB no pacote" -f ((Get-ChildItem $d -Recurse -File | Measure-Object Length -Sum).Sum / 1MB)
           Compress-Archive -Path $d -DestinationPath InkDOSHub-Webcam-Windows.zip -Force
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: InkDOSHub-Webcam-Windows
           path: InkDOSHub-Webcam-Windows.zip
