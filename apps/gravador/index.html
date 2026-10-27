@@ -28,6 +28,10 @@
   .nivel{height:8px;border-radius:4px;background:var(--border);overflow:hidden}
   .nivel span{display:block;height:100%;width:0;background:var(--accent);transition:width .1s linear}
   .aviso{color:#d64545 !important}
+  .lista{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:8px}
+  .item .nome{flex:1;min-width:140px;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .nome small{display:block;color:var(--muted);font-size:12px}
   .md-hide{display:none !important}
   .ink-btn:disabled{opacity:.45;cursor:default}
   .grupo{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-wrap:wrap}
@@ -63,11 +67,17 @@
       <ol>
         <li>Open Control Center and touch and hold Screen Recording. Turn the microphone on if you also want your voice mixed in.</li>
         <li>Start the recording, watch what you want, then stop it. It goes to Photos.</li>
-        <li>Tap “Choose the recording” below: only the sound is kept (.m4a, in the Music list). The video is not stored here; delete it from Photos if you no longer need it.</li>
+        <li>Tap “Choose the recording” below: only the sound is kept (.m4a, in the list below). The video is not stored here; delete it from Photos if you no longer need it.</li>
       </ol>
       <div class="linha"><button class="ink-btn grande principal" id="escolher-tela">Choose the recording</button></div>
       <div class="nivel"><span id="nivel-tela"></span></div>
       <p id="estado-tela" data-idioma-nao></p>
+    </section>
+    <section class="cartao md-hide" id="cartao-audios">
+      <h2>Extracted sound</h2>
+      <p>Kept only in this browser until you delete it. Nothing is sent anywhere.</p>
+      <div id="lista-audios" class="lista"></div>
+      <p id="vazio-audios">Nothing here yet.</p>
     </section>
     <section class="cartao" id="cartao-sistema">
       <h2>Records only the sound of the computer, in a small file</h2>
@@ -96,6 +106,7 @@
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
 <input id="arquivo-tela" type="file" accept="video/*,.mp4,.mov,.m4v" hidden>
-<script src="../musica/gravar/gravar.js?v=5"></script>
+<script src="../musica/gravar/extrair-m4a.js?v=1"></script>
+<script src="../musica/gravar/gravar.js?v=6"></script>
 </body>
 </html>
