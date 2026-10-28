@@ -21,3 +21,31 @@ select{border-radius:7px}
 .appearance-switch{border-radius:9px;background:color-mix(in srgb,var(--text) 6%,transparent)}
 .appearance-choice{border-radius:7px;font-weight:600}
 .appearance-choice.active{background:var(--panel);border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.14)}
+
+/* Voltar para a tela inicial do InkDOS Hub: "‹ InkDOS Hub" no lugar da casinha, como nos outros apps */
+a.frame-btn[aria-label="Home"]{width:auto;padding:0 8px 0 4px;gap:2px;display:inline-flex!important;align-items:center;font-size:14px;font-weight:600;white-space:nowrap}
+a.frame-btn[aria-label="Home"][hidden]{display:none!important}
+a.frame-btn[aria-label="Home"] svg{display:none}
+a.frame-btn[aria-label="Home"]::before{content:"‹";font-size:24px;font-weight:400;line-height:1;margin-top:-3px}
+a.frame-btn[aria-label="Home"]::after{content:"InkDOS Hub"}
+@media(max-width:520px){a.frame-btn[aria-label="Home"]::after{content:""}}
+
+/* Menu (hambúrguer) e tela inicial no esquema do menu do Quadro (Excalidraw): lista compacta, ícone pequeno,
+   atalho à direita, sem títulos em maiúsculas */
+.drawer{width:min(260px,calc(100vw - 24px));padding:8px;border-radius:12px}
+.drawer-head{margin-bottom:4px;padding:2px 4px}
+.drawer-title{font-size:14px;font-weight:600}
+.drawer-icon{width:22px;height:22px;border-radius:6px}
+.drawer-section{margin-top:6px;padding-top:6px}
+.drawer-section-label{padding:2px 8px 4px;font-size:11px;color:var(--muted)}
+.menu-list{gap:1px}
+.menu-item{min-height:32px;padding:0 8px;border-radius:6px;font-size:14px;column-gap:10px}
+.menu-item svg{width:16px;height:16px}
+.menu-item .hint{font-size:12px;opacity:.8}
+.start-state{background:var(--bg)!important}
+.start-card{border:0!important;background:transparent!important;box-shadow:none!important;text-align:center}
+.start-card h1,.start-card h2{font-weight:600;letter-spacing:-.01em}
+.start-actions{display:grid!important;gap:2px!important;width:min(260px,100%);margin:14px auto 0}
+.start-actions button{min-height:36px;border:0!important;border-radius:6px!important;background:transparent!important;color:var(--text)!important;font-size:14px;text-align:left;padding:0 12px!important;box-shadow:none!important}
+.start-actions button:hover{background:var(--accent-soft)!important}
+.start-actions button.primary{color:var(--accent)!important;font-weight:600}
