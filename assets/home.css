@@ -24,3 +24,19 @@ html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5
 .chevron{position:absolute;right:25px;top:50%;transform:translateY(-50%);font-size:32px;line-height:1;color:var(--chevron);font-weight:300}
 .home-footer{margin-top:auto;padding-top:42px;display:flex;align-items:center;gap:24px;color:var(--footer);font-size:12px}.home-footer p{margin:0}.home-footer nav{margin-left:auto;display:flex;gap:22px}
 @media(max-width:720px){.home-shell{width:min(100% - 28px,560px);padding:22px 0 20px}.intro{padding:36px 2px 22px}.intro h1{font-size:36px}.workspace-grid{grid-template-columns:1fr;gap:14px}.workspace-card{min-height:112px;padding:20px 46px 20px 24px;border-radius:17px;grid-template-columns:50px minmax(0,1fr);column-gap:16px}.workspace-card .accent{top:16px;bottom:16px;width:4px}.app-icon{width:50px;height:50px;border-radius:13px}.app-icon img{width:34px;height:34px}.workspace-copy strong{font-size:17px}.workspace-copy small{font-size:12px;margin-top:5px}.chevron{right:20px;font-size:29px}.home-footer{padding-top:28px;align-items:flex-start;flex-direction:column;gap:14px}.home-footer nav{margin-left:0;gap:16px;flex-wrap:wrap}}
+
+/* 2026-10-28: gaveta de apps no estilo do Launchpad: só o ícone e o nome, sem cartões nem descrições */
+.workspace-grid{grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:26px 10px;padding-top:6px}
+.workspace-card{min-height:0;padding:6px 2px;background:none;border:0;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;overflow:visible}
+.workspace-card:active{background:none}.workspace-card:active .app-icon{transform:scale(.93)}
+.workspace-card .accent,.workspace-card .chevron,.workspace-copy small{display:none}
+.workspace-card .app-icon{width:76px;height:76px;border-radius:19px;background:var(--card);border:1px solid var(--border);transition:transform .12s}
+.workspace-card .app-icon img{width:50px;height:50px}
+.workspace-copy strong{font-size:13px;font-weight:500;letter-spacing:0;line-height:1.25}
+.workspace-card.oo .workspace-copy small{display:block;margin-top:2px;font-size:10.5px;letter-spacing:.04em}
+.workspace-card.fora-busca{display:none!important}
+.intro h1{font-size:30px;letter-spacing:-.02em}
+.busca{flex:1 1 220px;max-width:340px;font:inherit;font-size:15px;padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+.pref-office{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.pref-office select{font:inherit;font-size:13px;padding:7px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+@media(max-width:720px){.workspace-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:20px 6px}.workspace-card{padding:4px 0;min-height:0}.workspace-card .app-icon{width:62px;height:62px;border-radius:15px}.workspace-card .app-icon img{width:40px;height:40px}.workspace-copy strong{font-size:12px}.workspace-copy small{display:none}}

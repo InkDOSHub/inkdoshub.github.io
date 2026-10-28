@@ -15,6 +15,15 @@
     });
   });
 
+  // Busca: filtra os apps pelo nome, como no Launchpad
+  var busca = $("busca");
+  if (busca) busca.addEventListener("input", function () {
+    var q = busca.value.trim().toLowerCase();
+    Array.prototype.forEach.call(document.querySelectorAll(".workspace-card"), function (c) {
+      c.classList.toggle("fora-busca", !!q && c.textContent.toLowerCase().indexOf(q) < 0);
+    });
+  });
+
   // Tema: troca aqui; as outras abas abertas acompanham pelo evento "storage"
   $("tema").addEventListener("click", function () {
     var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";

@@ -32,6 +32,10 @@
     { id: "epub", nome: "EPUB reader", url: "inkdos/apps/epub/index.html?suite=1", peso: 80 },
     // editores ONLYOFFICE (onlyoffice/), abertos pelo "Editar com ONLYOFFICE" dos apps do InkDOS
     { id: "office", nome: "ONLYOFFICE", url: "onlyoffice/editor.html", peso: 400, oculto: true },
+    // os três editores ONLYOFFICE como apps da tela inicial (depois de "office", que continua dono da página)
+    { id: "oo-docs", nome: "Documents (ONLYOFFICE)", url: "onlyoffice/editor.html?new=docx", peso: 400 },
+    { id: "oo-planilhas", nome: "Spreadsheets (ONLYOFFICE)", url: "onlyoffice/editor.html?new=xlsx", peso: 400 },
+    { id: "oo-apresentacoes", nome: "Presentations (ONLYOFFICE)", url: "onlyoffice/editor.html?new=pptx", peso: 400 },
   ];
   function pesoDe(a) { return typeof a.peso === "function" ? a.peso() : a.peso || 0; }
   function caminho(u) { return new URL(u, RAIZ).pathname.replace(/index\.html$/, ""); }
@@ -160,7 +164,12 @@
     apps: APPS,
     peso: pesoDe,
     novaAba: novaAba,
-    abrir: function (id) { var a = appDe(id); if (a) abrirUrl(new URL(a.url, RAIZ).href, "inkdoshub-" + id); },
+    abrir: function (id) {
+      var a = appDe(id); if (!a) return;
+      var u = new URL(a.url, RAIZ).href;
+      if (/^oo-/.test(id)) u += "&locale=" + encodeURIComponent(idiomaEditor({}));
+      abrirUrl(u, "inkdoshub-" + id);
+    },
     /* O app do InkDOS guardou o documento no IndexedDB "inkdos-tool-handoff" (veja
        tools/adaptar_inkdos.py). win: a aba aberta no toque, antes de ler o documento. */
     abrirEditor: function (info, win) {
