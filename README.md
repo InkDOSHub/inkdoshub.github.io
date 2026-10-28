@@ -1,6 +1,6 @@
 # InkDOS Hub
 
-**English:** A free, open-source home screen of power tools for iPad and iPhone (Safari), running entirely in the browser: a real Alpine Linux terminal (v86/WebAssembly, with `apk add` and internet), photo, video and music editors, VS Code for the web, Excalidraw, ONLYOFFICE document editors, a screen/audio recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay in your browser. Optional Windows helpers (`.exe`, not code-signed yet, so SmartScreen may warn) live in `windows/`.
+**English:** A free, open-source home screen of power tools for iPad and iPhone (Safari), running entirely in the browser: a real Alpine Linux terminal (v86/WebAssembly, with `apk add` and internet), photo, video and music apps, VS Code for the web, Excalidraw, the InkDOS document apps plus full ONLYOFFICE editors, a screen/audio recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay in your browser. Optional Windows helpers (`.exe`, not code-signed yet, so SmartScreen may warn) live in `windows/`.
 
 **Open:** https://inkdoshub.github.io/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md)) · Personal project, no support promised.
 
@@ -18,26 +18,27 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
-| PDF, Documentos, Planilhas, Apresentações, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS) (editores ONLYOFFICE), copiados para cá (`tools/copiar_inkdos.sh`); "Editar com ONLYOFFICE" abre os editores copiados em `onlyoffice/` | `inkdos/`, `onlyoffice/` |
+| PDF, Documentos, Planilhas, Apresentações, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), copiados para cá (`tools/copiar_inkdos.sh`), com visual Apple (`inkdos/shared/apple.css`): Novo, Abrir e Salvar no menu ☰ e, em Documentos, Planilhas e Apresentações, a barra de edição atrás do pincel | `inkdos/` |
+| Documentos, Planilhas e Apresentações (ONLYOFFICE) | Editores ONLYOFFICE completos, como três apps próprios na tela inicial | `onlyoffice/` |
 | Fotos | Galeria, visualizador e editor simples (recortar, girar, espelhar, endireitar, exposição, brilho, contraste, saturação, calor e tom) feitos aqui | `apps/foto/` (o editor é `apps/foto/editor.js`) |
-| Vídeo | Player nativo do Safari e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
+| Vídeo | Player com barra de controles igual à da Música e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
 | Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
-| Gravador | Grava o áudio do computador, o microfone ou o som da tela, separado do app Música, feito aqui | `apps/gravador/` |
+| Gravador | Grava o áudio do computador, o microfone ou o som da tela; cada gravação baixa sozinha para Downloads e entra na lista da Música | `apps/gravador/` |
 | Webcam | A câmera do iPhone (Safari) vira webcam do PC: o iPhone manda o vídeo por WebRTC, até 4K 60 fps, para a página aberta no PC, pareada por QR code ([PeerJS](https://github.com/peers/peerjs), MIT, com o servidor público gratuito dele só para o pareamento). No Windows, o OBS Studio transforma a imagem em webcam (fonte de navegador + câmera virtual); as instruções estão no próprio app | `apps/webcam/` |
 | Transferir | Manda arquivos entre o celular e um PC com Windows pela rede local (WebRTC), sem internet, com diagnóstico de conexão; o app de Windows opcional fica em `windows/transferir/` | `apps/transferir/` |
 | Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
 
-Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
+A tela inicial é uma gaveta de apps (ícone e nome, como o Launchpad), com busca, o botão de pasta para abrir qualquer arquivo no app certo e o menu ☰ com tema, idioma, Personalizar (esconder apps e arrastar para mudar a ordem) e o app padrão para arquivos de Office (InkDOS, rápido, ou ONLYOFFICE, completo). Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
 
 Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas.
 
-Fotos, Vídeo e Música seguem a mesma ideia: primeiro o visualizador nativo do Safari, e a edição como segunda opção. Os arquivos abertos ficam guardados no próprio navegador (IndexedDB deste site), neste aparelho, e nada é enviado. Tudo é servido por este site; nenhuma ferramenta abre outro site nem busca código em CDNs.
+Fotos, Vídeo e Música seguem a mesma ideia: primeiro o visualizador, e a edição como segunda opção; sem nada aberto, mostram só um aviso no meio. Os arquivos abertos ficam guardados no próprio navegador (IndexedDB deste site), neste aparelho, e nada é enviado. Tudo é servido por este site; nenhuma ferramenta abre outro site nem busca código em CDNs.
 
 O editor de vídeo (`apps/video/cortar/`) corta o trecho, tira ou deixa o som e exporta no original (só corta, sem converter) ou em 1080p, 720p ou 480p, com o ffmpeg.wasm 0.12.5 de uma thread só (não precisa de isolamento entre origens). O resultado vira um vídeo novo na lista do Vídeo.
 
-Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no botão da tela inicial.
+Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no menu ☰ da tela inicial.
 
 ## Idiomas
 
