@@ -2,8 +2,8 @@
    aqui só as peças da moldura que mudaram de forma (sem repetir cores nem redefinir tokens). */
 body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
 
-/* Barra de cima e barra de status translúcidas */
-.topbar,.statusbar{background:var(--chrome);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+/* Barra de cima e barra de status opacas */
+.topbar,.statusbar{background:var(--chrome)}
 .topbar{border-bottom:1px solid var(--line)}
 .statusbar{border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 
@@ -26,9 +26,10 @@ header a[aria-label="Home"]::after{content:"InkDOS Hub"}
 /* Menu ☰ (Novo, Abrir, Salvar) no formato do menu do Quadro (Excalidraw) */
 .inkdos-hamburger{position:fixed;z-index:200;width:230px;padding:6px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:1px}
 .inkdos-hamburger[hidden]{display:none}
-.inkdos-hamburger .frame-btn{width:100%;height:32px;padding:0 8px;display:flex;align-items:center;justify-content:flex-start;gap:10px;border-radius:6px;font-size:14px;color:var(--text)}
-.inkdos-hamburger .frame-btn:hover{background:var(--accent-soft)}
-.inkdos-hamburger .frame-btn svg{width:16px;height:16px}
+.inkdos-menu-item{width:100%;height:32px;padding:0 8px;display:flex;align-items:center;gap:10px;border:0;border-radius:6px;background:transparent;font:inherit;font-size:14px;color:var(--text);text-align:left;white-space:nowrap;cursor:pointer}
+.inkdos-menu-item:hover{background:var(--accent-soft)}
+.inkdos-menu-item:disabled{opacity:.4;cursor:default}
+.inkdos-menu-item svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
 /* Pincel (como no Pages): a barra de edição só aparece com ele ligado */
 html.inkdos-com-pincel:not(.inkdos-edicao-aberta) #formatbar,html.inkdos-com-pincel:not(.inkdos-edicao-aberta) #editbar{display:none}
@@ -39,7 +40,7 @@ html.inkdos-com-pincel:not(.inkdos-edicao-aberta) #formatbar,html.inkdos-com-pin
 .fmt-btn[aria-pressed="true"],.fmt-btn.is-active{border-color:transparent;box-shadow:none}
 
 /* Menus (gaveta e zoom) e tela inicial do app no esquema do menu do Quadro */
-.drawer,.zoom-popover{border-radius:12px;border:1px solid var(--line);box-shadow:var(--shadow)}
+.drawer,.zoom-popover{background:var(--panel);border-radius:12px;border:1px solid var(--line);box-shadow:var(--shadow)}
 .drawer{width:min(260px,calc(100vw - 24px));padding:8px}
 .drawer-head{margin-bottom:4px;padding:2px 4px}
 .drawer-title{font-size:14px;font-weight:600}
@@ -56,4 +57,4 @@ html.inkdos-com-pincel:not(.inkdos-edicao-aberta) #formatbar,html.inkdos-com-pin
 .start-actions{display:grid;gap:2px;width:min(260px,100%);margin:14px auto 0}
 .start-actions button{min-height:36px;border:0;border-radius:6px;background:transparent;color:var(--text);font-size:14px;text-align:left;padding:0 12px;box-shadow:none}
 .start-actions button:hover{background:var(--accent-soft)}
-.start-actions button.primary{color:var(--accent);font-weight:600}
+.start-actions button.primary{background:transparent;color:var(--accent);font-weight:600}

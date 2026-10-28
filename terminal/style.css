@@ -17,8 +17,6 @@ dialog h2 { font-size: 16px; margin: 0 0 12px; }
 dialog .nota { color: var(--muted); font-size: 14px; line-height: 1.4; margin: 0 0 14px; }
 .sessao-botoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 
-/* Visual do Terminal da Apple: barra de título discreta e translúcida, título no centro */
-.ink-bar { background: color-mix(in srgb, var(--card) 85%, transparent); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+/* Visual do Terminal da Apple: barra de título discreta */
 .ink-title { font-weight: 600; font-size: 13px; }
-.ink-keys { background: color-mix(in srgb, var(--card) 85%, transparent); }
 .ink-keys .ink-btn { font-family: "SF Mono", Menlo, ui-monospace, monospace; border-radius: 7px; }
