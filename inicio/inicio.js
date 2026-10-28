@@ -24,6 +24,15 @@
     });
   });
 
+  // Menu: fecha ao tocar fora; "Customize" fecha o menu e mostra "Done" ao lado da busca
+  var menu = $("menu-inicio"), pronto = $("btn-pronto"), editar = $("btn-editar");
+  document.addEventListener("click", function (e) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
+  editar.addEventListener("click", function () {
+    menu.open = false;
+    setTimeout(function () { pronto.hidden = editar.getAttribute("aria-pressed") !== "true"; }, 0);
+  });
+  pronto.addEventListener("click", function () { editar.click(); });
+
   // Tema: troca aqui; as outras abas abertas acompanham pelo evento "storage"
   $("tema").addEventListener("click", function () {
     var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
