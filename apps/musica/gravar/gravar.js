@@ -285,6 +285,7 @@
       if (!caixa) return;
       caixa.textContent = "";
       $("vazio-audios").hidden = itens.length > 0;
+      document.documentElement.classList.toggle("md-sem-audios", !itens.length);
       itens.sort(function (a, b) { return b.data - a.data; }).forEach(function (i) {
         var arq = new File([i.blob], i.nome, { type: i.tipo || "audio/mp4" });
         var linha = document.createElement("div"), nome = document.createElement("span"), info = document.createElement("small");

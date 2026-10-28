@@ -11,6 +11,7 @@ function soltar(f) { const u = urls.get(f.id); if (u) { URL.revokeObjectURL(u); 
 function grade() {
   const g = $("grade");
   g.innerHTML = "";
+  document.documentElement.classList.toggle("md-sem-itens", !fotos.length);
   $("status").textContent = fotos.length ? (fotos.length === 1 ? t("1 photo") : t("{n} photos", { n: fotos.length.toLocaleString(InkIdioma.atual) })) : "";
   fotos.forEach((f, i) => {
     const b = document.createElement("button");

@@ -12,6 +12,7 @@ try { posicoes = JSON.parse(localStorage.getItem("inkdoshub-video-posicoes") || 
 
 function desenhar() {
   lista.innerHTML = "";
+  document.documentElement.classList.toggle("md-sem-itens", !itens.length);
   $("editar").disabled = atual < 0;
   if (!itens.length) { lista.innerHTML = '<li style="cursor:default;color:var(--muted)"></li>'; lista.firstChild.textContent = t("No videos."); return; }
   itens.forEach((v, i) => {

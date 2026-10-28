@@ -11,7 +11,7 @@
 <script src="../../assets/idioma.js?v=1"></script>
 <script src="../../assets/gerenciador-app.js?v=7"></script>
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
-<link rel="stylesheet" href="../../assets/midia.css?v=2">
+<link rel="stylesheet" href="../../assets/midia.css?v=3">
 <link rel="stylesheet" href="../../assets/info.css?v=1">
 <style>
   .palco{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;text-align:center}
@@ -36,6 +36,14 @@
   details.i.solto .pop{left:auto;right:0;top:auto;bottom:30px}
   #sem-suporte{color:#e5484d}
 </style>
+<style>
+/* modo tela sem gravações: só o aviso no meio */
+html.md-sem-audios #cartao-audios{display:none!important}
+.md-vazio-tela svg{width:56px;height:56px;fill:none;stroke:var(--muted);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.6}
+.md-vazio-tela h2{margin:4px 0 0;font-size:17px;font-weight:600}
+.md-vazio-tela p:not([id]){margin:0 0 8px;font-size:13px;color:var(--muted)}
+#escolher-tela{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;padding:8px 16px}
+</style>
 </head>
 <body class="ink-app" data-idioma>
 <header class="ink-bar">
@@ -52,7 +60,10 @@
 <main class="ink-main">
   <div class="md-wrap">
     <section class="md-stage md-hide" id="cartao-tela">
-      <div class="palco">
+      <div class="palco md-vazio-tela">
+        <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10.5" r="2.5"/></svg>
+        <h2>No recording chosen</h2>
+        <p>Choose a screen recording from Photos to keep only its sound.</p>
         <button class="ink-btn" id="escolher-tela">Choose the recording</button>
         <div class="nivel"><span id="nivel-tela"></span></div>
         <p id="estado-tela" data-idioma-nao></p>
@@ -100,6 +111,6 @@
 <script src="../../assets/icones.js?v=2"></script>
 <input id="arquivo-tela" type="file" accept="video/*,.mp4,.mov,.m4v" hidden>
 <script src="../musica/gravar/extrair-m4a.js?v=1"></script>
-<script src="../musica/gravar/gravar.js?v=6"></script>
+<script src="../musica/gravar/gravar.js?v=7"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@
 <script src="../../assets/idioma.js?v=1"></script>
 <script src="../../assets/gerenciador-app.js?v=9"></script>
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
-<link rel="stylesheet" href="../../assets/midia.css?v=2">
+<link rel="stylesheet" href="../../assets/midia.css?v=3">
 <style>
   .tela{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
   video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
@@ -40,6 +40,7 @@
   <button class="ink-btn" id="blista">List</button>
 </header>
 <main class="ink-main">
+  <div class="md-vazio"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="m17 10 5-3v10l-5-3"/></svg><h2>No video open</h2><p>Open a video file to watch it here.</p><button class="ink-btn" type="button" onclick="document.getElementById('abrir').click()">Open videos</button></div>
   <div class="md-wrap">
     <section class="md-stage">
       <div class="tela">
@@ -64,6 +65,6 @@
 </div></div>
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
