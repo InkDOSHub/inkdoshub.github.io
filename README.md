@@ -18,7 +18,7 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
-| PDF, Documentos, Planilhas, Apresentações, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), copiados para cá (`tools/copiar_inkdos.sh`), com visual Apple (`inkdos/shared/apple.css`): Novo, Abrir e Salvar no menu ☰ e, em Documentos, Planilhas e Apresentações, a barra de edição atrás do pincel | `inkdos/` |
+| PDF, Documentos, Planilhas, Apresentações, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), copiados para cá (`tools/copiar_inkdos.sh`), com visual Apple direto no CSS de cada app: Novo, Abrir e Salvar no menu ☰ e, em Documentos, Planilhas e Apresentações, a barra de edição atrás do pincel | `inkdos/` |
 | Documentos, Planilhas e Apresentações (ONLYOFFICE) | Editores ONLYOFFICE completos, como três apps próprios na tela inicial | `onlyoffice/` |
 | Fotos | Galeria, visualizador e editor simples (recortar, girar, espelhar, endireitar, exposição, brilho, contraste, saturação, calor e tom) feitos aqui | `apps/foto/` (o editor é `apps/foto/editor.js`) |
 | Vídeo | Player com barra de controles igual à da Música e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |

@@ -59,7 +59,7 @@ function installFrameActions(){if(frameInstalled||!drawer)return;const header=do
  // InkDOS Hub 2026-10-28: Novo, Abrir e Salvar ficam num menu ☰ (formato do menu do Quadro/Excalidraw), ao lado
  // de "‹ InkDOS Hub"; os botões são os mesmos de antes (proxyButton), só mudam de lugar.
  const create=drawerTarget(['newMenuBtn','menuNew','newBtn']);
- const label=(el,fb)=>(el.textContent||fb).replace(/⌘.*/,'').trim()||fb;
+ const label=(el,fb)=>((el.querySelector('span:not(.hint)')||el).textContent||fb).replace(/⌘.*/,'').trim()||fb;
  const items=[create&&proxyButton('new',label(create,'New'),create),open&&proxyButton('open',label(open,'Open'),open),save&&proxyButton('save',label(save,'Save'),save)].filter(Boolean);
  if(items.length){
   const menu=doc.createElement('div');menu.className='inkdos-hamburger';menu.hidden=true;menu.setAttribute('role','menu');
