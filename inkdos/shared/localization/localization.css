@@ -30,11 +30,13 @@ header .inkdos-frame-action svg{width:19px;height:19px;fill:none;stroke:currentC
 .inkdos-frame-actions .framebar>.inkdos-frame-right{margin-left:auto;position:relative;z-index:2;gap:6px}
 .framebar .inkdos-frame-action{width:40px;height:40px;min-width:40px;border:1px solid transparent;border-radius:12px;background:transparent;color:inherit;cursor:pointer;padding:0}
 .inkdos-settings-segment .inkdos-settings-option{white-space:nowrap;padding-inline:6px;font-size:12px}
-/* Narrow screens: the file title takes the space left between the header action groups. */
+/* Header: InkDOS Hub | file title centred | brush + menu. Both sides share one width so the title stays centred. */
+.inkdos-frame-actions header{display:grid!important;grid-template-columns:var(--ink-side,1fr) minmax(0,1fr) var(--ink-side,1fr);align-items:center;gap:6px}
+.inkdos-frame-actions header>:first-child{justify-self:start}
+.inkdos-frame-actions header>:last-child{justify-self:end;justify-content:flex-end}
+.inkdos-frame-actions header>:nth-child(2){justify-self:center;min-width:0;max-width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.inkdos-frame-actions header>:nth-child(2) input{flex:0 1 auto;min-width:0;max-width:100%;text-align:center}
 @media (max-width:640px){
-.inkdos-frame-actions header{display:flex!important;align-items:center;gap:6px}
-.inkdos-frame-actions header>.frame-left,.inkdos-frame-actions header>.frame-right{flex:0 0 auto;width:auto!important;min-width:0;max-width:none!important;gap:2px}
-.inkdos-frame-actions header>.document-title,.inkdos-frame-actions header>.presentation-title,.inkdos-frame-actions header>.file-pill-wrap{position:static!important;transform:none!important;left:auto!important;flex:1 1 auto;min-width:0;width:auto!important;max-width:none!important;margin:0}
 .inkdos-frame-actions header>.document-title img,.inkdos-frame-actions header>.presentation-title img,.inkdos-frame-actions header>.document-title .documents-icon{display:none}
 .inkdos-frame-actions header .inkdos-frame-action{width:34px;min-width:34px;height:34px}
 }
@@ -87,3 +89,6 @@ html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .app-shell:has(#formatbar,#edi
 /* Texto e EPUB: a faixa da barra fica com altura zero (mantém a linha da grade do app) */
 html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .toolstrip-shell{height:0;min-height:0;overflow:hidden;border:0;padding:0;box-shadow:none}
 
+.inkdos-frame-actions header>:nth-child(2){position:relative}
+.inkdos-frame-actions header>:nth-child(2) .dirty-dot{position:absolute;right:4px;top:6px}
+.inkdos-hamburger .inkdos-menu-item{font-weight:400}
