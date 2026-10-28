@@ -37,7 +37,8 @@
   });
   if (ios) { var bs = document.querySelector('#modos [data-modo="sistema"]'); if (bs) bs.style.display = "none"; }
   escolherModo(modo);
-  var temPasta = !!window.showDirectoryPicker;
+  // 2026-10-28 (Paulo): toda gravação vai sempre para Downloads (e para a lista da Música), sem escolher pasta
+  var temPasta = false;
   if (!temPasta) { $("linha-pasta").classList.add("md-hide"); $("nota-pasta").textContent = t("The file goes to Downloads and to the Music list."); }
 
   function estado(txt, aviso) { $("estado").textContent = txt || ""; $("estado").classList.toggle("aviso", !!aviso); }
@@ -226,6 +227,9 @@
       $("escolher-tela").disabled = false; $("nivel-tela").style.width = "0";
       var arq = new File([blob], arquivo.name.replace(/\.[^.]+$/, "") + ".m4a", { type: "audio/mp4" });
       audios.adicionar([arq]).then(listarAudios);
+      var u = URL.createObjectURL(arq), a = document.createElement("a");
+      a.href = u; a.download = arq.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
       est.textContent = t("{name} ({size}) is ready below. The video was not stored here: if you no longer need it, delete it from Photos or Files.", { name: arq.name, size: inkTamanho(arq.size) });
     }
     // caminho rápido: copia só o som do MP4/MOV, sem o conversor
