@@ -40,3 +40,19 @@ html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5
 .pref-office{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
 .pref-office select{font:inherit;font-size:13px;padding:7px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)}
 @media(max-width:720px){.workspace-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:20px 6px}.workspace-card{padding:4px 0;min-height:0}.workspace-card .app-icon{width:62px;height:62px;border-radius:15px}.workspace-card .app-icon img{width:40px;height:40px}.workspace-copy strong{font-size:12px}.workspace-copy small{display:none}}
+
+/* 2026-10-28: botões no estilo macOS (azul do sistema, cinza discreto, cantos de 7px) */
+.home-shell .botao{font-size:13px;font-weight:500;padding:6px 14px;border-radius:7px;border:0;background:#007aff;color:#fff;box-shadow:0 .5px 1px rgba(0,0,0,.18)}
+.home-shell .botao:active{background:#0068d9}
+.home-shell .botao.secundario{background:var(--card);color:var(--text);box-shadow:0 0 0 .5px rgba(0,0,0,.14),0 .5px 1.5px rgba(0,0,0,.12)}
+html[data-theme="dark"] .home-shell .botao{background:#0a84ff}
+html[data-theme="dark"] .home-shell .botao.secundario{background:#3a3a3c;box-shadow:0 0 0 .5px rgba(255,255,255,.12)}
+.theme-button{border:0;border-radius:7px;width:30px;height:30px;background:transparent}
+.theme-button:hover{background:color-mix(in srgb,var(--text) 7%,transparent)}
+.theme-button svg{width:17px;height:17px}
+.theme-button.wide{height:30px;font-weight:500}
+.busca{border:0;border-radius:8px;padding:6px 12px;font-size:14px;background:color-mix(in srgb,var(--text) 6%,transparent)}
+.busca:focus{outline:3px solid rgba(0,122,255,.35);outline-offset:0}
+.pref-office select{border:0;border-radius:7px;padding:5px 8px;background:var(--card);box-shadow:0 0 0 .5px rgba(0,0,0,.14),0 .5px 1.5px rgba(0,0,0,.12)}
+#btn-abrir{padding:6px 14px}#btn-abrir svg{width:15px;height:15px}
+.workspace-card.oo .app-icon img{object-fit:contain;height:48px}
