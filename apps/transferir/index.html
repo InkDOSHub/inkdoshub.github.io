@@ -9,17 +9,19 @@
 <script src="../../assets/tema.js?v=1"></script>
 <script src="../../assets/idioma.js?v=1"></script>
 <script src="../../assets/gerenciador-app.js?v=8"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=1">
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
 <style>
   :root{--tc:#2563eb}
   .ink-main{overflow:auto}
   [hidden]{display:none!important}
-  .centro{max-width:760px;margin:0 auto;padding:24px 16px 40px;box-sizing:border-box}
+  .centro{max-width:600px;margin:0 auto;padding:24px 16px 40px;box-sizing:border-box}
   .centro h1{margin:6px 0 4px;font-size:28px}
   .centro h2{font-size:19px;margin:0 0 6px}
   .nota{color:var(--muted);font-size:13.5px;line-height:1.5;margin:8px 0}
   .selo{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a4a00;background:#ffe2a8;border-radius:6px;padding:2px 7px;vertical-align:4px}
-  .cartao{background:var(--card);border:1px solid var(--border);border-left:5px solid var(--tc);border-radius:14px;padding:18px;margin:16px 0}
+  .cartao{position:relative;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin:16px 0}
+  .cartao h2{padding-right:32px}
   .acao{display:inline-block;text-decoration:none;font-weight:700;background:var(--tc);border-color:var(--tc);color:#fff;padding:9px 14px}
   .passos{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px 12px 34px;font-size:13.5px;line-height:1.55}
   .qr{width:220px;margin:10px 0}.qr svg{width:220px;height:220px;background:#fff;border-radius:10px;display:block}
@@ -46,12 +48,10 @@
 </header>
 <main class="ink-main">
   <section class="centro">
-    <h1>Transfer <span class="selo">Test</span></h1>
-    <p class="nota">Fast file transfer between the phone (iPhone or Android) and the PC. Nothing is installed on the phone.</p>
 
     <div class="cartao">
       <h2>Through the router, in the browser</h2>
-      <p class="nota">Both devices on the same network (the PC can be on a cable). Nothing to install. The pairing uses the free public PeerJS server; the files go directly between the two devices and are not uploaded. Public networks may isolate the devices.</p>
+      <details class="i"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Fast file transfer between the phone (iPhone or Android) and the PC. Nothing is installed on the phone.</p><p>Both devices on the same network (the PC can be on a cable). Nothing to install. The pairing uses the free public PeerJS server; the files go directly between the two devices and are not uploaded. Public networks may isolate the devices.</p></div></details>
 
       <div id="inicio">
         <p class="linha"><button class="ink-btn acao" id="bcriar" type="button">Start on this device</button></p>
@@ -76,8 +76,7 @@
         <p class="linha" id="ctrl" hidden><button class="ink-btn" id="bpausa" type="button">Pause</button><button class="ink-btn" id="bcancela" type="button">Cancel</button></p>
         <div id="lista"></div>
         <div style="margin-top:16px">
-          <button class="ink-btn" id="bdiag" type="button">Diagnostics</button>
-          <p class="nota">Measures the route, the delay and the real speed in both directions. The result shows on both devices.</p>
+          <button class="ink-btn" id="bdiag" type="button" title="Measures the route, the delay and the real speed in both directions. The result shows on both devices.">Diagnostics</button>
           <table id="diag" class="diag"></table>
         </div>
       </div>
@@ -85,14 +84,13 @@
 
     <div class="cartao">
       <h2>Direct Wi-Fi, Windows app</h2>
-      <p class="nota">The PC creates its own Wi-Fi network for the phone: the fastest option, without internet and without a router. For a PC with Wi-Fi, without administrator rights.</p>
-      <p><a class="ink-btn acao" href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/transferir-windows/InkDOSHub-Transferir.exe">Download for Windows (.exe)</a></p>
-      <ol class="passos">
+      <details class="i"><summary title="About" aria-label="About">i</summary><div class="pop"><p>The PC creates its own Wi-Fi network for the phone: the fastest option, without internet and without a router. For a PC with Wi-Fi, without administrator rights.</p><ol>
         <li>Open "InkDOSHub-Transferir.exe". If SmartScreen warns, click "More info" › "Run anyway" (the app is not signed).</li>
         <li>The control panel opens in the PC browser and creates the network.</li>
         <li>Scan the QR codes with the phone camera and send or receive files. The speed shows in real time.</li>
       </ol>
-      <p class="nota">Windows 10 or 11. Keep the app open during the transfer. Received files go to Downloads › InkDOS Hub Transferir. Use Diagnostics to measure the signal, delay and real speed. Source code: windows/transferir (MIT).</p>
+      <p>Windows 10 or 11. Keep the app open during the transfer. Received files go to Downloads › InkDOS Hub Transferir. Use Diagnostics to measure the signal, delay and real speed. Source code: windows/transferir (MIT).</p></div></details>
+      <p><a class="ink-btn acao" href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/transferir-windows/InkDOSHub-Transferir.exe">Download for Windows (.exe)</a></p>
     </div>
   </section>
 </main>
