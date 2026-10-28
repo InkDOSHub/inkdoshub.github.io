@@ -16,12 +16,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-
 .title-input:focus{background:var(--panel);border-color:var(--accent)}
 
 /* "‹ InkDOS Hub" no lugar da casinha (a volta para a tela inicial, como nos outros apps) */
-a.frame-btn[aria-label="Home"]{width:auto;padding:0 8px 0 4px;gap:2px;display:inline-flex;align-items:center;font-size:14px;font-weight:600;white-space:nowrap}
-a.frame-btn[aria-label="Home"][hidden]{display:none}
-a.frame-btn[aria-label="Home"] svg{display:none}
-a.frame-btn[aria-label="Home"]::before{content:"‹";font-size:24px;font-weight:400;line-height:1;margin-top:-3px}
-a.frame-btn[aria-label="Home"]::after{content:"InkDOS Hub"}
-@media(max-width:520px){a.frame-btn[aria-label="Home"]::after{content:""}}
+header a[aria-label="Home"]{width:auto;min-width:0;height:34px;flex:none;padding:0 8px 0 4px;gap:2px;display:inline-flex;align-items:center;font-size:14px;font-weight:600;white-space:nowrap}
+header a[aria-label="Home"][hidden]{display:none}
+header a[aria-label="Home"] svg{display:none}
+header a[aria-label="Home"]::before{content:"‹";font-size:24px;font-weight:400;line-height:1;margin-top:-3px}
+header a[aria-label="Home"]::after{content:"InkDOS Hub"}
+@media(max-width:520px){header a[aria-label="Home"]::after{content:""}}
 
 /* Menu ☰ (Novo, Abrir, Salvar) no formato do menu do Quadro (Excalidraw) */
 .inkdos-hamburger{position:fixed;z-index:200;width:230px;padding:6px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:1px}

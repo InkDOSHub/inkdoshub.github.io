@@ -36,7 +36,7 @@
 .inkdos-frame-actions header>.frame-left,.inkdos-frame-actions header>.frame-right{flex:0 0 auto;width:auto!important;min-width:0;max-width:none!important;gap:2px}
 .inkdos-frame-actions header>.document-title,.inkdos-frame-actions header>.presentation-title,.inkdos-frame-actions header>.file-pill-wrap{position:static!important;transform:none!important;left:auto!important;flex:1 1 auto;min-width:0;width:auto!important;max-width:none!important;margin:0}
 .inkdos-frame-actions header>.document-title img,.inkdos-frame-actions header>.presentation-title img,.inkdos-frame-actions header>.document-title .documents-icon{display:none}
-.inkdos-frame-actions header .inkdos-frame-action,.inkdos-frame-actions header .frame-left>a{width:34px;min-width:34px;height:34px}
+.inkdos-frame-actions header .inkdos-frame-action{width:34px;min-width:34px;height:34px}
 }
 /* Shared Save menu */
 .inkdos-save-overlay{position:fixed;inset:0;z-index:10060;display:grid;place-items:center;padding:16px;background:rgba(15,23,42,.28);backdrop-filter:blur(3px)}
