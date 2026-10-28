@@ -8,10 +8,11 @@
     var home = bar.querySelector(".ink-home"), titulo = bar.querySelector(".ink-title");
     var esq = document.createElement("div"), meio = document.createElement("div"), dir = document.createElement("div");
     esq.className = "ink-esq"; meio.className = "ink-meio"; dir.className = "ink-dir";
-    var itens = document.createElement("div"); itens.className = "ink-itens";
+    var itens = document.createElement("div"); itens.className = "ink-itens"; var info = [];
     Array.prototype.slice.call(bar.childNodes).forEach(function (n) {
       if (n === home || n === titulo) return;
       if (n.nodeType === 1 && (n.classList.contains("ink-spacer") || n.classList.contains("ink-status"))) { if (n.classList.contains("ink-status")) n.hidden = true, document.body.appendChild(n); else n.remove(); return; }
+      if (n.nodeType === 1 && n.matches("details.i")) { info.push(n); return; }
       if (n.nodeType === 1) itens.appendChild(n);
     });
     if (home) esq.appendChild(home);
@@ -20,6 +21,11 @@
     if (app) { var img = document.createElement("img"); img.className = "ink-simbolo"; img.alt = ""; img.src = raiz + "assets/icones-inkdos/" + app + ".svg"; meio.appendChild(img); }
     if (titulo) meio.appendChild(titulo);
     dir.appendChild(itens);
+    info.forEach(function (d) { dir.appendChild(d); });
+    // botões só com ícone ganham o nome escrito, para ficarem legíveis no menu
+    Array.prototype.forEach.call(itens.querySelectorAll(".ink-btn"), function (b) {
+      if (!b.textContent.trim() && (b.title || b.getAttribute("aria-label"))) { var t = document.createElement("span"); t.className = "ink-rotulo"; t.textContent = b.title || b.getAttribute("aria-label"); b.appendChild(t); }
+    });
     var menu = null;
     if (itens.children.length) {
       menu = document.createElement("button");
@@ -35,7 +41,7 @@
       var visiveis = Array.prototype.some.call(itens.querySelectorAll(".ink-btn,details,a"), function (e) { return e.offsetWidth > 0; });
       if (!visiveis) { if (menu) menu.hidden = true; return; }
       if (menu) menu.hidden = false;
-      if (itens.scrollWidth > (bar.clientWidth - meio.offsetWidth) / 2 - 24) bar.classList.add("compacta");
+      bar.classList.add("compacta"); // todos os botões ficam no menu ☰, em todos os tamanhos de tela
     }
     ajustar(); addEventListener("resize", ajustar); addEventListener("load", ajustar);
     if (window.MutationObserver) new MutationObserver(function () { if (!bar.classList.contains("menu-aberto")) ajustar(); }).observe(itens, { attributes: true, subtree: true, attributeFilter: ["hidden", "class", "disabled"] });
