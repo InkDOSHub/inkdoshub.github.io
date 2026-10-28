@@ -1,78 +1,111 @@
-/* Tela inicial do InkDOS Hub: o visual da tela inicial do InkDOS, sem sombras nem animações (mais leve). */
-:root{--bg:#f2f5f8;--card:#fff;--text:#192235;--muted:#697486;--border:#e3e8ef;--icon-base:#fff;--chevron:#a8b1bd;--pill-bg:#f0f2f5;--pill-text:#6f7988;--footer:#788394}
-html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5c3;--border:#323c49;--icon-base:#1c222a;--chevron:#8591a1;--pill-bg:#252d37;--pill-text:#aab5c3;--footer:#98a4b4}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}body{min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}
-.home-shell{width:min(1180px,calc(100% - 64px));min-height:100vh;margin:0 auto;padding:38px 0 26px;display:flex;flex-direction:column}
-.brand-row{min-height:54px;display:flex;align-items:center;gap:12px}.brand{display:inline-flex;align-items:center;gap:13px}
-.brand-mark{width:46px;height:46px;flex-shrink:0;border-radius:11px;overflow:hidden;display:grid;place-items:center}
-/* o PNG do ícone tem margem clara em volta do quadro (igual ao do InkDOS); ampliar 1,104x deixa só o quadro, também no tema escuro */
+/* Tela inicial do InkDOS Hub: gaveta de apps no estilo do Launchpad (ícone e nome), barra com menu,
+   busca e pasta. Uma regra por área: nada de estilo antigo por baixo de estilo novo. */
+:root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--border:rgba(0,0,0,.1);--hover:rgba(0,0,0,.06);--accent:#007aff;--accent-down:#0068d9;--accent-soft:rgba(0,122,255,.1);--footer:#86868b;--warn:#b25000;--danger:#d70015}
+html[data-theme="dark"]{--bg:#1c1c1e;--card:#2c2c2e;--text:#f5f5f7;--muted:#98989d;--border:rgba(255,255,255,.12);--hover:rgba(255,255,255,.08);--accent:#0a84ff;--accent-down:#409cff;--accent-soft:rgba(10,132,255,.18);--footer:#8e8e93;--warn:#ffb340;--danger:#ff6961}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
+body{min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.home-shell{width:min(1180px,calc(100% - 64px));min-height:100vh;margin:0 auto;padding:30px 0 26px;display:flex;flex-direction:column}
+
+/* Marca */
+.brand-row{min-height:46px;display:flex;align-items:center}
+.brand{display:inline-flex;align-items:center;gap:12px}
+.brand-mark{width:42px;height:42px;flex-shrink:0;border-radius:10px;overflow:hidden;display:grid;place-items:center}
+/* o PNG do ícone tem margem clara em volta do quadro; ampliar 1,104x deixa só o quadro */
 .brand-mark img{display:block;width:100%;height:100%;transform:scale(1.104)}
-.brand-copy{display:flex;flex-direction:column;gap:3px;line-height:1.04}.brand-copy strong{font-size:20px;font-weight:760;letter-spacing:-.02em}.brand-copy small{font-size:13px;font-weight:500;color:var(--muted)}
-.theme-button{margin-left:auto;width:38px;height:38px;padding:0;border:1px solid var(--border);border-radius:11px;background:var(--card);color:var(--muted);display:grid;place-items:center;cursor:pointer}
-.theme-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.intro{padding:54px 0 30px}.intro h1{margin:0;font-size:clamp(36px,4.1vw,58px);line-height:1.02;letter-spacing:-.045em;font-weight:790}
-.workspace-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
-.workspace-card{--accent:#6b7280;position:relative;min-height:154px;padding:27px 50px 25px 31px;background:var(--card);border:1px solid var(--border);border-radius:20px;display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;column-gap:20px;overflow:hidden}
-.workspace-card:active{background:var(--pill-bg)}
-.workspace-card .accent{position:absolute;left:0;top:20px;bottom:20px;width:5px;border-radius:0 5px 5px 0;background:var(--accent)}
-.terminal{--accent:#3fb950}.foto{--accent:#9a6b1f}.video{--accent:#475569}.codigo{--accent:#4338ca}.quadro{--accent:#0891b2}.musica{--accent:#db2777}.wine{--accent:#8c1d40}.documentos{--accent:#2f6fed}.planilhas{--accent:#267a45}.apresentacoes{--accent:#d64a24}.pdf{--accent:#b42318}.texto{--accent:#d9a514}.epub{--accent:#7655c7}.webcam{--accent:#0e8a7e}.transferir{--accent:#2563eb}.gravador{--accent:#e5484d}
-.app-icon{width:58px;height:58px;border-radius:15px;background:color-mix(in srgb,var(--accent) 11%,var(--icon-base));display:grid;place-items:center}
-.app-icon img{display:block;width:40px;height:40px;object-fit:contain}
-.app-icon svg{width:34px;height:34px;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.workspace-copy{min-width:0}.workspace-copy strong{display:block;font-size:19px;line-height:1.15;font-weight:745;letter-spacing:-.018em}.workspace-copy small{display:block;margin-top:8px;font-size:13px;line-height:1.35;color:var(--muted)}
-.external-badge{display:inline-flex;margin-top:9px;padding:3px 8px;border-radius:999px;background:var(--pill-bg);color:var(--pill-text);font-size:11px;font-weight:700}
-.chevron{position:absolute;right:25px;top:50%;transform:translateY(-50%);font-size:32px;line-height:1;color:var(--chevron);font-weight:300}
-.home-footer{margin-top:auto;padding-top:42px;display:flex;align-items:center;gap:24px;color:var(--footer);font-size:12px}.home-footer p{margin:0}.home-footer nav{margin-left:auto;display:flex;gap:22px}
-@media(max-width:720px){.home-shell{width:min(100% - 28px,560px);padding:22px 0 20px}.intro{padding:36px 2px 22px}.intro h1{font-size:36px}.workspace-grid{grid-template-columns:1fr;gap:14px}.workspace-card{min-height:112px;padding:20px 46px 20px 24px;border-radius:17px;grid-template-columns:50px minmax(0,1fr);column-gap:16px}.workspace-card .accent{top:16px;bottom:16px;width:4px}.app-icon{width:50px;height:50px;border-radius:13px}.app-icon img{width:34px;height:34px}.workspace-copy strong{font-size:17px}.workspace-copy small{font-size:12px;margin-top:5px}.chevron{right:20px;font-size:29px}.home-footer{padding-top:28px;align-items:flex-start;flex-direction:column;gap:14px}.home-footer nav{margin-left:0;gap:16px;flex-wrap:wrap}}
+.brand-copy{display:flex;flex-direction:column;gap:2px;line-height:1.05}
+.brand-copy strong{font-size:19px;font-weight:700;letter-spacing:-.02em}
+.brand-copy small{font-size:12px;color:var(--muted)}
 
-/* 2026-10-28: gaveta de apps no estilo do Launchpad: só o ícone e o nome, sem cartões nem descrições */
-.workspace-grid{grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:26px 10px;padding-top:6px}
-.workspace-card{min-height:0;padding:6px 2px;background:none;border:0;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;overflow:visible}
-.workspace-card:active{background:none}.workspace-card:active .app-icon{transform:scale(.93)}
-.workspace-card .accent,.workspace-card .chevron,.workspace-copy small{display:none}
-.workspace-card .app-icon{width:76px;height:76px;border-radius:19px;background:var(--card);border:1px solid var(--border);transition:transform .12s}
-.workspace-card .app-icon img{width:50px;height:50px}
-.workspace-copy strong{font-size:13px;font-weight:500;letter-spacing:0;line-height:1.25}
-.workspace-card.oo .workspace-copy small{display:block;margin-top:2px;font-size:10.5px;letter-spacing:.04em}
-.workspace-card.fora-busca{display:none!important}
-.intro h1{font-size:30px;letter-spacing:-.02em}
-.busca{flex:1 1 220px;max-width:340px;font:inherit;font-size:15px;padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text)}
-.pref-office{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
-.pref-office select{font:inherit;font-size:13px;padding:7px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)}
-@media(max-width:720px){.workspace-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:20px 6px}.workspace-card{padding:4px 0;min-height:0}.workspace-card .app-icon{width:62px;height:62px;border-radius:15px}.workspace-card .app-icon img{width:40px;height:40px}.workspace-copy strong{font-size:12px}.workspace-copy small{display:none}}
-
-/* 2026-10-28: botões no estilo macOS (azul do sistema, cinza discreto, cantos de 7px) */
-.home-shell .botao{font-size:13px;font-weight:500;padding:6px 14px;border-radius:7px;border:0;background:#007aff;color:#fff;box-shadow:0 .5px 1px rgba(0,0,0,.18)}
-.home-shell .botao:active{background:#0068d9}
-.home-shell .botao.secundario{background:var(--card);color:var(--text);box-shadow:0 0 0 .5px rgba(0,0,0,.14),0 .5px 1.5px rgba(0,0,0,.12)}
-html[data-theme="dark"] .home-shell .botao{background:#0a84ff}
-html[data-theme="dark"] .home-shell .botao.secundario{background:#3a3a3c;box-shadow:0 0 0 .5px rgba(255,255,255,.12)}
-.theme-button{border:0;border-radius:7px;width:30px;height:30px;background:transparent}
-.theme-button:hover{background:color-mix(in srgb,var(--text) 7%,transparent)}
-.theme-button svg{width:17px;height:17px}
-.theme-button.wide{height:30px;font-weight:500}
-.busca{border:0;border-radius:8px;padding:6px 12px;font-size:14px;background:color-mix(in srgb,var(--text) 6%,transparent)}
-.busca:focus{outline:3px solid rgba(0,122,255,.35);outline-offset:0}
-.pref-office select{border:0;border-radius:7px;padding:5px 8px;background:var(--card);box-shadow:0 0 0 .5px rgba(0,0,0,.14),0 .5px 1.5px rgba(0,0,0,.12)}
-#btn-abrir{padding:6px 14px}#btn-abrir svg{width:15px;height:15px}
-.workspace-card.oo .app-icon img{object-fit:contain;height:48px}
-
-/* 2026-10-28: barra da tela inicial: menu à esquerda, busca no meio, pasta (abrir arquivo) à direita */
-.barra-inicio{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:26px 0 22px}
-.barra-inicio .busca{flex:1 1 auto;max-width:none}
-.icone-btn{width:34px;height:34px;flex:none;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;list-style:none}
+/* Barra: menu, busca, pasta */
+.barra-inicio{display:flex;align-items:center;gap:8px;padding:24px 0 22px}
+.icone-btn{width:34px;height:34px;flex:none;padding:0;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--muted);list-style:none;cursor:pointer}
 .icone-btn::-webkit-details-marker{display:none}
-.icone-btn:hover,.menu-inicio[open] .icone-btn{background:color-mix(in srgb,var(--text) 7%,transparent);color:var(--text)}
-.icone-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icone-btn:hover,.menu-inicio[open]>.icone-btn{background:var(--hover);color:var(--text)}
+.icone-btn svg{width:20px;height:20px}
+.busca{flex:1 1 auto;min-width:0;font:inherit;font-size:14px;padding:7px 12px;border:0;border-radius:8px;background:var(--hover);color:var(--text)}
+.busca:focus{outline:3px solid var(--accent-soft);outline-offset:0}
+
+/* Menu ☰ */
 .menu-inicio{position:relative}
 .menu-pop{position:absolute;z-index:50;top:40px;left:0;width:250px;padding:6px;border-radius:12px;background:var(--card);border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.16);display:flex;flex-direction:column;gap:1px}
-.menu-linha{display:flex;align-items:center;gap:10px;width:100%;min-height:32px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--text);font-size:14px;text-align:left;cursor:pointer}
-.menu-linha:hover{background:rgba(0,122,255,.1)}
-.menu-linha svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.menu-linha{display:flex;align-items:center;gap:10px;width:100%;min-height:32px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--text);font-size:14px;text-align:left}
+.menu-linha:hover{background:var(--accent-soft)}
+.menu-linha svg{width:16px;height:16px;flex:none}
 .menu-linha small{margin-left:auto;font-size:12px;color:var(--muted)}
-#btn-editar.menu-linha{padding-left:34px}
+#btn-editar{padding-left:34px}
 .menu-sep{height:1px;margin:5px 4px;background:var(--border)}
 .menu-rotulo{padding:2px 8px;font-size:12px;color:var(--muted)}
 .menu-pop select{margin:2px 6px 4px;font:inherit;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
-.brand-row{min-height:46px}
-#btn-abrir.icone-btn{display:grid;padding:0}#btn-abrir.icone-btn svg{width:20px;height:20px;stroke-width:1.8}
+
+/* Botões e textos (arquivos recebidos, diálogo de webapp, atalho) no estilo macOS */
+.botao{font-size:13px;font-weight:500;padding:6px 14px;border-radius:7px;border:0;background:var(--accent);color:#fff;box-shadow:0 .5px 1px rgba(0,0,0,.18)}
+.botao:active{background:var(--accent-down)}
+.botao.secundario{background:var(--card);color:var(--text);box-shadow:0 0 0 .5px var(--border),0 .5px 1.5px rgba(0,0,0,.12)}
+.botao.pequeno{padding:4px 10px}
+.botao:disabled{opacity:.5;cursor:default}
+.nota{margin:8px 0;color:var(--muted);font-size:13px;line-height:1.45}
+.nota.aviso{color:var(--warn)}.nota.erro{color:var(--danger)}
+.linha{display:flex;flex-direction:column;gap:6px;margin:12px 0;font-size:14px}
+.acoes{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+
+/* Gaveta de apps */
+.workspace-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:26px 10px}
+.workspace-card{position:relative;padding:6px 2px;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;cursor:pointer}
+.app-icon{width:76px;height:76px;border-radius:19px;background:var(--card);border:1px solid var(--border);display:grid;place-items:center;transition:transform .12s}
+.workspace-card:active .app-icon{transform:scale(.93)}
+.app-icon img{display:block;width:50px;height:50px;object-fit:contain}
+.app-icon svg{width:34px;height:34px;color:var(--muted)}
+.app-icon .letra{font-size:28px;font-weight:700;color:var(--muted)}
+.workspace-copy strong{display:block;font-size:13px;font-weight:500;line-height:1.25}
+.workspace-copy small{display:none}
+.workspace-card.oo .workspace-copy small{display:block;margin-top:2px;font-size:10.5px;letter-spacing:.04em;color:var(--muted)}
+.workspace-card.meu .app-icon img{border-radius:12px}
+.workspace-card.novo .app-icon{border:2px dashed var(--border);background:transparent}
+.workspace-card.fora-busca,.workspace-card.escondido{display:none}
+
+/* Personalizar (inicio/meus-apps.js): tremer, arrastar, esconder */
+.editando .workspace-card{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.editando .workspace-card.escondido:not(.fora-busca){display:flex;opacity:.45}
+.editando .app-icon{animation:tremer .28s ease-in-out infinite alternate}
+.editando img{-webkit-user-drag:none;pointer-events:none}
+.editando .workspace-card.novo{opacity:.4;cursor:default}
+.workspace-card.arrastando{opacity:.55}
+.workspace-card.arrastando .app-icon{animation:none;transform:scale(1.08)}
+@keyframes tremer{from{transform:rotate(-1.5deg)}to{transform:rotate(1.5deg)}}
+.marca{position:absolute;top:0;right:8px;padding:2px 8px;border-radius:999px;background:var(--card);border:1px solid var(--border);font-size:11px;font-weight:600}
+
+/* Arquivos recebidos */
+.recebidos[hidden]{display:none}
+.grupo{margin:0 0 12px;font-size:15px;font-weight:600;color:var(--muted)}
+.recebidos-lista{display:flex;flex-wrap:wrap;gap:8px}
+.recebidos .bloqueado{margin:10px 0 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.recebidos .bloqueado .nota{width:100%;margin:0}
+html.abrindo-arquivo .home-shell{visibility:hidden}
+
+/* Diálogo "Adicionar webapp" */
+.painel-dlg{width:min(420px,calc(100vw - 32px));background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:16px}
+.painel-dlg::backdrop{background:rgba(0,0,0,.4)}
+.painel-dlg h2{margin:0 0 8px;font-size:16px}
+.painel-dlg input{font:inherit;font-size:16px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+
+/* Rodapé */
+.home-footer{margin-top:auto;padding-top:42px;display:flex;align-items:center;gap:24px;color:var(--footer);font-size:12px}
+.home-footer p{margin:0}
+.home-footer nav{margin-left:auto;display:flex;gap:22px}
+
+@media(max-width:720px){
+  .home-shell{width:calc(100% - 28px);padding:20px 0}
+  .workspace-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:20px 6px}
+  .workspace-card{padding:4px 0}
+  .app-icon{width:62px;height:62px;border-radius:15px}
+  .app-icon img{width:40px;height:40px}
+  .workspace-copy strong{font-size:12px}
+  .workspace-card.oo .workspace-copy small{display:none}
+  .home-footer{padding-top:28px;align-items:flex-start;flex-direction:column;gap:14px}
+  .home-footer nav{margin-left:0;gap:16px;flex-wrap:wrap}
+}
