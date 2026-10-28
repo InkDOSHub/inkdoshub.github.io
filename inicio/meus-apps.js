@@ -65,8 +65,58 @@
     Array.prototype.forEach.call(grade.querySelectorAll("[data-app]"), function (c) {
       c.classList.toggle("escondido", escondidos.indexOf(c.dataset.app) >= 0);
     });
+    ordenar();
     if (editando) marcas();
   }
+
+  /* ---------- Ordem dos apps: no Personalizar, arrastar (mouse, touchpad ou dedo) ---------- */
+  var K_ORDEM = "inkdoshub-ordem";
+  function chave(c) { return c.dataset.app || c.dataset.meu; }
+  function ordenar() {
+    var ordem = ler(K_ORDEM);
+    if (!ordem.length) return;
+    var cards = [].slice.call(grade.querySelectorAll("[data-app],[data-meu]"));
+    cards.sort(function (a, b) {
+      var ia = ordem.indexOf(chave(a)), ib = ordem.indexOf(chave(b));
+      return (ia < 0 ? 1e4 + cards.indexOf(a) : ia) - (ib < 0 ? 1e4 + cards.indexOf(b) : ib);
+    });
+    cards.forEach(function (c) { grade.insertBefore(c, novo); });
+  }
+  var arrasto = null, arrastou = false;
+  grade.addEventListener("pointerdown", function (e) {
+    if (!editando || e.button > 0) return;
+    var c = e.target.closest("[data-app],[data-meu]");
+    if (c) arrasto = { c: c, x: e.clientX, y: e.clientY, ativo: false, id: e.pointerId };
+  });
+  grade.addEventListener("pointermove", function (e) {
+    if (!arrasto || e.pointerId !== arrasto.id) return;
+    if (!arrasto.ativo) {
+      if (Math.abs(e.clientX - arrasto.x) + Math.abs(e.clientY - arrasto.y) < 8) return;
+      arrasto.ativo = true;
+      arrasto.c.classList.add("arrastando");
+      try { grade.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    e.preventDefault();
+    arrasto.c.style.pointerEvents = "none";
+    var alvo = document.elementFromPoint(e.clientX, e.clientY);
+    arrasto.c.style.pointerEvents = "";
+    alvo = alvo && alvo.closest("[data-app],[data-meu]");
+    if (!alvo || alvo === arrasto.c || !grade.contains(alvo)) return;
+    var r = alvo.getBoundingClientRect(), depois = e.clientX > r.left + r.width / 2;
+    grade.insertBefore(arrasto.c, depois ? alvo.nextSibling : alvo);
+  });
+  function soltar() {
+    if (!arrasto) return;
+    if (arrasto.ativo) {
+      arrastou = true;
+      arrasto.c.classList.remove("arrastando");
+      salvar(K_ORDEM, [].map.call(grade.querySelectorAll("[data-app],[data-meu]"), chave));
+      setTimeout(function () { arrastou = false; }, 0);
+    }
+    arrasto = null;
+  }
+  grade.addEventListener("pointerup", soltar);
+  grade.addEventListener("pointercancel", soltar);
 
   /* ---------- Adicionar webapp ---------- */
   var dlg = $("dlg-webapp"), campoUrl = $("webapp-url"), campoNome = $("webapp-nome"), erro = $("webapp-erro");
@@ -118,6 +168,7 @@
     var c = e.target.closest("[data-app],[data-meu]");
     if (!c) return;
     e.preventDefault(); e.stopPropagation();
+    if (arrastou) return; // fim de um arrasto, não um toque
     if (c.dataset.meu) {
       meus = meus.filter(function (a) { return a.url !== c.dataset.meu; });
       salvar(K_APPS, meus);
@@ -130,7 +181,7 @@
   }, true);
 
   window.addEventListener("storage", function (e) {
-    if (e.key !== K_APPS && e.key !== K_ESC) return;
+    if (e.key !== K_APPS && e.key !== K_ESC && e.key !== K_ORDEM) return;
     escondidos = ler(K_ESC); meus = ler(K_APPS);
     desenhar();
   });

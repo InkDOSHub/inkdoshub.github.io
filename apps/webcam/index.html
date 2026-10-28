@@ -73,6 +73,8 @@
   /* Modo OBS: só a imagem, sem barra */
   body.obs .ink-bar{display:none}
   body.obs{background:#000}
+  /* Baixar o app e o OBS são coisas do PC: no celular e no iPad (Safari ou XeOS) ficam escondidos */
+  html.celular .so-pc{display:none!important}
   body.obs .flutua{display:none}
   /* No app WebView, os controles de diagnóstico continuam acessíveis. */
   body.app-webcam .flutua{display:flex}
@@ -81,6 +83,7 @@
   body.nativo #vguest,body.nativo .flutua{display:none}
   body.nativo #parear.ligado #qr,body.nativo #parear.ligado .nota:first-of-type{display:none}
 </style>
+<script>if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1))document.documentElement.classList.add("celular");</script>
 </head>
 <body class="ink-app" data-idioma>
 <header class="ink-bar">
@@ -99,7 +102,7 @@
       <button class="opcao" id="ehost" type="button"><strong>Host</strong><small>Send the camera. Open this on the iPhone.</small></button>
       <button class="opcao" id="eguest" type="button"><strong>Guest</strong><small>Receive the image. Open this on the PC.</small></button>
     </div>
-    <div class="bloco"><h2>Windows app, without OBS</h2>
+    <div class="bloco so-pc"><h2>Windows app, without OBS</h2>
     <details class="i"><summary title="About" aria-label="About">i</summary><div class="pop"><p class="nota">A small open source app that creates the camera "InkDOS Hub Webcam" on Windows 10 or 11 (64-bit). You only choose the quality.</p>
 <ol class="passos">
       <li>Extract the ZIP and open "InkDOS Hub Webcam.exe". If SmartScreen warns, click "More info" › "Run anyway" (the app is not signed).</li>
@@ -109,7 +112,7 @@
     </ol>
 <p class="nota">Source code: <a href="https://github.com/InkDOSHub/inkdoshub.github.io/tree/main/windows/webcam" target="_blank" rel="noopener">windows/webcam</a>, with the virtual camera from <a href="https://github.com/tshino/softcam" target="_blank" rel="noopener">softcam</a> (MIT).</p></div></details>
     <p><a class="ink-btn baixar" href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip">Download for Windows (ZIP)</a></p></div>
-    <div class="bloco"><h2>With OBS Studio (supported path)</h2>
+    <div class="bloco so-pc"><h2>With OBS Studio (supported path)</h2>
     <details class="i"><summary title="About" aria-label="About">i</summary><div class="pop"><p class="fluxo" data-idioma-nao>iPhone (Safari, Host) → Wi-Fi (WebRTC) → PC (Guest page) → OBS Studio → OBS Virtual Camera → Zoom, Teams, Meet…</p>
 <p class="nota">This flow was designed around this path, which is the supported one: <b>Windows 10 or 11 with OBS Studio</b>, using the OBS Virtual Camera as the Windows webcam. OBS on macOS and Linux works the same way. Other paths also work, such as a Window capture of this page in OBS, or any program that can turn a browser window into a virtual camera.</p>
 <h3>1. Install OBS Studio (once)</h3>
@@ -157,7 +160,7 @@
       <p class="nota">Scan it with the iPhone Camera app, or open this page on the iPhone, tap Host and type the code.</p>
       <p class="codigo">Code: <b id="gcodigo" data-idioma-nao></b></p>
       <p class="nota" id="gestado">Connecting to the pairing server…</p>
-      <details>
+      <details class="so-pc">
         <summary>Link for OBS</summary>
         <p class="nota">Browser source in OBS: this link shows only the image, with the same code. Close this tab after adding it to OBS, because the same code works in one window at a time.</p>
         <div class="linha"><input id="linkobs" readonly data-idioma-nao><button class="ink-btn" id="copiar" type="button">Copy</button></div>

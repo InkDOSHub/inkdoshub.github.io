@@ -72,3 +72,8 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 .editando .workspace-card.escondido{display:flex}
 .workspace-card.novo{width:auto;text-align:center;border:0}
 .workspace-card.novo .app-icon{border:2px dashed var(--border)}
+.editando .workspace-card{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.editando .workspace-card .app-icon{animation:tremer .28s ease-in-out infinite alternate}
+.workspace-card.arrastando{opacity:.55}.workspace-card.arrastando .app-icon{animation:none;transform:scale(1.08)}
+@keyframes tremer{from{transform:rotate(-1.5deg)}to{transform:rotate(1.5deg)}}
+.editando img{-webkit-user-drag:none;pointer-events:none}
