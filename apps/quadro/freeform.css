@@ -1,7 +1,6 @@
 /* InkDOS Hub 2026-10-28: Excalidraw com o visual do Freeform (Apple): azul do sistema, painéis
    translúcidos e arredondados, fonte do sistema na interface. Só CSS, as funções do Excalidraw não mudam. */
-.excalidraw{--ui-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;--color-primary:#007aff;--color-primary-darker:#0068d9;--color-primary-darkest:#0057b8;--color-primary-light:rgba(0,122,255,.14);--color-primary-hover:#0068d9;--border-radius-md:9px;--border-radius-lg:14px;--island-bg-color:rgba(255,255,255,.82);--shadow-island:0 4px 24px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.08);--default-button-size:2.25rem}
-.excalidraw.theme--dark{--color-primary:#0a84ff;--color-primary-darker:#409cff;--color-primary-darkest:#64b0ff;--color-primary-light:rgba(10,132,255,.22);--color-primary-hover:#409cff;--island-bg-color:rgba(44,44,46,.82);--shadow-island:0 4px 24px rgba(0,0,0,.45),0 0 0 .5px rgba(255,255,255,.1)}
-.excalidraw .Island{-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+.excalidraw{--ui-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;--color-primary:#007aff;--color-primary-darker:#0068d9;--color-primary-darkest:#0057b8;--color-primary-light:rgba(0,122,255,.14);--color-primary-hover:#0068d9;--border-radius-md:9px;--border-radius-lg:14px;--island-bg-color:#fff;--shadow-island:0 4px 24px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.08);--default-button-size:2.25rem}
+.excalidraw.theme--dark{--color-primary:#0a84ff;--color-primary-darker:#409cff;--color-primary-darkest:#64b0ff;--color-primary-light:rgba(10,132,255,.22);--color-primary-hover:#409cff;--island-bg-color:#2c2c2e;--shadow-island:0 4px 24px rgba(0,0,0,.45),0 0 0 .5px rgba(255,255,255,.1)}
 .excalidraw .App-toolbar .Island{border-radius:16px}
 .excalidraw .ToolIcon__icon{border-radius:9px}

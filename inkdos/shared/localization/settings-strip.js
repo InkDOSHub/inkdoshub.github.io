@@ -65,7 +65,7 @@ function installFrameActions(){if(frameInstalled||!drawer)return;const header=do
   const menu=doc.createElement('div');menu.className='inkdos-hamburger';menu.hidden=true;menu.setAttribute('role','menu');
   const burger=frameButton('menu','Menu',()=>{if(menu.hidden){const r=burger.getBoundingClientRect();menu.style.left=Math.max(8,r.left)+'px';menu.style.top=(r.bottom+6)+'px';menu.hidden=false}else menu.hidden=true});
   burger.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
-  for(const b of items){const t=doc.createElement('span');t.textContent=b.title;b.appendChild(t);b.setAttribute('role','menuitem');b.addEventListener('click',()=>setTimeout(()=>{menu.hidden=true},0));menu.appendChild(b)}
+  for(const b of items){b.className='inkdos-frame-action inkdos-menu-item';const t=doc.createElement('span');t.textContent=b.title;b.appendChild(t);b.setAttribute('role','menuitem');b.addEventListener('click',()=>setTimeout(()=>{menu.hidden=true},0));menu.appendChild(b)}
   doc.body.appendChild(menu);
   doc.addEventListener('pointerdown',e=>{if(!menu.hidden&&!menu.contains(e.target)&&!burger.contains(e.target))menu.hidden=true});
   left.insertBefore(burger,home?home.nextSibling:left.firstChild);

@@ -17,8 +17,8 @@
 /* Frame actions (header Open/Save, Settings, Share; Help in status bar) */
 .inkdos-frame-actions .frame-left,.inkdos-frame-actions .inkdos-frame-right{display:flex;align-items:center;gap:4px}
 .inkdos-frame-actions .inkdos-frame-right{justify-content:flex-end}
-.inkdos-frame-action{display:inline-grid;place-items:center}
-.inkdos-frame-action svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+header .inkdos-frame-action{display:inline-grid;place-items:center}
+header .inkdos-frame-action svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .inkdos-frame-action:disabled{opacity:.4;cursor:default}
 .inkdos-status-help{margin-left:auto;width:26px;height:26px;min-width:26px;min-height:26px;padding:0;border:0;border-radius:8px;background:transparent;color:inherit;flex:0 0 auto}
 .inkdos-status-help svg{width:16px;height:16px}
