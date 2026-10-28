@@ -33,11 +33,13 @@
   window.INK_ROTAS = ROTAS;
   var OFFICE = { documentos: 1, planilhas: 1, apresentacoes: 1 }, K_PREF = "inkdoshub-abrir-office";
   function preferencia() { try { return localStorage.getItem(K_PREF) || "inkdos"; } catch (_) { return "inkdos"; } }
-  var sel = document.getElementById("pref-office");
-  if (sel) {
-    sel.value = preferencia();
-    sel.addEventListener("change", function () { try { localStorage.setItem(K_PREF, sel.value); } catch (_) {} });
-  }
+  // Menu ☰: duas linhas (InkDOS rápido / ONLYOFFICE completo), com ✓ na escolhida
+  var opcoes = [].slice.call(document.querySelectorAll(".pref-office"));
+  function marcar() { var v = preferencia(); opcoes.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.pref === v)); }); }
+  opcoes.forEach(function (b) {
+    b.addEventListener("click", function () { try { localStorage.setItem(K_PREF, b.dataset.pref); } catch (_) {} marcar(); });
+  });
+  marcar();
 
   function rotaDe(file) {
     var nome = String(file && file.name || "").toLowerCase(), ponto = nome.lastIndexOf(".");
