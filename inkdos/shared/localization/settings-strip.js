@@ -39,7 +39,7 @@ function proxyButton(kind,label,target){const b=frameButton(kind,label,()=>{if(t
 function fullscreenApi(){const el=doc.documentElement,req=el.requestFullscreen||el.webkitRequestFullscreen;if(!req||!(doc.fullscreenEnabled||doc.webkitFullscreenEnabled))return null;try{if(root.navigator?.standalone||root.matchMedia?.('(display-mode: standalone),(display-mode: fullscreen)').matches)return null}catch(_){}const active=()=>!!(doc.fullscreenElement||doc.webkitFullscreenElement);return{active,toggle:()=>active()?(doc.exitFullscreen||doc.webkitExitFullscreen).call(doc):req.call(el)}}
 function section(title){const h=doc.createElement('div');h.className='inkdos-settings-popover-title inkdos-settings-section';h.textContent=title;popover.appendChild(h)}
 function showSettings(anchor){openPopover(anchor,'Appearance');const current=appearanceMode();for(const [mode,label] of [['light','Light'],['dark','Dark']]){const o=option(label,mode,()=>{drawer?.querySelector('[data-appearance-choice="'+mode+'"],[data-appearance-mode="'+mode+'"]')?.click();closePopover()});o.dataset.settingsGroup='appearance';o.classList.toggle('active',mode===current);popover.appendChild(o)}
- const api=root.InkDOSLocalization;if(api&&root.InkIdioma){/* InkDOS Hub: pacote de idioma */section('Language');const o=option(root.InkIdioma.nome(),'idioma',()=>{closePopover();root.InkIdioma.escolher()});o.classList.add('active');popover.appendChild(o)}else if(api){section('Language');for(const language of api.languages){const o=option(language.label,language.code,async()=>{await api.setLanguage(language.code,{storageKey:languageKey()});closePopover()});o.classList.toggle('active',language.code===api.currentLanguage);popover.appendChild(o)}}
+ const api=root.InkDOSLocalization;/* InkDOS Hub 2026-10-28: sem a seção de idioma (o idioma se escolhe no menu da tela inicial) */
  positionPopover(anchor);api?.apply?.()}
 
 // Shared Save menu for workspaces that register root.InkDOSSaveProvider:
@@ -71,7 +71,7 @@ function installFrameActions(){if(frameInstalled||!drawer)return;const header=do
   left.insertBefore(burger,home?home.nextSibling:left.firstChild);
  }
  // Pincel (como no Pages): a barra de edição fica escondida e abre ao tocar no pincel
- const bar=/\/apps\/(documents|spreadsheets|presentations)\//.test(root.location?.pathname||'')?doc.querySelector('#formatbar,#editbar'):null;
+ const bar=doc.querySelector('#formatbar,#editbar,.toolstrip-shell');
  if(bar){const KEY='inkdoshub-edicao-aberta';const set=v=>{doc.documentElement.classList.toggle('inkdos-edicao-aberta',v);brush.setAttribute('aria-pressed',String(v));try{localStorage.setItem(KEY,v?'1':'0')}catch(_){}};
   const brush=frameButton('brush','Format',()=>set(!doc.documentElement.classList.contains('inkdos-edicao-aberta')));
   brush.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.6 4.4 5 5L9 20H4v-5z"/><path d="m12.5 6.5 5 5"/></svg>';

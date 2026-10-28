@@ -1,10 +1,10 @@
 /* App-local first-open card; intentionally independent of Home. */
 .start-state{position:absolute;inset:0;z-index:8;display:grid;place-items:center;padding:18px;background:var(--reader-bg,var(--frame-bg,#eef1f5));pointer-events:none}
-.start-card{width:min(430px,100%);padding:28px;border:0;border-radius:22px;background:transparent;box-shadow:none;text-align:center;pointer-events:auto}
+.start-card{width:min(430px,100%);padding:28px;border:1px solid var(--frame-line,#d9dee7);border-radius:22px;background:var(--frame-surface,#fff);box-shadow:var(--frame-panel-shadow,0 12px 32px rgba(15,23,42,.10));text-align:center;pointer-events:auto}
 .start-icon{width:68px;height:68px}
 .start-card h1{margin:14px 0 6px}
 .start-card p{margin:0 0 18px;color:var(--frame-muted,#697386)}
-.start-actions{display:grid;justify-content:center;gap:2px;flex-wrap:wrap;width:min(260px,100%);margin:14px auto 0}html[data-ui-density="desktop"] .start-actions{flex-flow:row nowrap}
+.start-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}html[data-ui-density="desktop"] .start-actions{flex-flow:row nowrap}
 .start-actions.single{justify-content:center}
-.start-actions button{min-height:36px;border:0;border-radius:6px;background:transparent;padding:0 12px;color:var(--text);font-size:14px;text-align:left;box-shadow:none}
-.start-actions .primary{background:transparent;color:var(--accent);border-color:transparent;font-weight:600}
+.start-actions button{min-height:44px;border:1px solid var(--frame-line,#d9dee7);border-radius:11px;background:var(--frame-surface,#fff);padding:0 16px;color:inherit}
+.start-actions .primary{background:var(--epub-accent,#7655c7);color:#fff;border-color:var(--epub-accent,#7655c7)}
