@@ -72,6 +72,7 @@ function installFrameActions(){if(frameInstalled||!drawer)return;const header=do
   doc.body.appendChild(menu);
   doc.addEventListener('pointerdown',e=>{if(!menu.hidden&&!menu.contains(e.target)&&!burger.contains(e.target))menu.hidden=true});
   header.__inkMenu=menu;header.__inkBurger=burger;
+  {const inp=header.children[1]&&header.children[1].querySelector('input');if(inp){const cv=doc.createElement('canvas').getContext('2d');let last=null;const sz=()=>{const cs=getComputedStyle(inp),f=cs.font,k=inp.value+'|'+f+'|'+cs.paddingLeft;if(k===last)return;last=k;cv.font=f;inp.style.width=Math.ceil(cv.measureText(inp.value||inp.placeholder||'').width+parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight)+6)+'px'};inp.addEventListener('input',sz);setInterval(sz,400);setTimeout(sz,0)}}
   {const sides=()=>[header.firstElementChild,header.lastElementChild];const fit=()=>{const w=Math.max(...sides().map(e=>e?e.scrollWidth:0));header.style.setProperty('--ink-side',Math.ceil(w)+'px')};if(window.ResizeObserver){const ro=new ResizeObserver(fit);sides().forEach(e=>e&&ro.observe(e))}setTimeout(fit,0)}
  }
  // Pincel (como no Pages): a barra de edição fica escondida e abre ao tocar no pincel

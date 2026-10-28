@@ -37,7 +37,6 @@ header .inkdos-frame-action svg{width:19px;height:19px;fill:none;stroke:currentC
 .inkdos-frame-actions header>:nth-child(2){justify-self:center;min-width:0;max-width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .inkdos-frame-actions header>:nth-child(2) input{flex:0 1 auto;min-width:0;max-width:100%;text-align:center}
 @media (max-width:640px){
-.inkdos-frame-actions header>.document-title img,.inkdos-frame-actions header>.presentation-title img,.inkdos-frame-actions header>.document-title .documents-icon{display:none}
 .inkdos-frame-actions header .inkdos-frame-action{width:34px;min-width:34px;height:34px}
 }
 /* Shared Save menu */
@@ -92,3 +91,10 @@ html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .toolstrip-shell{height:0;min-
 .inkdos-frame-actions header>:nth-child(2){position:relative}
 .inkdos-frame-actions header>:nth-child(2) .dirty-dot{position:absolute;right:4px;top:6px}
 .inkdos-hamburger .inkdos-menu-item{font-weight:400}
+/* Centre of the header: app symbol + file name as one unit, same look as the Hub apps. */
+.inkdos-frame-actions header>:nth-child(2){gap:8px;width:auto!important;left:auto!important;right:auto!important;transform:none!important;margin:0!important;height:auto;background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
+.inkdos-frame-actions header>:nth-child(2)>:is(img,svg){display:block!important;position:static!important;transform:none!important;width:24px!important;height:24px!important;min-width:24px;border-radius:6px;flex:none;margin:0!important}
+.inkdos-frame-actions header>:nth-child(2) :is(input,.title-text){height:32px;padding:0 8px;border:1px solid transparent!important;border-radius:8px;background:transparent!important;box-shadow:none!important;font-size:15px;font-weight:600;color:inherit;text-overflow:ellipsis}
+.inkdos-frame-actions header>:nth-child(2) .title-text{display:block;line-height:30px;overflow:hidden;white-space:nowrap}
+.inkdos-frame-actions header>:nth-child(2) input:focus{border-color:var(--accent,#0a84ff)!important;background:var(--panel,var(--surface,#fff))!important;outline:none}
+@media(max-width:520px){.inkdos-frame-actions header{gap:4px}.inkdos-frame-actions header>:nth-child(2){gap:6px}.inkdos-frame-actions header>:nth-child(2) :is(input,.title-text){font-size:14px;padding:0 4px}}
