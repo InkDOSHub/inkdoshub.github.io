@@ -21,6 +21,9 @@ GRUPOS = [
     ("codigo", "Code", ["apps/codigo"]),
     ("quadro", "Whiteboard", ["apps/quadro"]),
     ("musica", "Music", ["apps/musica"]),
+    ("gravador", "Recorder", ["apps/gravador"]),
+    ("transferir", "Transfer", ["apps/transferir"]),
+    ("webcam", "Webcam", ["apps/webcam"]),
     ("inkdos", "Documents (InkDOS)", ["inkdos"]),
     ("onlyoffice", "ONLYOFFICE editors", ["onlyoffice"]),
 ]
