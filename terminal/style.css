@@ -1,9 +1,9 @@
 /* Terminal do InkDOS Hub: a barra e as cores vêm de ../assets/barra.css (as mesmas de todas as ferramentas). */
 body.ink-app { position: fixed; inset: 0; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
 .ink-bar { flex-wrap: wrap; row-gap: 6px; }
-#term { padding: 6px 4px 0 8px; background: var(--term-bg); }
+#term { padding: 4px 2px 0 6px; background: var(--term-bg); }
 :root { --term-bg: #ffffff; }
-html[data-theme="dark"] { --term-bg: #0d1117; }
+html[data-theme="dark"] { --term-bg: #1e1e1e; }
 .ink-keys { flex: 0 0 auto; display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; background: var(--card); border-top: 1px solid var(--border); }
 .ink-keys .ink-btn { min-width: 44px; padding: 8px 10px; font-family: ui-monospace, Menlo, monospace; }
 body.embed .ink-bar { display: none; }
@@ -16,3 +16,9 @@ dialog h2 { font-size: 16px; margin: 0 0 12px; }
 
 dialog .nota { color: var(--muted); font-size: 14px; line-height: 1.4; margin: 0 0 14px; }
 .sessao-botoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* Visual do Terminal da Apple: barra de título discreta e translúcida, título no centro */
+.ink-bar { background: color-mix(in srgb, var(--card) 85%, transparent); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+.ink-title { font-weight: 600; font-size: 13px; }
+.ink-keys { background: color-mix(in srgb, var(--card) 85%, transparent); }
+.ink-keys .ink-btn { font-family: "SF Mono", Menlo, ui-monospace, monospace; border-radius: 7px; }
