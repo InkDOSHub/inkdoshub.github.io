@@ -116,7 +116,7 @@ $("limpar").onclick = async () => {
   if (!faixas.length) return;
   await bib.limpar();
   faixas = []; atual = -1; audio.pause(); audio.removeAttribute("src"); audio.load();
-  $("titulo").textContent = t("No music"); $("sub").textContent = t("Tap Open music to choose files from the iPad");
+  $("titulo").textContent = t("No music"); $("sub").textContent = "";
   desenhar();
 };
 $("tocar").onclick = () => { if (atual < 0) return faixas.length && tocar(0); audio.paused ? audio.play() : audio.pause(); };
@@ -131,6 +131,17 @@ $("rep").onclick = () => {
 audio.addEventListener("play", () => ($("tocar").innerHTML = inkIcone("pause")));
 audio.addEventListener("pause", () => ($("tocar").innerHTML = inkIcone("play")));
 audio.addEventListener("ended", () => proxima(false));
+let arrastando = false;
+const pos = $("pos");
+function mostrarTempo() {
+  const d = isFinite(audio.duration) ? audio.duration : 0;
+  $("tatual").textContent = inkTempo(audio.currentTime || 0);
+  $("ttotal").textContent = inkTempo(d);
+  if (!arrastando) pos.value = d ? Math.round((audio.currentTime / d) * 1000) : 0;
+}
+["timeupdate", "loadedmetadata", "emptied"].forEach((ev) => audio.addEventListener(ev, mostrarTempo));
+pos.addEventListener("input", () => { arrastando = true; if (isFinite(audio.duration)) $("tatual").textContent = inkTempo((pos.value / 1000) * audio.duration); });
+pos.addEventListener("change", () => { arrastando = false; if (isFinite(audio.duration)) audio.currentTime = (pos.value / 1000) * audio.duration; });
 audio.addEventListener("ratechange", () => { if (Math.abs(audio.playbackRate - cfg.vel) > 0.001) { cfg.vel = audio.playbackRate; mostrarAjustes(); salvar(); } });
 if ("mediaSession" in navigator) {
   navigator.mediaSession.setActionHandler("nexttrack", () => proxima(true));
@@ -202,7 +213,7 @@ $("bajustes").onclick = () => {
 audio.addEventListener("play", () => { if (precisaWebAudio()) ligarAudio(); });
 mostrarAjustes();
 
-$("titulo").textContent = t("No music"); $("sub").textContent = t("Tap Open music to choose files from the iPad");
+$("titulo").textContent = t("No music"); $("sub").textContent = "";
 bib.listar().then((itens) => {
   faixas = itens;
   let ultimo = null;

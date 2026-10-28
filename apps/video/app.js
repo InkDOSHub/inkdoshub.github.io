@@ -12,7 +12,6 @@ try { posicoes = JSON.parse(localStorage.getItem("inkdoshub-video-posicoes") || 
 
 function desenhar() {
   lista.innerHTML = "";
-  $("vazio").classList.toggle("md-hide", atual >= 0);
   $("editar").disabled = atual < 0;
   if (!itens.length) { lista.innerHTML = '<li style="cursor:default;color:var(--muted)"></li>'; lista.firstChild.textContent = t("No videos."); return; }
   itens.forEach((v, i) => {
@@ -88,8 +87,6 @@ $("limpar").onclick = async () => {
   try { localStorage.removeItem("inkdoshub-video-posicoes"); } catch (_) {}
   desenhar();
 };
-$("prox").onclick = () => itens.length && abrir((atual + 1) % itens.length, true);
-$("ant").onclick = () => itens.length && abrir(atual > 0 ? atual - 1 : itens.length - 1, true);
 $("blista").onclick = () => { const h = $("lado").classList.toggle("md-hide"); $("blista").classList.toggle("on", !h); };
 $("blista").classList.add("on");
 $("editar").onclick = () => {
