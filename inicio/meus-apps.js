@@ -39,14 +39,12 @@
     // link direto: se a pessoa tiver o app do site, o iOS pode abrir o app
     a.href = app.url; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.dataset.meu = app.url;
-    a.appendChild(el("span", "accent"));
     a.appendChild(icone(app));
     var c = el("span", "workspace-copy");
     c.setAttribute("data-idioma-nao", "");
     c.appendChild(el("strong", "", app.nome));
     c.appendChild(el("small", "", new URL(app.url).host));
     a.appendChild(c);
-    a.appendChild(el("span", "chevron", "↗"));
     return a;
   }
 
