@@ -74,7 +74,7 @@ function create({session,history,selection,chrome,fileOpen,save,editor,panel,sli
   const present=$('presentBtn');if(present)present.disabled=!isEnabled('presentation.present.current');const presentStart=$('presentStartMenuBtn');if(presentStart)presentStart.disabled=!isEnabled('presentation.present.start');
   editor.sync()
  }
- function installHomeGuard(){const homeLink=document.querySelector('a[aria-label="Home"]');if(!homeLink)return;homeLink.addEventListener('click',async e=>{if(!session.dirty)return;e.preventDefault();e.stopPropagation();const href=homeLink.href;if(await authorizeReplacement('leave')){authorizedUnload=true;global.location.assign(href)}})}
+ function installHomeGuard(){const homeLink=document.querySelector('a.inkdos-hub-link');if(!homeLink)return;homeLink.addEventListener('click',async e=>{if(!session.dirty)return;e.preventDefault();e.stopPropagation();const href=homeLink.href;if(await authorizeReplacement('leave')){authorizedUnload=true;global.location.assign(href)}})}
  function installUnloadGuard(){global.addEventListener('beforeunload',e=>{if(authorizedUnload){authorizedUnload=false;return}if(!session.dirty)return;e.preventDefault();e.returnValue=''})}
  function install(){
   drawer=Object.freeze({open(){return false},close(){return false},toggle(){return false},get isOpen(){return false}});zoomPopover=NS.FrameUI.bindPopover({trigger:$('zoomMenuBtn'),popover:$('zoomPopover')});

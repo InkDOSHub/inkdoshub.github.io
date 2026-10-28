@@ -1,7 +1,7 @@
 :root[data-ui-density="desktop"]{--control:30px;--compact-control:28px;--inkdos-frame-gap:3px;--inkdos-frame-pad:4px}
 
 :root[data-ui-density="desktop"] .topbar{min-height:44px;height:44px;padding-top:2px;padding-bottom:2px}
-:root[data-ui-density="desktop"] .frame-btn:not([aria-label="Home"]){width:30px;height:30px;min-width:30px;min-height:30px;padding:0}
+:root[data-ui-density="desktop"] .frame-btn:not(.inkdos-hub-link){width:30px;height:30px;min-width:30px;min-height:30px;padding:0}
 :root[data-ui-density="desktop"] .frame-btn svg{width:16px;height:16px}
 :root[data-ui-density="desktop"] .title-input{height:30px;min-height:30px}
 :root[data-ui-density="desktop"] .editbar,
