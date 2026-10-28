@@ -56,10 +56,29 @@ function confirmOverwrite(P,h){saveCard(card=>{saveHeading(card,'Overwrite the o
 function installFrameActions(){if(frameInstalled||!drawer)return;const header=doc.querySelector('header.topbar,header.framebar,header');const left=header?.querySelector('.frame-left');if(!header||!left)return;frameInstalled=true;doc.documentElement.classList.add('inkdos-frame-actions');
  const home=header.querySelector('a[aria-label="Home"],a[title="Home"]');if(home&&left.firstChild!==home)left.insertBefore(home,left.firstChild);
  const open=drawerTarget(['openMenuBtn','menuOpen','openBtn']),save=drawerTarget(['saveMenuBtn','menuSave','saveBtn']),share=drawerTarget(['shareMenuBtn','menuShare','shareBtn']);
- // New document: a + at the far top-left, before every other header symbol.
- const create=drawerTarget(['newMenuBtn','menuNew','newBtn']);if(create)left.insertBefore(proxyButton('new',(create.textContent||'New').replace(/⌘.*/,'').trim()||'New',create),left.firstChild);
- let ref=home?home.nextSibling:left.firstChild;for(const b of [open&&proxyButton('open',(open.textContent||'Open').replace(/⌘.*/,'').trim()||'Open',open),save&&proxyButton('save',(save.textContent||'Save').replace(/⌘.*/,'').trim()||'Save',save)].filter(Boolean))left.insertBefore(b,ref);
- let right=header.querySelector('.frame-right');if(!right){right=doc.createElement('div');right.className='frame-side frame-right';header.appendChild(right)}right.removeAttribute('aria-hidden');right.classList.add('inkdos-frame-right');
+ // InkDOS Hub 2026-10-28: Novo, Abrir e Salvar ficam num menu ☰ (formato do menu do Quadro/Excalidraw), ao lado
+ // de "‹ InkDOS Hub"; os botões são os mesmos de antes (proxyButton), só mudam de lugar.
+ const create=drawerTarget(['newMenuBtn','menuNew','newBtn']);
+ const label=(el,fb)=>(el.textContent||fb).replace(/⌘.*/,'').trim()||fb;
+ const items=[create&&proxyButton('new',label(create,'New'),create),open&&proxyButton('open',label(open,'Open'),open),save&&proxyButton('save',label(save,'Save'),save)].filter(Boolean);
+ if(items.length){
+  const menu=doc.createElement('div');menu.className='inkdos-hamburger';menu.hidden=true;menu.setAttribute('role','menu');
+  const burger=frameButton('menu','Menu',()=>{if(menu.hidden){const r=burger.getBoundingClientRect();menu.style.left=Math.max(8,r.left)+'px';menu.style.top=(r.bottom+6)+'px';menu.hidden=false}else menu.hidden=true});
+  burger.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
+  for(const b of items){const t=doc.createElement('span');t.textContent=b.title;b.appendChild(t);b.setAttribute('role','menuitem');b.addEventListener('click',()=>setTimeout(()=>{menu.hidden=true},0));menu.appendChild(b)}
+  doc.body.appendChild(menu);
+  doc.addEventListener('pointerdown',e=>{if(!menu.hidden&&!menu.contains(e.target)&&!burger.contains(e.target))menu.hidden=true});
+  left.insertBefore(burger,home?home.nextSibling:left.firstChild);
+ }
+ // Pincel (como no Pages): a barra de edição fica escondida e abre ao tocar no pincel
+ const bar=/\/apps\/(documents|spreadsheets|presentations)\//.test(root.location?.pathname||'')?doc.querySelector('#formatbar,#editbar'):null;
+ if(bar){const KEY='inkdoshub-edicao-aberta';const set=v=>{doc.documentElement.classList.toggle('inkdos-edicao-aberta',v);brush.setAttribute('aria-pressed',String(v));try{localStorage.setItem(KEY,v?'1':'0')}catch(_){}};
+  const brush=frameButton('brush','Format',()=>set(!doc.documentElement.classList.contains('inkdos-edicao-aberta')));
+  brush.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.6 4.4 5 5L9 20H4v-5z"/><path d="m12.5 6.5 5 5"/></svg>';
+  brush.classList.add('inkdos-pincel');doc.documentElement.classList.add('inkdos-com-pincel');
+  let v=false;try{v=localStorage.getItem(KEY)==='1'}catch(_){}set(v);
+  header.__inkBrush=brush}
+ let right=header.querySelector('.frame-right');if(!right){right=doc.createElement('div');right.className='frame-side frame-right';header.appendChild(right)}right.removeAttribute('aria-hidden');right.classList.add('inkdos-frame-right');if(header.__inkBrush)right.appendChild(header.__inkBrush);
  const sun=frameButton('sun','Settings',()=>{if(activeButton===sun&&!popover.hidden){closePopover();return}showSettings(sun)});right.appendChild(sun);if(root.InkDOSWorkSafety){const lock=frameButton('lock','Security',()=>{if(activeButton===lock&&!popover.hidden){closePopover();return}showSecurity(lock)});right.appendChild(lock)}if(share)right.appendChild(proxyButton('share','Share',share));else{const slot=frameButton('share','Share',()=>{});slot.disabled=true;right.appendChild(slot);let tries=0;const timer=setInterval(()=>{const t=drawerTarget(['shareMenuBtn','menuShare','shareBtn']);if(t){clearInterval(timer);slot.replaceWith(proxyButton('share','Share',t))}else if(++tries>40){clearInterval(timer);slot.remove()}},100)}
  const status=doc.querySelector('footer.statusbar,footer.bottom-shell,footer');if(status){const help=frameButton('help','Help',()=>{if(activeButton===help&&!popover.hidden){closePopover();return}showHelp(help)});help.classList.add('inkdos-status-help');status.appendChild(help)}
  doc.addEventListener('pointerdown',event=>{if(popover.hidden)return;const t=event.target;if(t instanceof Element&&t.closest('.inkdos-frame-action'))return;if(!popover.contains(t))closePopover()},true);doc.addEventListener('keydown',event=>{if(event.key==='Escape'&&!popover.hidden){const back=activeButton;closePopover();back?.focus?.()}})}

@@ -1,51 +1,59 @@
-/* InkDOS Hub 2026-10-28: polimento no estilo Apple (Pages, Numbers, Keynote) para Documentos, Planilhas
-   e Apresentações. Só CSS carregado por último: não muda o HTML nem o JS, então nenhuma função ou símbolo some. */
-:root{--bg:#f5f5f7;--chrome:rgba(246,246,248,.82);--panel:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.1);--line-strong:rgba(0,0,0,.18);--accent:#007aff;--accent-soft:rgba(0,122,255,.1);--shadow:0 12px 32px rgba(0,0,0,.14);--overlay:rgba(0,0,0,.22)}
-:root[data-appearance-resolved="dark"]{--bg:#1c1c1e;--chrome:rgba(40,40,42,.82);--panel:#2c2c2e;--text:#f5f5f7;--muted:#98989d;--line:rgba(255,255,255,.1);--line-strong:rgba(255,255,255,.18);--accent:#0a84ff;--accent-soft:rgba(10,132,255,.18);--shadow:0 12px 32px rgba(0,0,0,.5)}
-body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.005em}
+/* InkDOS Hub: visual estilo Apple dos apps do InkDOS. As cores ficam em runtime/tokens/base.css de cada app;
+   aqui só as peças da moldura que mudaram de forma (sem repetir cores nem redefinir tokens). */
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+
+/* Barra de cima e barra de status translúcidas */
 .topbar,.statusbar{background:var(--chrome);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
-.topbar{border-bottom:1px solid var(--line)}.statusbar{border-top:1px solid var(--line);color:var(--muted);font-size:12px}
-.frame-btn,.close-btn{border-radius:8px;border-color:transparent!important}
-.frame-btn:hover,.frame-btn:focus-visible,.close-btn:hover{background:color-mix(in srgb,var(--text) 7%,transparent)}
+.topbar{border-bottom:1px solid var(--line)}
+.statusbar{border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+
+/* Botões da moldura: sem borda, cantos de 8px */
+.frame-btn,.close-btn{border-radius:8px;border-color:transparent}
+.frame-btn:hover,.frame-btn:focus-visible,.close-btn:hover{background:color-mix(in srgb,var(--text) 7%,transparent);border-color:transparent}
+.frame-btn[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .title-input{border-color:transparent;background:transparent;font-weight:600;border-radius:8px}
 .title-input:hover{background:color-mix(in srgb,var(--text) 5%,transparent)}
 .title-input:focus{background:var(--panel);border-color:var(--accent)}
-.fmt-btn{border-color:transparent;background:transparent;border-radius:7px}
-.fmt-btn:hover,.fmt-btn:focus-visible{background:color-mix(in srgb,var(--text) 7%,transparent)}
-.fmt-btn[aria-pressed="true"],.fmt-btn.is-active{background:var(--accent-soft);border-color:transparent;box-shadow:none}
-select{border-radius:7px}
-.drawer,.zoom-popover,.side-panel{border-radius:14px}
-.drawer,.zoom-popover{background:var(--chrome);-webkit-backdrop-filter:saturate(180%) blur(24px);backdrop-filter:saturate(180%) blur(24px);border:1px solid var(--line);box-shadow:var(--shadow)}
-.menu-item{border-radius:8px}.menu-item:hover,.menu-item:focus-visible{background:var(--accent-soft)}
-.drawer-section-label{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600}
-.appearance-switch{border-radius:9px;background:color-mix(in srgb,var(--text) 6%,transparent)}
-.appearance-choice{border-radius:7px;font-weight:600}
-.appearance-choice.active{background:var(--panel);border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.14)}
 
-/* Voltar para a tela inicial do InkDOS Hub: "‹ InkDOS Hub" no lugar da casinha, como nos outros apps */
-a.frame-btn[aria-label="Home"]{width:auto;padding:0 8px 0 4px;gap:2px;display:inline-flex!important;align-items:center;font-size:14px;font-weight:600;white-space:nowrap}
-a.frame-btn[aria-label="Home"][hidden]{display:none!important}
+/* "‹ InkDOS Hub" no lugar da casinha (a volta para a tela inicial, como nos outros apps) */
+a.frame-btn[aria-label="Home"]{width:auto;padding:0 8px 0 4px;gap:2px;display:inline-flex;align-items:center;font-size:14px;font-weight:600;white-space:nowrap}
+a.frame-btn[aria-label="Home"][hidden]{display:none}
 a.frame-btn[aria-label="Home"] svg{display:none}
 a.frame-btn[aria-label="Home"]::before{content:"‹";font-size:24px;font-weight:400;line-height:1;margin-top:-3px}
 a.frame-btn[aria-label="Home"]::after{content:"InkDOS Hub"}
 @media(max-width:520px){a.frame-btn[aria-label="Home"]::after{content:""}}
 
-/* Menu (hambúrguer) e tela inicial no esquema do menu do Quadro (Excalidraw): lista compacta, ícone pequeno,
-   atalho à direita, sem títulos em maiúsculas */
-.drawer{width:min(260px,calc(100vw - 24px));padding:8px;border-radius:12px}
+/* Menu ☰ (Novo, Abrir, Salvar) no formato do menu do Quadro (Excalidraw) */
+.inkdos-hamburger{position:fixed;z-index:200;width:230px;padding:6px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:1px}
+.inkdos-hamburger[hidden]{display:none}
+.inkdos-hamburger .frame-btn{width:100%;height:32px;padding:0 8px;display:flex;align-items:center;justify-content:flex-start;gap:10px;border-radius:6px;font-size:14px;color:var(--text)}
+.inkdos-hamburger .frame-btn:hover{background:var(--accent-soft)}
+.inkdos-hamburger .frame-btn svg{width:16px;height:16px}
+
+/* Pincel (como no Pages): a barra de edição só aparece com ele ligado */
+html.inkdos-com-pincel:not(.inkdos-edicao-aberta) #formatbar,html.inkdos-com-pincel:not(.inkdos-edicao-aberta) #editbar{display:none}
+
+/* Barra de edição: botões sem borda */
+.fmt-btn{border-color:transparent;background:transparent;border-radius:7px}
+.fmt-btn:hover,.fmt-btn:focus-visible{background:color-mix(in srgb,var(--text) 7%,transparent)}
+.fmt-btn[aria-pressed="true"],.fmt-btn.is-active{border-color:transparent;box-shadow:none}
+
+/* Menus (gaveta e zoom) e tela inicial do app no esquema do menu do Quadro */
+.drawer,.zoom-popover{border-radius:12px;border:1px solid var(--line);box-shadow:var(--shadow)}
+.drawer{width:min(260px,calc(100vw - 24px));padding:8px}
 .drawer-head{margin-bottom:4px;padding:2px 4px}
 .drawer-title{font-size:14px;font-weight:600}
 .drawer-icon{width:22px;height:22px;border-radius:6px}
 .drawer-section{margin-top:6px;padding-top:6px}
-.drawer-section-label{padding:2px 8px 4px;font-size:11px;color:var(--muted)}
+.drawer-section-label{padding:2px 8px 4px;font-size:11px;text-transform:none;letter-spacing:0;font-weight:600}
 .menu-list{gap:1px}
 .menu-item{min-height:32px;padding:0 8px;border-radius:6px;font-size:14px;column-gap:10px}
 .menu-item svg{width:16px;height:16px}
-.menu-item .hint{font-size:12px;opacity:.8}
-.start-state{background:var(--bg)!important}
-.start-card{border:0!important;background:transparent!important;box-shadow:none!important;text-align:center}
-.start-card h1,.start-card h2{font-weight:600;letter-spacing:-.01em}
-.start-actions{display:grid!important;gap:2px!important;width:min(260px,100%);margin:14px auto 0}
-.start-actions button{min-height:36px;border:0!important;border-radius:6px!important;background:transparent!important;color:var(--text)!important;font-size:14px;text-align:left;padding:0 12px!important;box-shadow:none!important}
-.start-actions button:hover{background:var(--accent-soft)!important}
-.start-actions button.primary{color:var(--accent)!important;font-weight:600}
+.appearance-switch{border-radius:9px}
+.appearance-choice{border-radius:7px;font-weight:600}
+.appearance-choice.active{border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.start-card{border:0;background:transparent;box-shadow:none;text-align:center}
+.start-actions{display:grid;gap:2px;width:min(260px,100%);margin:14px auto 0}
+.start-actions button{min-height:36px;border:0;border-radius:6px;background:transparent;color:var(--text);font-size:14px;text-align:left;padding:0 12px;box-shadow:none}
+.start-actions button:hover{background:var(--accent-soft)}
+.start-actions button.primary{color:var(--accent);font-weight:600}
