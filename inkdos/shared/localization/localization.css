@@ -69,7 +69,6 @@ header a[aria-label="Home"][hidden]{display:none}
 header a[aria-label="Home"] svg{display:none}
 header a[aria-label="Home"]::before{content:"‹";font-size:24px;font-weight:400;line-height:1;margin-top:-3px}
 header a[aria-label="Home"]::after{content:"InkDOS Hub"}
-@media(max-width:520px){header a[aria-label="Home"]::after{content:""}}
 
 /* Menu ☰ (Novo, Abrir, Salvar) no formato do menu do Quadro (Excalidraw) */
 .inkdos-hamburger{position:fixed;z-index:1000;width:230px;padding:6px;border-radius:12px;background:var(--panel,var(--surface,#fff));border:1px solid var(--line,var(--edge,rgba(0,0,0,.1)));box-shadow:var(--shadow);display:flex;flex-direction:column;gap:1px}
