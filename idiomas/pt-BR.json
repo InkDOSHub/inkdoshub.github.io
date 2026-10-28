@@ -627,5 +627,16 @@
 "Hide apps, drag them to change the order, or remove your webapps": "Esconda apps, arraste para mudar a ordem ou remova seus webapps",
 "Menu": "Menu",
 "Light or dark theme": "Tema claro ou escuro",
-"Language": "Idioma"
+"Language": "Idioma",
+"No photo open": "Nenhuma foto aberta",
+"Open an image file to see it here.": "Abra um arquivo de imagem para vê-lo aqui.",
+"No music open": "Nenhuma música aberta",
+"Open an audio file to play it here.": "Abra um arquivo de áudio para tocá-lo aqui.",
+"No video open": "Nenhum vídeo aberto",
+"Open a video file to watch it here.": "Abra um arquivo de vídeo para assisti-lo aqui.",
+"No recording chosen": "Nenhuma gravação escolhida",
+"Choose a screen recording from Photos to keep only its sound.": "Escolha uma gravação de tela das Fotos para guardar só o som.",
+"Open photos": "Abrir fotos",
+"Open music": "Abrir músicas",
+"Open videos": "Abrir vídeos"
 }

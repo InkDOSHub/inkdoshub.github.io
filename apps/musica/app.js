@@ -27,6 +27,7 @@ function partes(n) {
 
 function desenhar() {
   lista.innerHTML = "";
+  document.documentElement.classList.toggle("md-sem-itens", !faixas.length);
   if (!faixas.length) {
     lista.innerHTML = '<li style="cursor:default;color:var(--muted)"></li>';
     lista.firstChild.textContent = t("The list is empty.");

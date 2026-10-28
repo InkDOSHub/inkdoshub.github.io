@@ -23,3 +23,11 @@
 .md-note{color:var(--muted);font-size:12px;line-height:1.45;margin:8px 0 0}
 .md-hide{display:none!important}
 @media (max-width:760px){.md-wrap{flex-direction:column}.md-side{width:auto;border-left:0;border-top:1px solid var(--border);max-height:40%}}
+/* Sem nada aberto: só um aviso no meio (ícone, título, texto e um botão), sem lista nem barra duplicada */
+.md-vazio{display:none;height:100%;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center}
+.md-vazio svg{width:56px;height:56px;fill:none;stroke:var(--muted);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.6;margin-bottom:8px}
+.md-vazio h2{margin:0;font-size:17px;font-weight:600;color:var(--text)}
+.md-vazio p{margin:0 0 12px;font-size:13px;color:var(--muted)}
+.md-vazio .ink-btn{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;padding:8px 16px}
+html.md-sem-itens .md-vazio{display:flex}
+html.md-sem-itens .md-wrap,html.md-sem-itens #abrir,html.md-sem-itens #limpar{display:none!important}
