@@ -75,3 +75,4 @@ html[data-theme="dark"] .home-shell .botao.secundario{background:#3a3a3c;box-sha
 .menu-rotulo{padding:2px 8px;font-size:12px;color:var(--muted)}
 .menu-pop select{margin:2px 6px 4px;font:inherit;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
 .brand-row{min-height:46px}
+#btn-abrir.icone-btn{display:grid;padding:0}#btn-abrir.icone-btn svg{width:20px;height:20px;stroke-width:1.8}
