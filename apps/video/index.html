@@ -9,12 +9,16 @@
 <title>Video · InkDOS Hub</title>
 <script src="../../assets/tema.js?v=1"></script>
 <script src="../../assets/idioma.js?v=1"></script>
-<script src="../../assets/gerenciador-app.js?v=7"></script>
+<script src="../../assets/gerenciador-app.js?v=8"></script>
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
 <link rel="stylesheet" href="../../assets/midia.css?v=2">
 <style>
   .tela{flex:1;min-height:0;margin:12px 12px 0;border-radius:12px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
   video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+  .ctl{display:flex;align-items:center;gap:10px;padding:8px 16px 0;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ctl input{flex:1;min-width:60px;accent-color:var(--text)}
+  .ctl .ink-btn{border:0;background:none;color:var(--text);min-width:36px;min-height:36px}
+  .tela:fullscreen{margin:0;border-radius:0}
   .info{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13px;min-height:44px;box-sizing:border-box}
   .info strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .info small{color:var(--muted)}
@@ -43,7 +47,12 @@
   <div class="md-wrap">
     <section class="md-stage">
       <div class="tela">
-        <video id="video" controls playsinline preload="metadata"></video>
+        <video id="video" playsinline preload="metadata"></video>
+      </div>
+      <div class="ctl" data-idioma-nao>
+        <button class="ink-btn" id="tocar" title="Play or pause" aria-label="Play or pause" data-icone="play"></button>
+        <span id="tatual">0:00</span><input type="range" id="pos" min="0" max="1000" value="0" aria-label="Position"><span id="ttotal">0:00</span>
+        <button class="ink-btn" id="tela-cheia" title="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       </div>
       <div class="info"><strong id="titulo" data-idioma-nao>No video</strong><small id="sub"></small>
       </div>
@@ -64,6 +73,6 @@
 </div></div>
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
