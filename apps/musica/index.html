@@ -20,13 +20,7 @@
   .faixa{text-align:center;min-width:0}
   .faixa strong{display:block;font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .faixa small{display:block;margin-top:4px;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .tempo{display:flex;align-items:center;gap:10px;width:100%;max-width:520px;align-self:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-  .tempo input{flex:1;accent-color:var(--text);height:4px}
-  .ctl{display:flex;justify-content:center;align-items:center;gap:18px}
-  .ctl .ink-btn{border:0;background:none;min-width:40px;min-height:40px;color:var(--text)}
-  .ctl .ink-btn.on{color:var(--accent)}
-  .ctl .lado{color:var(--muted)}
-  .ctl #tocar svg{width:34px;height:34px}
+  audio{width:100%;max-width:560px;align-self:center}
   #eq{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;align-items:end;margin:6px 0 4px}
   #eq div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
   #eq input{writing-mode:vertical-lr;direction:rtl;width:26px;height:120px;accent-color:var(--accent)}
@@ -41,6 +35,8 @@
   <span class="ink-spacer"></span>
   <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
   <button class="ink-btn" id="abrir">Open music</button>
+  <button class="ink-btn" id="aleat" title="Shuffle" aria-label="Shuffle" data-icone="aleatorio"></button>
+  <button class="ink-btn" id="rep" title="Repeat" aria-label="Repeat" data-icone="repetir"></button>
   <button class="ink-btn" id="bajustes">Audio settings</button>
 </header>
 <main class="ink-main">
@@ -49,25 +45,16 @@
       <div class="agora">
         <div class="capa" id="capa"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
         <div class="faixa" data-idioma-nao><strong id="titulo">No music</strong><small id="sub"></small></div>
-        <audio id="audio" preload="metadata"></audio>
-        <div class="tempo" data-idioma-nao><span id="tatual">0:00</span><input type="range" id="pos" min="0" max="1000" value="0" aria-label="Position"><span id="ttotal">0:00</span></div>
-        <div class="ctl">
-          <button class="ink-btn lado" id="aleat" title="Shuffle" aria-label="Shuffle" data-icone="aleatorio"></button>
-          <button class="ink-btn" id="ant" title="Previous" aria-label="Previous" data-icone="faixa-anterior"></button>
-          <button class="ink-btn" id="tocar" title="Play or pause" aria-label="Play or pause" data-icone="play"></button>
-          <button class="ink-btn" id="prox" title="Next" aria-label="Next" data-icone="faixa-proxima"></button>
-          <button class="ink-btn lado" id="rep" title="Repeat" aria-label="Repeat" data-icone="repetir"></button>
-        </div>
+        <audio id="audio" controls preload="metadata"></audio>
       </div>
       <section class="md-panel ajustes md-hide" id="ajustes">
-        <h3>Equalizer</h3>
+        <h3 title="These settings are saved on this device and apply to all songs.">Equalizer</h3>
         <div class="presets" id="presets" data-idioma-nao></div>
         <div id="eq" data-idioma-nao></div>
         <div class="md-row"><label for="ganho">Extra volume</label><input type="range" id="ganho" min="-12" max="12" step="1" value="0"><output id="oganho" data-idioma-nao>0 dB</output></div>
         <div class="md-row"><label for="bal">Balance</label><input type="range" id="bal" min="-1" max="1" step="0.1" value="0"><output id="obal" data-idioma-nao>center</output></div>
         <div class="md-row"><label for="vel">Speed</label><input type="range" id="vel" min="0.5" max="2" step="0.05" value="1"><output id="ovel" data-idioma-nao>1.00×</output></div>
-        <p class="md-note">These settings are saved on this device and apply to all songs.</p>
-      </section>
+              </section>
     </section>
     <aside class="md-side">
       <h2><span>Playlist</span><button class="ink-btn" id="limpar">Clear</button></h2>
@@ -78,6 +65,6 @@
 <input id="arquivos" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.flac,.opus" multiple hidden>
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

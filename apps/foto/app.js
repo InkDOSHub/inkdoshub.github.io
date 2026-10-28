@@ -26,6 +26,7 @@ function modo(v) {
   $("tgrade").classList.toggle("md-hide", v);
   $("tver").classList.toggle("md-hide", !v);
   $("limpar").classList.toggle("md-hide", v || !fotos.length);
+  ["partilhar", "editar", "apagar"].forEach((id) => $(id).classList.toggle("md-hide", !v));
 }
 function ver(i) {
   if (!fotos.length) { atual = -1; modo(false); return; }
@@ -43,10 +44,9 @@ function aplicar() {
   const img = $("foto"), v = $("ver");
   v.classList.toggle("ajustar", zoom === 0);
   img.style.transform = giro ? "rotate(" + giro + "deg)" : "";
-  if (zoom === 0) { img.style.width = img.style.height = ""; $("zajustar").textContent = t("Fit"); return; }
+  if (zoom === 0) { img.style.width = img.style.height = ""; return; }
   img.style.width = Math.round(img.naturalWidth * zoom) + "px";
   img.style.height = Math.round(img.naturalHeight * zoom) + "px";
-  $("zajustar").textContent = Math.round(zoom * 100).toLocaleString(InkIdioma.atual) + "%";
 }
 function escalaAjustada() {
   const img = $("foto"), v = $("ver");
@@ -62,10 +62,6 @@ function mudarZoom(fator, cx, cy) {
   v.scrollLeft = rx * v.scrollWidth - (cx ?? v.clientWidth / 2);
   v.scrollTop = ry * v.scrollHeight - (cy ?? v.clientHeight / 2);
 }
-$("zmais").onclick = () => mudarZoom(1.5);
-$("zmenos").onclick = () => mudarZoom(1 / 1.5);
-$("zajustar").onclick = () => { zoom = zoom === 0 ? 1 : 0; aplicar(); };
-$("girar").onclick = () => { giro = (giro + 90) % 360; aplicar(); };
 $("ver").addEventListener("dblclick", (e) => { if (zoom === 0) { const r = $("ver").getBoundingClientRect(); zoom = 0; mudarZoom(1 / escalaAjustada(), e.clientX - r.left, e.clientY - r.top); } else { zoom = 0; aplicar(); } });
 // pinça no iPad (eventos de gesto do Safari) e Ctrl+roda no computador
 let base = 1;
@@ -87,8 +83,6 @@ addEventListener("keydown", (e) => {
   else if (e.key === "ArrowLeft") ver(atual - 1);
   else if (e.key === "Escape") modo(false);
 });
-$("ant").onclick = () => ver(atual - 1);
-$("prox").onclick = () => ver(atual + 1);
 $("bgrade").onclick = () => modo(false);
 $("limpar").onclick = async () => {
   if (!fotos.length) return;
@@ -144,5 +138,4 @@ $("editar").onclick = () => {
   });
 };
 
-$("zajustar").textContent = t("Fit");
 bib.listar().then((lst) => { fotos = lst; grade(); modo(false); });

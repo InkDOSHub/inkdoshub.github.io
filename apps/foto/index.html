@@ -19,7 +19,7 @@
   .ver img{margin:auto;display:block;user-select:none;-webkit-user-select:none}
   .ver.ajustar img{width:100%;height:100%;object-fit:contain;margin:0}
   .ver img{flex:none}
-  .info{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card);border-top:1px solid var(--border);font-size:14px;min-height:44px;box-sizing:border-box;flex-wrap:wrap}
+  .info{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card);border-top:1px solid var(--border);font-size:14px;min-height:44px;box-sizing:border-box}
   .info strong{flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .info small{color:var(--muted)}
   #edicao{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:5}
@@ -48,6 +48,9 @@
   <span class="ink-spacer"></span>
   <button class="ink-btn" type="button" data-idioma-botao data-icone="idioma" title="Language" aria-label="Language"></button>
   <button class="ink-btn" id="abrir">Open photos</button>
+  <button class="ink-btn md-hide" id="partilhar">Save</button>
+  <button class="ink-btn md-hide" id="editar">Edit</button>
+  <button class="ink-btn md-hide" id="apagar" title="Remove from this gallery">Remove</button>
   <button class="ink-btn" id="limpar" title="Remove all photos from this gallery">Clear</button>
 </header>
 <main class="ink-main">
@@ -59,16 +62,7 @@
       <div class="ver ajustar" id="ver" data-idioma-nao><img id="foto" alt=""></div>
       <div class="info">
         <button class="ink-btn" id="bgrade" title="Library" aria-label="Library" data-icone="voltar"></button>
-        <button class="ink-btn" id="ant" title="Previous" aria-label="Previous" data-icone="anterior"></button>
-        <button class="ink-btn" id="prox" title="Next" aria-label="Next" data-icone="proxima"></button>
         <strong id="titulo" data-idioma-nao></strong><small id="sub" data-idioma-nao></small>
-        <button class="ink-btn" id="zmenos" title="Zoom out" aria-label="Zoom out" data-icone="zoom-menos"></button>
-        <button class="ink-btn" id="zajustar" data-idioma-nao>Fit</button>
-        <button class="ink-btn" id="zmais" title="Zoom in" aria-label="Zoom in" data-icone="zoom-mais"></button>
-        <button class="ink-btn" id="girar" title="Rotate" aria-label="Rotate" data-icone="girar"></button>
-        <button class="ink-btn" id="partilhar">Save</button>
-        <button class="ink-btn" id="editar">Edit</button>
-        <button class="ink-btn" id="apagar" title="Remove from this gallery">Remove</button>
       </div>
     </section>
   </div>
@@ -77,8 +71,8 @@
 <input id="arquivos" type="file" accept="image/*" multiple hidden>
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
-<script src="../../assets/gerenciador-app.js?v=8"></script>
+<script src="../../assets/gerenciador-app.js?v=9"></script>
 <script src="editor.js?v=1"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

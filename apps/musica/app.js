@@ -119,29 +119,13 @@ $("limpar").onclick = async () => {
   $("titulo").textContent = t("No music"); $("sub").textContent = "";
   desenhar();
 };
-$("tocar").onclick = () => { if (atual < 0) return faixas.length && tocar(0); audio.paused ? audio.play() : audio.pause(); };
-$("prox").onclick = () => proxima(true);
-$("ant").onclick = anterior;
 $("aleat").onclick = () => { aleat = !aleat; $("aleat").classList.toggle("on", aleat); };
 $("rep").onclick = () => {
   rep = rep === "nao" ? "todas" : rep === "todas" ? "uma" : "nao";
   $("rep").classList.toggle("on", rep !== "nao");
   $("rep").innerHTML = inkIcone(rep === "uma" ? "repetir-uma" : "repetir");
 };
-audio.addEventListener("play", () => ($("tocar").innerHTML = inkIcone("pause")));
-audio.addEventListener("pause", () => ($("tocar").innerHTML = inkIcone("play")));
 audio.addEventListener("ended", () => proxima(false));
-let arrastando = false;
-const pos = $("pos");
-function mostrarTempo() {
-  const d = isFinite(audio.duration) ? audio.duration : 0;
-  $("tatual").textContent = inkTempo(audio.currentTime || 0);
-  $("ttotal").textContent = inkTempo(d);
-  if (!arrastando) pos.value = d ? Math.round((audio.currentTime / d) * 1000) : 0;
-}
-["timeupdate", "loadedmetadata", "emptied"].forEach((ev) => audio.addEventListener(ev, mostrarTempo));
-pos.addEventListener("input", () => { arrastando = true; if (isFinite(audio.duration)) $("tatual").textContent = inkTempo((pos.value / 1000) * audio.duration); });
-pos.addEventListener("change", () => { arrastando = false; if (isFinite(audio.duration)) audio.currentTime = (pos.value / 1000) * audio.duration; });
 audio.addEventListener("ratechange", () => { if (Math.abs(audio.playbackRate - cfg.vel) > 0.001) { cfg.vel = audio.playbackRate; mostrarAjustes(); salvar(); } });
 if ("mediaSession" in navigator) {
   navigator.mediaSession.setActionHandler("nexttrack", () => proxima(true));
