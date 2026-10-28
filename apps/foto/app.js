@@ -92,14 +92,6 @@ $("prox").onclick = () => ver(atual + 1);
 $("bgrade").onclick = () => modo(false);
 $("limpar").onclick = async () => {
   if (!fotos.length) return;
-  // sem confirm(): navegadores como o XeOS bloqueiam; pede um segundo toque no próprio botão
-  const b = $("limpar");
-  if (!b.dataset.confirmar) {
-    b.dataset.confirmar = "1"; b.textContent = t("Tap again to clear");
-    setTimeout(() => { delete b.dataset.confirmar; b.textContent = t("Clear"); }, 3000);
-    return;
-  }
-  delete b.dataset.confirmar; b.textContent = t("Clear");
   await bib.limpar();
   fotos.forEach(soltar); fotos = []; atual = -1;
   grade(); modo(false);

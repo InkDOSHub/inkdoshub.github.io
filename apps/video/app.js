@@ -170,32 +170,6 @@ $("arquivo-som").onchange = async (e) => {
   worker.postMessage({ arquivo, ini: 0, fim: dur || 360000, som: true, soSom: true, altura: 0 });
 };
 
-/* ---------- Controles próprios (o player nativo não responde em alguns navegadores, como o XeOS) ---------- */
-const pos = $("pos");
-let arrastando = false;
-function mostrarTempo() {
-  const d = isFinite(video.duration) ? video.duration : 0;
-  $("tatual").textContent = inkTempo(video.currentTime || 0);
-  $("ttotal").textContent = inkTempo(d);
-  if (!arrastando) pos.value = d ? Math.round((video.currentTime / d) * 1000) : 0;
-}
-["timeupdate", "loadedmetadata", "emptied"].forEach((ev) => video.addEventListener(ev, mostrarTempo));
-pos.addEventListener("input", () => { arrastando = true; if (isFinite(video.duration)) $("tatual").textContent = inkTempo((pos.value / 1000) * video.duration); });
-pos.addEventListener("change", () => { arrastando = false; if (isFinite(video.duration)) video.currentTime = (pos.value / 1000) * video.duration; });
-const alternar = () => { if (!video.src) return; video.paused ? video.play().catch(() => {}) : video.pause(); };
-$("tocar").onclick = alternar;
-video.addEventListener("click", alternar);
-video.addEventListener("play", () => ($("tocar").innerHTML = inkIcone("pause")));
-video.addEventListener("pause", () => ($("tocar").innerHTML = inkIcone("play")));
-$("tela-cheia").onclick = () => {
-  const el = document.querySelector(".tela");
-  if (document.fullscreenElement || document.webkitFullscreenElement) return (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-  if (el.requestFullscreen) el.requestFullscreen().catch(() => video.webkitEnterFullscreen && video.webkitEnterFullscreen());
-  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-  else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
-};
-addEventListener("keydown", (e) => { if (e.key === " " && e.target === document.body) { e.preventDefault(); alternar(); } });
-
 $("titulo").textContent = t("No video");
 bib.listar().then((lst) => {
   itens = lst;
