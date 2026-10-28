@@ -30,3 +30,8 @@ body.ink-app{display:flex;flex-direction:column;height:100dvh;padding:env(safe-a
 .ink-bar.compacta .ink-itens .ink-btn{display:block;width:100%;box-sizing:border-box;background:transparent;border-color:transparent;text-align:left;padding:9px 10px}
 .ink-bar.compacta .ink-itens .ink-btn[hidden],.ink-bar.compacta .ink-itens [hidden]{display:none}
 .ink-bar.compacta .ink-itens .ink-btn.on,.ink-bar.compacta .ink-itens .ink-btn[aria-pressed="true"]{background:var(--btn-active);color:var(--text)}
+.ink-bar .ink-rotulo{display:none}
+.ink-bar.compacta .ink-itens .ink-btn{display:flex;align-items:center;gap:10px}
+.ink-bar.compacta .ink-itens .ink-rotulo{display:inline}
+.ink-dir>details.i{order:-1}
+.ink-bar.compacta .ink-itens .ink-btn:disabled{opacity:.4;cursor:default}
