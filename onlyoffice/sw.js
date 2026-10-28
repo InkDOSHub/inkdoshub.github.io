@@ -22,7 +22,8 @@ self.addEventListener("fetch", function (e) {
   var chave = u.origin + u.pathname;
   e.stopImmediatePropagation();
   e.respondWith(caches.open(OO_CACHE).then(function (c) {
-    return c.match(chave).then(function (r) {
+    // primeiro a cópia do modo offline (inkdoshub-offline), depois a deste editor
+    return caches.match(chave).then(function (r) {
       if (r) return r;
       return fetch(req).then(function (resp) {
         if (resp && resp.status === 200 && resp.type === "basic") c.put(chave, resp.clone());
@@ -32,4 +33,5 @@ self.addEventListener("fetch", function (e) {
   }));
 });
 
+self.INK_RAIZ = new URL("../", self.location.href).pathname;
 importScripts("../sw-portal.js");

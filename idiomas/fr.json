@@ -392,5 +392,9 @@
 },
 "Open file": "Ouvrir un fichier",
 "Open any file in the right app": "Ouvrir n'importe quel fichier dans la bonne app",
-"Could not read the shared file.": "Impossible de lire le fichier partagé."
+"Could not read the shared file.": "Impossible de lire le fichier partagé.",
+"Saves the whole InkDOS Hub on this device (about 400 MB). After that it opens from here, even without internet, and it only changes when you tap Offline again: that downloads the newest version, only what changed.": "Enregistre tout InkDOS Hub sur cet appareil (environ 400 Mo). Ensuite il s’ouvre d’ici, même sans internet, et ne change que si vous touchez à nouveau Offline : cela télécharge la dernière version, seulement ce qui a changé.",
+"Offline": "Hors ligne",
+"Up to date": "À jour",
+"Failed, try again": "Échec, réessayez"
 }

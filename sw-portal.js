@@ -1,12 +1,10 @@
 /* Service worker do portal offline do InkDOS Hub.
 
-   Ele é registrado pela tela inicial. A cópia offline é
-   baixada pela própria página (antiga, já removida) para o cache "inkdoshub-offline"; este arquivo
-   apenas serve essa cópia quando não há rede. Com rede, tudo vem do site normalmente, então uma
-   versão nova do site nunca se mistura com arquivos antigos da cópia. */
+   Ele é registrado pela tela inicial (inicio/offline.js). Sem o modo offline, tudo vem do site e o cache
+   só serve quando não há rede. Com o modo offline instalado, a cópia inteira vem primeiro. */
 "use strict";
 var CACHE = "inkdoshub-offline";
-var RAIZ = new URL("./", self.location.href).pathname; // "/" no GitHub Pages
+var RAIZ = self.INK_RAIZ || new URL("./", self.location.href).pathname; // "/" no GitHub Pages (o editor do OnlyOffice informa a raiz)
 
 self.addEventListener("install", function () { self.skipWaiting(); });
 self.addEventListener("activate", function (e) { e.waitUntil(self.clients.claim()); });
@@ -33,12 +31,26 @@ function daRedeOuCopia(req) {
   });
 }
 
+/* Com o modo offline instalado (botão "Offline" da tela inicial, inicio/offline.js), tudo o que está
+   na cópia abre direto dela: o site só muda quando a pessoa pede para atualizar. */
+var MARCA = self.location.origin + RAIZ + "__offline__/manifesto.json";
+function daCopiaOuRede(req) {
+  var k = chave(req.url);
+  return caches.open(CACHE).then(function (c) {
+    return c.match(MARCA).then(function (instalado) {
+      if (!instalado) return daRedeOuCopia(req);
+      return c.match(k).then(function (r) { return r || daRedeOuCopia(req); });
+    });
+  });
+}
+
 self.addEventListener("fetch", function (e) {
   var req = e.request;
   if (req.method !== "GET") return;
   var u = new URL(req.url);
   if (u.origin !== self.location.origin) return;
   if (req.headers.has("range")) return; // vídeo e áudio pedem pedaços; o navegador cuida disso
+  if (u.pathname === RAIZ + "inicio/manifesto.json") return; // o botão Offline sempre compara com o site
 
-  e.respondWith(daRedeOuCopia(req));
+  e.respondWith(daCopiaOuRede(req));
 });
