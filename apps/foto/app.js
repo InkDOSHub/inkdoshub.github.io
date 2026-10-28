@@ -11,14 +11,13 @@ function soltar(f) { const u = urls.get(f.id); if (u) { URL.revokeObjectURL(u); 
 function grade() {
   const g = $("grade");
   g.innerHTML = "";
-  $("vazio").classList.toggle("md-hide", fotos.length > 0);
   $("status").textContent = fotos.length ? (fotos.length === 1 ? t("1 photo") : t("{n} photos", { n: fotos.length.toLocaleString(InkIdioma.atual) })) : "";
   fotos.forEach((f, i) => {
     const b = document.createElement("button");
     const img = document.createElement("img");
     img.loading = "lazy"; img.decoding = "async"; img.alt = f.nome; img.src = urlDe(f);
-    const s = document.createElement("span"); s.textContent = f.nome;
-    b.append(img, s);
+    b.title = f.nome;
+    b.append(img);
     b.onclick = () => ver(i);
     g.appendChild(b);
   });
@@ -26,7 +25,7 @@ function grade() {
 function modo(v) {
   $("tgrade").classList.toggle("md-hide", v);
   $("tver").classList.toggle("md-hide", !v);
-  $("bgrade").classList.toggle("on", !v);
+  $("limpar").classList.toggle("md-hide", v || !fotos.length);
 }
 function ver(i) {
   if (!fotos.length) { atual = -1; modo(false); return; }
@@ -91,6 +90,12 @@ addEventListener("keydown", (e) => {
 $("ant").onclick = () => ver(atual - 1);
 $("prox").onclick = () => ver(atual + 1);
 $("bgrade").onclick = () => modo(false);
+$("limpar").onclick = async () => {
+  if (!fotos.length || !confirm(t("Remove all photos from this gallery?"))) return;
+  await bib.limpar();
+  fotos.forEach(soltar); fotos = []; atual = -1;
+  grade(); modo(false);
+};
 
 $("abrir").onclick = () => $("arquivos").click();
 $("arquivos").onchange = async (e) => {
@@ -98,7 +103,7 @@ $("arquivos").onchange = async (e) => {
   e.target.value = "";
   fotos.push(...novos);
   grade();
-  if (novos.length === 1) ver(fotos.length - 1);
+  if (novos.length === 1) ver(fotos.length - 1); else modo(false);
 };
 $("apagar").onclick = async () => {
   const f = fotos[atual];
