@@ -56,3 +56,22 @@ html[data-theme="dark"] .home-shell .botao.secundario{background:#3a3a3c;box-sha
 .pref-office select{border:0;border-radius:7px;padding:5px 8px;background:var(--card);box-shadow:0 0 0 .5px rgba(0,0,0,.14),0 .5px 1.5px rgba(0,0,0,.12)}
 #btn-abrir{padding:6px 14px}#btn-abrir svg{width:15px;height:15px}
 .workspace-card.oo .app-icon img{object-fit:contain;height:48px}
+
+/* 2026-10-28: barra da tela inicial: menu à esquerda, busca no meio, pasta (abrir arquivo) à direita */
+.barra-inicio{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:26px 0 22px}
+.barra-inicio .busca{flex:1 1 auto;max-width:none}
+.icone-btn{width:34px;height:34px;flex:none;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;list-style:none}
+.icone-btn::-webkit-details-marker{display:none}
+.icone-btn:hover,.menu-inicio[open] .icone-btn{background:color-mix(in srgb,var(--text) 7%,transparent);color:var(--text)}
+.icone-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.menu-inicio{position:relative}
+.menu-pop{position:absolute;z-index:50;top:40px;left:0;width:250px;padding:6px;border-radius:12px;background:var(--card);border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.16);display:flex;flex-direction:column;gap:1px}
+.menu-linha{display:flex;align-items:center;gap:10px;width:100%;min-height:32px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--text);font-size:14px;text-align:left;cursor:pointer}
+.menu-linha:hover{background:rgba(0,122,255,.1)}
+.menu-linha svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.menu-linha small{margin-left:auto;font-size:12px;color:var(--muted)}
+#btn-editar.menu-linha{padding-left:34px}
+.menu-sep{height:1px;margin:5px 4px;background:var(--border)}
+.menu-rotulo{padding:2px 8px;font-size:12px;color:var(--muted)}
+.menu-pop select{margin:2px 6px 4px;font:inherit;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+.brand-row{min-height:46px}
