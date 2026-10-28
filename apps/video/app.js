@@ -179,3 +179,30 @@ bib.listar().then((lst) => {
   const i = itens.findIndex((v) => v.id === ultimo);
   if (itens.length) abrir(i >= 0 ? i : 0, false); else desenhar();
 });
+
+/* ---------- Controles (como a barra da Música): tocar, tempo, posição, som e tela cheia ---------- */
+const SOM = '<svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
+const MUDO = '<svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>';
+const barra = $("c-barra");
+let arrastando = false;
+function mostrarPlay() { $("c-play").innerHTML = inkIcone(video.paused ? "play" : "pause"); }
+function mostrarTempo() {
+  const d = isFinite(video.duration) ? video.duration : 0;
+  $("c-tempo").textContent = inkTempo(video.currentTime || 0) + " / " + inkTempo(d);
+  if (!arrastando) barra.value = d ? Math.round((video.currentTime / d) * 1000) : 0;
+}
+function alternar() { if (!video.src) return; if (video.paused) video.play().catch(() => {}); else video.pause(); }
+$("c-play").onclick = alternar;
+video.addEventListener("click", alternar);
+["play", "pause", "ended"].forEach((e) => video.addEventListener(e, mostrarPlay));
+["timeupdate", "loadedmetadata", "durationchange"].forEach((e) => video.addEventListener(e, mostrarTempo));
+barra.addEventListener("input", () => { arrastando = true; const d = video.duration; if (isFinite(d)) $("c-tempo").textContent = inkTempo(d * barra.value / 1000) + " / " + inkTempo(d); });
+barra.addEventListener("change", () => { const d = video.duration; if (isFinite(d)) video.currentTime = d * barra.value / 1000; arrastando = false; });
+$("c-som").onclick = () => { video.muted = !video.muted; $("c-som").innerHTML = video.muted ? MUDO : SOM; };
+$("c-tela").onclick = () => {
+  const el = $("video").parentElement;
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (el.requestFullscreen) el.requestFullscreen().catch(() => video.webkitEnterFullscreen && video.webkitEnterFullscreen());
+  else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+};
+$("c-som").innerHTML = SOM; mostrarPlay(); mostrarTempo();

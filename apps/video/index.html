@@ -15,6 +15,12 @@
 <style>
   .tela{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
   video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+  /* controles próprios, no formato da barra da Música (os nativos não respondem no XeOS) */
+  .controle{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--card);border-top:1px solid var(--border)}
+  .controle .ink-btn{width:34px;height:34px;padding:0;display:grid;place-items:center}
+  .controle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .c-tempo{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  #c-barra{flex:1;min-width:60px;accent-color:var(--accent)}
   .info{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13px;min-height:44px;box-sizing:border-box}
   .info strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .info small{color:var(--muted)}
@@ -44,7 +50,14 @@
   <div class="md-wrap">
     <section class="md-stage">
       <div class="tela">
-        <video id="video" controls playsinline preload="metadata"></video>
+        <video id="video" playsinline preload="metadata"></video>
+      </div>
+      <div class="controle" id="controle">
+        <button class="ink-btn" id="c-play" type="button" title="Play or pause" aria-label="Play or pause"></button>
+        <span class="c-tempo" id="c-tempo" data-idioma-nao>0:00 / 0:00</span>
+        <input type="range" id="c-barra" min="0" max="1000" value="0" step="1" aria-label="Position">
+        <button class="ink-btn" id="c-som" type="button" title="Mute" aria-label="Mute"></button>
+        <button class="ink-btn" id="c-tela" type="button" title="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
       </div>
       <div class="info"><strong id="titulo" data-idioma-nao>No video</strong><small id="sub"></small>
       </div>
@@ -65,6 +78,6 @@
 </div></div>
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
