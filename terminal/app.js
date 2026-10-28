@@ -12,16 +12,19 @@ const setStatus = (s) => { statusEl.textContent = s; };
 
 // ---------- Terminal (xterm.js) ----------
 const term = new Terminal({
-  cursorBlink: true,
-  fontFamily: 'ui-monospace, Menlo, "SF Mono", monospace',
-  fontSize: Number(params.get("font")) || (Math.min(screen.width, screen.height) < 500 ? 12 : 15),
+  // Visual do Terminal da Apple (perfil "Basic"): SF Mono/Menlo, cursor em bloco cinza, cores ANSI do Terminal.app
+  cursorBlink: false,
+  cursorStyle: "block",
+  fontFamily: '"SF Mono", Menlo, ui-monospace, monospace',
+  fontSize: Number(params.get("font")) || (Math.min(screen.width, screen.height) < 500 ? 12 : 14),
+  lineHeight: 1.12,
   // Cores seguem o tema do InkDOS Hub (../assets/tema.js)
-  theme: document.documentElement.dataset.theme === "dark"
-    ? { background: "#0d1117", foreground: "#e6edf3", cursor: "#3fb950", selectionBackground: "#264f78" }
-    : { background: "#ffffff", foreground: "#192235", cursor: "#1a7f37", selectionBackground: "#b6d7ff",
-        black: "#192235", brightBlack: "#697486", white: "#d0d7de", brightWhite: "#eef1f5",
-        green: "#1a7f37", brightGreen: "#1f883d", blue: "#0550ae", brightBlue: "#0969da",
-        yellow: "#9a6700", brightYellow: "#7d4e00" },
+  theme: Object.assign({
+    black: "#000000", red: "#990000", green: "#00a600", yellow: "#999900", blue: "#0000b2", magenta: "#b200b2", cyan: "#00a6b2", white: "#bfbfbf",
+    brightBlack: "#666666", brightRed: "#e50000", brightGreen: "#00d900", brightYellow: "#e5e500", brightBlue: "#0000ff", brightMagenta: "#e500e5", brightCyan: "#00e5e5", brightWhite: "#e5e5e5",
+  }, document.documentElement.dataset.theme === "dark"
+    ? { background: "#1e1e1e", foreground: "#f2f2f2", cursor: "#a6a6a6", cursorAccent: "#1e1e1e", selectionBackground: "#3f638b", blue: "#4f7dff", brightBlue: "#6f95ff" }
+    : { background: "#ffffff", foreground: "#000000", cursor: "#7f7f7f", cursorAccent: "#ffffff", selectionBackground: "#b4d5fe" }),
   scrollback: 5000,
 });
 const fit = new FitAddon();

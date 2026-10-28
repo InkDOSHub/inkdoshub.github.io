@@ -1,0 +1,23 @@
+/* InkDOS Hub 2026-10-28: polimento no estilo Apple (Pages, Numbers, Keynote) para Documentos, Planilhas
+   e Apresentações. Só CSS carregado por último: não muda o HTML nem o JS, então nenhuma função ou símbolo some. */
+:root{--bg:#f5f5f7;--chrome:rgba(246,246,248,.82);--panel:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.1);--line-strong:rgba(0,0,0,.18);--accent:#007aff;--accent-soft:rgba(0,122,255,.1);--shadow:0 12px 32px rgba(0,0,0,.14);--overlay:rgba(0,0,0,.22)}
+:root[data-appearance-resolved="dark"]{--bg:#1c1c1e;--chrome:rgba(40,40,42,.82);--panel:#2c2c2e;--text:#f5f5f7;--muted:#98989d;--line:rgba(255,255,255,.1);--line-strong:rgba(255,255,255,.18);--accent:#0a84ff;--accent-soft:rgba(10,132,255,.18);--shadow:0 12px 32px rgba(0,0,0,.5)}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.005em}
+.topbar,.statusbar{background:var(--chrome);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+.topbar{border-bottom:1px solid var(--line)}.statusbar{border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.frame-btn,.close-btn{border-radius:8px;border-color:transparent!important}
+.frame-btn:hover,.frame-btn:focus-visible,.close-btn:hover{background:color-mix(in srgb,var(--text) 7%,transparent)}
+.title-input{border-color:transparent;background:transparent;font-weight:600;border-radius:8px}
+.title-input:hover{background:color-mix(in srgb,var(--text) 5%,transparent)}
+.title-input:focus{background:var(--panel);border-color:var(--accent)}
+.fmt-btn{border-color:transparent;background:transparent;border-radius:7px}
+.fmt-btn:hover,.fmt-btn:focus-visible{background:color-mix(in srgb,var(--text) 7%,transparent)}
+.fmt-btn[aria-pressed="true"],.fmt-btn.is-active{background:var(--accent-soft);border-color:transparent;box-shadow:none}
+select{border-radius:7px}
+.drawer,.zoom-popover,.side-panel{border-radius:14px}
+.drawer,.zoom-popover{background:var(--chrome);-webkit-backdrop-filter:saturate(180%) blur(24px);backdrop-filter:saturate(180%) blur(24px);border:1px solid var(--line);box-shadow:var(--shadow)}
+.menu-item{border-radius:8px}.menu-item:hover,.menu-item:focus-visible{background:var(--accent-soft)}
+.drawer-section-label{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600}
+.appearance-switch{border-radius:9px;background:color-mix(in srgb,var(--text) 6%,transparent)}
+.appearance-choice{border-radius:7px;font-weight:600}
+.appearance-choice.active{background:var(--panel);border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.14)}
