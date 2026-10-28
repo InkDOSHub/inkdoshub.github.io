@@ -109,3 +109,8 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
   .home-footer{padding-top:28px;align-items:flex-start;flex-direction:column;gap:14px}
   .home-footer nav{margin-left:0;gap:16px;flex-wrap:wrap}
 }
+
+/* Tema: controles nativos (a lista de escolha do app de Office) seguem claro/escuro */
+html[data-theme="dark"]{color-scheme:dark}
+html[data-theme="light"]{color-scheme:light}
+.menu-pop select option{background:var(--card);color:var(--text)}
