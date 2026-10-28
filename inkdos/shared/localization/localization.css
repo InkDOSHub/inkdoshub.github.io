@@ -80,7 +80,11 @@ header a[aria-label="Home"]::after{content:"InkDOS Hub"}
 .inkdos-menu-item svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
 /* Pincel (como no Pages): a barra de edição só aparece com ele ligado */
-html.inkdos-com-pincel:not(.inkdos-edicao-aberta) #formatbar,html.inkdos-com-pincel:not(.inkdos-edicao-aberta) #editbar{display:none}
+/* Fechado: some a barra de edição (e a faixa que a envolve), a régua dos Documentos e a barra de fórmulas das Planilhas;
+   a grade do app fica só com topo, área de trabalho e status */
+html.inkdos-com-pincel:not(.inkdos-edicao-aberta) :is(#formatbar,#editbar,#ruler,.formula-bar),
+html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .inkdos-toolbar-rail:has(#formatbar,#editbar){display:none}
+html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .app-shell:has(#formatbar,#editbar){grid-template-rows:auto minmax(0,1fr) auto}
 /* Texto e EPUB: a faixa da barra fica com altura zero (mantém a linha da grade do app) */
 html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .toolstrip-shell{height:0;min-height:0;overflow:hidden;border:0;padding:0;box-shadow:none}
 
