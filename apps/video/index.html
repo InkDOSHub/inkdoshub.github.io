@@ -13,11 +13,9 @@
 <link rel="stylesheet" href="../../assets/barra.css?v=2">
 <link rel="stylesheet" href="../../assets/midia.css?v=2">
 <style>
-  .tela{flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
+  .tela{flex:1;min-height:0;margin:12px 12px 0;border-radius:12px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
   video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
-  .tela .md-empty{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;max-width:none;color:#aab5c3}
-  .tela .md-empty b{color:#fff}
-  .info{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card);border-top:1px solid var(--border);font-size:14px;min-height:44px;box-sizing:border-box}
+  .info{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13px;min-height:44px;box-sizing:border-box}
   .info strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .info small{color:var(--muted)}
   #progresso{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10}
@@ -46,11 +44,8 @@
     <section class="md-stage">
       <div class="tela">
         <video id="video" controls playsinline preload="metadata"></video>
-        <div class="md-empty" id="vazio"><span>Tap “Open videos” to choose videos from the iPad.</span><span>They play in Safari’s own player and are kept on this device.</span><span>Use “Edit” to trim, remove the sound and export.</span><span>“Extract sound” keeps only the sound of a long recording, without storing the video.</span></div>
       </div>
       <div class="info"><strong id="titulo" data-idioma-nao>No video</strong><small id="sub"></small>
-        <button class="ink-btn" id="ant" title="Previous" aria-label="Previous" data-icone="faixa-anterior"></button>
-        <button class="ink-btn" id="prox" title="Next" aria-label="Next" data-icone="faixa-proxima"></button>
       </div>
     </section>
     <aside class="md-side" id="lado">
@@ -69,6 +64,6 @@
 </div></div>
 <script src="../../assets/midia.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
