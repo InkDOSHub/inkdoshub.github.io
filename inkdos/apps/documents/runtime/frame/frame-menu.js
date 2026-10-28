@@ -2,7 +2,7 @@
 const NS=global.InkDOS2Documents=global.InkDOS2Documents||{};
 const TRANSIENT_EVENT='inkdos:transient-open';
 function configureOptionalHome(){
- const link=document.querySelector('a[aria-label="Home"]');if(!link)return false;
+ const link=document.querySelector('a.inkdos-hub-link');if(!link)return false;
  let enabled=false;try{enabled=new URLSearchParams(global.location.search).get('suite')==='1'}catch(_){}
  if(enabled){link.hidden=false;link.removeAttribute('aria-hidden');link.removeAttribute('tabindex')}
  else{link.hidden=true;link.setAttribute('aria-hidden','true');link.tabIndex=-1;link.removeAttribute('href')}

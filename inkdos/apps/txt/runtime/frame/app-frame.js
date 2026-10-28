@@ -1,7 +1,7 @@
 (function(g){'use strict';
 const NS=g.InkDOS2=g.InkDOS2||{};
 function centerError(el){if(!el)return null;const r=el.getBoundingClientRect();return Math.abs((r.left+r.width/2)-g.innerWidth/2)}
-function configureOptionalHome(){const link=document.querySelector('a[aria-label="Home"]');if(!link)return false;let enabled=false;try{enabled=new URLSearchParams(g.location.search).get('suite')==='1'}catch(_){}if(enabled){link.hidden=false;link.removeAttribute('aria-hidden');link.removeAttribute('tabindex')}else{link.hidden=true;link.setAttribute('aria-hidden','true');link.tabIndex=-1;link.removeAttribute('href')}return enabled}
+function configureOptionalHome(){const link=document.querySelector('a.inkdos-hub-link');if(!link)return false;let enabled=false;try{enabled=new URLSearchParams(g.location.search).get('suite')==='1'}catch(_){}if(enabled){link.hidden=false;link.removeAttribute('aria-hidden');link.removeAttribute('tabindex')}else{link.hidden=true;link.setAttribute('aria-hidden','true');link.tabIndex=-1;link.removeAttribute('href')}return enabled}
 function bindDrawer({trigger,drawer,backdrop,closeButton,beforeOpen}={}){
   if(!trigger||!drawer||!backdrop||!closeButton)throw new Error('AppFrame.bindDrawer requires trigger, drawer, backdrop and closeButton');
   function open(){if(typeof beforeOpen==='function')beforeOpen();drawer.hidden=false;backdrop.hidden=false;closeButton.focus()}
