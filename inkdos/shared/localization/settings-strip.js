@@ -72,6 +72,7 @@ function installFrameActions(){if(frameInstalled||!drawer)return;const header=do
   doc.body.appendChild(menu);
   doc.addEventListener('pointerdown',e=>{if(!menu.hidden&&!menu.contains(e.target)&&!burger.contains(e.target))menu.hidden=true});
   header.__inkMenu=menu;header.__inkBurger=burger;
+  {const sides=()=>[header.firstElementChild,header.lastElementChild];const fit=()=>{const w=Math.max(...sides().map(e=>e?e.scrollWidth:0));header.style.setProperty('--ink-side',Math.ceil(w)+'px')};if(window.ResizeObserver){const ro=new ResizeObserver(fit);sides().forEach(e=>e&&ro.observe(e))}setTimeout(fit,0)}
  }
  // Pincel (como no Pages): a barra de edição fica escondida e abre ao tocar no pincel
  const bar=doc.querySelector('#formatbar,#editbar,.toolstrip-shell');
