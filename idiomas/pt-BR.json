@@ -621,8 +621,6 @@
 "Play or pause": "Tocar ou pausar",
 "Search": "Buscar",
 "Open Office files in": "Abrir arquivos de Office no",
-"InkDOS (fast)": "InkDOS (rápido)",
-"ONLYOFFICE (complete)": "ONLYOFFICE (completo)",
 "Which app opens Word, Excel and PowerPoint files from Open file and from the system": "Qual app abre arquivos de Word, Excel e PowerPoint vindos do Abrir arquivo e do sistema",
 "Hide apps, drag them to change the order, or remove your webapps": "Esconda apps, arraste para mudar a ordem ou remova seus webapps",
 "Menu": "Menu",
@@ -640,5 +638,7 @@
 "Open music": "Abrir músicas",
 "Open videos": "Abrir vídeos",
 "Mute": "Sem som",
-"The file goes to Downloads and to the Music list.": "O arquivo vai para Downloads e para a lista da Música."
+"The file goes to Downloads and to the Music list.": "O arquivo vai para Downloads e para a lista da Música.",
+"InkDOS fast": "InkDOS rápido",
+"ONLYOFFICE complete": "OnlyOffice completo"
 }
