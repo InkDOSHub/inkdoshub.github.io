@@ -67,3 +67,8 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 .nota.erro{color:var(--danger)}
 .recebidos .bloqueado{margin:10px 0 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .recebidos .bloqueado .nota{width:100%;margin:0}
+
+/* gaveta de apps (assets/home.css) */
+.editando .workspace-card.escondido{display:flex}
+.workspace-card.novo{width:auto;text-align:center;border:0}
+.workspace-card.novo .app-icon{border:2px dashed var(--border)}

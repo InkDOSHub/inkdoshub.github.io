@@ -14,8 +14,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./assets/inkdoshub-icone-180.png?v=5">
 <script src="assets/tema.js?v=1"></script>
 <script src="assets/idioma.js?v=1"></script>
-<link rel="stylesheet" href="assets/home.css?v=9">
-<link rel="stylesheet" href="inicio/inicio.css?v=11">
+<link rel="stylesheet" href="assets/home.css?v=10">
+<link rel="stylesheet" href="inicio/inicio.css?v=12">
 </head>
 <body data-idioma>
 <main class="home-shell">
@@ -32,10 +32,13 @@
     </span>
   </header>
 
-  <section class="intro"><h1>Choose a tool</h1>
+  <section class="intro"><h1>Apps</h1>
+    <input id="busca" class="busca" type="search" placeholder="Search" autocomplete="off" spellcheck="false" aria-label="Search">
     <span class="intro-acoes">
     <button id="btn-abrir" class="botao" type="button" title="Open any file in the right app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Open file</span></button>
     <button id="btn-editar" class="botao secundario" type="button" aria-pressed="false" title="Hide apps or remove your webapps">Customize</button>
+    <label class="pref-office" title="Which app opens Word, Excel and PowerPoint files from Open file and from the system">Open Office files in
+      <select id="pref-office"><option value="inkdos">InkDOS (fast)</option><option value="onlyoffice">ONLYOFFICE (complete)</option></select></label>
     <input id="abrir-arquivo" type="file" multiple hidden>
     </span>
   </section>
@@ -61,6 +64,15 @@
     <a class="workspace-card apresentacoes" data-app="apresentacoes" href="inkdos/apps/presentations/index.html?suite=1"><span class="accent"></span>
       <span class="app-icon"><img src="assets/icones-inkdos/presentations.png" alt=""></span>
       <span class="workspace-copy"><strong>Presentations</strong><small>PowerPoint slides (PPTX); shows PPT, ODP and Keynote.</small></span><span class="chevron">›</span></a>
+    <a class="workspace-card oo" data-app="oo-docs" href="onlyoffice/editor.html?new=docx">
+      <span class="app-icon"><img src="assets/icones-inkdos/oo-docs.svg" alt=""></span>
+      <span class="workspace-copy"><strong>Documents</strong><small data-idioma-nao>ONLYOFFICE</small></span></a>
+    <a class="workspace-card oo" data-app="oo-planilhas" href="onlyoffice/editor.html?new=xlsx">
+      <span class="app-icon"><img src="assets/icones-inkdos/oo-planilhas.svg" alt=""></span>
+      <span class="workspace-copy"><strong>Spreadsheets</strong><small data-idioma-nao>ONLYOFFICE</small></span></a>
+    <a class="workspace-card oo" data-app="oo-apresentacoes" href="onlyoffice/editor.html?new=pptx">
+      <span class="app-icon"><img src="assets/icones-inkdos/oo-apresentacoes.svg" alt=""></span>
+      <span class="workspace-copy"><strong>Presentations</strong><small data-idioma-nao>ONLYOFFICE</small></span></a>
     <a class="workspace-card texto" data-app="texto" href="inkdos/apps/txt/index.html?suite=1"><span class="accent"></span>
       <span class="app-icon"><img src="assets/icones-inkdos/txt.svg" alt=""></span>
       <span class="workspace-copy"><strong>Plain text</strong><small>Create and edit text files (TXT).</small></span><span class="chevron">›</span></a>
@@ -113,9 +125,9 @@
   </footer>
 </main>
 
-<script src="assets/gerenciador-app.js?v=8"></script>
-<script src="inicio/inicio.js?v=10"></script>
+<script src="assets/gerenciador-app.js?v=9"></script>
+<script src="inicio/inicio.js?v=11"></script>
 <script src="inicio/meus-apps.js?v=6"></script>
-<script src="inicio/lancador.js?v=10"></script>
+<script src="inicio/lancador.js?v=11"></script>
 </body>
 </html>
