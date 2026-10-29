@@ -34,5 +34,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view transferir-windows >/dev/null 2>&1 || gh release create transferir-windows --title "InkDOS Hub Transferir for Windows" --latest=false --notes "Fast phone <-> PC file transfer without internet, server or admin. Source: windows/transferir/ (MIT)."
-          gh release upload transferir-windows InkDOSHub-Transferir.exe --clobber
+          sha256sum InkDOSHub-Transferir.exe > InkDOSHub-Transferir.exe.sha256
+          cat InkDOSHub-Transferir.exe.sha256
+          gh release upload transferir-windows InkDOSHub-Transferir.exe InkDOSHub-Transferir.exe.sha256 --clobber
           git push -f origin "HEAD:refs/tags/transferir-windows"
