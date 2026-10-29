@@ -113,8 +113,6 @@ function addHeaderButton(sun){
  b.textContent=label('edit');b.title=label('edit')+' (BentoPDF)';b.setAttribute('aria-label',label('edit'));b.addEventListener('click',openPicker);
  sun.parentNode.insertBefore(b,sun);
 }
-installHeaderButton();
-// Security (lock): protect the open PDF with a password, or remove one the user knows (BentoPDF, encrypted there)
-if(!desktop())global.InkDOSSecurityExtras=[...(global.InkDOSSecurityExtras||[]),...['protect','unprotect'].map(k=>({get section(){return label('section')},get label(){return label(k)},value:'pdf-'+k,run:()=>openToolkit(PAGES[k])}))];
+// InkDOS Hub: as ferramentas de PDF ficam só no app Editar PDF (apps/editar-pdf/), não aqui (Paulo, 2026-10-29)
 NS.PdfEditButton=Object.freeze({open:openToolkit});
 })(globalThis);
