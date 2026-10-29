@@ -1,4 +1,6 @@
 {
+"Accept": "Принять",
+"Decline": "Отклонить",
 "codigo": "ru",
 "textos": {
 "\"{name}\" is 64-bit, and Wine here only runs 32-bit programs. Look for the 32-bit (x86) version.": "«{name}» — 64-битная программа, а Wine здесь запускает только 32-битные. Найдите 32-битную версию (x86).",

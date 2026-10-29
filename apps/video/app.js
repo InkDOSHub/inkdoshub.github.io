@@ -24,7 +24,7 @@ function desenhar() {
     if (i === atual) li.querySelector(".n").innerHTML = inkIcone("play"); else li.querySelector(".n").textContent = i + 1;
     li.querySelector(".t").textContent = v.nome;
     li.querySelector(".d").textContent = v.duracao ? inkTempo(v.duracao) : inkTamanho(v.tamanho);
-    li.onclick = (e) => (e.target.classList.contains("x") ? tirar(i) : abrir(i, true));
+    li.onclick = (e) => (e.target.closest(".x") ? tirar(i) : abrir(i, true));
     lista.appendChild(li);
   });
 }
@@ -98,21 +98,7 @@ $("editar").onclick = () => {
 };
 
 /* ---------- Extrair só o som, sem guardar o vídeo ---------- */
-function painel(titulo, texto, parte, botoes) {
-  $("progresso").classList.add("on");
-  $("p-titulo").textContent = titulo;
-  $("p-texto").textContent = texto || "";
-  $("p-barra").style.display = parte == null ? "none" : "";
-  $("p-barra").firstChild.style.width = Math.round((parte || 0) * 100) + "%";
-  const b = $("p-botoes"); b.innerHTML = "";
-  (botoes || []).forEach((x) => {
-    const e = document.createElement("button");
-    e.className = "ink-btn" + (x.principal ? " principal" : "");
-    e.textContent = x.texto; e.onclick = x.acao;
-    b.appendChild(e);
-  });
-}
-const fecharPainel = () => $("progresso").classList.remove("on");
+const painel = inkPainel, fecharPainel = inkFecharPainel;
 function duracaoDe(arquivo) {
   // a duração só serve para a barra de progresso; se o Safari não souber ler, segue sem ela
   return new Promise((ok) => {
@@ -124,12 +110,6 @@ function duracaoDe(arquivo) {
     v.onerror = () => fim(0);
     v.src = u;
   });
-}
-function partilhar(arq) {
-  if (navigator.canShare && navigator.canShare({ files: [arq] })) { navigator.share({ files: [arq] }).catch(() => {}); return; }
-  const a = document.createElement("a"), u = URL.createObjectURL(arq);
-  a.href = u; a.download = arq.name; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(u), 60000);
 }
 let worker = null;
 const cancelar = () => { if (worker) { worker.terminate(); worker = null; } fecharPainel(); };
@@ -160,7 +140,7 @@ $("arquivo-som").onchange = async (e) => {
       InkBiblioteca("inkdoshub-musica").adicionar([arq]).then((novos) => {
         try { localStorage.setItem("inkdoshub-musica-atual", String(novos[0].id)); } catch (_) {}
         painel(t("Done"), t("{name} ({size}) is in the Music list. The video was not stored here: if you no longer need it, delete it from Photos or Files.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
-          { texto: t("Save to device"), acao: () => partilhar(arq) },
+          { texto: t("Save to device"), acao: () => inkPartilhar(arq) },
           { texto: t("Open in Music"), principal: true, acao: () => { location.href = "../musica/"; } },
         ]);
       });

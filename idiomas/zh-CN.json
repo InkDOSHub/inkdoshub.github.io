@@ -1,4 +1,6 @@
 {
+"Accept": "接受",
+"Decline": "拒绝",
 "codigo": "zh-CN",
 "textos": {
 "\"{name}\" is 64-bit, and Wine here only runs 32-bit programs. Look for the 32-bit (x86) version.": "“{name}”是 64 位程序，这里的 Wine 只能运行 32 位程序。请查找 32 位（x86）版本。",

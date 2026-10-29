@@ -112,12 +112,7 @@ $("apagar").onclick = async () => {
 $("partilhar").onclick = async () => {
   const f = fotos[atual];
   if (!f) return;
-  const arq = new File([f.blob], f.nome, { type: f.tipo || f.blob.type });
-  if (navigator.canShare && navigator.canShare({ files: [arq] })) {
-    try { await navigator.share({ files: [arq] }); return; } catch (err) { if (err.name === "AbortError") return; }
-  }
-  const a = document.createElement("a");
-  a.href = urlDe(f); a.download = f.nome; a.click();
+  inkPartilhar(new File([f.blob], f.nome, { type: f.tipo || f.blob.type }));
 };
 
 // ---- Edição (editor.js) ----
@@ -128,7 +123,7 @@ $("editar").onclick = () => {
     if (!canvas) return;
     const jpeg = /jpe?g|heic|heif/i.test(orig.tipo || orig.nome || "");
     canvas.toBlob(async (blob) => {
-      if (!blob) { alert(t("The photo could not be saved.")); return; }
+      if (!blob) { $("sub").textContent = t("The photo could not be saved."); return; }
       const nome = t("{name} (edited)", { name: orig.nome.replace(/\.[^.]+$/, "") }) + "." + (jpeg ? "jpg" : "png");
       const [novo] = await bib.adicionar([new File([blob], nome, { type: blob.type })]);
       const i = fotos.indexOf(orig) + 1;
