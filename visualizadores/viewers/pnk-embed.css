@@ -1,0 +1,2 @@
+/* InkDOS embed mode for pnk: the InkDOS workspace around it provides the chrome. */
+html[data-embed="1"] #topnav,html[data-embed="1"] #app-footer,html[data-embed="1"] #drop-zone{display:none!important}

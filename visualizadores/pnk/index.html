@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self' blob: https://vfydr2m9wk-ops.github.io; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'" data-inkdos-tools>
+  <meta charset="utf-8">
+  <!-- Defense in depth for untrusted documents: same-origin only, plus
+       blob: for locally-generated media/JSON, wasm-unsafe-eval for the
+       pnk2json wasm module, and same-origin workers for pdf.js (fetched on
+       demand, with its chunk, only for documents that carry PDF media). The document itself still cannot leave the page: there is no
+       connect-src, img-src or form-action that could carry it anywhere.
+       The two Google Fonts origins are the ONE remote allowance — the
+       stylesheet for the substitute faces (webfonts.ts) and the woff2 files
+       it names. They carry font family names and nothing else, and the
+       "substitute fonts" setting turns the request off entirely. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob:; connect-src 'self' blob:; worker-src 'self' blob:; base-uri 'none'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>pnk.vu — iWork, locally</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="../viewers/pnk-embed.css">
+  <script src="../viewers/viewer-theme.js"></script>
+</head>
+<body>
+  <nav id="topnav">
+    <a id="brand" href="#" title="pnk.vu — back to start">pnk<span class="brand-tld">.vu</span></a>
+    <span id="doc-filename" class="hidden"></span>
+    <span id="app-badge" class="badge hidden"></span>
+    <span id="doc-meta" class="muted hidden"></span>
+    <span class="spacer"></span>
+    <a id="gh-link" href="https://github.com/peterheb/pnk" target="_blank" rel="noopener" title="Source on GitHub" aria-label="Source on GitHub"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+    <details id="settings-dd">
+      <summary title="Viewer settings">settings</summary>
+      <div id="settings-panel">
+        <label class="setting-row">
+          <input type="checkbox" id="gfonts-toggle">
+          <span>Load substitute fonts from Google Fonts</span>
+        </label>
+        <p class="muted">Documents name fonts your device may not have. With this on,
+        the viewer asks fonts.googleapis.com for a close substitute, so the page looks
+        closer to the original: Google sees your IP address and the font family names,
+        never the document. With it off nothing leaves your browser, and missing fonts
+        fall back to whatever your browser picks.</p>
+        <label class="setting-row">
+          <input type="checkbox" id="locale-toggle">
+          <span>Format numbers and dates in this browser's locale</span>
+        </label>
+        <p class="muted">Off, spreadsheets use the locale saved in the document, so every
+        reader sees the same "1.234,5". On, they use your browser's locale, which is what
+        Numbers itself prints on your machine.</p>
+      </div>
+    </details>
+    <details id="warnings-dd" class="hidden">
+      <summary title="Decode warnings"><span class="warn-mark">▲</span> <span id="warnings-count">0</span></summary>
+      <div id="warnings-list"></div>
+    </details>
+    <button id="text-btn" type="button" class="hidden source-btn" data-mode="text" title="Plain-text dump of the document">text</button>
+    <button id="md-btn" type="button" class="hidden source-btn" data-mode="markdown" title="Markdown dump of the document">md</button>
+    <button id="json-btn" type="button" class="hidden source-btn" data-mode="json" title="The converted JSON model">json</button>
+    <button id="reset-btn" type="button" class="hidden" title="Open a file">open…</button>
+  </nav>
+
+  <div id="app">
+    <div id="drop-zone">
+      <div id="drop-card">
+        <h1>pnk<span class="brand-tld">.vu</span></h1>
+        <p class="tagline">view iWork files in your browser. nothing is uploaded.</p>
+        <div class="fmt-chips">
+          <span class="fmt-chip fmt-pages"><i></i>.pages</span>
+          <span class="fmt-chip fmt-numbers"><i></i>.numbers</span>
+          <span class="fmt-chip fmt-keynote"><i></i>.key</span>
+        </div>
+        <div id="drop-target">drop a file anywhere<br>
+          <button id="pick-btn" type="button">choose a file…</button>
+        </div>
+        <p class="muted hidden" id="drop-hint"></p>
+      </div>
+    </div>
+
+    <main id="view" class="hidden"></main>
+
+    <div id="json-view" class="hidden">
+      <div id="json-toolbar">
+        <span id="json-size" class="muted"></span>
+        <span class="spacer"></span>
+        <button id="json-dl-btn" type="button" title="Save this view to a file">download</button>
+      </div>
+      <pre id="json-pre"></pre>
+    </div>
+
+    <footer id="app-footer">
+      <p>Pages, Numbers, Keynote and iWork are trademarks of Apple Inc. pnk.vu is not affiliated with or endorsed by Apple.</p>
+      <details id="legal">
+        <summary>privacy &amp; terms</summary>
+        <p>pnk.vu runs entirely in your browser: documents you open are parsed locally and never uploaded.
+        We collect no personal data. Our host, Cloudflare, keeps standard server-side logs and anonymous
+        analytics. When a document names a font you do not have, the viewer asks Google Fonts for a close
+        substitute, so Google sees your IP address and the font names — never the document; the
+        <em>settings</em> menu turns that off. Provided as-is, without warranty of any kind.
+        Source is MIT / Apache-2.0 licensed on <a href="https://github.com/peterheb/pnk" target="_blank" rel="noopener">GitHub</a>.</p>
+      </details>
+    </footer>
+  </div>
+
+  <div id="drag-overlay" class="hidden" aria-hidden="true">
+    <div class="drag-overlay-card">drop to open<br>
+      <span class="drag-overlay-sub"><code>.pages</code> · <code>.numbers</code> · <code>.key</code></span>
+    </div>
+  </div>
+  <div id="parse-status" class="hidden" role="status"></div>
+
+  <input type="file" id="file-input" class="hidden"
+         accept=".pages,.numbers,.key,.pages.zip,.numbers.zip,.key.zip,application/vnd.apple.pages,application/vnd.apple.numbers,application/vnd.apple.keynote">
+
+  <script type="module" src="main.js"></script>
+<script src="../viewers/pnk-embed.js"></script>
+<script src="../viewers/viewer-embed.js"></script>
+</body>
+</html>
