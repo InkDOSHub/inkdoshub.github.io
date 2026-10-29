@@ -396,5 +396,7 @@
 "Saves the whole InkDOS Hub on this device (about 400 MB). After that it opens from here, even without internet, and it only changes when you tap Offline again: that downloads the newest version, only what changed.": "将整个 InkDOS Hub 保存到此设备（约 400 MB）。之后即使没有网络也从这里打开，只有再次点按“离线”时才会更新：只下载有变化的部分。",
 "Offline": "离线",
 "Up to date": "已是最新",
-"Failed, try again": "失败，请重试"
+"Failed, try again": "失败，请重试",
+"Update available": "有可用更新",
+"Update": "更新"
 }

@@ -116,3 +116,5 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 .menu-offline #btn-offline{padding-right:36px}
 .menu-offline details.i{top:5px;right:8px}
 .menu-offline details.i .pop{right:-14px;left:auto;top:28px;width:226px;z-index:5;box-sizing:border-box}
+
+.aviso-atualizar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;padding:10px 16px;border:1px solid var(--border,#e3e8ef);border-radius:999px;background:var(--card,#fff);color:var(--text,#192235);font:inherit;font-size:14px;font-weight:600;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.12);cursor:pointer}

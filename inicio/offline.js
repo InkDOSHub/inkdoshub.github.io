@@ -17,7 +17,20 @@
     return caches.open(CACHE).then(function (c) { return c.match(MARCA); }).then(function (r) { return r ? r.json() : null; }).catch(function () { return null; });
   }
   function marcar(m) { btn.setAttribute("aria-pressed", m ? "true" : "false"); }
-  estado().then(marcar);
+  // com a cópia instalada, avisa na tela inicial quando o site tem versão nova (um toque atualiza)
+  var aviso = null;
+  estado().then(function (m) {
+    marcar(m);
+    if (!m) return;
+    fetch(new URL("inicio/manifesto.json", BASE).href, { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (n) {
+      if (!n || n.versao === m.versao) return;
+      info.textContent = t("Update available");
+      aviso = document.createElement("button"); aviso.type = "button"; aviso.className = "aviso-atualizar";
+      aviso.textContent = t("Update available") + " · " + t("Update");
+      aviso.addEventListener("click", function () { aviso.disabled = true; aviso.textContent = "…"; btn.click(); });
+      document.body.appendChild(aviso);
+    }).catch(function () {});
+  });
 
   var ocupado = false;
   btn.addEventListener("click", function (e) {
@@ -45,7 +58,7 @@
                 return c.put(chave(a[0]), r);
               }).then(function () {
                 feito += a[1];
-                info.textContent = Math.min(99, Math.floor(feito * 100 / Math.max(1, total))) + "%";
+                info.textContent = Math.min(99, Math.floor(feito * 100 / Math.max(1, total))) + "%"; if (aviso) aviso.textContent = t("Update") + " " + info.textContent;
                 return proximo();
               });
             }
@@ -58,9 +71,9 @@
           })
           .then(function () { return c.put(MARCA, new Response(JSON.stringify(novo), { headers: { "Content-Type": "application/json" } })); })
           .then(function () { return caches.delete("inkdoshub-onlyoffice-v1"); })
-          .then(function () { marcar(true); info.textContent = t("Up to date"); });
+          .then(function () { marcar(true); info.textContent = t("Up to date"); if (aviso) location.reload(); });
       })
-      .catch(function () { info.textContent = t("Failed, try again"); })
+      .catch(function () { info.textContent = t("Failed, try again"); if (aviso) { aviso.disabled = false; aviso.textContent = t("Failed, try again"); } })
       .then(function () { ocupado = false; });
   });
 })();
