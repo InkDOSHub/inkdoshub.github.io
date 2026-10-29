@@ -295,7 +295,7 @@
     home.appendChild(document.createTextNode(editar ? (/^pt/i.test(navigator.language) ? 'Editar PDF' : 'Edit PDF') : 'PDF'));
     var esq = document.createElement('div'); esq.appendChild(home);
     var meio = document.createElement('div'); meio.className = 'ink-meio';
-    var img = document.createElement('img'); img.className = 'ink-simbolo'; img.alt = ''; img.src = '/assets/icones-inkdos/' + (editar ? 'editar-pdf' : 'pdf') + '.svg';
+    var img = document.createElement('img'); img.className = 'ink-simbolo'; img.alt = ''; img.src = '/assets/icones-inkdos/' + (editar ? 'editar-pdf.svg?v=2' : 'pdf.svg');
     var t = document.createElement('span'); t.className = 'ink-title'; t.textContent = nome();
     meio.append(img, t);
     bar.append(esq, meio, document.createElement('div'));
