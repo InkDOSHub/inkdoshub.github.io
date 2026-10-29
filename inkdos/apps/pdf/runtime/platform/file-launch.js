@@ -59,7 +59,7 @@ function toInkDOSHub(it,file,win){
 function openInOffice(file,light,win){
  const it=inkDOSHub();
  if(it){toInkDOSHub(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
- return openInOfficeOriginal(file,light,win);
+ return false; /* InkDOS Hub: sem o site antigo do ONLYOFFICE (inkdos-tools); só o editor local */
 }
 function openInOfficeOriginal(file,light,win){
  if(!doc?.body)return false;
