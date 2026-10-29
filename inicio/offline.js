@@ -53,7 +53,8 @@
             function proximo() {
               if (i >= fila.length) return Promise.resolve();
               var a = fila[i++];
-              return fetch(chave(a[0]), { cache: "reload" }).then(function (r) {
+              // "?inkoff=" + número do arquivo: endereço novo a cada versão, então o CDN do GitHub não entrega a antiga
+              return fetch(chave(a[0]) + "?inkoff=" + a[2], { cache: "reload" }).then(function (r) {
                 if (!r.ok) throw new Error(a[0]);
                 return c.put(chave(a[0]), r);
               }).then(function () {

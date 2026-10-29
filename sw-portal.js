@@ -7,7 +7,28 @@ var CACHE = "inkdoshub-offline";
 var RAIZ = self.INK_RAIZ || new URL("./", self.location.href).pathname; // "/" no GitHub Pages (o editor do OnlyOffice informa a raiz)
 
 self.addEventListener("install", function () { self.skipWaiting(); });
-self.addEventListener("activate", function (e) { e.waitUntil(self.clients.claim()); });
+/* Conserto (2026-10-29): uma atualização da cópia pode ter guardado arquivos velhos do CDN do GitHub com o
+   número novo. Estes arquivos saem da cópia (abrem do site) e a tela inicial oferece atualizar de novo. */
+var REPARO = ["index.html", "inicio/offline.js", "inicio/lancador.js", "assets/home.css", "assets/gerenciador-app.js",
+  "assets/icones-inkdos/editar-pdf.svg", "apps/editar-pdf/index.html", "idiomas/de.json", "idiomas/es.json", "idiomas/fr.json",
+  "idiomas/ja.json", "idiomas/pt-BR.json", "idiomas/ru.json", "idiomas/zh-CN.json",
+  "inkdos/apps/documents/io/external-viewer.js", "inkdos/apps/pdf/ui/edit-pdf-button.js",
+  "inkdos/apps/presentations/io/external-viewer.js", "inkdos/apps/spreadsheets/io/external-viewer.js",
+  "inkdos/assets/handoff.js", "inkdos/handoff.html", "visualizadores/viewers/bento-carry.js"];
+function reparar() {
+  var base = self.location.origin + RAIZ, marca = base + "__offline__/manifesto.json";
+  return caches.open(CACHE).then(function (c) {
+    return c.match(marca).then(function (r) { return r ? r.json() : null; }).then(function (m) {
+      if (!m || m.reparo1) return;
+      var fora = {}; REPARO.forEach(function (p) { fora[p] = 1; });
+      m.grupos.forEach(function (g) { g.arquivos.forEach(function (a) { if (fora[a[0]]) a[2] = ""; }); });
+      m.versao = "reparo"; m.reparo1 = true;
+      return Promise.all(REPARO.map(function (p) { return c.delete(base + p); }))
+        .then(function () { return c.put(marca, new Response(JSON.stringify(m), { headers: { "Content-Type": "application/json" } })); });
+    });
+  }).catch(function () {});
+}
+self.addEventListener("activate", function (e) { e.waitUntil(reparar().then(function () { return self.clients.claim(); })); });
 
 /* A chave no cache é o caminho sem "?…"; uma pasta vira pasta/index.html. */
 function chave(url) {
@@ -51,6 +72,7 @@ self.addEventListener("fetch", function (e) {
   if (u.origin !== self.location.origin) return;
   if (req.headers.has("range")) return; // vídeo e áudio pedem pedaços; o navegador cuida disso
   if (u.pathname === RAIZ + "inicio/manifesto.json") return; // o botão Offline sempre compara com o site
+  if (u.searchParams.has("inkoff")) return; // download da cópia offline: sempre do site
 
   e.respondWith(daCopiaOuRede(req));
 });
