@@ -8,44 +8,10 @@ function acceptsFile(input,file){const tokens=acceptTokens(input?.accept);if(!to
 function compatibleInput(file){if(!doc)return null;for(const input of doc.querySelectorAll('input[type="file"]'))if(acceptsFile(input,file))return input;return null}
 function dispatchError(error){try{doc?.dispatchEvent(new CustomEvent('inkdos:file-launch-error',{detail:{message:String(error?.message||error||'File launch failed')}}))}catch(_){}}
 async function injectFile(file,input=compatibleInput(file)){if(!file)return false;if(!input||!acceptsFile(input,file))throw new Error('Unsupported file format for this InkDOS workspace.');if(typeof g.DataTransfer!=='function'||typeof g.File!=='function')throw new Error('This host cannot inject a file into the workspace.');const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));return true}
-// Every file opens in the InkDOS app first. "Edit with ONLYOFFICE" (Documents, Spreadsheets, Presentations, and the
-// view-only notice of the external viewers) hands the document to the ONLYOFFICE editors of InkDOS Office, which live
-// on their own origin (AGENTS.md, origin isolation): the editor is framed over this workspace in its embed mode
-// (/editor?embed=1, which takes orders only from embedOrigin, this origin) and gets the file with document:open-file.
-const OFFICE_ORIGIN='https://inkdos-tools.github.io',OFFICE_EXT=new Set(['docx','doc','odt','rtf','xlsx','xls','ods','csv','pptx','ppt','odp','docm','dotx','dot','fodt','xlsm','xltx','fods','pptm','ppsx','pps','potx','fodp']);
-// the full-screen layer over the workspace: a bar (name, "Back to InkDOS") and the editor's frame
-function launchShell(file,light,src){
- const pt=/^pt/i.test(String(g.InkDOSLocalization?.currentLanguage||doc.documentElement.lang||g.navigator?.language||'en'));
- const shell=doc.createElement('div');shell.className='inkdos-office-launch';shell.setAttribute('role','dialog');shell.setAttribute('aria-label','InkDOS Office');
- shell.style.cssText='position:fixed;inset:0;z-index:2147483646;display:flex;flex-direction:column;background:#f2f5f8';
- const bar=doc.createElement('div');bar.style.cssText='display:flex;align-items:center;gap:10px;padding:6px 10px;background:#fff;border-bottom:1px solid #e3e8ef;font:600 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#192235';
- const title=doc.createElement('span');title.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';title.textContent='ONLYOFFICE · '+file.name;
- const back=doc.createElement('button');back.type='button';back.textContent=pt?'Voltar ao InkDOS':'Back to InkDOS';
- back.style.cssText='height:32px;padding:0 12px;border:1px solid #d5dce6;border-radius:9px;background:#f0f2f5;color:#192235;font:inherit;cursor:pointer';
- bar.append(title,back);
- const frame=doc.createElement('iframe');frame.title='InkDOS Office';frame.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff';frame.setAttribute('allow','clipboard-read; clipboard-write');frame.src=src;
- // iPad: the editor frame sits in a box that fills the rest of the screen and scrolls itself if Safari sizes the frame
- // to its content (as the Edit PDF layer)
- const box=doc.createElement('div');box.style.cssText='position:relative;flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch';box.appendChild(frame);
- shell.append(bar,box);doc.body.appendChild(shell);
- let onMessage=null;
- const toLight=()=>{if(onMessage)g.removeEventListener('message',onMessage);shell.remove();light(file)};
- back.addEventListener('click',toLight);
- return {frame,toLight,listen(handler){onMessage=handler;g.addEventListener('message',handler)}};
-}
-// InkDOS inside another web page (the XeOS web desktop on iPad): an editor framed in InkDOS does not scroll there, so
-// the editor opens as a separate page instead. The document waits in this origin's IndexedDB; the editor page fetches
-// it through the hidden handoff.html (engine site: inkdos-handoff.js / bento-carry.js) and offers a way back here.
-function framedPage(){try{return g.top!==g.self}catch(_){return true}}
-function handOff(file,url){
- const id=g.crypto?.randomUUID?g.crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2,10);
- // kept as bytes, not as a File: WebKit web views without persistent storage (XeOS) refuse files in IndexedDB
- return file.arrayBuffer().then(bytes=>new Promise((resolve,reject)=>{const req=g.indexedDB.open('inkdos-tool-handoff',1);req.onupgradeneeded=()=>req.result.createObjectStore('files');req.onerror=()=>reject(req.error);
-  req.onsuccess=()=>{const db=req.result,tx=db.transaction('files','readwrite');tx.objectStore('files').put({bytes,type:file.type||'',name:file.name,at:Date.now()},id);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=tx.onabort=()=>reject(tx.error)}}))
-  .then(()=>{url.searchParams.set('inkdos-handoff',id);url.searchParams.set('inkdos-return',g.location.href);g.location.href=url.href;return true});
-}
-function webEdition(){return !g.InkDOSDesktop&&doc?.documentElement.dataset.inkdosHost!=='tauri'}
-/* InkDOS Hub: editor ONLYOFFICE local */
+// "Edit with ONLYOFFICE" (view-only notice of Documents, Spreadsheets and Presentations): the document goes to the
+// local ONLYOFFICE editor (onlyoffice/) through IndexedDB "inkdos-tool-handoff" and InkPaginas.abrirEditor
+// (assets/gerenciador-app.js). InkDOS Hub: the old InkDOS Office site and its "Edit with ONLYOFFICE" header button are gone.
+const OFFICE_EXT=new Set(['docx','doc','odt','rtf','xlsx','xls','ods','csv','pptx','ppt','odp','docm','dotx','dot','fodt','xlsm','xltx','fods','pptm','ppsx','pps','potx','fodp']);
 function inkDOSHub(){return g.InkPaginas&&g.InkPaginas.abrirEditor?g.InkPaginas:null}
 function toInkDOSHub(it,file,win){
  const id=g.crypto?.randomUUID?g.crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2,10);
@@ -56,42 +22,12 @@ function toInkDOSHub(it,file,win){
   /* documentos passados ao editor há mais de 7 dias */const c=st.openCursor();c.onsuccess=()=>{const k=c.result;if(!k)return;if(k.key!==id&&Date.now()-(k.value?.at||0)>7*864e5)k.delete();k.continue()};tx.oncomplete=()=>{db.close();resolve()};tx.onerror=tx.onabort=()=>reject(tx.error)}}))
   .then(()=>{it.abrirEditor({id,nome:file.name,locale:LOCALE||''},win);return true});
 }
-function openInOffice(file,light,win){
+function openInOffice(file,win){
  const it=inkDOSHub();
- if(it){toInkDOSHub(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
- return false; /* InkDOS Hub: sem o site antigo do ONLYOFFICE (inkdos-tools); só o editor local */
+ if(!it)return false;
+ toInkDOSHub(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true;
 }
-function openInOfficeOriginal(file,light,win){
- if(!doc?.body)return false;
- // web edition (owner, 2026-10-10 / 2026-10-13): the editor opens as a page of its own, in a new tab, with no InkDOS
- // bar over it. The document goes to that tab by postMessage (the editor page asks with inkdos-opener-ready): Safari
- // keeps a cross-site frame's IndexedDB apart, so the hidden handoff.html saw nothing there and the editor opened
- // empty on iPad. A blocked new tab falls back to the same-tab hand-over. The Windows app keeps its office windows.
- if(webEdition()&&g.indexedDB){
-  const lang=String(g.InkDOSLocalization?.currentLanguage||doc.documentElement.lang||g.navigator?.language||'en');
-  const LOCALE={pt:'pt',es:'es',de:'de',ja:'ja',zh:'zh-CN',fr:'fr',ru:'ru'}[lang.toLowerCase().split('-')[0]];
-  const url=new URL('/editor',OFFICE_ORIGIN);url.searchParams.set('embed','1');url.searchParams.set('embedOrigin',OFFICE_ORIGIN);if(LOCALE)url.searchParams.set('locale',LOCALE);
-  let tab=win||null;if(!tab){try{tab=g.open('','_blank')}catch(_){tab=null}}
-  if(!tab){handOff(file,url).catch(error=>{console.error('InkDOS: could not hand the document to ONLYOFFICE',error)});return true}
-  const onMessage=event=>{if(event.origin!==OFFICE_ORIGIN||event.source!==tab||event.data?.type!=='inkdos-opener-ready')return;g.removeEventListener('message',onMessage);tab.postMessage({type:'inkdos-handoff-file',file,name:file.name},OFFICE_ORIGIN)};
-  g.addEventListener('message',onMessage);g.setTimeout(()=>g.removeEventListener('message',onMessage),300000);
-  url.searchParams.set('inkdos-opener','1');tab.location.href=url.href;return true;
- }
- const lang=String(g.InkDOSLocalization?.currentLanguage||doc.documentElement.lang||g.navigator?.language||'en');
- const LOCALE={pt:'pt',es:'es',de:'de',ja:'ja',zh:'zh-CN',fr:'fr',ru:'ru'}[lang.toLowerCase().split('-')[0]];
- const url=new URL('/editor',OFFICE_ORIGIN);url.searchParams.set('embed','1');url.searchParams.set('embedOrigin',g.location.origin);if(LOCALE)url.searchParams.set('locale',LOCALE);
- const {frame,toLight,listen}=launchShell(file,light||(()=>{}),url.href);
- let sent=false,opened=false;
- listen(async function onMessage(event){
-  if(event.origin!==OFFICE_ORIGIN||event.source!==frame.contentWindow||!event.data)return;
-  if(event.data.type==='document:error'&&!opened){toLight();return}
-  if(event.data.type==='document:opened'){opened=true;return}
-  if(event.data.type!=='document:ready'||sent)return;
-  sent=true;frame.contentWindow.postMessage({id:'inkdos-launch',type:'document:open-file',payload:{file,fileName:file.name}},OFFICE_ORIGIN);
- });
- return true;
-}
-async function lightRoute(file){if(!file)return false;setCurrentFile(file);noteOpened(file);if(openHandler)return !!(await openHandler(file));pendingLaunchFiles.push(file);return true}
+async function lightRoute(file){if(!file)return false;setCurrentFile(file);if(openHandler)return !!(await openHandler(file));pendingLaunchFiles.push(file);return true}
 async function routeFile(file){if(!file)return false;return lightRoute(file)}
 async function drainPending(){if(!openHandler||!pendingLaunchFiles.length)return;const files=pendingLaunchFiles.splice(0);for(const file of files){try{await openHandler(file)}catch(error){console.error('InkDOS launched-file open failed:',error);dispatchError(error)}}}
 function setOpenHandler(handler){openHandler=typeof handler==='function'?handler:null;if(openHandler)Promise.resolve().then(drainPending);return !!openHandler}
@@ -101,45 +37,10 @@ function setCurrentFile(file){try{g.InkDOSCurrentHandle=file?(g.InkDOSFileHandle
 async function openHandle(handle){if(!handle||handle.kind!=='file'||typeof handle.getFile!=='function')return false;const file=await handle.getFile();rememberHandle(file,handle);return routeFile(file)}
 async function consume(params){for(const handle of params?.files||[]){if(await openHandle(handle))return true}return false}
 function requestPicker(input){if(!input||typeof g.showOpenFilePicker!=='function')return false;let pending;try{pending=g.showOpenFilePicker({multiple:false})}catch(_){return false}Promise.resolve(pending).then(async handles=>{const handle=handles?.[0];if(!handle)return;const file=await handle.getFile();rememberHandle(file,handle);if(!acceptsFile(input,file))throw new Error('Unsupported file format for this InkDOS workspace.');await injectFile(file,input)}).catch(error=>{if(error?.name==='AbortError')return;console.error('InkDOS File System Access open failed:',error);dispatchError(error)});return true}
-function install(){if(g.document)g.document.addEventListener('change',e=>{const t=e.target;if(t&&t.type==='file'&&t.files&&t.files[0]&&!/^image\//.test(String(t.accept||'').trim())){setCurrentFile(t.files[0]);noteOpened(t.files[0])}},true);const queue=g.launchQueue;if(!queue||typeof queue.setConsumer!=='function')return false;queue.setConsumer(params=>consume(params).catch(error=>{console.error('InkDOS launched-file open failed:',error);dispatchError(error)}));return true}
+function install(){if(g.document)g.document.addEventListener('change',e=>{const t=e.target;if(t&&t.type==='file'&&t.files&&t.files[0]&&!/^image\//.test(String(t.accept||'').trim()))setCurrentFile(t.files[0])},true);const queue=g.launchQueue;if(!queue||typeof queue.setConsumer!=='function')return false;queue.setConsumer(params=>consume(params).catch(error=>{console.error('InkDOS launched-file open failed:',error);dispatchError(error)}));return true}
 // Home hands a launched file over by storing it in IndexedDB and opening this page with #inkdos-launch=<id>.
 function takeHandoff(){const m=/(?:^#|&)inkdos-launch=([A-Za-z0-9-]+)/.exec(g.location?.hash||'');if(!m||!g.indexedDB)return false;const id=m[1];try{g.history.replaceState(g.history.state,'',g.location.pathname+g.location.search)}catch(_){}let req;try{req=g.indexedDB.open('inkdos-launch-handoff',1)}catch(error){dispatchError(error);return false}req.onupgradeneeded=()=>req.result.createObjectStore('files');req.onerror=()=>dispatchError(req.error);req.onsuccess=()=>{const db=req.result;let tx;try{tx=db.transaction('files','readwrite')}catch(error){db.close();dispatchError(error);return}const store=tx.objectStore('files'),get=store.get(id);get.onsuccess=()=>{const v=get.result;store.delete(id);if(!v)return;const file=new File([v.data],v.name,{type:v.type||'',lastModified:v.lastModified||Date.now()});routeFile(file).catch(error=>{console.error('InkDOS launched-file open failed:',error);dispatchError(error)})};tx.oncomplete=tx.onabort=()=>db.close()};return true}
-// "Edit with ONLYOFFICE" (Documents, Spreadsheets, Presentations, web edition): in the top bar, left of the Settings
-// (sun) button. It hands ONLYOFFICE the document as it is now on screen, a new one included: the workspace writes it
-// to DOCX / XLSX / PPTX on the spot (the same writers as Save, without saving or marking it saved). Files the workspace
-// only views (e.g. .doc, OpenDocument) go as they were opened.
-let openedFile=null;
-function noteOpened(file){openedFile=OFFICE_EXT.has(extension(file?.name))?file:null}
-function asFile(blob,name,ext){const base=String(name||'Untitled').replace(/\.[^.]+$/,'')||'Untitled';return new File([blob],base+'.'+ext,{type:blob.type||'application/octet-stream'})}
-async function currentDocument(){
- const app=(/\/apps\/(documents|spreadsheets|presentations)\//.exec(g.location.pathname)||[])[1];
- if(app==='documents'){const s=g.InkDOS2Documents?.DocumentsApp?.session,p=g.InkDOSSaveProvider;if(s&&s.kind==='docx'&&p?.buildOverwrite)return asFile(await p.buildOverwrite(),p.fileName?.()||s.fileName,'docx')}
- if(app==='presentations'){const s=g.__inkdosPresentations?.session,p=g.InkDOSSaveProvider;if(s?.active&&p?.buildOverwrite)return asFile(await p.buildOverwrite(),p.fileName?.()||s.fileName,'pptx')}
- if(app==='spreadsheets'){const S=g.__inkdosSpreadsheetsS1,book=S?.session?.book;if(book?.loaded&&g.LocalXLSX?.saveCopy){try{g.InkDOS2Spreadsheets?.FormulaEvaluator?.recalculate?.(book)}catch(_){}return asFile(await g.LocalXLSX.saveCopy(book),S.session.fileName,'xlsx')}}
- return openedFile;
-}
-function officeStatus(text){const live=doc.getElementById('statusText')||doc.querySelector('[role=status]');if(live)live.textContent=text}
-// the new tab opens at the click (Safari blocks one opened after the document is prepared) and gets the editor after
-async function editInOffice(pt){let win=null;if(webEdition()&&(!g.InkPaginas||g.InkPaginas.novaAba)){try{win=g.open('','_blank')}catch(_){win=null}}let file=null;try{file=await currentDocument()}catch(error){console.error('InkDOS: could not prepare the document for ONLYOFFICE',error)}if(!file){win?.close();officeStatus(pt?'Abra ou crie um documento primeiro.':'Open or create a document first.');return}openInOffice(file,null,win)}
-// The button joins the header in the same moment as the Settings (sun) button (no shift under a finger or a click)
-function whenSun(run){const find=()=>doc.querySelector('[data-frame-action="sun"]');const sun=find();if(sun)return run(sun);const watch=new MutationObserver(()=>{const s=find();if(s){watch.disconnect();run(s)}});watch.observe(doc.documentElement,{childList:true,subtree:true});setTimeout(()=>watch.disconnect(),15000)}
-function installOfficeButton(){return;/* InkDOS Hub 2026-10-28: o ONLYOFFICE virou app próprio na tela inicial */
- if(!doc||!/\/apps\/(documents|spreadsheets|presentations)\//.test(g.location.pathname)||g.InkDOSDesktop||doc.documentElement.dataset.inkdosHost==='tauri'||doc.getElementById('inkdosOfficeBtn'))return;
- whenSun(sun=>{if(!doc.getElementById('inkdosOfficeBtn'))addOfficeButton(sun)});
-}
-function addOfficeButton(sun){
- const pt=/^pt/i.test(String(g.InkDOSLocalization?.currentLanguage||doc.documentElement.lang||g.navigator?.language||''));
- const b=doc.createElement('button');b.type='button';b.id='inkdosOfficeBtn';b.className='frame-btn inkdos-office-btn';
- b.title=pt?'Editar com ONLYOFFICE':'Edit with ONLYOFFICE';b.setAttribute('aria-label',pt?'Editar com ONLYOFFICE':'Edit with ONLYOFFICE');
- b.style.cssText='width:auto;min-width:0;padding:0 10px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font:inherit;font-size:13px;font-weight:600';
- // the ONLYOFFICE name in its original logo (assets/icons/onlyoffice.svg), light text on the dark theme
- b.innerHTML='<span class="inkdos-office-label">'+(pt?'Editar com':'Edit with')+'</span><img src="../../assets/icons/onlyoffice.svg" alt="ONLYOFFICE" style="height:14px;width:auto;display:block">';
- if(!doc.getElementById('inkdosOfficeBtnStyle')){const st=doc.createElement('style');st.id='inkdosOfficeBtnStyle';st.textContent='html[data-theme="dark"] .inkdos-office-btn img{filter:invert(1) hue-rotate(180deg)}@media (max-width:640px){.inkdos-office-btn .inkdos-office-label{display:none}.inkdos-office-btn{padding:0 6px!important}.inkdos-office-btn img{width:16px!important;height:14px!important;object-fit:cover;object-position:left center}}';doc.head.appendChild(st)}
- b.addEventListener('click',()=>editInOffice(pt));
- sun.parentNode.insertBefore(b,sun);
-}
 install();
 takeHandoff();
-if(doc){if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',()=>installOfficeButton(),{once:true});else installOfficeButton()}
-g.InkDOSFileLaunch=Object.freeze({handOff,framedPage,openInOffice:file=>OFFICE_EXT.has(extension(file?.name))&&openInOffice(file),officeExtensions:OFFICE_EXT,install,consume,openHandle,routeFile,injectFile,compatibleInput,acceptsFile,extensionsFromAccept,requestPicker,setOpenHandler});
+g.InkDOSFileLaunch=Object.freeze({openInOffice:file=>OFFICE_EXT.has(extension(file?.name))&&openInOffice(file),officeExtensions:OFFICE_EXT,install,consume,openHandle,routeFile,injectFile,compatibleInput,acceptsFile,extensionsFromAccept,requestPicker,setOpenHandler});
 })(globalThis);

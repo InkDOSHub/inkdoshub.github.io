@@ -51,6 +51,7 @@
   }
 
   function idNovo() { return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10); }
+  /* limpar: dias depois dos quais as entregas esquecidas saem (0 = não limpa) */
   function gravar(banco, loja, valor, chave, limpar) {
     return new Promise(function (ok, erro) {
       var req = indexedDB.open(banco, 1);
@@ -59,9 +60,9 @@
       req.onsuccess = function () {
         var db = req.result, tx = db.transaction(loja, "readwrite"), st = tx.objectStore(loja);
         if (limpar) {
-          // entregas esquecidas há mais de 1 dia
+          // entregas esquecidas há mais de "limpar" dias
           var c = st.openCursor();
-          c.onsuccess = function () { var k = c.result; if (!k) return; if (Date.now() - (k.value && (k.value.at || k.value.lastModified) || 0) > 864e5) k.delete(); k.continue(); };
+          c.onsuccess = function () { var k = c.result; if (!k) return; if (Date.now() - (k.value && (k.value.at || k.value.lastModified) || 0) > limpar * 864e5) k.delete(); k.continue(); };
         }
         st.put(valor, chave);
         tx.oncomplete = function () { db.close(); ok(); };
@@ -82,7 +83,8 @@
     if (OFFICE[rota.app] && preferencia() === "onlyoffice") {
       return bytes(files.slice(0, 1)).then(function (l) {
         var v = l[0];
-        return gravar("inkdos-tool-handoff", "files", { bytes: v.data, type: v.type, name: v.name, at: Date.now() }, id, true).then(function () {
+        // guardado por 7 dias, como nos apps do InkDOS: o editor recarrega o documento dali
+        return gravar("inkdos-tool-handoff", "files", { bytes: v.data, type: v.type, name: v.name, at: Date.now() }, id, 7).then(function () {
           var loc = window.InkIdioma ? InkIdioma.onlyoffice() : "en";
           return RAIZ + "onlyoffice/editor.html?embed=1&embedOrigin=" + encodeURIComponent(location.origin) + "&inkdos-handoff=" + encodeURIComponent(id) +
             "&locale=" + encodeURIComponent(loc) + "&ink-nome=" + encodeURIComponent(v.name.slice(0, 80));
@@ -92,7 +94,7 @@
     if (INKDOS[rota.app]) {
       return bytes(files.slice(0, 1)).then(function (l) {
         var v = l[0]; v.at = Date.now();
-        return gravar("inkdos-launch-handoff", "files", v, id, true);
+        return gravar("inkdos-launch-handoff", "files", v, id, 1);
       }).then(function () { return RAIZ + "inkdos/apps/" + INKDOS[rota.app] + "/index.html?suite=1#inkdos-launch=" + id; });
     }
     if (rota.app === "codigo") {
@@ -110,7 +112,7 @@
       }).then(function () { return RAIZ + "apps/codigo/"; });
     }
     return bytes(files).then(function (l) {
-      return gravar("inkdoshub-entrada", "arquivos", { arquivos: l, at: Date.now() }, id, true);
+      return gravar("inkdoshub-entrada", "arquivos", { arquivos: l, at: Date.now() }, id, 1);
     }).then(function () { return RAIZ + P.apps.filter(function (a) { return a.id === rota.app; })[0].url + "#ink-arquivos=" + id; });
   }
 

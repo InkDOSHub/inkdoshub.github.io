@@ -16,4 +16,7 @@ Cópia dos apps do InkDOS dentro do InkDOS Hub
   - documentos, planilhas e apresentações: os visualizadores abrem /visualizadores/ deste site;
   - PDF: sem o botão "Editar PDF" e sem as senhas do BentoPDF (ficam no app Editar PDF);
   - nenhum app abre o ONLYOFFICE do site antigo (file-launch.js: só o editor local);
-  - handoff.html + assets/handoff.js: entrega o arquivo ao BentoPDF dentro deste site.
+  - 2026-10-29 (auditoria/006): saíram o handoff.html + assets/handoff.js e o ui/edit-pdf-button.js do PDF (as
+    ferramentas de PDF ficam no app Editar PDF), o código do ONLYOFFICE do site antigo em runtime/platform/file-launch.js
+    (agora igual nos 6 apps), o registro do service-worker.js do InkDOS (shared/ui-density.js) e os fontes soltos do
+    Texto (apps/txt/): a página servida é o index.html, que já traz tudo embutido.
