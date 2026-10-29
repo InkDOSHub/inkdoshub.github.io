@@ -14,13 +14,18 @@ h1{font-size:24px}h2{font-size:18px;margin-top:28px}li{margin:6px 0}
 <p><a href="../">&lt; InkDOS Hub</a></p>
 <h1>InkDOS Hub for Windows</h1>
 <ul>
-<li><a href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip">InkDOS Hub Webcam (.zip)</a> — use a phone or iPad as a webcam.</li>
-<li><a href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/transferir-windows/InkDOSHub-Transferir.exe">InkDOS Hub Transfer (.exe)</a> — send files between the PC and a phone.</li>
+<li><a href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip">InkDOS Hub Webcam (.zip)</a> — use a phone or iPad as a webcam.<br><small>SHA-256: <code data-sha="webcam-windows/InkDOSHub-Webcam-Windows.zip">…</code> (<a href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip.sha256">.sha256</a>)</small></li>
+<li><a href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/transferir-windows/InkDOSHub-Transferir.exe">InkDOS Hub Transfer (.exe)</a> — send files between the PC and a phone.<br><small>SHA-256: <code data-sha="transferir-windows/InkDOSHub-Transferir.exe">…</code> (<a href="https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/transferir-windows/InkDOSHub-Transferir.exe.sha256">.sha256</a>)</small></li>
 </ul>
 <p>Built from the public source code of this project by GitHub Actions (<a href="https://github.com/InkDOSHub/inkdoshub.github.io">repository</a>, MIT license).</p>
 
-<h2>Code signing</h2>
-<p>Free code signing provided by <a href="https://about.signpath.io/">SignPath.io</a>, certificate by <a href="https://signpath.org/">SignPath Foundation</a>. Policy: <a href="https://github.com/InkDOSHub/inkdoshub.github.io/blob/main/ASSINATURA.md">code signing policy</a>.</p>
+<h2>Verify the download</h2>
+<p>The programs are not code-signed, so Windows SmartScreen may warn on first run ("More info" → "Run anyway"). To check the file is intact, run in PowerShell <code>Get-FileHash .\FILE</code> and compare with the SHA-256 above.</p>
+<script>
+document.querySelectorAll('[data-sha]').forEach(function(c){var t=c.dataset.sha.split('/');
+fetch('https://api.github.com/repos/InkDOSHub/inkdoshub.github.io/releases/tags/'+t[0]).then(function(r){return r.json()}).then(function(j){
+var a=(j.assets||[]).find(function(x){return x.name===t[1]});c.textContent=a&&a.digest?a.digest.replace('sha256:',''):'see .sha256 file'}).catch(function(){c.textContent='see .sha256 file'})});
+</script>
 
 <h2 id="privacy">Privacy</h2>
 <p>InkDOS Hub does not collect, store or send personal data. There are no accounts, no analytics and no ads. Files stay on your device. The Webcam and Transfer apps only connect directly to the devices you pair yourself. Optional tools are downloaded only from each project's official source, when you ask for them.</p>
