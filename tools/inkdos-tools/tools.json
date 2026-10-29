@@ -1,0 +1,71 @@
+{
+  "base": "/InkDOS-tools/",
+  "tools": [
+    {
+      "id": "pnk",
+      "name": "pnk",
+      "title": "Apple Pages, Numbers and Keynote viewer",
+      "group": "View",
+      "description": "View .pages, .numbers and .key files in the browser (view only, no conversion).",
+      "repo": "https://github.com/peterheb/pnk",
+      "ref": "617f906c26a27a59b69bd94beffe6995be17eb0a",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-MIT"
+    },
+    {
+      "id": "bentopdf",
+      "name": "BentoPDF",
+      "title": "PDF toolkit",
+      "group": "PDF",
+      "description": "Merge, split, compress, convert, OCR, edit and protect PDFs; Word, Excel, PowerPoint and LibreOffice files to PDF, all in the browser.",
+      "repo": "https://github.com/alam00000/bentopdf",
+      "ref": "f96cd4e5166f3d51393dfe9f3c440b5bb77802f1",
+      "license": "AGPL-3.0",
+      "license_file": "LICENSE"
+    },
+    {
+      "id": "python",
+      "name": "Pyodide",
+      "title": "Python terminal (Pyodide)",
+      "group": "Developer",
+      "description": "A Python 3 console with numpy, pandas, matplotlib, scipy, openpyxl and more, running entirely in the browser; open and save files.",
+      "repo": "https://github.com/pyodide/pyodide",
+      "ref": "b1e4fcc2488962f6360a97f19b9982d6fdb5d16f",
+      "license": "MPL-2.0",
+      "license_file": "LICENSE"
+    },
+    {
+      "id": "odf",
+      "name": "WebODF",
+      "title": "OpenDocument viewer",
+      "group": "View",
+      "description": "View LibreOffice / OpenDocument files (.odt, .ods, .odp), view only.",
+      "repo": "https://github.com/kogmbh/WebODF",
+      "ref": "999917d0df55abde6d2119ea4d584ccb6039694e",
+      "license": "AGPL-3.0",
+      "license_file": "AGPL-3.0.txt"
+    },
+    {
+      "id": "docx",
+      "name": "docx-preview",
+      "title": "Word document viewer",
+      "group": "View",
+      "description": "View .docx files with their page layout, headers, footers, tables and images (view only).",
+      "repo": "https://github.com/VolodymyrBaydalka/docxjs",
+      "ref": "c533f383069008d4a1e05c6171ef8777fd078385",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE"
+    },
+    {
+      "id": "pptx",
+      "name": "pptx-renderer",
+      "title": "PowerPoint viewer",
+      "group": "View",
+      "description": "View .pptx slides with their layout, shapes, charts and images (view only).",
+      "repo": "https://github.com/aiden0z/pptx-renderer",
+      "ref": "0cf5c194b4db2cf9f2531b6a7e24a61338caabf1",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE"
+    }
+  ]
+}

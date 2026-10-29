@@ -393,7 +393,7 @@
 "Open file": "Открыть файл",
 "Open any file in the right app": "Открыть любой файл в подходящем приложении",
 "Could not read the shared file.": "Не удалось прочитать файл.",
-"Saves the whole InkDOS Hub on this device (about 400 MB). After that it opens from here, even without internet, and it only changes when you tap Offline again: that downloads the newest version, only what changed.": "Сохраняет весь InkDOS Hub на этом устройстве (около 400 МБ). После этого он открывается отсюда, даже без интернета, и меняется только когда вы снова нажимаете «Офлайн»: загружается новая версия, только изменения.",
+"Saves the whole InkDOS Hub on this device (about 700 MB). After that it opens from here, even without internet, and it only changes when you tap Offline again: that downloads the newest version, only what changed.": "Сохраняет весь InkDOS Hub на этом устройстве (около 700 МБ). После этого он открывается отсюда, даже без интернета, и меняется только когда вы снова нажимаете «Офлайн»: загружается новая версия, только изменения.",
 "Offline": "Офлайн",
 "Up to date": "Обновлено",
 "Failed, try again": "Ошибка, попробуйте снова",

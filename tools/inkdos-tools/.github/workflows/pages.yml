@@ -1,0 +1,69 @@
+name: Build and deploy tools
+
+# Builds every tool and publishes the result to the gh-pages branch, which GitHub Pages serves
+# (Settings → Pages → Source: "Deploy from a branch", branch gh-pages, folder / ).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      # Fast path (owner, 2026-10-10): when a push changes only files the build copies as they are (site-src/viewers,
+      # skins, diag) or documentation, the published site is updated in place, in a minute or two, instead of
+      # rebuilding every tool. Anything else, a manual run or a first push builds everything.
+      - name: Choose fast path or full build
+        id: plan
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          mode=full
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "$BEFORE" ] && ! echo "$BEFORE" | grep -q '^0*$' && git cat-file -e "$BEFORE" 2>/dev/null; then
+            changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
+            echo "$changed"
+            if [ -n "$changed" ] && ! echo "$changed" | grep -Ev '^(site-src/(viewers|skins|diag)/|[^/]*\.md$)' | grep -q .; then mode=fast; fi
+          fi
+          echo "mode=$mode" | tee -a "$GITHUB_OUTPUT"
+      - name: Fast path - update the published copies of viewers, skins and diag
+        if: steps.plan.outputs.mode == 'fast'
+        run: |
+          git clone -q --depth 1 --branch gh-pages "https://github.com/${GITHUB_REPOSITORY}.git" _site
+          rm -rf _site/.git
+          for dir in viewers skins diag; do rm -rf "_site/$dir"; cp -a "site-src/$dir" "_site/$dir"; done
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.plan.outputs.mode == 'full'
+        with:
+          node-version: 24
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        if: steps.plan.outputs.mode == 'full'
+        with:
+          python-version: '3.12'
+      - name: Rust toolchain for pnk (wasm32 target, wasm-bindgen 0.2.127)
+        if: steps.plan.outputs.mode == 'full'
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-bindgen-cli --version 0.2.127 --locked
+      - name: Build every tool
+        if: steps.plan.outputs.mode == 'full'
+        run: python build.py --out _site
+      - name: Publish to the gh-pages branch
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
+          force_orphan: true  # one commit per deploy, so old builds do not pile up in history
+          commit_message: Deploy tools site

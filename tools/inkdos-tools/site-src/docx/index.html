@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Word document viewer</title>
+<link rel="stylesheet" href="../viewers/viewer.css">
+<link rel="stylesheet" href="viewer.css">
+<script src="../viewers/viewer-theme.js"></script>
+<script src="jszip.min.js"></script>
+<script src="docx-preview.min.js"></script>
+</head>
+<body>
+<header class="viewer-bar">
+  <strong>Word document viewer</strong>
+  <span class="viewer-name" id="fileName"></span>
+  <label class="viewer-open">Open .docx<input id="picker" type="file" accept=".docx,.docm,.dotx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label>
+</header>
+<main class="viewer-stage" id="stage">
+  <p class="viewer-status" id="status">View only, with the layout of the Word file. Choose a .docx file; it never leaves this device.</p>
+  <div id="doc" class="docx-host" hidden></div>
+</main>
+<script src="viewer.js"></script>
+<script src="../viewers/viewer-embed.js"></script>
+</body>
+</html>

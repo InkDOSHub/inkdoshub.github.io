@@ -1,0 +1,3 @@
+.pptx-host[hidden]{display:none}
+.pptx-host{max-width:1200px;margin:0 auto}
+@media (max-width:700px){.viewer-stage{padding:12px 8px}}

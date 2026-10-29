@@ -1,0 +1,7 @@
+body{margin:0;padding:16px;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f2f5f8;color:#192235}
+h1{font-size:20px;margin:0 0 6px}h2{font-size:15px;margin:16px 0 6px}p{margin:0 0 10px;color:#4b5565}
+.actions{display:flex;flex-wrap:wrap;gap:8px}button{height:38px;padding:0 14px;border:1px solid #d5dce6;border-radius:10px;background:#fff;font:600 14px/1 inherit;cursor:pointer}
+ul,ol{margin:0;padding-left:20px;font:12px/1.45 ui-monospace,Menlo,monospace;word-break:break-word}
+li.bad{color:#b42318;font-weight:600}li.ok{color:#267a45}
+.frame-box{margin-top:14px}iframe{width:100%;height:70vh;border:1px solid #d5dce6;border-radius:12px;background:#fff}
+@media(prefers-color-scheme:dark){body{background:#11161c;color:#edf2f7}p{color:#aab5c3}button{background:#1c222a;color:#edf2f7;border-color:#323c49}iframe{border-color:#323c49}}

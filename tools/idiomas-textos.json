@@ -329,7 +329,7 @@
  "Saved {name} ({size}) in the folder {folder}.": "apps/musica/gravar/gravar.js",
  "Saves only the audio (.m4a) in Music": "apps/video/cortar/index.html",
  "Saves the list of packages you installed and your home folder (~, without ~/files) to a password-protected file. When you open it on another device or after clearing site data, Linux reinstalls the packages from the internet and restores your files.": "terminal/index.html",
- "Saves the whole InkDOS Hub on this device (about 400 MB). After that it opens from here, even without internet, and it only changes when you tap Offline again: that downloads the newest version, only what changed.": "index.html",
+ "Saves the whole InkDOS Hub on this device (about 700 MB). After that it opens from here, even without internet, and it only changes when you tap Offline again: that downloads the newest version, only what changed.": "index.html",
  "Saving before closing…": "terminal/app.js",
  "Saving the session": "assets/sessao.js",
  "Saving…": "terminal/app.js",

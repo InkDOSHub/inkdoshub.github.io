@@ -1,0 +1,12 @@
+/* InkDOS look for the advanced tools: the tokens of the InkDOS Home (assets/home.css), light and dark.
+   html[data-theme] is set by viewers/viewer-theme.js from the InkDOS appearance; html.dark is the class a tool
+   may put on <html> for its own dark mode. */
+:root{--ink-bg:#f2f5f8;--ink-card:#fff;--ink-text:#192235;--ink-text-2:#3a4556;--ink-muted:#697486;--ink-subtle:#8a94a3;
+  --ink-border:#e3e8ef;--ink-border-strong:#d5dbe4;--ink-hover:#f5f7fa;--ink-field:#f5f7fa;
+  --ink-accent:#2f6fed;--ink-accent-hover:#2559c7;--ink-accent-pressed:#1e4aa6;--ink-accent-soft:#e8effd;--ink-accent-text:#fff;
+  --ink-shadow:0 8px 24px rgba(31,45,61,.075),0 1px 3px rgba(31,45,61,.045);
+  --ink-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
+html[data-theme="dark"],html.dark{--ink-bg:#11161c;--ink-card:#1c222a;--ink-text:#edf2f7;--ink-text-2:#d5dde7;--ink-muted:#aab5c3;--ink-subtle:#7d8898;
+  --ink-border:#323c49;--ink-border-strong:#3d4857;--ink-hover:#252d37;--ink-field:#252d37;
+  --ink-accent:#3f76ee;--ink-accent-hover:#5b8ef5;--ink-accent-pressed:#2f6fed;--ink-accent-soft:#1f2c45;--ink-accent-text:#fff;
+  --ink-shadow:0 8px 24px rgba(0,0,0,.22),0 1px 3px rgba(0,0,0,.18)}

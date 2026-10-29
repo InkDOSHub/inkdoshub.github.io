@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Diagnóstico do kit de PDF</title>
+  <link rel="stylesheet" href="./diag.css">
+</head>
+<body>
+  <header>
+    <h1>Diagnóstico do kit de PDF</h1>
+    <p>Abra uma das páginas abaixo, faça o que costuma falhar e depois tire um print desta tela (ou toque em Copiar relatório).</p>
+    <div class="actions">
+      <button type="button" data-open="../bentopdf/split-pdf.html">Abrir Dividir PDF aqui</button>
+      <button type="button" data-open="../bentopdf/edit-pdf.html">Abrir Editar PDF aqui</button>
+      <button type="button" data-open="../bentopdf/">Abrir a lista do kit aqui</button>
+      <button type="button" id="copy">Copiar relatório</button>
+    </div>
+  </header>
+  <section><h2>Este navegador</h2><ul id="env"></ul></section>
+  <section><h2>O que aconteceu</h2><ol id="log"></ol></section>
+  <section class="frame-box"><iframe id="frame" title="Página testada"></iframe></section>
+  <script src="./diag.js"></script>
+</body>
+</html>
