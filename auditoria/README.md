@@ -9,7 +9,7 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | 1 | Base: tela inicial, sw-portal.js, inicio/, assets/, terminal/, actions | [001-base.md](001-base.md) |
 | 2 | Apps leves (foto, vídeo, música, gravador, transferir web, editar-pdf, código) | [002-apps-leves.md](002-apps-leves.md) |
 | 3 | Webcam (web + Windows) | [003-webcam.md](003-webcam.md) |
-| 4 | Transferir Windows | pendente |
+| 4 | Transferir Windows | [004-transferir-windows.md](004-transferir-windows.md) |
 | 5 | tools/ | pendente |
 | 6 | InkDOS (2 rodadas) | pendente |
 | 7 | Quadro (opcional) | pendente |

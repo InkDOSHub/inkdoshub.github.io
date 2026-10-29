@@ -65,7 +65,7 @@ function mb(b){ return (b/1048576).toFixed(b < 10485760 ? 1 : 0) + " MB"; }
 function tam(b){ return b >= 1073741824 ? (b/1073741824).toFixed(2) + " GB" : mb(b); }
 function vel(bps){ return (bps/1048576).toFixed(1) + " MB/s"; }
 function hora(s){ s = Math.round(s); return s >= 60 ? Math.floor(s/60) + " min " + (s%60) + " s" : s + " s"; }
-function esc(t){ var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+function esc(t){ return String(t == null ? "" : t).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
 
 // ---------- envio ----------
 var fila = [], enviando = false, xAtual = null;

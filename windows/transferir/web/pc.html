@@ -94,7 +94,7 @@
 <script src="/qrcode.js"></script>
 <script>
 function $(i){ return document.getElementById(i); }
-function esc(t){ var d = document.createElement("div"); d.textContent = t == null ? "" : t; return d.innerHTML; }
+function esc(t){ return String(t == null ? "" : t).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
 function tam(b){ return b >= 1073741824 ? (b/1073741824).toFixed(2).replace(".", ",") + " GB" : (b/1048576).toFixed(1).replace(".", ",") + " MB"; }
 function vel(b){ return (b/1048576).toFixed(1).replace(".", ",") + " MB/s"; }
 function qrSvg(txt){ var q = qrcode(0, "M"); q.addData(txt); q.make(); return q.createSvgTag({cellSize: 4, margin: 2, scalable: true}); }
@@ -223,12 +223,12 @@ function mostrarDiagCelular(){
   if (d && d.quando && (!diagEsperando || d.quando != diagAntes)) {
     if (d.quando != diagAntes) diagEsperando = false;
     h += "<table style='margin-top:8px'>" +
-      "<tr><td>Atraso (ping)</td><td>" + d.ping.toFixed(0) + " ms</td></tr>" +
-      "<tr><td>Variação do atraso</td><td>" + d.jitter.toFixed(0) + " ms</td></tr>" +
-      "<tr><td>PC → celular</td><td>" + vel(d.desce) + "</td></tr>" +
-      "<tr><td>Celular → PC</td><td>" + vel(d.sobe) + "</td></tr>" +
+      "<tr><td>Atraso (ping)</td><td>" + (+d.ping || 0).toFixed(0) + " ms</td></tr>" +
+      "<tr><td>Variação do atraso</td><td>" + (+d.jitter || 0).toFixed(0) + " ms</td></tr>" +
+      "<tr><td>PC → celular</td><td>" + vel(+d.desce || 0) + "</td></tr>" +
+      "<tr><td>Celular → PC</td><td>" + vel(+d.sobe || 0) + "</td></tr>" +
       "<tr><td>Qualidade</td><td>" + esc(d.nota) + "</td></tr></table>" +
-      "<p class=muted>1 GB levaria uns " + segs(1073741824 / Math.min(d.desce, d.sobe)) + ".</p>";
+      "<p class=muted>1 GB levaria uns " + segs(1073741824 / Math.max(1, Math.min(+d.desce || 0, +d.sobe || 0))) + ".</p>";
   } else if (diagEsperando) {
     h += '<p class="muted">' + (est && est.celular ? "Medindo com o celular… (deixe a página aberta nele)" : "Conecte o celular, abra a página nele e clique em Rodar diagnóstico de novo.") + "</p>";
   }
