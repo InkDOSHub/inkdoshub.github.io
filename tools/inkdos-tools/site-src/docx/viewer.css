@@ -1,0 +1,5 @@
+/* docx-preview paints pages (section.docx) inside .docx-wrapper; keep the pages, use the InkDOS background */
+.docx-host[hidden]{display:none}
+.docx-host .docx-wrapper{background:transparent!important;padding:0!important;align-items:center}
+.docx-host .docx-wrapper>section.docx{margin:0 auto 24px!important;box-shadow:var(--page-shadow)!important}
+@media (max-width:700px){.viewer-stage{padding:12px 8px}.docx-host .docx-wrapper>section.docx{margin-bottom:12px!important}}

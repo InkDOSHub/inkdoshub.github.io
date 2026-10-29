@@ -10,7 +10,7 @@ Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SU
 
 ---
 
-A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), feita para o iPad e o iPhone (Safari e XeOS). O InkDOS fica com os documentos e o InkDOS Hub com o resto.
+A tela inicial de ferramentas avançadas feita para o iPad e o iPhone (Safari e XeOS). Tudo fica neste repositório: nada é buscado de outro site do projeto.
 
 **Abrir:** https://inkdoshub.github.io/
 
@@ -18,7 +18,9 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 
 | Cartão | Ferramenta (código aberto) | Pasta |
 |---|---|---|
-| PDF, Documentos, Planilhas, Apresentações, Texto simples, Leitor EPUB | Apps do [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS), copiados para cá (`tools/copiar_inkdos.sh`), com visual Apple direto no CSS de cada app: Novo, Abrir e Salvar no menu ☰ e, em Documentos, Planilhas e Apresentações, a barra de edição atrás do pincel | `inkdos/` |
+| PDF, Documentos, Planilhas, Apresentações, Texto simples, Leitor EPUB | Apps do InkDOS (2.9.0), copiados para cá e mantidos aqui, com visual Apple direto no CSS de cada app: Novo, Abrir e Salvar no menu ☰ e, em Documentos, Planilhas e Apresentações, a barra de edição atrás do pincel | `inkdos/` |
+| Editar PDF | [BentoPDF](https://github.com/alam00000/bentopdf) (AGPL-3.0): juntar, dividir, comprimir, converter, assinar, proteger, OCR e outras; cada ferramenta com a barra do Hub | `apps/editar-pdf/` (lista) e `visualizadores/bentopdf/` |
+| Visualizadores (dentro dos apps de documentos) | OpenDocument (.odt/.ods/.odp, WebODF) e Apple (.pages/.numbers/.key, pnk), só para ver | `visualizadores/` |
 | Documentos, Planilhas e Apresentações (ONLYOFFICE) | Editores ONLYOFFICE completos, como três apps próprios na tela inicial | `onlyoffice/` |
 | Fotos | Galeria, visualizador e editor simples (recortar, girar, espelhar, endireitar, exposição, brilho, contraste, saturação, calor e tom) feitos aqui | `apps/foto/` (o editor é `apps/foto/editor.js`) |
 | Vídeo | Player com barra de controles igual à da Música e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
@@ -31,6 +33,8 @@ A tela inicial de ferramentas avançadas do [InkDOS](https://github.com/vfydr2m9
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
 
 A tela inicial é uma gaveta de apps (ícone e nome, como o Launchpad), com busca, o botão de pasta para abrir qualquer arquivo no app certo e o menu ☰ com tema, idioma, Personalizar (esconder apps e arrastar para mudar a ordem) e o app padrão para arquivos de Office (InkDOS, rápido, ou ONLYOFFICE, completo). Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
+
+**Offline:** no ☰, guarda o site inteiro no aparelho (cerca de 700 MB) e ele passa a abrir dali, mesmo sem internet. Quando o site muda, a tela inicial mostra "Atualização disponível · Atualizar", e um toque baixa só o que mudou (`inicio/offline.js`, `sw-portal.js`).
 
 Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas.
 

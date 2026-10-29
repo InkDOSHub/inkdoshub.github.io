@@ -1,0 +1,19 @@
+/* InkDOS-tools viewers: the InkDOS look (same tokens as the InkDOS Home). */
+:root{--bg:#f2f5f8;--card:#fff;--text:#192235;--muted:#697486;--border:#e3e8ef;--page-shadow:0 8px 24px rgba(31,45,61,.1),0 1px 3px rgba(31,45,61,.06)}
+html[data-theme="dark"]{--bg:#11161c;--card:#1c222a;--text:#edf2f7;--muted:#aab5c3;--border:#323c49;--page-shadow:0 8px 24px rgba(0,0,0,.35)}
+*{box-sizing:border-box}
+/* html>body: WebODF renders ODF XML whose <office:body> would otherwise match "body" */
+html,html>body{margin:0;height:100%;background:var(--bg);color:var(--text)}
+html>body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+.viewer-bar{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.viewer-bar strong{font-size:15px;font-weight:720;letter-spacing:-.01em}
+.viewer-name{flex:1;min-width:0;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer-open{position:relative;display:inline-flex;align-items:center;height:34px;padding:0 13px;border:1px solid var(--border);border-radius:10px;background:var(--card);font-size:13px;font-weight:600;cursor:pointer}
+.viewer-open input{position:absolute;inset:0;opacity:0;cursor:pointer}
+html[data-embed="1"] .viewer-bar{display:none}
+.viewer-stage{flex:1;overflow:auto;padding:24px}
+.viewer-status{margin:48px auto;max-width:520px;text-align:center;color:var(--muted);font-size:14px;line-height:1.5}
+.odf-canvas{margin:0 auto;box-shadow:var(--page-shadow)}
+/* the document is paper: white, whatever the InkDOS theme (WebODF paints into this element) */
+.odf-canvas,.odf-canvas>*{background-color:#fff!important;color:#000}
+.odf-canvas[hidden]{display:none}

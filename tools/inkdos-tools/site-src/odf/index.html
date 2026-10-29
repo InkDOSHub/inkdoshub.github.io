@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenDocument viewer</title>
+<link rel="stylesheet" href="../viewers/viewer.css">
+<script src="../viewers/viewer-theme.js"></script>
+<script src="webodf.js"></script>
+</head>
+<body>
+<header class="viewer-bar">
+  <strong>OpenDocument viewer</strong>
+  <span class="viewer-name" id="fileName"></span>
+  <label class="viewer-open">Open .odt, .ods or .odp<input id="picker" type="file" accept=".odt,.ods,.odp,.fodt,.fods,.fodp,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.spreadsheet,application/vnd.oasis.opendocument.presentation"></label>
+</header>
+<main class="viewer-stage" id="stage">
+  <p class="viewer-status" id="status">View only. Choose a LibreOffice / OpenDocument file; it never leaves this device.</p>
+  <div id="odf" class="odf-canvas" hidden></div>
+</main>
+<script src="viewer.js"></script>
+<script src="../viewers/viewer-embed.js"></script>
+</body>
+</html>

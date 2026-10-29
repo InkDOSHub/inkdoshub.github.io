@@ -10,7 +10,7 @@ InkDOS Hub keeps your files in your own browser (IndexedDB/OPFS of this site) an
 
 ## Origin isolation
 
-The Hub is served from its own organization at `https://inkdoshub.github.io/`, a different origin from [InkDOS](https://github.com/vfydr2m9wk-ops/InkDOS) (`vfydr2m9wk-ops.github.io`). The two sites only link to each other; neither frames the other or exchanges messages. No other site may be published under the `InkDOSHub` account, because every GitHub Pages site of an account shares the same origin and could read the Hub's stored data.
+The Hub is served from its own organization at `https://inkdoshub.github.io/` and loads everything from that origin; it does not frame or message any other site of the project. No other site may be published under the `InkDOSHub` account, because every GitHub Pages site of an account shares the same origin and could read the Hub's stored data.
 
 ## Third-party code
 

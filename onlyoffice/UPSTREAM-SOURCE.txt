@@ -2,7 +2,8 @@ ranuts/document
 https://github.com/ranuts/document
 commit 9c743826d0152239dc7ad51677535d59679c7ff1
 license AGPL-3.0
-changes: see build.py on the source branch of https://github.com/inkdos-tools/inkdos-tools.github.io
+changes: the build script of the original copy (inkdos-tools/inkdos-tools.github.io, deleted on 2026-10-29) is no longer
+  available; the modified files are published here as they are, and the changes are listed below
 
 Cópia no InkDOS Hub (onlyoffice/)
 - Copiado de https://github.com/inkdos-tools/inkdos-tools.github.io, branch main, commit ea7e09d

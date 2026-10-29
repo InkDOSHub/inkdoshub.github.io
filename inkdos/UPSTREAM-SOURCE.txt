@@ -8,8 +8,12 @@ Cópia dos apps do InkDOS dentro do InkDOS Hub
   tela inicial do InkDOS (inkdos/index.html só volta para a tela inicial do InkDOS Hub).
 - Os arquivos guardados por esta cópia ficam no site do InkDOS Hub, separados dos do InkDOS
   aberto em https://vfydr2m9wk-ops.github.io/InkDOS/.
-- Para atualizar: copie de novo as mesmas pastas de um commit novo do InkDOS (tools/copiar_inkdos.sh).
-- Mudanças, todas feitas por tools/adaptar_inkdos.py:
+- O repositório do InkDOS foi apagado em 2026-10-29: esta cópia agora é mantida aqui.
+- Mudanças (feitas pelo antigo tools/adaptar_inkdos.py, que está no histórico do git, e depois à mão):
   - index.html de cada app carrega ../../../assets/gerenciador-app.js (abre os apps em abas nomeadas);
   - "Editar com ONLYOFFICE" abre a cópia dos editores em onlyoffice/ numa página nova
     (runtime/platform/file-launch.js de cada app).
+  - documentos, planilhas e apresentações: os visualizadores abrem /visualizadores/ deste site;
+  - PDF: sem o botão "Editar PDF" e sem as senhas do BentoPDF (ficam no app Editar PDF);
+  - nenhum app abre o ONLYOFFICE do site antigo (file-launch.js: só o editor local);
+  - handoff.html + assets/handoff.js: entrega o arquivo ao BentoPDF dentro deste site.
