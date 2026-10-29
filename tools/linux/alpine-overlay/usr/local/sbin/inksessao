@@ -36,7 +36,8 @@ restaurar() {
   [ -f "$T/etc/apk/repositories" ] && cp -f "$T/etc/apk/repositories" /etc/apk/repositories
   FALTAM=""
   if [ -f "$T/etc/apk/world" ]; then
-    for p in $(cat "$T/etc/apk/world"); do grep -qx "$p" /etc/apk/world || FALTAM="$FALTAM $p"; done
+    # só nomes de pacote (nada que comece com "-", que o apk leria como opção)
+    for p in $(grep -E '^[A-Za-z0-9][A-Za-z0-9._+=<>~@-]*$' "$T/etc/apk/world"); do grep -qx "$p" /etc/apk/world || FALTAM="$FALTAM $p"; done
   fi
   APK=ok
   if [ -n "$FALTAM" ]; then

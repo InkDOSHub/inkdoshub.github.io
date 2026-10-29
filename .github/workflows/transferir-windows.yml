@@ -13,7 +13,6 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

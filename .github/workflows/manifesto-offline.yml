@@ -1,5 +1,5 @@
 name: Atualizar lista da cópia offline
-# Recria inicio/manifesto.json (a lista que o botão "Baixar tudo" da tela inicial usa)
+# Recria inicio/manifesto.json (a lista que o botão "Offline" da tela inicial usa)
 # sempre que algum arquivo do site muda no main.
 on:
   push:
@@ -13,8 +13,6 @@ concurrency:
   cancel-in-progress: false
 jobs:
   manifesto:
-    # só no site publicado; o espelho vfydr2m9wk-ops/inkdoshub recebe o resultado pela sincronização
-    if: ${{ !startsWith(github.repository, 'vfydr2m9wk-ops/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
