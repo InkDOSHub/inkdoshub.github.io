@@ -159,7 +159,7 @@
       if (/^oo-/.test(id)) u += "&locale=" + encodeURIComponent(idiomaEditor({}));
       abrirUrl(u, "inkdoshub-" + id);
     },
-    /* O app do InkDOS guardou o documento no IndexedDB "inkdos-tool-handoff" (inkdos/assets/handoff.js).
+    /* O app do InkDOS guardou o documento no IndexedDB "inkdos-tool-handoff", lido por onlyoffice/inkdos-handoff.js.
        win: a aba aberta no toque, antes de ler o documento. */
     abrirEditor: function (info, win) {
       var url = new URL("onlyoffice/editor.html?embed=1&embedOrigin=" + encodeURIComponent(location.origin) +
