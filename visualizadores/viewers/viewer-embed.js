@@ -1,6 +1,6 @@
-// Shared InkDOS viewer protocol, used when an InkDOS workspace embeds a viewer (?embed=1). InkDOS
-// (vfydr2m9wk-ops.github.io) and these tools (inkdos-tools.github.io) are separate origins on purpose:
-// messages are exchanged only with the InkDOS origin (or this site itself, for local use), never '*'.
+// Shared InkDOS viewer protocol, used when an InkDOS workspace embeds a viewer (?embed=1). In the InkDOS Hub the
+// InkDOS apps and these viewers live on the same site, so messages are exchanged only with this origin, never '*'
+// (the old InkDOS origin, vfydr2m9wk-ops.github.io, was removed from the list in 2026-10-29: auditoria/007).
 //   viewer -> parent  {type:'inkdos-viewer-ready'}
 //   parent -> viewer  {type:'inkdos-viewer-open', file: File}
 //   viewer -> parent  {type:'inkdos-viewer-loaded', ok: true|false, error?: string}
@@ -8,7 +8,7 @@
 (function () {
   'use strict';
   if (!/[?&]embed=1\b/.test(location.search) || window.parent === window) return;
-  var ALLOWED = ['https://vfydr2m9wk-ops.github.io', location.origin];
+  var ALLOWED = [location.origin];
   var parent = window.parent;
   window.addEventListener('message', function (event) {
     if (ALLOWED.indexOf(event.origin) < 0 || event.source !== parent) return;
