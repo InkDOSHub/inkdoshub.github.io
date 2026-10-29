@@ -11,5 +11,5 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | 3 | Webcam (web + Windows) | [003-webcam.md](003-webcam.md) |
 | 4 | Transferir Windows | [004-transferir-windows.md](004-transferir-windows.md) |
 | 5 | tools/ e actions | [005-tools.md](005-tools.md) |
-| 6 | InkDOS (2 rodadas) | [006-inkdos-rodada1.md](006-inkdos-rodada1.md), rodada 2 pendente |
-| 7 | Quadro (opcional) | pendente |
+| 6 | InkDOS (2 rodadas) | [006-inkdos-rodada1.md](006-inkdos-rodada1.md), [007-inkdos-rodada2.md](007-inkdos-rodada2.md) |
+| 7 | Quadro (opcional) | pendente (o log será o 008) |
