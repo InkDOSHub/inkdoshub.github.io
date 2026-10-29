@@ -30,6 +30,7 @@
       (function poll() {
         var input = document.querySelector('#file-input');
         if (!input) { if (++tries < 60) setTimeout(poll, 100); return; }
+        try { sessionStorage.setItem('inkdoshub-pdf-nome', file.name || ''); } catch (_) {}
         var transfer = new DataTransfer();
         transfer.items.add(file);
         input.files = transfer.files;
@@ -257,4 +258,49 @@
       try { input.dispatchEvent(new Event('change', { bubbles: true })); } finally { passing = false; }
     });
   }, true);
+})();
+
+// InkDOS Hub: as ferramentas do BentoPDF seguem o padrão do app PDF do Hub. A barra de cima é a do Hub
+// ("‹ PDF" volta ao PDF aberto, símbolo + nome do arquivo no centro); o cabeçalho, o rodapé, o "Voltar para
+// Ferramentas" e a página inicial do BentoPDF somem, porque a lista de ferramentas fica no próprio app PDF.
+(function () {
+  'use strict';
+  var volta = '/inkdos/apps/pdf/';
+  try { volta = sessionStorage.getItem('inkdos-return') || volta; } catch (_) {}
+  if (/\/bentopdf\/(index\.html)?$/.test(location.pathname)) { location.replace(volta); return; }
+  var head = document.head || document.documentElement;
+  try { var tema = localStorage.getItem('inkdoshub-tema'); if (tema === 'light' || tema === 'dark') document.documentElement.dataset.theme = tema; } catch (_) {}
+  var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/assets/barra.css?v=4'; head.appendChild(css);
+  var st = document.createElement('style');
+  st.textContent = '[data-simple-nav],[data-simple-footer],#back-to-tools{display:none!important}' +
+    'body{background:var(--bg)!important}' +
+    '.ink-bar{position:sticky;top:0;z-index:60;padding-top:max(4px,env(safe-area-inset-top))}' +
+    '.ink-bar .ink-meio{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0}' +
+    '.ink-bar .ink-simbolo{width:22px;height:22px;flex:0 0 auto}' +
+    '.ink-bar a.ink-home{display:inline-flex;align-items:center;gap:2px}';
+  head.appendChild(st);
+  function nome() {
+    var n = '';
+    try { n = sessionStorage.getItem('inkdoshub-pdf-nome') || ''; } catch (_) {}
+    if (n) return n;
+    var h = document.querySelector('h1');
+    return h ? h.textContent.trim() : 'PDF';
+  }
+  function montar() {
+    if (document.querySelector('.ink-bar')) return;
+    var bar = document.createElement('header'); bar.className = 'ink-bar';
+    var home = document.createElement('a'); home.className = 'ink-home'; home.href = volta;
+    home.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>PDF';
+    var esq = document.createElement('div'); esq.appendChild(home);
+    var meio = document.createElement('div'); meio.className = 'ink-meio';
+    var img = document.createElement('img'); img.className = 'ink-simbolo'; img.alt = ''; img.src = '/assets/icones-inkdos/pdf.svg';
+    var t = document.createElement('span'); t.className = 'ink-title'; t.textContent = nome();
+    meio.append(img, t);
+    bar.append(esq, meio, document.createElement('div'));
+    document.body.insertBefore(bar, document.body.firstChild);
+    // links para a página inicial do BentoPDF voltam ao PDF
+    Array.prototype.forEach.call(document.querySelectorAll('a[href="/visualizadores/bentopdf/"],a[href="/visualizadores/bentopdf/index.html"]'), function (a) { a.href = volta; });
+    addEventListener('load', function () { t.textContent = nome(); }, { once: true });
+  }
+  if (document.body) montar(); else document.addEventListener('DOMContentLoaded', montar, { once: true });
 })();
