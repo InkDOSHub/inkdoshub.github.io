@@ -1,0 +1,44 @@
+/* InkDOS look for BentoPDF (loaded after its stylesheet). BentoPDF is a dark-only Tailwind v4 design: its
+   gray scale is remapped to the InkDOS surfaces (light or dark) and its indigo/purple accent to the red of
+   the InkDOS PDF workspace. Unlayered rules here win over Tailwind's layered utilities. */
+:root{
+  --color-gray-900:var(--ink-bg);--color-gray-800:var(--ink-card);--color-gray-700:var(--ink-border);--color-gray-600:var(--ink-border-strong);
+  --color-gray-500:var(--ink-subtle);--color-gray-400:var(--ink-muted);--color-gray-300:var(--ink-text-2);--color-gray-200:var(--ink-text);
+  --color-gray-100:var(--ink-text);--color-gray-50:var(--ink-text);
+  --color-indigo-50:#fef2f2;--color-indigo-200:#9a1d14;--color-indigo-300:#b42318;--color-indigo-400:#b42318;--color-indigo-500:#b42318;
+  --color-indigo-600:#b42318;--color-indigo-700:#9a1d14;--color-indigo-800:#7f1810;--color-indigo-900:#fde8e6;
+  --font-sans:var(--ink-font)}
+html[data-theme="dark"]{
+  --color-indigo-50:#3b1512;--color-indigo-200:#f8c4be;--color-indigo-300:#f5a39b;--color-indigo-400:#ef6a5f;--color-indigo-500:#e5554a;
+  --color-indigo-600:#c93a2e;--color-indigo-700:#b42318;--color-indigo-800:#7f1810;--color-indigo-900:#3b1512}
+:root{--color-purple-100:var(--color-indigo-50);--color-purple-300:var(--color-indigo-300);--color-purple-400:var(--color-indigo-400);
+  --color-purple-500:var(--color-indigo-500);--color-purple-600:var(--color-indigo-600);--color-purple-700:var(--color-indigo-700)}
+html,body{background-color:var(--ink-bg)}
+body{color:var(--ink-text-2);font-family:var(--ink-font)}
+/* headings and labels were white on dark; white stays white on the accent buttons */
+.text-white{color:var(--ink-text)}
+:is([class^="bg-indigo-"],[class*=" bg-indigo-"],[class*=" from-indigo-"],[class^="bg-red-"],[class*=" bg-red-"],[class^="bg-green-"],
+  [class*=" bg-green-"],[class^="bg-blue-"],[class*=" bg-blue-"],[class^="bg-purple-"],[class*=" bg-purple-"]).text-white,
+:is([class^="bg-indigo-"],[class*=" bg-indigo-"],[class*=" from-indigo-"],[class^="bg-red-"],[class*=" bg-red-"],[class^="bg-green-"],
+  [class*=" bg-green-"],[class^="bg-blue-"],[class*=" bg-blue-"],[class^="bg-purple-"],[class*=" bg-purple-"]) .text-white{color:#fff}
+/* InkDOS cards: white surface, soft border and shadow */
+.tool-card{box-shadow:var(--ink-shadow)}
+[data-simple-nav]{background-color:var(--ink-card)}
+#nav-logo{border-radius:8px}
+/* component classes of BentoPDF's own stylesheet with fixed dark colours */
+.tool-card,.feature-card,.testimonial-card,.pdf-panel{background-color:var(--ink-card);border-color:var(--ink-border)}
+.compact-mode .tool-card{background-color:transparent;border-bottom-color:var(--ink-border)}
+.compact-mode .tool-card:hover{background-color:var(--ink-hover);border-color:var(--ink-hover)}
+.category-header,.legal-content h2{color:var(--ink-text)}
+.legal-content p,.legal-content ul{color:var(--ink-muted)}
+.pill{color:var(--ink-text-2);background-color:var(--ink-hover)}
+.shortcut-key{color:var(--ink-text);background-color:var(--ink-hover);border-color:var(--ink-border-strong)}
+.solid-spinner{border-color:var(--ink-border);border-bottom-color:var(--color-indigo-600)}
+.cta-button{background-color:var(--color-indigo-600)}
+.btn-gradient{background-image:none;background-color:var(--color-indigo-600)}
+.btn-gradient:focus{box-shadow:0 0 0 2px var(--ink-bg),0 0 0 4px var(--color-indigo-400)}
+::-webkit-scrollbar-track,#shortcuts-list::-webkit-scrollbar-track{background:var(--ink-bg)}
+#shortcuts-list::-webkit-scrollbar-thumb{background:var(--ink-border-strong)}
+input[type=color]{border-color:var(--ink-border-strong)}
+.bg-grid-pattern{display:none}
+.tool-card:hover{border-color:var(--color-indigo-500);box-shadow:var(--ink-shadow)}

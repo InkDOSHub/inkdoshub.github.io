@@ -1,0 +1,27 @@
+/* InkDOS look for the Pyodide console (loaded after its styles): the terminal takes the InkDOS surface and
+   text colours in the InkDOS appearance instead of a fixed black screen. */
+body{background-color:var(--ink-bg)}
+.terminal{--background:var(--ink-bg);--color:var(--ink-text);--link-color:var(--ink-accent);--size:1.4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.terminal,.terminal-scroller{background-color:var(--ink-bg)}
+#jquery-terminal-logo a{color:var(--ink-subtle)}
+#loading{border-color:var(--ink-border);border-top-color:var(--ink-accent)}
+/* the InkDOS bar (site-src/python/inkdos-python.js): open/save files, offline/online terminal */
+#inkdos-python-bar{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 12px;background:var(--ink-card);border-bottom:1px solid var(--ink-border);font:13px/1.3 var(--ink-font);color:var(--ink-muted)}
+#inkdos-python-bar button{font:inherit;color:var(--ink-text);background:var(--ink-hover);border:1px solid var(--ink-border-strong);border-radius:8px;padding:5px 10px;cursor:pointer}
+#inkdos-python-bar button:disabled{opacity:.5;cursor:default}
+#inkdos-python-bar .inkdos-python-note{flex:1;min-width:180px}
+#inkdos-python-bar a{color:var(--ink-accent);text-decoration:none}
+html.inkdos-python body{padding-top:46px}
+html.inkdos-python #jquery-terminal-logo{display:none}
+html[data-inkdos-python="online"] #inkdos-python-bar{border-bottom:2px solid #b7791f}
+/* touch screens: the visible command line at the bottom (inkdos-python.js) */
+#inkdos-python-line{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+  background:var(--ink-card);border-top:1px solid var(--ink-border)}
+#inkdos-python-line input{flex:1;min-width:0;font:16px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink-text);
+  background:var(--ink-bg);border:1px solid var(--ink-border-strong);border-radius:8px;padding:8px 10px}
+#inkdos-python-line button{font:600 15px/1 var(--ink-font);color:var(--ink-text);background:var(--ink-hover);border:1px solid var(--ink-border-strong);
+  border-radius:8px;padding:0 14px;cursor:pointer}
+#inkdos-python-line button[type=submit]{background:var(--ink-accent);border-color:var(--ink-accent);color:#fff}
+#inkdos-python-line :disabled{opacity:.5}
+html.inkdos-python-touch body{padding-bottom:64px}

@@ -4,7 +4,7 @@
 // origin isolation) over the workspace and hands it the open PDF through the viewer protocol (InkDOS-tools
 // viewers/viewer-embed.js + bento-carry.js): every message checked against, and sent to, that origin.
 const NS=global.InkDOS2PdfP4=global.InkDOS2PdfP4||{};
-const TOOLS_ORIGIN='https://inkdos-tools.github.io',TOOLKIT=TOOLS_ORIGIN+'/InkDOS-tools/bentopdf/';
+const TOOLS_ORIGIN=global.location.origin,TOOLKIT=TOOLS_ORIGIN+'/visualizadores/bentopdf/';
 // BentoPDF pages opened with the current PDF from the Security (lock) menu
 const PAGES={protect:'encrypt-pdf.html',unprotect:'decrypt-pdf.html'};
 const doc=document,root=doc.documentElement,$=id=>doc.getElementById(id);

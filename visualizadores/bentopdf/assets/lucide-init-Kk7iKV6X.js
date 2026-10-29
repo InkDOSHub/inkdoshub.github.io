@@ -1,0 +1,1 @@
+import{n as e,t}from"./style-dvZWe4uk.js";document.addEventListener(`DOMContentLoaded`,()=>{t({icons:e})});
