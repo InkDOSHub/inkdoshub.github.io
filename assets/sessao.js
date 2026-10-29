@@ -1,4 +1,4 @@
-/* Arquivo de sessão do InkDOS Hub (.inksessao): guarda o trabalho de um app (Linux, Wine) num
+/* Arquivo de sessão do InkDOS Hub (.inksessao): guarda o trabalho de um app (hoje só o Linux) num
    arquivo no aparelho, para recuperar mesmo se o site apagar os dados. Sempre com senha.
 
    Formato: "INKSESSAO" + versão (1 byte) + sal (16) + iv (12) + dados cifrados com AES-GCM
@@ -171,7 +171,7 @@
 
   window.InkSessao = {
     cifrar: cifrar, decifrar: decifrar, pedirSenha: pedirSenha, perguntar: perguntar, aviso: aviso, janela: janela, entregar: entregar, mb: mb,
-    /* preparar(): Promise<{meta, partes}>. nomeApp: "Linux", "Wine" */
+    /* preparar(): Promise<{meta, partes}>. nomeApp: "Linux" */
     salvar: function (app, nomeApp, preparar, avisoTexto) {
       return pedirSenha(t("Save {app} session", { app: nomeApp }),
         t("Choose a password. It is required to open the file and cannot be recovered.") + (avisoTexto ? " " + avisoTexto : ""), true).then(function (senha) {

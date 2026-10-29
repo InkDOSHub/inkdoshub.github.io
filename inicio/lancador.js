@@ -7,7 +7,7 @@
    Como o arquivo chega a cada app:
    - apps do InkDOS (inkdos/): IndexedDB "inkdos-launch-handoff" e #inkdos-launch=<id>, o mesmo
      caminho da tela inicial do InkDOS original (runtime/platform/file-launch.js de cada app);
-   - Fotos, Vídeo, Música e Wine (.exe, .msi): IndexedDB "inkdoshub-entrada" e #ink-arquivos=<id>; o app recebe pelo
+   - Fotos, Vídeo e Música: IndexedDB "inkdoshub-entrada" e #ink-arquivos=<id>; o app recebe pelo
      botão de abrir dele (assets/gerenciador-app.js);
    - Código: o arquivo é gravado na pasta do editor (IndexedDB "inkdoshub-codigo", em /Received)
      e o editor o abre (apps/codigo/ext/inkfs). */
@@ -30,7 +30,6 @@
       "kt", "rs", "go", "rb", "php", "sh", "bash", "zsh", "fish", "lua", "sql", "swift", "r", "pl", "vue", "svelte", "dart", "bat", "ps1", "gradle",
       "dockerfile", "make", "mk", "cmake", "ipynb", "tex", "diff", "patch", "env", "gitignore"], varios: true },
   ];
-  window.INK_ROTAS = ROTAS;
   var OFFICE = { documentos: 1, planilhas: 1, apresentacoes: 1 }, K_PREF = "inkdoshub-abrir-office";
   function preferencia() { try { return localStorage.getItem(K_PREF) || "inkdos"; } catch (_) { return "inkdos"; } }
   // Menu ☰: duas linhas (InkDOS rápido / ONLYOFFICE completo), com ✓ na escolhida

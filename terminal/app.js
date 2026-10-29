@@ -347,17 +347,6 @@ memBtn.addEventListener("click", () => {
 });
 if (LIMITADA) document.getElementById("btn-save").title = t("The session is not saved in this mode (swap is rebuilt on every boot)");
 
-// Tela inicial (inicio/): antes de descarregar este app, guarda a sessão.
-// No modo de memória limitada não há como guardar (o swap recomeça a cada boot),
-// então pede para a janela continuar aberta.
-if (window.inkGerenciador) {
-  inkGerenciador.aoGuardar(async () => {
-    if (LIMITADA) return { manter: t("The terminal is in 640 MB + swap mode, which cannot be saved. Closing it erases the session.") };
-    setStatus(t("Saving before closing…"));
-    await saveStateDb(await emulator.save_state());
-  });
-}
-
 // ---------- Sessão em arquivo (assets/sessao.js) ----------
 // O Linux roda /usr/local/sbin/inksessao (tools/linux/), que conversa pela pasta /mnt/ipad/.inkdoshub:
 // a página escreve "pedido" (salvar ou restaurar) e lê "estado" ("trabalhando ...", "ok ...",
