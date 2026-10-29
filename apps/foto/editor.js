@@ -315,7 +315,7 @@
       controles();
       pedirDesenho();
     };
-    i.onerror = function () { alert(t("This photo could not be opened in the editor.")); fechar(false); };
+    i.onerror = function () { fechar(false); var s = $("sub"); if (s) s.textContent = t("This photo could not be opened in the editor."); };
     i.src = url;
   }
   function salvar() {
@@ -327,7 +327,7 @@
       var area = r.w * o.w * r.h * o.h, k = Math.min(1, Math.sqrt(MAX_PIXELS / area));
       var c;
       try { c = aplicarCor(desenhar(img, img.naturalWidth, img.naturalHeight, k, true)); }
-      catch (e) { b.disabled = false; alert(t("The photo is too large to save on this device.")); return; }
+      catch (e) { b.disabled = false; b.textContent = t("The photo is too large to save on this device."); return; }
       b.disabled = false;
       fechar(c);
     }, 30);

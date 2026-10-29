@@ -51,6 +51,37 @@
     function um(v) { return v.toLocaleString(loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
     return n > 1e9 ? um(n / 1e9) + " GB" : n > 1e6 ? um(n / 1e6) + " MB" : Math.max(1, Math.round(n / 1e3)).toLocaleString(loc) + " kB";
   };
+  /* Baixa o arquivo (Downloads). */
+  window.inkBaixar = function (arq) {
+    var a = document.createElement("a"), u = URL.createObjectURL(arq);
+    a.href = u; a.download = arq.name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
+  };
+  /* Folha de compartilhar do sistema ("Salvar em Arquivos" no iPhone); onde não existe, baixa. */
+  window.inkPartilhar = function (arq) {
+    var pode = false;
+    try { pode = !!(navigator.canShare && navigator.canShare({ files: [arq] })); } catch (_) {}
+    if (!pode) { inkBaixar(arq); return Promise.resolve(); }
+    return navigator.share({ files: [arq] }).catch(function (e) { if (!e || e.name !== "AbortError") inkBaixar(arq); });
+  };
+  /* Painel de progresso do Vídeo e do editor de vídeo (#progresso, #p-titulo, #p-texto, #p-barra, #p-botoes).
+     parte: 0 a 1, ou null sem barra. botoes: [{texto, acao, principal}] */
+  window.inkPainel = function (titulo, texto, parte, botoes) {
+    var $ = function (id) { return document.getElementById(id); };
+    $("progresso").classList.add("on");
+    $("p-titulo").textContent = titulo;
+    $("p-texto").textContent = texto || "";
+    $("p-barra").style.display = parte == null ? "none" : "";
+    $("p-barra").firstChild.style.width = Math.round((parte || 0) * 100) + "%";
+    var b = $("p-botoes"); b.innerHTML = "";
+    (botoes || []).forEach(function (x) {
+      var e = document.createElement("button");
+      e.className = "ink-btn" + (x.principal ? " principal" : "");
+      e.textContent = x.texto; e.onclick = x.acao;
+      b.appendChild(e);
+    });
+  };
+  window.inkFecharPainel = function () { document.getElementById("progresso").classList.remove("on"); };
   window.inkTempo = function (s) {
     if (!isFinite(s)) return "--:--";
     s = Math.max(0, Math.floor(s));

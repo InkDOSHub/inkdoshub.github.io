@@ -126,21 +126,7 @@
   });
 
   /* ---------- Exportar ---------- */
-  function painel(titulo, texto, parte, botoes) {
-    $("progresso").classList.add("on");
-    $("p-titulo").textContent = titulo;
-    $("p-texto").textContent = texto || "";
-    $("p-barra").style.display = parte == null ? "none" : "";
-    $("p-barra").firstChild.style.width = Math.round((parte || 0) * 100) + "%";
-    var b = $("p-botoes"); b.innerHTML = "";
-    (botoes || []).forEach(function (x) {
-      var e = document.createElement("button");
-      e.className = "ink-btn" + (x.principal ? " principal" : "");
-      e.textContent = x.texto; e.onclick = x.acao;
-      b.appendChild(e);
-    });
-  }
-  function fecharPainel() { $("progresso").classList.remove("on"); }
+  var painel = inkPainel, fecharPainel = inkFecharPainel;
 
   var worker = null;
   $("exportar").onclick = function () {
@@ -172,7 +158,7 @@
       var novo = novos[0];
       try { localStorage.setItem("inkdoshub-video-atual", String(novo.id)); } catch (_) {}
       painel(t("Done"), t("{name} ({size}) is in the Video list.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
-        { texto: t("Save to device"), acao: function () { partilhar(arq); } },
+        { texto: t("Save to device"), acao: function () { inkPartilhar(arq); } },
         { texto: t("View in Video"), principal: true, acao: function () { location.href = "../"; } },
       ]);
     });
@@ -183,19 +169,10 @@
     InkBiblioteca("inkdoshub-musica").adicionar([arq]).then(function (novos) {
       try { localStorage.setItem("inkdoshub-musica-atual", String(novos[0].id)); } catch (_) {}
       painel(t("Done"), t("{name} ({size}) is in the Music list.", { name: arq.name, size: inkTamanho(arq.size) }), null, [
-        { texto: t("Save to device"), acao: function () { partilhar(arq); } },
+        { texto: t("Save to device"), acao: function () { inkPartilhar(arq); } },
         { texto: t("Open in Music"), principal: true, acao: function () { location.href = "../../musica/"; } },
       ]);
     });
-  }
-  function partilhar(arq) {
-    if (navigator.canShare && navigator.canShare({ files: [arq] })) {
-      navigator.share({ files: [arq] }).catch(function () {});
-      return;
-    }
-    var a = document.createElement("a"), u = URL.createObjectURL(arq);
-    a.href = u; a.download = arq.name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
   }
 
   /* ---------- Abrir o vídeo ---------- */

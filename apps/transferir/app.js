@@ -16,7 +16,8 @@
 
   function novoCodigo() {
     var a = "abcdefghjkmnpqrstuvwxyz23456789", c = "";
-    for (var i = 0; i < 6; i++) c += a[Math.floor(Math.random() * a.length)];
+    var r = crypto.getRandomValues(new Uint32Array(6));
+    for (var i = 0; i < 6; i++) c += a[r[i] % a.length];
     return c;
   }
 
@@ -35,12 +36,31 @@
       // canais extras só do mesmo aparelho já aceito
       if (c.metadata && c.metadata.via) { if (conn && c.peer === conn.peer) via(c); else c.close(); return; }
       if (conn) { c.close(); return; }
-      // confirmação: quem acertar o código não entra sem o dono aceitar
-      if (!confirm(t("A device wants to connect. Accept only if it is yours."))) { c.close(); return; }
-      ligar(c);
+      // confirmação na própria página (o XeOS bloqueia confirm): quem acertar o código não entra sem o dono aceitar
+      pedirAceite(c);
     });
     peer.on("error", function (e) { estado(t("Error: {msg}", { msg: e.type || e.message }), true); });
   };
+
+  var pendente = null;
+  function pedirAceite(c) {
+    if (pendente) pendente.close();
+    pendente = c;
+    var caixa = $("aceite");
+    if (!caixa) {
+      caixa = document.createElement("div"); caixa.id = "aceite"; caixa.className = "nota";
+      var p = document.createElement("p"), sim = document.createElement("button"), nao = document.createElement("button");
+      p.textContent = t("A device wants to connect. Accept only if it is yours.");
+      sim.className = "ink-btn principal"; sim.type = "button"; sim.textContent = t("Accept");
+      nao.className = "ink-btn"; nao.type = "button"; nao.textContent = t("Decline");
+      sim.onclick = function () { var x = pendente; pendente = null; caixa.hidden = true; if (x && x.open !== false) ligar(x); };
+      nao.onclick = function () { if (pendente) pendente.close(); pendente = null; caixa.hidden = true; };
+      caixa.append(p, nao, sim);
+      $("espera").appendChild(caixa);
+    }
+    caixa.hidden = false;
+    c.on("close", function () { if (pendente === c) { pendente = null; caixa.hidden = true; } });
+  }
 
   function entrar(codigo) {
     codigo = (codigo || "").trim().toLowerCase();

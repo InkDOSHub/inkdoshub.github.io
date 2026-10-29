@@ -27,7 +27,6 @@
   .aviso{color:#e5484d !important}
   .info{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card);border-top:1px solid var(--border);font-size:14px;min-height:44px;box-sizing:border-box;flex-wrap:wrap}
   .info input{flex:0 1 200px;min-width:120px;font:inherit;font-size:14px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text)}
-  .info .pasta{flex:1;min-width:0;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lista{display:flex;flex-direction:column}
   .item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--border)}
   .item .nome{flex:1;min-width:120px;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -92,7 +91,6 @@ html.md-sem-audios #cartao-audios{display:none!important}
       </div>
       <div class="info">
         <input type="text" id="nome" value="Recording" aria-label="Name" data-idioma-nao>
-        <span id="linha-pasta" style="display:contents"><span class="pasta" id="pasta" data-idioma-nao></span><button class="ink-btn" id="escolher">Choose folder</button></span>
         <details class="i solto"><summary title="How it works" aria-label="How it works">i</summary><div class="pop">
           <div id="cartao-sistema"><ol>
             <li>Open what you want to record in another tab or window.</li>
@@ -101,16 +99,16 @@ html.md-sem-audios #cartao-audios{display:none!important}
           </ol>
           <p>About 22 MB per hour (Opus, .webm). Nothing is sent anywhere: the file stays on this computer.</p></div>
           <p id="dica-mic" class="md-hide">Records the microphone (the iPad’s, or the one chosen in the browser).</p>
-          <p id="nota-pasta">With a folder, the file is written while it records and appears there when you stop. Without one, it goes to Downloads and to the Music list.</p>
+          <p>The file goes to Downloads and to the Music list.</p>
         </div></details>
       </div>
     </section>
   </div>
 </main>
-<script src="../../assets/midia.js?v=2"></script>
+<script src="../../assets/midia.js?v=3"></script>
 <script src="../../assets/icones.js?v=2"></script>
 <input id="arquivo-tela" type="file" accept="video/*,.mp4,.mov,.m4v" hidden>
-<script src="../musica/gravar/extrair-m4a.js?v=1"></script>
-<script src="../musica/gravar/gravar.js?v=7"></script>
+<script src="extrair-m4a.js?v=1"></script>
+<script src="gravar.js?v=8"></script>
 </body>
 </html>

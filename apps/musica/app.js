@@ -43,7 +43,7 @@ function desenhar() {
     li.querySelector(".t").textContent = nomeLimpo(f.nome);
     li.querySelector(".d").textContent = f.duracao ? inkTempo(f.duracao) : "";
     li.addEventListener("click", (e) => {
-      if (e.target.classList.contains("x")) return tirar(i);
+      if (e.target.closest(".x")) return tirar(i);
       tocar(i);
     });
     lista.appendChild(li);

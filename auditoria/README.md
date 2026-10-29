@@ -7,7 +7,7 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | Parte | Escopo | Log |
 |---|---|---|
 | 1 | Base: tela inicial, sw-portal.js, inicio/, assets/, terminal/, actions | [001-base.md](001-base.md) |
-| 2 | Apps leves (foto, vídeo, música, gravador, transferir web, editar-pdf, código) | pendente |
+| 2 | Apps leves (foto, vídeo, música, gravador, transferir web, editar-pdf, código) | [002-apps-leves.md](002-apps-leves.md) |
 | 3 | Webcam (web + Windows) | pendente |
 | 4 | Transferir Windows | pendente |
 | 5 | tools/ | pendente |

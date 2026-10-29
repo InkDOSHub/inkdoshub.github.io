@@ -1,4 +1,6 @@
 {
+"Accept": "Accepter",
+"Decline": "Refuser",
 "codigo": "fr",
 "textos": {
 "\"{name}\" is 64-bit, and Wine here only runs 32-bit programs. Look for the 32-bit (x86) version.": "« {name} » est en 64 bits, et Wine ici n’exécute que des programmes 32 bits. Cherchez la version 32 bits (x86).",
