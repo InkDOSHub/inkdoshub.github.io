@@ -52,13 +52,13 @@
   // on its own with ?inkdos-handoff=<id>&inkdos-return=<InkDOS page>. The PDF comes through a hidden InkDOS page
   // (handoff.html, InkDOS origin, answering only this origin) and is carried like an embedded hand-over; the
   // browser's Back returns to InkDOS.
-  var INKDOS = 'https://vfydr2m9wk-ops.github.io', q = new URLSearchParams(location.search);
+  var INKDOS = location.origin, q = new URLSearchParams(location.search);
   var back = q.get('inkdos-return'), handoff = q.get('inkdos-handoff');
   if (back && back.indexOf(INKDOS + '/') === 0) { try { sessionStorage.setItem('inkdos-return', back); } catch (_) {} }
   if (handoff && /^[A-Za-z0-9-]{8,64}$/.test(handoff)) {
     var frame = document.createElement('iframe');
     frame.hidden = true; frame.title = 'InkDOS';
-    frame.src = INKDOS + '/InkDOS/handoff.html?id=' + encodeURIComponent(handoff);
+    frame.src = INKDOS + '/inkdos/handoff.html?id=' + encodeURIComponent(handoff);
     addEventListener('message', function (event) {
       var data = event.data || {};
       if (event.origin !== INKDOS || event.source !== frame.contentWindow || data.type !== 'inkdos-handoff-file' || !(data.file instanceof Blob)) return;
@@ -85,7 +85,7 @@
 (function () {
   'use strict';
   var fromInkdos = /[?&](embed=1|inkdos-return=)/.test(location.search);
-  try { fromInkdos = fromInkdos || /^https:\/\/vfydr2m9wk-ops\.github\.io\//.test(sessionStorage.getItem('inkdos-return') || ''); } catch (_) {}
+  try { fromInkdos = fromInkdos || new RegExp('^' + location.origin + '/').test(sessionStorage.getItem('inkdos-return') || ''); } catch (_) {}
   if (!fromInkdos) return;
   var css = document.createElement('style');
   css.textContent = 'html{overflow-y:scroll}' +
