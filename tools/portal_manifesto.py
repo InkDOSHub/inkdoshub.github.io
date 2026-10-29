@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gera inicio/manifesto.json: a lista de arquivos que o botão "Baixar tudo" guarda para uso offline,
+"""Gera inicio/manifesto.json: a lista de arquivos que o botão "Offline" da tela inicial guarda neste aparelho,
 e (chave "idiomas") os arquivos de cada pacote de idioma (assets/idioma.js).
 
 Só o inglês entra na cópia offline. Os arquivos dos outros idiomas (traduções da casca, dos editores
@@ -29,8 +29,6 @@ GRUPOS = [
     ("visualizadores", "Edit PDF (BentoPDF) and viewers", ["apps/editar-pdf", "visualizadores"]),
 ]
 FORA = {"inicio/manifesto.json"}
-# o editor de vídeo depende do coi-serviceworker dele e não passa pelo portal, então fica de fora da cópia
-FORA_PASTAS = ()
 FORA_EXT = (".md", ".txt", ".map")
 
 # pacotes de idioma: o nome que cada ferramenta usa -> código do InkDOS Hub
@@ -63,7 +61,7 @@ def arquivos(caminho):
         pastas.sort()
         for n in sorted(nomes):
             rel = os.path.relpath(os.path.join(d, n), RAIZ).replace(os.sep, "/")
-            if rel in FORA or rel.startswith(FORA_PASTAS) or n.startswith(".") or n.endswith(FORA_EXT):
+            if rel in FORA or n.startswith(".") or n.endswith(FORA_EXT):
                 continue
             yield rel
 

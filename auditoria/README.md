@@ -10,6 +10,6 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | 2 | Apps leves (foto, vídeo, música, gravador, transferir web, editar-pdf, código) | [002-apps-leves.md](002-apps-leves.md) |
 | 3 | Webcam (web + Windows) | [003-webcam.md](003-webcam.md) |
 | 4 | Transferir Windows | [004-transferir-windows.md](004-transferir-windows.md) |
-| 5 | tools/ | pendente |
+| 5 | tools/ e actions | [005-tools.md](005-tools.md) |
 | 6 | InkDOS (2 rodadas) | pendente |
 | 7 | Quadro (opcional) | pendente |

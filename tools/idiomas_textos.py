@@ -14,10 +14,9 @@ Sai com erro se faltar tradução em algum pacote.
 import html.parser, json, os, re, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PASTAS = ["index.html", "inicio", "assets", "desktop", "terminal", "apps", "idiomas-extra"]
-FORA = ("terminal/vendor/", "terminal/images/", "apps/codigo/vscode/", "apps/codigo/ext/", "apps/foto/app/",
-        "apps/quadro/assets/", "apps/quadro/fonts/", "apps/quadro/src/", "apps/wine/boxedwine/", "apps/wine/area/",
-        "apps/video/cortar/ffmpeg-core/", "apps/video/cortar/coi-serviceworker")
+PASTAS = ["index.html", "inicio", "assets", "desktop", "terminal", "apps"]
+FORA = ("terminal/vendor/", "terminal/images/", "apps/codigo/vscode/", "apps/codigo/ext/",
+        "apps/quadro/assets/", "apps/quadro/fonts/", "apps/quadro/src/", "apps/video/cortar/ffmpeg-core/")
 ATRIBUTOS = {"title", "aria-label", "placeholder", "alt"}
 PULAR = {"script", "style", "textarea"}
 VAZIOS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}

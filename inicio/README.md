@@ -72,7 +72,7 @@ iOS ("Salvar em Arquivos") ou um download.
 
 "Editar com ONLYOFFICE" nos apps do InkDOS abre uma página nova no toque, guarda o documento no
 IndexedDB `inkdos-tool-handoff` e leva essa página para `onlyoffice/editor.html`
-(`InkPaginas.abrirEditor`, veja `tools/adaptar_inkdos.py`). O documento fica guardado (até 7 dias)
+(`InkPaginas.abrirEditor`, veja `inkdos/assets/handoff.js`). O documento fica guardado (até 7 dias)
 para o editor reabrir o mesmo arquivo se for recarregado. O Salvar do editor baixa o arquivo (no
 iPad, o Safari pergunta onde guardar).
 
