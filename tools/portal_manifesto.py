@@ -26,6 +26,7 @@ GRUPOS = [
     ("webcam", "Webcam", ["apps/webcam"]),
     ("inkdos", "Documents (InkDOS)", ["inkdos"]),
     ("onlyoffice", "ONLYOFFICE editors", ["onlyoffice"]),
+    ("visualizadores", "Viewers and PDF tools (BentoPDF)", ["visualizadores"]),
 ]
 FORA = {"inicio/manifesto.json"}
 # o editor de vídeo depende do coi-serviceworker dele e não passa pelo portal, então fica de fora da cópia
