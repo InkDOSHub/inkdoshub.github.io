@@ -118,3 +118,7 @@ Precisa de uma máquina Linux (ou um runner de CI) com `gcc make flex bison bc c
 ```
 
 O kernel vem de `torvalds/linux` na tag `v6.6`, sem modificações. O Alpine vem do minirootfs oficial x86 (`alpinelinux/docker-alpine`, branch `v3.22`), com o checksum conferido. Os arquivos próprios do InkDOS Hub ficam em `tools/linux/alpine-overlay/`.
+
+## Assinatura de código
+
+Os programas para Windows são assinados com certificado gratuito da SignPath Foundation (quando aprovado). Política: [ASSINATURA.md](ASSINATURA.md).
