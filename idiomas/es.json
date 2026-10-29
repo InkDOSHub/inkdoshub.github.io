@@ -396,5 +396,7 @@
 "Saves the whole InkDOS Hub on this device (about 400 MB). After that it opens from here, even without internet, and it only changes when you tap Offline again: that downloads the newest version, only what changed.": "Guarda todo InkDOS Hub en este dispositivo (unos 400 MB). Después se abre desde aquí, incluso sin internet, y solo cambia cuando vuelves a tocar Offline: eso descarga la versión más reciente, solo lo que cambió.",
 "Offline": "Offline",
 "Up to date": "Actualizado",
-"Failed, try again": "Falló, inténtalo de nuevo"
+"Failed, try again": "Falló, inténtalo de nuevo",
+"Update available": "Actualización disponible",
+"Update": "Actualizar"
 }
