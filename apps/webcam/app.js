@@ -276,14 +276,7 @@
       });
       function fim() {
         if (chamada !== c) return;
-        chamada = null;
-        clearInterval(timer);
-        video.srcObject = null;
-        $("parear").hidden = false;
-        $("bparartransmissao").hidden = true;
-        $("gstats").hidden = true;
-        estado(t("The iPhone disconnected. Waiting for it again…"));
-        if (bomba) bomba.espera();
+        semChamada(t("The iPhone disconnected. Waiting for it again…"));
       }
       c.on("close", fim);
       c.on("error", fim);
@@ -291,6 +284,18 @@
       if (pc) pc.addEventListener("connectionstatechange", function () {
         if (pc.connectionState === "failed") { c.close(); fim(); }
       });
+    }
+
+    /* Fim da chamada (o iPhone saiu ou o PC parou): volta a mostrar o QR e a câmera mostra "esperando". */
+    function semChamada(msg) {
+      chamada = null;
+      clearInterval(timer);
+      video.srcObject = null;
+      $("parear").hidden = false;
+      $("bparartransmissao").hidden = true;
+      $("gstats").hidden = true;
+      estado(msg);
+      if (bomba) bomba.espera();
     }
 
     /* Formato da imagem no PC: preencher 16:9 (corta), inteira, ou girada 90° para um lado. */
@@ -398,17 +403,10 @@
         if (finalizado) return;
         finalizado = true;
         clearTimeout(limiteSinal);
-        chamada = null;
-        clearInterval(timer);
         if (sinal) { try { sinal.close(); } catch (_) {} }
         if (c) { try { c.close(); } catch (_) {} }
         video.pause();
-        video.srcObject = null;
-        $("parear").hidden = false;
-        $("bparartransmissao").hidden = true;
-        $("gstats").hidden = true;
-        estado(t("Transmission stopped by the PC."));
-        if (bomba) bomba.espera();
+        semChamada(t("Transmission stopped by the PC."));
       }
       var limiteSinal = setTimeout(finalizar, 1500);
       if (sinal) {
@@ -921,19 +919,7 @@
       var tr = stream && stream.getVideoTracks()[0];
       if (!tr || tr.readyState === "ended" || tr.muted) trocarCamera();
     });
-    addEventListener("pagehide", function () {
-      encerrando = true;
-      ligado = false;
-      clearTimeout(tentativa);
-      clearTimeout(reconectarTimer);
-      reconectarTimer = 0;
-      clearInterval(timer);
-      if (chamada) { try { chamada.close(); } catch (_) {} chamada = null; }
-      pararStream();
-      video.srcObject = null;
-      if (trava) { try { trava.release().catch(function () {}); } catch (_) {} trava = null; }
-      if (peer) { peer.destroy(); peer = null; }
-    });
+    addEventListener("pagehide", function () { encerrando = true; pararLocal(); });
   }
 
   /* ---------- Escolha ---------- */
