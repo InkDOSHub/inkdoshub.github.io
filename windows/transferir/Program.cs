@@ -241,7 +241,10 @@ namespace InkDOSHubTransferir
                 if (!local) { celularVisto = DateTime.UtcNow; celularIp = remoto.ToString(); }
 
                 string metodo, alvo; Dictionary<string, string> cab; byte[] sobra;
+                // conexão que não manda o cabeçalho em 15 s é fechada (não prende uma thread para sempre)
+                s.ReadTimeout = 15000;
                 if (!LerCabecalho(s, out metodo, out alvo, out cab, out sobra)) return;
+                s.ReadTimeout = Timeout.Infinite;
                 string caminho = alvo; var q = new Dictionary<string, string>();
                 int iq = alvo.IndexOf('?');
                 if (iq >= 0)
