@@ -1,44 +1,38 @@
 /* Abertura dos apps do InkDOS Hub.
 
    Cada ferramenta abre na própria aba e só carrega quando é pedida. O site não aplica limite de
-   memória: as abas não se coordenam e o sistema (iOS, XeOS, navegador) decide o que fecha.
-
-   Compatibilidade: inkGerenciador.aoGuardar(fn) continua existindo, mas não faz nada. */
+   memória: as abas não se coordenam e o sistema (iOS, XeOS, navegador) decide o que fecha. */
 (function () {
   "use strict";
   var script = document.currentScript;
   var RAIZ = new URL("../", script ? script.src : location.href).href;
 
-  /* peso: memória estimada da aba em MB (só informativo; o Safari não informa o valor real). */
   var APPS = [
-    { id: "terminal", nome: "Linux terminal", url: "terminal/",
-      // o modo "limitada" do terminal (640 MB + swap) deixa a aba perto de 1 GB
-      peso: function () { var m; try { m = localStorage.getItem("inkdoshub-memoria"); } catch (_) {} return m === "limitada" ? 900 : 350; } },
-    { id: "foto", nome: "Photos", url: "apps/foto/", peso: 120 },
-    { id: "videoeditor", nome: "Edit video", url: "apps/video/cortar/", peso: 300 },
-    { id: "video", nome: "Video", url: "apps/video/", peso: 150 },
-    { id: "codigo", nome: "Code", url: "apps/codigo/", peso: 250 },
-    { id: "quadro", nome: "Whiteboard", url: "apps/quadro/", peso: 120 },
-    { id: "musica", nome: "Music", url: "apps/musica/", peso: 60 },
-    { id: "gravador", nome: "Recorder", url: "apps/gravador/", peso: 80 },
-    { id: "webcam", nome: "Webcam", url: "apps/webcam/", peso: 80 },
-    { id: "transferir", nome: "Transfer", url: "apps/transferir/", peso: 20 },
+    { id: "terminal", nome: "Linux terminal", url: "terminal/" },
+    { id: "foto", nome: "Photos", url: "apps/foto/" },
+    { id: "videoeditor", nome: "Edit video", url: "apps/video/cortar/" },
+    { id: "video", nome: "Video", url: "apps/video/" },
+    { id: "codigo", nome: "Code", url: "apps/codigo/" },
+    { id: "quadro", nome: "Whiteboard", url: "apps/quadro/" },
+    { id: "musica", nome: "Music", url: "apps/musica/" },
+    { id: "gravador", nome: "Recorder", url: "apps/gravador/" },
+    { id: "webcam", nome: "Webcam", url: "apps/webcam/" },
+    { id: "transferir", nome: "Transfer", url: "apps/transferir/" },
     // cópia dos apps do InkDOS (inkdos/); suite=1 mostra o botão Home, que volta para a tela inicial
-    { id: "documentos", nome: "Documents", url: "inkdos/apps/documents/index.html?suite=1", peso: 120 },
-    { id: "planilhas", nome: "Spreadsheets", url: "inkdos/apps/spreadsheets/index.html?suite=1", peso: 120 },
-    { id: "apresentacoes", nome: "Presentations", url: "inkdos/apps/presentations/index.html?suite=1", peso: 120 },
-    { id: "pdf", nome: "PDF", url: "inkdos/apps/pdf/index.html?suite=1", peso: 150 },
-    { id: "editar-pdf", nome: "Edit PDF", url: "apps/editar-pdf/", peso: 300 },
-    { id: "texto", nome: "Plain text", url: "inkdos/apps/txt/index.html?suite=1", peso: 50 },
-    { id: "epub", nome: "EPUB reader", url: "inkdos/apps/epub/index.html?suite=1", peso: 80 },
+    { id: "documentos", nome: "Documents", url: "inkdos/apps/documents/index.html?suite=1" },
+    { id: "planilhas", nome: "Spreadsheets", url: "inkdos/apps/spreadsheets/index.html?suite=1" },
+    { id: "apresentacoes", nome: "Presentations", url: "inkdos/apps/presentations/index.html?suite=1" },
+    { id: "pdf", nome: "PDF", url: "inkdos/apps/pdf/index.html?suite=1" },
+    { id: "editar-pdf", nome: "Edit PDF", url: "apps/editar-pdf/" },
+    { id: "texto", nome: "Plain text", url: "inkdos/apps/txt/index.html?suite=1" },
+    { id: "epub", nome: "EPUB reader", url: "inkdos/apps/epub/index.html?suite=1" },
     // editores ONLYOFFICE (onlyoffice/), abertos pelo "Editar com ONLYOFFICE" dos apps do InkDOS
-    { id: "office", nome: "ONLYOFFICE", url: "onlyoffice/editor.html", peso: 400, oculto: true },
+    { id: "office", nome: "ONLYOFFICE", url: "onlyoffice/editor.html", oculto: true },
     // os três editores ONLYOFFICE como apps da tela inicial (depois de "office", que continua dono da página)
-    { id: "oo-docs", nome: "Documents (ONLYOFFICE)", url: "onlyoffice/editor.html?new=docx", peso: 400 },
-    { id: "oo-planilhas", nome: "Spreadsheets (ONLYOFFICE)", url: "onlyoffice/editor.html?new=xlsx", peso: 400 },
-    { id: "oo-apresentacoes", nome: "Presentations (ONLYOFFICE)", url: "onlyoffice/editor.html?new=pptx", peso: 400 },
+    { id: "oo-docs", nome: "Documents (ONLYOFFICE)", url: "onlyoffice/editor.html?new=docx" },
+    { id: "oo-planilhas", nome: "Spreadsheets (ONLYOFFICE)", url: "onlyoffice/editor.html?new=xlsx" },
+    { id: "oo-apresentacoes", nome: "Presentations (ONLYOFFICE)", url: "onlyoffice/editor.html?new=pptx" },
   ];
-  function pesoDe(a) { return typeof a.peso === "function" ? a.peso() : a.peso || 0; }
   function caminho(u) { return new URL(u, RAIZ).pathname.replace(/index\.html$/, ""); }
   function appDe(id) { return APPS.filter(function (a) { return a.id === id; })[0]; }
   function appDaUrl(u) {
@@ -51,11 +45,6 @@
   }
   var INICIOS = [RAIZ, RAIZ + "index.html", RAIZ + "inkdos/", RAIZ + "inkdos/index.html"];
   function ehInicio(u) { return INICIOS.indexOf(String(u).split("#")[0].split("?")[0]) >= 0; }
-
-  var api = function () {};
-  api.aoGuardar = function () {};
-  window.inkGerenciador = api;
-  window.INK_APPS = APPS;
 
   var noInicio = ehInicio(location.href);
   var app = noInicio ? null : appDaUrl(location.href);
@@ -92,7 +81,7 @@
     if (!w) { location.href = url; return; } // o navegador bloqueou a aba nova: abre nesta
     var atual = "";
     try { atual = w.location.href; } catch (_) {}
-    if (!atual || atual === "about:blank" || /\/inicio\/guardada\.html/.test(atual)) w.location.replace(url);
+    if (!atual || atual === "about:blank") w.location.replace(url);
     try { w.focus(); } catch (_) {}
   }
   /* Volta para a tela inicial. Se esta aba foi aberta por ela, tenta trazer a aba dela para a
@@ -163,7 +152,6 @@
   window.InkPaginas = {
     raiz: RAIZ,
     apps: APPS,
-    peso: pesoDe,
     novaAba: novaAba,
     abrir: function (id) {
       var a = appDe(id); if (!a) return;

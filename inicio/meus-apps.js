@@ -180,7 +180,7 @@
 
   window.addEventListener("storage", function (e) {
     if (e.key !== K_APPS && e.key !== K_ESC && e.key !== K_ORDEM) return;
-    escondidos = ler(K_ESC); meus = ler(K_APPS);
+    escondidos = ler(K_ESC); meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });
     desenhar();
   });
 
