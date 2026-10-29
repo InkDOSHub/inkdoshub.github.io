@@ -55,7 +55,7 @@
   // browser's Back returns to InkDOS.
   var INKDOS = location.origin, q = new URLSearchParams(location.search);
   var back = q.get('inkdos-return'), handoff = q.get('inkdos-handoff');
-  if (back && back.indexOf(INKDOS + '/') === 0) { try { sessionStorage.setItem('inkdos-return', back); } catch (_) {} }
+  if (back && back.indexOf(INKDOS + '/') === 0) { try { sessionStorage.setItem('inkdos-return', back); sessionStorage.removeItem('inkdoshub-pdf-volta'); } catch (_) {} }
   if (handoff && /^[A-Za-z0-9-]{8,64}$/.test(handoff)) {
     var frame = document.createElement('iframe');
     frame.hidden = true; frame.title = 'InkDOS';
@@ -290,17 +290,19 @@
     if (document.querySelector('.ink-bar')) return;
     var bar = document.createElement('header'); bar.className = 'ink-bar';
     var home = document.createElement('a'); home.className = 'ink-home'; home.href = volta;
-    home.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>PDF';
+    home.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
+    var editar = false; try { editar = sessionStorage.getItem('inkdoshub-pdf-volta') === 'edit'; } catch (_) {}
+    home.appendChild(document.createTextNode(editar ? (/^pt/i.test(navigator.language) ? 'Editar PDF' : 'Edit PDF') : 'PDF'));
     var esq = document.createElement('div'); esq.appendChild(home);
     var meio = document.createElement('div'); meio.className = 'ink-meio';
-    var img = document.createElement('img'); img.className = 'ink-simbolo'; img.alt = ''; img.src = '/assets/icones-inkdos/pdf.svg';
+    var img = document.createElement('img'); img.className = 'ink-simbolo'; img.alt = ''; img.src = '/assets/icones-inkdos/' + (editar ? 'editar-pdf' : 'pdf') + '.svg';
     var t = document.createElement('span'); t.className = 'ink-title'; t.textContent = nome();
     meio.append(img, t);
     bar.append(esq, meio, document.createElement('div'));
     document.body.insertBefore(bar, document.body.firstChild);
     // links para a página inicial do BentoPDF voltam ao PDF
     Array.prototype.forEach.call(document.querySelectorAll('a[href="/visualizadores/bentopdf/"],a[href="/visualizadores/bentopdf/index.html"]'), function (a) { a.href = volta; });
-    addEventListener('load', function () { t.textContent = nome(); }, { once: true });
+    addEventListener('load', function () { t.textContent = nome(); setTimeout(function () { t.textContent = nome(); }, 800); }, { once: true });
   }
   if (document.body) montar(); else document.addEventListener('DOMContentLoaded', montar, { once: true });
 })();

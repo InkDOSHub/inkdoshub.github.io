@@ -28,6 +28,7 @@
     { id: "planilhas", nome: "Spreadsheets", url: "inkdos/apps/spreadsheets/index.html?suite=1", peso: 120 },
     { id: "apresentacoes", nome: "Presentations", url: "inkdos/apps/presentations/index.html?suite=1", peso: 120 },
     { id: "pdf", nome: "PDF", url: "inkdos/apps/pdf/index.html?suite=1", peso: 150 },
+    { id: "editar-pdf", nome: "Edit PDF", url: "apps/editar-pdf/", peso: 300 },
     { id: "texto", nome: "Plain text", url: "inkdos/apps/txt/index.html?suite=1", peso: 50 },
     { id: "epub", nome: "EPUB reader", url: "inkdos/apps/epub/index.html?suite=1", peso: 80 },
     // editores ONLYOFFICE (onlyoffice/), abertos pelo "Editar com ONLYOFFICE" dos apps do InkDOS
