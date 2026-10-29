@@ -115,8 +115,9 @@ if (LIMITADA) {
 const REDES = { wisp: "wisps://wisp.mercurywork.shop/v86/", relay: "wss://relay.widgetry.org/", off: undefined };
 let savedRede;
 try { savedRede = localStorage.getItem("inkdoshub-rede2"); } catch {}
-const REDE = params.get("rede") || savedRede || "wisp";
-const relayUrl = REDE in REDES ? REDES[REDE] : REDE;
+// Só os nomes conhecidos: um link com ?rede=<endereço> não pode mandar o tráfego do Linux para outro servidor.
+const REDE = [params.get("rede"), savedRede].find((r) => Object.hasOwn(REDES, r)) || "wisp";
+const relayUrl = REDES[REDE];
 const config = {
   wasm_path: "vendor/v86/v86.wasm",
   memory_size: (LIMITADA ? 640 : 256) * 1024 * 1024,
@@ -325,11 +326,10 @@ document.getElementById("download-close").addEventListener("click", () => dialog
 // Um botão (o XeOS redesenha os <select>): cada toque passa para a próxima opção e liga de novo.
 const redeBtn = document.getElementById("rede");
 const NOMES = { wisp: t("Network: {name}", { name: "wisp" }), relay: t("Network: {name}", { name: "relay" }), off: t("No network") };
-const atualRede = REDE in REDES ? REDE : "wisp";
-redeBtn.textContent = REDE in NOMES ? NOMES[REDE] : t("Network: custom");
+redeBtn.textContent = NOMES[REDE];
 redeBtn.addEventListener("click", () => {
   const ordem = ["wisp", "relay", "off"];
-  const prox = ordem[(ordem.indexOf(atualRede) + 1) % ordem.length];
+  const prox = ordem[(ordem.indexOf(REDE) + 1) % ordem.length];
   try { localStorage.setItem("inkdoshub-rede2", prox); } catch {}
   const q = new URLSearchParams(location.search);
   q.delete("rede");

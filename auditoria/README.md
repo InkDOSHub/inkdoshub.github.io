@@ -13,6 +13,9 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | 5 | tools/ e actions | [005-tools.md](005-tools.md) |
 | 6 | InkDOS (2 rodadas) | [006-inkdos-rodada1.md](006-inkdos-rodada1.md), [007-inkdos-rodada2.md](007-inkdos-rodada2.md) |
 | 7 | Quadro | [008-quadro.md](008-quadro.md) |
+| 8 | Ponte com os apps externos (Linux, Código, ONLYOFFICE, PDF) | [009-integracao.md](009-integracao.md) |
+
+O próximo log (010) é o Quadro em IndexedDB, programado para 2026-10-30.
 
 ## Resumo (2026-10-29)
 
