@@ -632,8 +632,7 @@ namespace InkDOSHubWebcam
                     janelaInicio = agora;
                     quadros = somaConversao = maxConversao = somaEnvio = maxEnvio = 0;
                 }
-                string resposta = "ok:" + slotAtual;
-                try { BeginInvoke((Action)delegate { if (web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsString(resposta); }); } catch (Exception) { }
+                ParaPagina("ok:" + slotAtual);
                 }
             }
         }
