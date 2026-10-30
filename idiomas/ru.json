@@ -417,5 +417,11 @@
 "Whiteboard": "Доска",
 "Documents (InkDOS)": "Документы (InkDOS)",
 "ONLYOFFICE editors": "Редакторы ONLYOFFICE",
-"Edit PDF (BentoPDF) and viewers": "Редактор PDF (BentoPDF) и просмотрщики"
+"Edit PDF (BentoPDF) and viewers": "Редактор PDF (BentoPDF) и просмотрщики",
+"Saving {name}… {pct}%": "Сохранение {name}… {pct}%",
+"{name} saved ✓": "{name} сохранено ✓",
+"{name} removed": "{name} удалено",
+"Removing…": "Удаление…",
+"Wait for the current download to finish.": "Дождитесь окончания текущей загрузки.",
+"Checking for updates…": "Поиск обновлений…"
 }

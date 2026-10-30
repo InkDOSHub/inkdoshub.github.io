@@ -138,6 +138,17 @@ button.off-item:hover{background:var(--accent-soft)}
 .off-nao,.off-sim{min-height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font:inherit;font-size:13px}
 .off-sim{background:#1f9d55;border-color:#1f9d55;color:#fff}
 .off-conf .off-sim{background:#c0392b;border-color:#c0392b}
+.off-status{min-height:18px;margin:8px 0 0;font-size:13px;color:var(--text)}
+.off-status:empty{min-height:0;margin:0}
+.off-status.ok{color:#1f9d55;font-weight:600}
+.off-status.erro{color:#c0392b}
+.off-item,.off-atualizar,.off-nao,.off-sim{transition:transform .08s,background .15s,opacity .15s}
+.off-item:active,.off-atualizar:active,.off-nao:active,.off-sim:active{transform:scale(.97)}
+.off-atualizar:disabled{opacity:.6}
+.off-travada .off-item:not(.off-baixando){opacity:.45}
+.off-baixando{background:linear-gradient(90deg,var(--accent-soft) var(--p,0%),transparent var(--p,0%))}
+.off-baixando .off-check{border-color:#1f9d55;border-top-color:transparent;animation:off-gira .8s linear infinite}
+@keyframes off-gira{to{transform:rotate(360deg)}}
 .off-oferta{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:55;width:min(420px,calc(100% - 32px));padding:12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.18);color:var(--text);font-size:14px;box-sizing:border-box}
 .off-oferta p{margin:6px 0 10px;font-size:13px;color:var(--muted)}
 .off-botoes{display:flex;justify-content:flex-end;gap:8px}

@@ -91,6 +91,10 @@
     caixa.appendChild(el("p", "off-ajuda", t("Save apps on this device to use them without internet. Tap an item to save it; tap it again to remove it.")));
     var atualizar = el("button", "off-atualizar", t("Update")); atualizar.type = "button";
     caixa.appendChild(atualizar);
+    // linha de status: diz o que está acontecendo depois de cada toque
+    var status = el("p", "off-status", ""); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
+    caixa.appendChild(status);
+    var dizer = function (txt, tipo) { status.textContent = txt; status.className = "off-status" + (tipo ? " " + tipo : ""); };
     var espaco = el("p", "off-espaco", "");
     caixa.appendChild(espaco);
     var lista = el("div", "off-lista", "…");
@@ -108,7 +112,7 @@
     function desenhar() {
       Promise.all([site(), estado()]).then(function (x) {
         var novo = x[0], tem = guardados(x[1]);
-        lista.textContent = "";
+        lista.textContent = ""; lista.classList.remove("off-travada");
         var leves = novo.grupos.filter(base), soma = leves.reduce(function (s, g) { return s + g.bytes; }, 0);
         var linhaBase = el("div", "off-item off-fixo");
         linhaBase.appendChild(el("span", "off-check" + (x[1] ? " on" : ""), "✓"));
@@ -121,11 +125,17 @@
           item.appendChild(el("span", "off-nome", t(g.nome)));
           var tam = el("small", null, mb(g.bytes)); item.appendChild(tam);
           item.onclick = function () {
-            if (ocupado) return;
+            if (ocupado) { dizer(t("Wait for the current download to finish."), "erro"); return; }
             if (!tem[g.id]) {
               var quer = Object.assign({}, tem); quer[g.id] = 1;
-              tam.textContent = "…";
-              sincronizar(quer, function (p) { tam.textContent = p + "%"; }).then(desenhar, function () { tam.textContent = t("Failed, try again"); }).then(contar);
+              var nome = t(g.nome);
+              lista.classList.add("off-travada"); item.classList.add("off-baixando");
+              tam.textContent = "0%"; dizer(t("Saving {name}… {pct}%", { name: nome, pct: 0 }));
+              sincronizar(quer, function (p) {
+                tam.textContent = p + "%"; item.style.setProperty("--p", p + "%");
+                dizer(t("Saving {name}… {pct}%", { name: nome, pct: p }));
+              }).then(function () { dizer(t("{name} saved ✓", { name: nome }), "ok"); desenhar(); },
+                function () { lista.classList.remove("off-travada"); item.classList.remove("off-baixando"); tam.textContent = mb(g.bytes); dizer(t("Failed, try again"), "erro"); }).then(contar);
               return;
             }
             // confirmar na própria página (o XeOS bloqueia pop-ups)
@@ -133,11 +143,13 @@
             conf.appendChild(el("span", null, t("Remove {name} from this device? ({size})", { name: t(g.nome), size: mb(g.bytes) })));
             var nao = el("button", "off-nao", t("Cancel")); nao.type = "button";
             var sim = el("button", "off-sim", t("Remove")); sim.type = "button";
-            nao.onclick = function () { conf.remove(); };
+            nao.onclick = function () { conf.remove(); dizer(""); };
             sim.onclick = function () {
               var quer = Object.assign({}, tem); delete quer[g.id];
-              sim.disabled = nao.disabled = true;
-              sincronizar(quer).then(desenhar, desenhar).then(contar);
+              sim.disabled = nao.disabled = true; sim.textContent = "…";
+              dizer(t("Removing…"));
+              sincronizar(quer).then(function () { dizer(t("{name} removed", { name: t(g.nome) }), "ok"); desenhar(); },
+                function () { dizer(t("Failed, try again"), "erro"); desenhar(); }).then(contar);
             };
             conf.appendChild(nao); conf.appendChild(sim);
             var velha = lista.querySelector(".off-conf"); if (velha) velha.remove();
@@ -148,13 +160,13 @@
       }).catch(function () { lista.textContent = t("Failed, try again"); });
     }
     atualizar.onclick = function () {
-      if (ocupado) return;
+      if (ocupado) { dizer(t("Wait for the current download to finish."), "erro"); return; }
+      atualizar.disabled = true; atualizar.textContent = "…"; dizer(t("Checking for updates…"));
       estado().then(function (m) {
         var quer = guardados(m); quer.__base = 1;
-        atualizar.textContent = "…";
         return sincronizar(quer, function (p) { atualizar.textContent = t("Update") + " " + p + "%"; });
-      }).then(function () { atualizar.textContent = t("Up to date"); marcarBotao(); if (aviso) { aviso.remove(); aviso = null; } desenhar(); },
-        function () { atualizar.textContent = t("Failed, try again"); }).then(contar);
+      }).then(function () { atualizar.textContent = t("Update"); dizer(t("Up to date") + " ✓", "ok"); marcarBotao(); if (aviso) { aviso.remove(); aviso = null; } desenhar(); },
+        function () { atualizar.textContent = t("Update"); dizer(t("Failed, try again"), "erro"); }).then(function () { atualizar.disabled = false; contar(); });
     };
     desenhar(); contar();
   }
