@@ -665,5 +665,11 @@
 "Whiteboard": "Quadro",
 "Documents (InkDOS)": "Documentos (InkDOS)",
 "ONLYOFFICE editors": "Editores ONLYOFFICE",
-"Edit PDF (BentoPDF) and viewers": "Editar PDF (BentoPDF) e visualizadores"
+"Edit PDF (BentoPDF) and viewers": "Editar PDF (BentoPDF) e visualizadores",
+"Saving {name}… {pct}%": "Salvando {name}… {pct}%",
+"{name} saved ✓": "{name} salvo ✓",
+"{name} removed": "{name} removido",
+"Removing…": "Removendo…",
+"Wait for the current download to finish.": "Aguarde o download atual terminar.",
+"Checking for updates…": "Procurando atualizações…"
 }

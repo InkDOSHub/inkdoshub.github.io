@@ -417,5 +417,11 @@
 "Whiteboard": "ホワイトボード",
 "Documents (InkDOS)": "ドキュメント（InkDOS）",
 "ONLYOFFICE editors": "ONLYOFFICE エディター",
-"Edit PDF (BentoPDF) and viewers": "PDF 編集（BentoPDF）とビューアー"
+"Edit PDF (BentoPDF) and viewers": "PDF 編集（BentoPDF）とビューアー",
+"Saving {name}… {pct}%": "{name} を保存中… {pct}%",
+"{name} saved ✓": "{name} を保存しました ✓",
+"{name} removed": "{name} を削除しました",
+"Removing…": "削除中…",
+"Wait for the current download to finish.": "現在のダウンロードが終わるまでお待ちください。",
+"Checking for updates…": "アップデートを確認中…"
 }

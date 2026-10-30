@@ -417,5 +417,11 @@
 "Whiteboard": "Pizarra",
 "Documents (InkDOS)": "Documentos (InkDOS)",
 "ONLYOFFICE editors": "Editores ONLYOFFICE",
-"Edit PDF (BentoPDF) and viewers": "Editar PDF (BentoPDF) y visores"
+"Edit PDF (BentoPDF) and viewers": "Editar PDF (BentoPDF) y visores",
+"Saving {name}… {pct}%": "Guardando {name}… {pct}%",
+"{name} saved ✓": "{name} guardado ✓",
+"{name} removed": "{name} eliminado",
+"Removing…": "Eliminando…",
+"Wait for the current download to finish.": "Espera a que termine la descarga actual.",
+"Checking for updates…": "Buscando actualizaciones…"
 }

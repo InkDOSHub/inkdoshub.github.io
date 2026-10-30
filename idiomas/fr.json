@@ -417,5 +417,11 @@
 "Whiteboard": "Tableau blanc",
 "Documents (InkDOS)": "Documents (InkDOS)",
 "ONLYOFFICE editors": "Éditeurs ONLYOFFICE",
-"Edit PDF (BentoPDF) and viewers": "Modifier PDF (BentoPDF) et visionneuses"
+"Edit PDF (BentoPDF) and viewers": "Modifier PDF (BentoPDF) et visionneuses",
+"Saving {name}… {pct}%": "Enregistrement de {name}… {pct}%",
+"{name} saved ✓": "{name} enregistré ✓",
+"{name} removed": "{name} supprimé",
+"Removing…": "Suppression…",
+"Wait for the current download to finish.": "Attendez la fin du téléchargement en cours.",
+"Checking for updates…": "Recherche de mises à jour…"
 }

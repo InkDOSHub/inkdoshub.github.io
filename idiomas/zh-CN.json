@@ -417,5 +417,11 @@
 "Whiteboard": "白板",
 "Documents (InkDOS)": "文档（InkDOS）",
 "ONLYOFFICE editors": "ONLYOFFICE 编辑器",
-"Edit PDF (BentoPDF) and viewers": "编辑 PDF（BentoPDF）和查看器"
+"Edit PDF (BentoPDF) and viewers": "编辑 PDF（BentoPDF）和查看器",
+"Saving {name}… {pct}%": "正在保存 {name}… {pct}%",
+"{name} saved ✓": "{name} 已保存 ✓",
+"{name} removed": "{name} 已删除",
+"Removing…": "正在删除…",
+"Wait for the current download to finish.": "请等待当前下载完成。",
+"Checking for updates…": "正在检查更新…"
 }
