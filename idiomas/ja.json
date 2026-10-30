@@ -399,5 +399,6 @@
 "Up to date": "最新",
 "Failed, try again": "失敗しました。もう一度お試しください",
 "Update available": "アップデートがあります",
-"Update": "更新"
+"Update": "更新",
+"The drawing could not be saved in this browser.": "このブラウザーに図を保存できませんでした。"
 }
