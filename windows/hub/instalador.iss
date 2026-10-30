@@ -57,3 +57,11 @@ Name: "{userdesktop}\InkDOS Hub"; Filename: "{app}\InkDOS Hub.exe"; Tasks: deskt
 
 [Run]
 Filename: "{app}\InkDOS Hub.exe"; Description: "{cm:LaunchProgram,InkDOS Hub}"; Flags: nowait postinstall skipifsilent
+; atualização feita pelo próprio app (instalação silenciosa): abre de novo se a pessoa pediu "Reiniciar"
+Filename: "{app}\InkDOS Hub.exe"; Flags: nowait; Check: Relancar
+
+[Code]
+function Relancar: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:relancar|0}') = '1');
+end;

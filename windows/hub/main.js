@@ -257,6 +257,52 @@ async function abrirWebcam() {
   } finally { webcamOcupada = false; }
 }
 
+// ---------- a própria carcaça se atualiza ----------
+// Lê versao.json da release hub-windows; se for mais nova, baixa o instalador em segundo plano, confere o SHA-256
+// e mostra na tela inicial "Nova versão do app · Reiniciar". Se a pessoa não tocar, instala ao fechar o Hub.
+const VERSAO_URL = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/hub-windows/versao.json';
+let instaladorPronto = null;
+const maior = (a, b) => {
+  const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+  return false;
+};
+async function procurarVersaoNova() {
+  if (instaladorPronto || !app.isPackaged || process.platform !== 'win32') return;
+  try {
+    const baixar = session.fromPartition('inkhub-baixar');
+    const r = await baixar.fetch(VERSAO_URL + '?t=' + Date.now());
+    if (!r.ok) return;
+    const v = await r.json();
+    if (!v || !maior(v.versao, app.getVersion()) || !/^[0-9a-f]{64}$/.test(v.sha256 || '')) return;
+    const url = VERSAO_URL.replace('versao.json', v.arquivo || 'InkDOSHub-Setup.exe');
+    const s = await baixar.fetch(url);
+    if (!s.ok) return;
+    const b = Buffer.from(await s.arrayBuffer());
+    if (sha256(b) !== v.sha256) return; // não confere: tenta de novo na próxima vez
+    const f = path.join(app.getPath('temp'), 'InkDOSHub-Setup-' + v.versao + '.exe');
+    await fsp.writeFile(f, b);
+    instaladorPronto = f;
+    mostrarAvisoApp();
+  } catch (_) {}
+}
+function mostrarAvisoApp() {
+  const w = principal();
+  if (!w || !instaladorPronto) return;
+  const pt = /^pt/i.test(app.getLocale());
+  const txt = pt ? 'Nova versão do app · Reiniciar' : 'New app version · Restart';
+  w.webContents.executeJavaScript('(function(){if(document.getElementById("hub-app-novo"))return;var b=document.createElement("button");b.id="hub-app-novo";b.type="button";b.className="aviso-atualizar";b.style.bottom="64px";b.textContent=' +
+    JSON.stringify(txt) + ';b.onclick=function(){b.disabled=true;b.textContent="…";window.inkHubNativo&&window.inkHubNativo.reiniciarAtualizando()};document.body.appendChild(b)})()').catch(() => {});
+}
+function instalarAtualizacao(relancar) {
+  if (!instaladorPronto) return false;
+  const args = ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS'];
+  if (relancar) args.push('/relancar=1');
+  require('child_process').spawn(instaladorPronto, args, { detached: true, stdio: 'ignore' }).unref();
+  instaladorPronto = null;
+  return true;
+}
+
 // ---------- janelas ----------
 const ICONE = path.join(__dirname, 'icone.ico');
 const prefs = () => ({
@@ -327,6 +373,7 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('hub:versao', () => app.getVersion());
+  ipcMain.handle('hub:reiniciar', () => { if (instalarAtualizacao(true)) app.quit(); });
   ipcMain.handle('hub:estado', () => (estado ? { versao: estado.versao, grupos: estado.grupos.map(id => ({ id })) } : null));
   ipcMain.handle('hub:espaco', async () => {
     let usado = 0;
@@ -347,7 +394,14 @@ app.whenReady().then(async () => {
   });
   janelaPrincipal.loadURL(SITE);
 
+  // versão nova da carcaça: procura 20 s depois de abrir e a cada 6 horas; o aviso volta se a tela recarregar
+  janelaPrincipal.webContents.on('did-finish-load', mostrarAvisoApp);
+  setTimeout(procurarVersaoNova, 20000);
+  setInterval(procurarVersaoNova, 6 * 3600e3);
+
   // primeira vez (ou depois de limpar): guarda a tela inicial e os apps leves para abrir sem internet
   if (!estado) sincronizar([]).catch(() => {});
 });
 app.on('window-all-closed', () => app.quit());
+// atualização baixada e a pessoa não reiniciou: instala em silêncio ao fechar (abre já na versão nova da próxima vez)
+app.on('will-quit', () => { instalarAtualizacao(false); });
