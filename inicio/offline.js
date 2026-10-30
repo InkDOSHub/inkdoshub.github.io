@@ -100,6 +100,20 @@
     var status = el("p", "off-status", ""); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
     caixa.appendChild(status);
     var dizer = function (txt, tipo) { status.textContent = txt; status.className = "off-status" + (tipo ? " " + tipo : ""); };
+    // app do Windows: botão para atualizar o próprio app (a carcaça), além dos apps guardados
+    if (N && N.atualizarApp) {
+      var app = el("button", "off-atualizar off-app", t("Update the Windows app")); app.type = "button";
+      caixa.appendChild(app);
+      N.versao().then(function (v) { app.textContent = t("Update the Windows app") + " · " + v; }).catch(function () {});
+      app.onclick = function () {
+        app.disabled = true; dizer(t("Checking for updates…"));
+        N.atualizarApp(function (p) { dizer(t("Downloading the new app… {pct}%", { pct: p })); }).then(function (r) {
+          if (r === "pronto") dizer(t("Installing the new app… it reopens by itself."), "ok");
+          else if (r === "atual") { dizer(t("The Windows app is up to date") + " ✓", "ok"); app.disabled = false; }
+          else { dizer(t("Failed, try again"), "erro"); app.disabled = false; }
+        }, function () { dizer(t("Failed, try again"), "erro"); app.disabled = false; });
+      };
+    }
     var espaco = el("p", "off-espaco", "");
     caixa.appendChild(espaco);
     var lista = el("div", "off-lista", "…");
