@@ -1,0 +1,61 @@
+name: InkDOS Hub para Windows
+# 1) Atualiza windows/ferramentas.json (catálogo das ferramentas nativas, só fontes oficiais, com SHA-256).
+# 2) Compila windows/hub/ (um .exe só, .NET Framework 4.8) e publica na release "hub-windows" com o SHA-256.
+on:
+  push:
+    branches: [main]
+    paths: [windows/hub/**, tools/windows_ferramentas.py, .github/workflows/windows-hub.yml]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: windows-hub
+  cancel-in-progress: false
+jobs:
+  catalogo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Catálogo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/windows_ferramentas.py
+      - name: Gravar se mudou
+        run: |
+          if git diff --quiet -- windows/ferramentas.json; then echo "sem mudanças"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add windows/ferramentas.json
+          git commit -m "Atualiza o catálogo de ferramentas do Windows"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push && exit 0; sleep 5; done
+          exit 1
+  build:
+    needs: catalogo
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: App
+        run: dotnet build windows/hub/InkDOSHub.csproj -c Release -o out
+      - name: Arquivo
+        shell: pwsh
+        run: |
+          Copy-Item "out/InkDOS Hub.exe" InkDOSHub.exe
+          Get-ChildItem out | Format-Table Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InkDOSHub-Windows
+          path: InkDOSHub.exe
+      - name: Publicar na release hub-windows
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view hub-windows >/dev/null 2>&1 || gh release create hub-windows --title "InkDOS Hub for Windows" --latest=false --notes "Native, light InkDOS Hub launcher for Windows 10/11. Heavy tools are downloaded only when you choose, from their official sources, checked by SHA-256 and digital signature. Source: windows/hub/ (MIT)."
+          sha256sum InkDOSHub.exe > InkDOSHub.exe.sha256
+          cat InkDOSHub.exe.sha256
+          gh release upload hub-windows InkDOSHub.exe InkDOSHub.exe.sha256 --clobber
+          git push -f origin "HEAD:refs/tags/hub-windows"
