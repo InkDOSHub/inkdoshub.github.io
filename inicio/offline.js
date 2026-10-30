@@ -17,15 +17,18 @@
   var LEVE = 1e6; // grupos menores que isto vão sempre junto com a tela inicial
   var t = function (s, p) { return window.InkIdioma ? InkIdioma.t(s, p) : s.replace(/\{(\w+)\}/g, function (m, k) { return p && k in p ? p[k] : m; }); };
   var btn = document.getElementById("btn-offline");
-  if (!btn || !("caches" in window) || !("serviceWorker" in navigator)) { if (btn) btn.closest(".menu-offline").hidden = true; return; }
+  // No app do Windows (windows/hub) os apps ficam no disco do PC, conferidos pelo SHA-256: inkHubNativo faz o trabalho.
+  var N = window.inkHubNativo || null;
+  if (!btn || (!N && (!("caches" in window) || !("serviceWorker" in navigator)))) { if (btn) btn.closest(".menu-offline").hidden = true; return; }
   var info = btn.querySelector("small");
-  navigator.serviceWorker.register("sw-portal.js", { scope: "./" }).catch(function () {});
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw-portal.js", { scope: "./" }).catch(function () {});
 
   var chave = function (p) { return new URL(p, BASE).href; };
   var mb = function (b) { return b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : Math.max(0.1, b / 1e6).toFixed(b < 1e7 ? 1 : 0) + " MB"; };
   var base = function (g) { return g.id === "inicio" || g.bytes < LEVE; };
 
   function estado() {
+    if (N) return N.estado().catch(function () { return null; });
     return caches.open(CACHE).then(function (c) { return c.match(MARCA); }).then(function (r) { return r ? r.json() : null; }).catch(function () { return null; });
   }
   function site() {
@@ -38,6 +41,8 @@
   function sincronizar(ids, progresso) {
     if (ocupado) return Promise.reject(new Error("ocupado"));
     ocupado = true;
+    if (N) return N.sincronizar(Object.keys(ids).filter(function (k) { return k !== "__base"; }), progresso).then(site)
+      .then(function (r) { ocupado = false; return r; }, function (e) { ocupado = false; throw e; });
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (_) {}
     return Promise.all([site(), estado(), caches.open(CACHE)]).then(function (x) {
       var novo = x[0], velho = x[1], c = x[2], antes = {};
@@ -104,6 +109,10 @@
     document.body.appendChild(painel);
 
     function contar() {
+      if (N) {
+        N.espaco().then(function (s) { espaco.textContent = t("On this PC: {used}. Free: {free}.", { used: mb(s.usado || 0), free: mb(s.livre || 0) }); }).catch(function () {});
+        return;
+      }
       if (!navigator.storage || !navigator.storage.estimate) return;
       navigator.storage.estimate().then(function (s) {
         espaco.textContent = t("Used in this browser: {used}. Free: {free}.", { used: mb(s.usage || 0), free: mb(Math.max(0, (s.quota || 0) - (s.usage || 0))) });

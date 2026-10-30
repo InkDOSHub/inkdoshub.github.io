@@ -405,6 +405,7 @@
 "Home screen and light apps": "Startbildschirm und leichte Apps",
 "always saved": "immer gespeichert",
 "Used in this browser: {used}. Free: {free}.": "In diesem Browser belegt: {used}. Frei: {free}.",
+"On this PC: {used}. Free: {free}.": "Auf diesem PC: {used}. Frei: {free}.",
 "Remove {name} from this device? ({size})": "{name} von diesem Gerät entfernen? ({size})",
 "Close": "Schließen",
 "Keep {name} on this device?": "{name} auf diesem Gerät behalten?",

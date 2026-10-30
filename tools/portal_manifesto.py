@@ -6,8 +6,9 @@ Só o inglês entra na cópia offline. Os arquivos dos outros idiomas (traduçõ
 ONLYOFFICE, do Quadro e dos apps do InkDOS) vão para o pacote do idioma, baixado só quando a pessoa
 escolhe. Idiomas que o InkDOS Hub não oferece ficam fora dos dois.
 
-Cada grupo (tela inicial, terminal, cada app) pode ser baixado junto; o hash de cada arquivo
-permite atualizar só o que mudou. Rode na raiz do repositório depois de mudar qualquer arquivo:
+Cada grupo (tela inicial, terminal, cada app) pode ser baixado junto. Cada arquivo é [caminho, bytes,
+número curto (16 primeiros dígitos do SHA-256, para saber o que mudou), SHA-256 inteiro (o app do Windows
+confere cada arquivo baixado contra ele)]. Rode na raiz do repositório depois de mudar qualquer arquivo:
     python3 tools/portal_manifesto.py
 """
 import hashlib, json, os, re, sys
@@ -76,14 +77,15 @@ def main():
                 continue
             for rel in arquivos(c):
                 dados = open(os.path.join(RAIZ, rel), "rb").read()
-                h = hashlib.sha256(dados).hexdigest()[:16]
+                sha = hashlib.sha256(dados).hexdigest()
+                h = sha[:16]
                 idioma = idioma_de(rel)
                 if idioma in idiomas:
-                    idiomas[idioma].append([rel, len(dados), h])
+                    idiomas[idioma].append([rel, len(dados), h, sha])
                 if idioma not in (None, "en"):
                     continue
                 total.update(rel.encode() + b"\0" + h.encode())
-                lista.append([rel, len(dados), h])
+                lista.append([rel, len(dados), h, sha])
         saida["grupos"].append({"id": gid, "nome": nome, "bytes": sum(a[1] for a in lista), "arquivos": lista})
     saida["versao"] = total.hexdigest()[:16]
     saida["idiomas"] = {}
