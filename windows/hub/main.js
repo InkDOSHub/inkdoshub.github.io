@@ -257,6 +257,71 @@ async function abrirWebcam() {
   } finally { webcamOcupada = false; }
 }
 
+// ---------- Terminal: no Windows usa o Linux do próprio Windows (WSL), com potência quase nativa ----------
+// Com o WSL instalado, abre o Linux no Terminal do Windows. Sem ele, explica e instala (wsl --install: pede
+// administrador uma vez, baixa o Ubuntu oficial da Microsoft e pode pedir para reiniciar). O terminal do site fica de opção.
+const ehTerminal = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/terminal/'); } catch (_) { return false; } };
+const cp = require('child_process');
+function distrosWsl() {
+  return new Promise(ok => {
+    cp.execFile('wsl.exe', ['-l', '-q'], { encoding: 'buffer', windowsHide: true, timeout: 15000 }, (e, saida) => {
+      if (e || !saida) return ok([]);
+      ok(saida.toString('utf16le').replace(/\0/g, '').split(/\r?\n/).map(x => x.trim()).filter(Boolean));
+    });
+  });
+}
+function abrirLinux() {
+  const wt = cp.spawn('wt.exe', ['wsl.exe', '--cd', '~'], { detached: true, stdio: 'ignore', windowsHide: false });
+  wt.on('error', () => cp.spawn('cmd.exe', ['/c', 'start', '""', 'wsl.exe', '--cd', '~'], { detached: true, stdio: 'ignore' }).unref());
+  wt.unref();
+}
+function terminalDoSite() {
+  const w = new BrowserWindow(opcoes(1100, 760));
+  cuidar(w);
+  w.loadURL(SITE + 'terminal/');
+}
+let janelaTerminal = null;
+async function abrirTerminal() {
+  if (process.platform !== 'win32') return terminalDoSite();
+  if ((await distrosWsl()).length) return abrirLinux();
+  if (janelaTerminal && !janelaTerminal.isDestroyed()) return janelaTerminal.focus();
+  const pt = /^pt/i.test(app.getLocale());
+  const T = pt ? {
+    titulo: 'Linux do Windows (WSL)',
+    texto: 'O Terminal usa o Linux do próprio Windows, bem mais rápido que o do site. Ele ainda não está instalado neste PC.',
+    detalhe: 'A instalação pede administrador uma vez, baixa o Ubuntu oficial da Microsoft (uns 500 MB) e pode pedir para reiniciar o PC.',
+    instalar: 'Instalar o Linux do Windows', site: 'Usar o terminal do site',
+    instalando: 'Instalando… Siga a janela que abriu. Quando terminar (e reiniciar, se o Windows pedir), toque no Terminal de novo.',
+    erro: 'A instalação não começou (o administrador foi recusado?). Tente de novo ou use o terminal do site.'
+  } : {
+    titulo: 'Windows Linux (WSL)',
+    texto: 'The Terminal uses the Linux built into Windows, much faster than the website one. It is not installed on this PC yet.',
+    detalhe: 'Installing asks for administrator once, downloads the official Ubuntu from Microsoft (about 500 MB) and may ask you to restart the PC.',
+    instalar: 'Install Windows Linux', site: 'Use the website terminal',
+    instalando: 'Installing… Follow the window that opened. When it finishes (and after restarting, if Windows asks), tap Terminal again.',
+    erro: 'Installation did not start (administrator declined?). Try again or use the website terminal.'
+  };
+  const bt = 'display:block;width:100%;margin:8px 0;padding:11px;border-radius:10px;font:inherit;font-weight:600;text-decoration:none;text-align:center;box-sizing:border-box';
+  const html = '<!doctype html><meta charset="utf-8"><title>' + T.titulo + '</title><body style="font:14px -apple-system,Segoe UI,sans-serif;margin:0;padding:22px;background:#f2f2f7;color:#1c1c1e">' +
+    '<h3 style="margin:0 0 10px">' + T.titulo + '</h3><p>' + T.texto + '</p><p style="color:#636366">' + T.detalhe + '</p>' +
+    '<a href="https://inkhub.acao/instalar" style="' + bt + ';background:#0a84ff;color:#fff">' + T.instalar + '</a>' +
+    '<a href="https://inkhub.acao/site" style="' + bt + ';background:#fff;color:#1c1c1e;border:1px solid #d1d1d6">' + T.site + '</a>' +
+    '<p id="t" style="color:#636366;min-height:3em"></p></body>';
+  const w = janelaTerminal = new BrowserWindow({ width: 460, height: 400, resizable: false, maximizable: false, icon: ICONE, autoHideMenuBar: true, title: T.titulo, backgroundColor: '#f2f2f7', webPreferences: { sandbox: true, contextIsolation: true } });
+  const dizer = txt => w.isDestroyed() || w.webContents.executeJavaScript('document.getElementById("t").textContent=' + JSON.stringify(txt)).catch(() => {});
+  w.webContents.on('will-navigate', (e, url) => {
+    e.preventDefault();
+    if (url.startsWith('https://inkhub.acao/site')) { w.close(); terminalDoSite(); return; }
+    if (url.startsWith('https://inkhub.acao/instalar')) {
+      dizer(T.instalando);
+      cp.execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+        "Start-Process -FilePath wsl.exe -ArgumentList '--install','-d','Ubuntu' -Verb RunAs"],
+        { windowsHide: true }, err => { if (err) dizer(T.erro); });
+    }
+  });
+  w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+}
+
 // ---------- a própria carcaça se atualiza ----------
 // Lê versao.json da release hub-windows; se for mais nova, baixa o instalador em segundo plano, confere o SHA-256
 // e mostra na tela inicial "Nova versão do app · Reiniciar". Se a pessoa não tocar, instala ao fechar o Hub.
@@ -321,15 +386,16 @@ function cuidar(w) {
   w.once('ready-to-show', () => w.show());
   w.webContents.setWindowOpenHandler(({ url }) => {
     if (ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
+    if (ehTerminal(url)) { abrirTerminal(); return { action: 'deny' }; }
     if (url === 'about:blank' || doSite(url)) return { action: 'allow', overrideBrowserWindowOptions: opcoes(1200, 820) };
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
   w.webContents.on('did-create-window', cuidar);
   w.webContents.on('will-navigate', (e, url) => {
-    if (ehWebcam(url)) {
+    if (ehWebcam(url) || ehTerminal(url)) {
       e.preventDefault();
-      abrirWebcam();
+      if (ehWebcam(url)) abrirWebcam(); else abrirTerminal();
       // a tela inicial abre uma janela vazia e depois manda o endereço: essa janela fecha
       const atual = w.webContents.getURL();
       if (w !== principal() && (!atual || atual === 'about:blank')) w.close();
