@@ -1,7 +1,7 @@
 (function(global){
 'use strict';
 const NS=global.InkDOS2Presentations=global.InkDOS2Presentations||{},EMU=12700;
-function create({session,overlay,host,counter}={}){
+function create({session,overlay,host,counter,renderSlide}={}){
  let index=0,active=false;
  function n(v,f=0){v=Number(v);return Number.isFinite(v)?v:f}
  function px(v){return n(v)/EMU}
@@ -77,6 +77,7 @@ function create({session,overlay,host,counter}={}){
  function fitCurrent(){if(!active)return;const slide=session.slides[index],frame=host.firstElementChild;if(slide&&frame)fit(slide,frame)}
  function buildFrame(slide){
   const frame=document.createElement('div');frame.dataset.slideshowFrame='true';frame.style.position='absolute';frame.style.left='0';frame.style.top='0';
+  const same=renderSlide?.(slide);if(same){same.dataset.slideshowLayer='true';same.style.position='absolute';same.style.inset='0';frame.appendChild(same);return {frame,layer:same}}
   const layer=document.createElement('div');layer.dataset.slideshowLayer='true';layer.style.cssText=`position:absolute;inset:0;background:${slide.background||'#fff'};color:#161616;overflow:hidden;font-family:Arial,Helvetica,sans-serif`;
   if(slide.backgroundImage){layer.style.backgroundImage=`url(${JSON.stringify(slide.backgroundImage)})`;layer.style.backgroundSize='cover';layer.style.backgroundPosition='center'}
   for(const o of slide.objects||[]){let node=null;if(o.type==='text')node=textNode(o);else if(o.type==='image')node=imageNode(o);else if(o.type==='shape')node=shapeNode(o);else if(o.type==='table')node=tableNode(o);if(node)layer.appendChild(node)}
@@ -116,7 +117,9 @@ function create({session,overlay,host,counter}={}){
  }
  function clearPrint(){if(!printSheet)return;printSheet.remove();printSheet=null;document.documentElement.classList.remove('ppt-printing')}
  global.addEventListener?.('beforeprint',preparePrint);global.addEventListener?.('afterprint',clearPrint);
- function open(fromStart=false){if(!session.active)return false;index=fromStart?0:session.currentIndex;active=true;overlay.hidden=false;document.body.dataset.presenting='true';render();overlay.focus();try{overlay.requestFullscreen?.()}catch(_){}return true}
+ // No iPad o navegador já mostra o próprio X na tela cheia; o nosso só aparece quando ele não existe.
+ function syncExit(){const exit=overlay.querySelector('[data-present-exit]');if(exit)exit.hidden=!!(document.fullscreenElement||document.webkitFullscreenElement)&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1}
+ function open(fromStart=false){if(!session.active)return false;index=fromStart?0:session.currentIndex;active=true;overlay.hidden=false;document.body.dataset.presenting='true';render();overlay.focus();try{Promise.resolve(overlay.requestFullscreen?.()).then(syncExit,()=>{})}catch(_){}return true}
  function close(){active=false;overlay.hidden=true;delete document.body.dataset.presenting;if(document.fullscreenElement)document.exitFullscreen?.().catch?.(()=>{})}
  function next(){if(index<session.slides.length-1){index++;render()}else close()}
  function prev(){if(index>0){index--;render()}}
@@ -154,7 +157,7 @@ function create({session,overlay,host,counter}={}){
   next();
  });
  overlay.querySelector('[data-present-exit]')?.addEventListener('click',e=>{e.stopPropagation();close()});document.addEventListener('keydown',key);
- global.addEventListener?.('resize',fitCurrent);global.visualViewport?.addEventListener?.('resize',fitCurrent);document.addEventListener('fullscreenchange',fitCurrent);
+ global.addEventListener?.('resize',fitCurrent);global.visualViewport?.addEventListener?.('resize',fitCurrent);document.addEventListener('fullscreenchange',syncExit);document.addEventListener('fullscreenchange',fitCurrent);
  if(typeof global.ResizeObserver==='function'){const ro=new global.ResizeObserver(fitCurrent);ro.observe(overlay)}
  return Object.freeze({open,close,render,preparePrint,clearPrint,get active(){return active}})
 }
