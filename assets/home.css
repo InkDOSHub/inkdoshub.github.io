@@ -118,3 +118,26 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 .menu-offline details.i .pop{right:-14px;left:auto;top:28px;width:226px;z-index:5;box-sizing:border-box}
 
 .aviso-atualizar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;padding:10px 16px;border:1px solid var(--border,#e3e8ef);border-radius:999px;background:var(--card,#fff);color:var(--text,#192235);font:inherit;font-size:14px;font-weight:600;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.12);cursor:pointer}
+/* Modo Offline (inicio/offline.js): painel com um item por app, confirmação na página e oferta depois do uso */
+.off-fundo{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:max(56px,env(safe-area-inset-top)) 16px 16px;background:rgba(0,0,0,.28)}
+.off-painel{width:min(420px,100%);max-height:calc(100vh - 72px);overflow:auto;padding:14px;border-radius:14px;background:var(--card);border:1px solid var(--border);box-shadow:0 14px 40px rgba(0,0,0,.2);color:var(--text);box-sizing:border-box}
+.off-topo{display:flex;align-items:center;justify-content:space-between;font-size:16px}
+.off-x{border:0;background:transparent;color:var(--muted);font-size:16px;width:32px;height:32px;border-radius:8px}
+.off-ajuda,.off-espaco{margin:6px 0 10px;font-size:13px;color:var(--muted)}
+.off-espaco{margin:8px 0 6px}
+.off-atualizar{width:100%;min-height:36px;border:1px solid var(--border);border-radius:10px;background:var(--accent-soft);color:var(--text);font:inherit;font-weight:600}
+.off-lista{display:flex;flex-direction:column;gap:2px}
+.off-item{display:flex;align-items:center;gap:10px;width:100%;min-height:38px;padding:0 8px;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;font-size:14px;text-align:left}
+button.off-item:hover{background:var(--accent-soft)}
+.off-item small{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+.off-fixo{opacity:.75}
+.off-check{width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:50%;border:1.5px solid var(--border);color:transparent;font-size:12px;font-weight:700}
+.off-check.on{background:#1f9d55;border-color:#1f9d55;color:#fff}
+.off-conf{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:2px 0 6px 38px;font-size:13px}
+.off-conf span{flex:1 1 100%}
+.off-nao,.off-sim{min-height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font:inherit;font-size:13px}
+.off-sim{background:#1f9d55;border-color:#1f9d55;color:#fff}
+.off-conf .off-sim{background:#c0392b;border-color:#c0392b}
+.off-oferta{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:55;width:min(420px,calc(100% - 32px));padding:12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.18);color:var(--text);font-size:14px;box-sizing:border-box}
+.off-oferta p{margin:6px 0 10px;font-size:13px;color:var(--muted)}
+.off-botoes{display:flex;justify-content:flex-end;gap:8px}

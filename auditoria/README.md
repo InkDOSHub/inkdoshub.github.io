@@ -16,9 +16,10 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | 8 | Ponte com os apps externos (Linux, Código, ONLYOFFICE, PDF) | [009-integracao.md](009-integracao.md) |
 
 | — | Quadro: desenho salvo no IndexedDB | [010-quadro-indexeddb.md](010-quadro-indexeddb.md) |
+| — | Modo Offline por app | [011-offline-por-app.md](011-offline-por-app.md) |
 | — | Apresentações: tela cheia igual à edição | [013-apresentacao-tela-cheia.md](013-apresentacao-tela-cheia.md) |
 
-Logs 011 (Offline por app), 014 (revisão final) e 015 (Windows) entram conforme ficam prontos.
+Logs 014 (revisão final) e 015 (Windows) entram conforme ficam prontos.
 
 ## Resumo (2026-10-29)
 
