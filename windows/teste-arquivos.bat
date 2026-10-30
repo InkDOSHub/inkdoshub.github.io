@@ -40,6 +40,8 @@ $pasta = Join-Path ([Environment]::GetFolderPath('Desktop')) 'InkDOSHub-teste'
 $tmp = Join-Path $env:TEMP 'InkDOSHub-teste'
 New-Item -ItemType Directory -Force -Path $baixar, $pasta, $tmp | Out-Null
 $nucleos = [Environment]::ProcessorCount
+# tudo o que aparece na janela tambem vai para um arquivo, para nao se perder se ela fechar
+try { Start-Transcript -Path (Join-Path $pasta 'log-arquivos.txt') -Force | Out-Null } catch {}
 $resultados = @()
 $primeira = @()
 
@@ -171,7 +173,8 @@ function Alvo($m, $url, $seg = 30) {
   $fim = (Get-Date).AddSeconds($seg)
   while ((Get-Date) -lt $fim) {
     try {
-      $t = @(Invoke-RestMethod ($m.Cdp + '/json/list') -UseBasicParsing) | Where-Object { $_.type -eq 'page' -and $_.url -and $_.url.StartsWith($base) } | Select-Object -First 1
+      $l = Invoke-RestMethod ($m.Cdp + '/json/list') -UseBasicParsing
+      $t = $l | ForEach-Object { $_ } | Where-Object { $_.type -eq 'page' -and $_.url -and $_.url.StartsWith($base) } | Select-Object -First 1
       if ($t) { return $t }
     } catch {}
     Esperar 0.3
@@ -200,6 +203,21 @@ function FecharJanela($m, $j) {
   } catch {}
 }
 
+# espera o app ficar pronto; se a pagina recarregar sozinha (1a visita), tenta de novo
+function Pronto($ws, $achar) {
+  for ($i = 1; $i -le 5; $i++) {
+    try {
+      $ok = Js $ws ("new Promise(r=>{const t0=Date.now();(function f(){if(document.readyState==='complete'&&" + $achar + ")r(true);else if(Date.now()-t0>60000)r(false);else setTimeout(f,200)})()})") 70
+      if (-not $ok) { throw 'o app nao ficou pronto em 60 s' }
+      Js $ws $sossegar 70 | Out-Null
+      return
+    } catch {
+      if ($i -eq 5 -or -not ("$_" -match 'context|contexto|destroyed')) { throw }
+      Esperar 1
+    }
+  }
+}
+
 # ---------- o teste de um arquivo ----------
 function TestarArquivo($m, $a) {
   $url = $site + $apps[$a.Ext]
@@ -212,9 +230,7 @@ function TestarArquivo($m, $a) {
   try {
     $j = AbrirJanela $m $url
     $ws = Conectar $j.Ws
-    $pronto = Js $ws ("new Promise(r=>{const t0=Date.now();(function f(){if(document.readyState==='complete'&&" + $achar + ")r(true);else if(Date.now()-t0>60000)r(false);else setTimeout(f,200)})()})") 70
-    if (-not $pronto) { throw 'o app nao ficou pronto em 60 s' }
-    Js $ws $sossegar 70 | Out-Null
+    Pronto $ws $achar
     $tApp = [Math]::Round(((Get-Date) - $t0).TotalSeconds - 1.5, 1)
     Esperar 2
     $ps = Processos $m.Exe $m.Marca
@@ -254,8 +270,7 @@ function TestarTudo($m) {
     $t0 = Get-Date; $j = $null; $ws = $null; $tp = $null
     try {
       $j = AbrirJanela $m ($site + $apps[$e]); $ws = Conectar $j.Ws
-      Js $ws ("new Promise(r=>{const t0=Date.now();(function f(){if(document.readyState==='complete'&&" + (Achar $e) + ")r(true);else if(Date.now()-t0>60000)r(false);else setTimeout(f,200)})()})") 70 | Out-Null
-      Js $ws $sossegar 70 | Out-Null
+      Pronto $ws (Achar $e)
       $tp = [Math]::Round(((Get-Date) - $t0).TotalSeconds - 1.5, 1)
     } catch {} finally { if ($ws) { try { $ws.Dispose() } catch {} }; if ($j) { FecharJanela $m $j } }
     $script:primeira += [pscustomobject]@{ Motor = $m.Nome; App = $nomeApp[$e]; PrimeiraAberturaS = $tp }
@@ -305,9 +320,8 @@ if (Quero 'webview2') {
     $env:PATH = (Join-Path $wv 'lib\net462') + ';' + $env:PATH
     $dados = Join-Path $tmp 'perfil-WebView2'
     Remove-Item -Recurse -Force $dados -ErrorAction SilentlyContinue
-    $opcoes = New-Object Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions
-    $opcoes.AdditionalBrowserArguments = '--remote-debugging-port=9223'
-    $ambiente = (Aguardar ([Microsoft.Web.WebView2.Core.CoreWebView2Environment]::CreateAsync($null, $dados, $opcoes)) 60).Result
+    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9223'
+    $ambiente = (Aguardar ([Microsoft.Web.WebView2.Core.CoreWebView2Environment]::CreateAsync($null, $dados, $null)) 60).Result
     function JanelaWebView($url) {
       $f = New-Object System.Windows.Forms.Form
       $f.Width = 1100; $f.Height = 750; $f.Text = 'InkDOS Hub (WebView2)'
@@ -437,3 +451,4 @@ Write-Host ($resumo | Format-Table -AutoSize | Out-String -Width 200)
 Diga ('Relatorio: ' + $txt)
 Start-Process notepad.exe $txt
 Remove-Item -Recurse -Force (Join-Path $tmp 'perfil-*') -ErrorAction SilentlyContinue
+try { Stop-Transcript | Out-Null } catch {}
