@@ -41,6 +41,7 @@ $tmp = Join-Path $env:TEMP 'InkDOSHub-teste'
 New-Item -ItemType Directory -Force -Path $baixar, $pasta, $tmp | Out-Null
 $nucleos = [Environment]::ProcessorCount
 $resultados = @()
+$primeira = @()
 
 function Diga($s) { Write-Host ((Get-Date).ToString('HH:mm:ss') + '  ' + $s) }
 
@@ -247,7 +248,20 @@ function TestarArquivo($m, $a) {
 }
 
 function TestarTudo($m) {
-  Diga ($m.Nome + ': ' + $arquivos.Count + ' arquivos')
+  # 1a abertura de cada app: o motor ainda baixa o app do site (perfil novo). Fica anotada a parte e nao entra na media.
+  Diga ($m.Nome + ': primeira abertura de cada app (baixando do site)')
+  foreach ($e in $apps.Keys) {
+    $t0 = Get-Date; $j = $null; $ws = $null; $tp = $null
+    try {
+      $j = AbrirJanela $m ($site + $apps[$e]); $ws = Conectar $j.Ws
+      Js $ws ("new Promise(r=>{const t0=Date.now();(function f(){if(document.readyState==='complete'&&" + (Achar $e) + ")r(true);else if(Date.now()-t0>60000)r(false);else setTimeout(f,200)})()})") 70 | Out-Null
+      Js $ws $sossegar 70 | Out-Null
+      $tp = [Math]::Round(((Get-Date) - $t0).TotalSeconds - 1.5, 1)
+    } catch {} finally { if ($ws) { try { $ws.Dispose() } catch {} }; if ($j) { FecharJanela $m $j } }
+    $script:primeira += [pscustomobject]@{ Motor = $m.Nome; App = $nomeApp[$e]; PrimeiraAberturaS = $tp }
+    Esperar 2
+  }
+  Diga ($m.Nome + ': ' + $arquivos.Count + ' arquivos (apps ja em cache)')
   foreach ($a in $arquivos) { TestarArquivo $m $a; Esperar 1 }
 }
 
@@ -406,13 +420,15 @@ $linhas = @(
   'PC: ' + $pc.Name.Trim() + ' | ' + $nucleos + ' nucleos | ' + $ram + ' GB | ' + $so,
   'Arquivos: ' + $baixar,
   '',
-  'AbrirAppS = tempo para o app ficar pronto. AbrirArquivoS = da entrega do arquivo ate a tela parar de mudar.',
+  'AbrirAppS = tempo para o app ficar pronto (ja em cache). AbrirArquivoS = da entrega do arquivo ate a tela parar de mudar.',
   'MemoriaMB e PicoMB = memoria privada do motor a mais do que antes de abrir o app. CPU = media enquanto abria o arquivo.',
   'FecharS = tempo para os processos do app sumirem depois de fechar a janela.',
   '',
   'RESUMO (media por motor e nivel)'
 )
 $linhas += ($resumo | Format-Table -AutoSize | Out-String -Width 200)
+$linhas += 'PRIMEIRA ABERTURA DE CADA APP (o motor ainda baixa o app do site; nao entra nas medias)'
+$linhas += ($primeira | Format-Table -AutoSize | Out-String -Width 200)
 $linhas += 'DETALHE'
 $linhas += ($resultados | Format-Table Motor, App, Nivel, MB, AbrirAppS, AbrirArquivoS, MemoriaMB, PicoMB, CPU, FecharS, Obs -AutoSize | Out-String -Width 250)
 $linhas | Set-Content $txt -Encoding UTF8
