@@ -1,11 +1,12 @@
-// InkDOS Hub para Windows: lançador nativo e leve (WinForms, sem motor web).
+// InkDOS Hub para Windows: lançador nativo e leve (WinForms, sem motor web), com o visual da tela inicial do site.
 //
-// A tela inicial mostra as ferramentas. As pesadas (Linux, Código, Documentos, PDF, Cortar vídeo) são programas
-// nativos que só são baixados quando a pessoa quer, sempre da fonte oficial e conferidos (Ferramentas.cs).
-// Antes de baixar, um cartão na própria janela mostra de onde vem, quem publica, a licença, o tamanho do download,
-// o espaço no disco e o espaço livre. Fotos, música, gravador, quadro e os documentos rápidos continuam no site.
-// Atualizações: o catálogo do site diz a versão de cada ferramenta (só o que mudou é baixado de novo) e a release
-// "hub-windows" traz o próprio InkDOS Hub, conferido pelo SHA-256 publicado junto.
+// A tela inicial (Inicio.cs) mostra os mesmos apps do site. Os que têm versão nativa (Linux, Código, Documentos,
+// Planilhas, Apresentações, Editar PDF, Vídeo, Webcam, Transferir) usam programas que só são baixados quando a
+// pessoa quer, sempre da fonte oficial e conferidos (Ferramentas.cs). Os outros abrem no navegador.
+// O ☰ > "Ferramentas neste PC" é o Modo Offline do site: um check verde por ferramenta; tocar baixa (depois de mostrar
+// de onde vem, quem publica, o tamanho e o espaço livre), tocar de novo pergunta, na própria janela, se pode remover.
+// Atualizações: o catálogo do site diz a versão de cada ferramenta e a release "hub-windows" traz o próprio Hub,
+// conferido pelo SHA-256 publicado junto.
 
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -23,6 +25,8 @@ namespace InkDOSHub
 {
     static class Program
     {
+        [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
+
         [STAThread]
         static void Main()
         {
@@ -31,354 +35,442 @@ namespace InkDOSHub
             {
                 if (!primeiro) return;
                 Atualizador.LimparVelho();
+                try { SetProcessDPIAware(); } catch { }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
+                using (var g = Graphics.FromHwnd(IntPtr.Zero)) Ui.E = g.DpiX / 96f;
                 Application.Run(new Janela());
             }
         }
     }
 
-    static class Cores
+    // Preferências em %LOCALAPPDATA%\InkDOS Hub\config.txt, uma por linha (chave=valor).
+    static class Conf
     {
-        public static readonly bool Escuro = LerEscuro();
-        static bool LerEscuro()
+        static readonly string Arq = Path.Combine(Ferramentas.Pasta, "config.txt");
+        static Dictionary<string, string> Ler()
         {
-            try { return (int)(Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) ?? 1) == 0; }
-            catch { return false; }
+            var d = new Dictionary<string, string>();
+            try
+            {
+                foreach (var l in File.ReadAllLines(Arq))
+                {
+                    int i = l.IndexOf('=');
+                    if (i > 0) d[l.Substring(0, i).Trim()] = l.Substring(i + 1).Trim();
+                    else if (l.Trim() == "zed") d["editor"] = "zed";  // formato da versão 0.1
+                }
+            }
+            catch { }
+            return d;
         }
-        public static Color Fundo { get { return Escuro ? Color.FromArgb(28, 28, 30) : Color.FromArgb(245, 246, 248); } }
-        public static Color Cartao { get { return Escuro ? Color.FromArgb(44, 44, 46) : Color.White; } }
-        public static Color Texto { get { return Escuro ? Color.FromArgb(242, 242, 247) : Color.FromArgb(25, 34, 53); } }
-        public static Color Fraco { get { return Escuro ? Color.FromArgb(160, 160, 168) : Color.FromArgb(105, 112, 128); } }
-        public static Color Linha { get { return Escuro ? Color.FromArgb(64, 64, 68) : Color.FromArgb(227, 232, 239); } }
-        public static readonly Color Verde = Color.FromArgb(31, 157, 85);
-        public static readonly Color Acento = Color.FromArgb(37, 99, 235);
+        public static string Pegar(string k, string padrao) { string v; return Ler().TryGetValue(k, out v) ? v : padrao; }
+        public static void Gravar(string k, string v)
+        {
+            var d = Ler(); d[k] = v;
+            try { Directory.CreateDirectory(Ferramentas.Pasta); File.WriteAllLines(Arq, d.Select(x => x.Key + "=" + x.Value)); } catch { }
+        }
     }
 
     class Janela : Form
     {
         Catalogo catalogo;
-        readonly FlowLayoutPanel grade = new FlowLayoutPanel();
-        readonly Panel faixa = new Panel();
-        readonly Label faixaTexto = new Label();
-        readonly Button faixaBotao = new Button();
-        readonly Panel fundoPainel = new Panel();
-        readonly Panel painel = new Panel();
-        readonly Font fonte = new Font("Segoe UI", 10f);
-        readonly Font fonteTitulo = new Font("Segoe UI Semibold", 12f);
-        readonly Font fonteIcone = new Font("Segoe UI Symbol", 22f);
+        readonly Inicio inicio;
+        readonly Camada camada = new Camada { Visible = false };
+        readonly MenuPop menu = new MenuPop();
+        readonly System.Windows.Forms.Timer giro = new System.Windows.Forms.Timer { Interval = 40 };
         CancellationTokenSource cancelar;
+        bool ocupado, menuAberto;
 
-        static readonly string Config = Path.Combine(Ferramentas.Pasta, "config.txt");
-        static string Editor
+        static string Editor { get { return Conf.Pegar("editor", "vscode") == "zed" ? "zed" : "vscode"; } }
+
+        static Image Icone(string nome)
         {
-            get { try { return File.Exists(Config) && File.ReadAllText(Config).Trim() == "zed" ? "zed" : "vscode"; } catch { return "vscode"; } }
-            set { try { File.WriteAllText(Config, value); } catch { } }
+            using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("icones/" + nome + ".png")) return Image.FromStream(s);
         }
 
         public Janela()
         {
+            string tema = Conf.Pegar("tema", "");
+            Ui.Escuro = tema == "escuro" || (tema == "" && WindowsEscuro());
             Text = "InkDOS Hub";
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
-            ClientSize = new Size(900, 600);
-            MinimumSize = new Size(560, 420);
-            BackColor = Cores.Fundo;
-            ForeColor = Cores.Texto;
-            Font = fonte;
+            AutoScaleMode = AutoScaleMode.None;
+            ClientSize = new Size(Ui.P(1000), Ui.P(680));
+            MinimumSize = new Size(Ui.P(420), Ui.P(480));
             StartPosition = FormStartPosition.CenterScreen;
+            KeyPreview = true;
+            BackColor = Ui.Fundo;
 
-            // barra de cima: nome à esquerda, ☰ à direita (o mesmo desenho dos apps do site)
-            var barra = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Cores.Cartao };
-            barra.Controls.Add(new Label { Text = "InkDOS Hub", Font = fonteTitulo, AutoSize = true, Location = new Point(16, 13), ForeColor = Cores.Texto });
-            var menu = new Button { Text = "☰", Width = 44, Height = 36, FlatStyle = FlatStyle.Flat, Anchor = AnchorStyles.Top | AnchorStyles.Right, ForeColor = Cores.Texto, Font = new Font("Segoe UI Symbol", 13f) };
-            menu.FlatAppearance.BorderSize = 0;
-            menu.Location = new Point(barra.Width - 54, 6);
-            barra.Resize += (s, e) => menu.Left = barra.Width - 54;
-            menu.Click += (s, e) => MenuPrincipal().Show(menu, new Point(menu.Width - 220, menu.Height));
-            barra.Controls.Add(menu);
-
-            faixa.Dock = DockStyle.Top; faixa.Height = 40; faixa.Visible = false; faixa.BackColor = Cores.Escuro ? Color.FromArgb(40, 52, 80) : Color.FromArgb(232, 240, 254);
-            faixaTexto.AutoSize = true; faixaTexto.Location = new Point(16, 11); faixaTexto.ForeColor = Cores.Texto;
-            faixaBotao.AutoSize = true; faixaBotao.FlatStyle = FlatStyle.Flat; faixaBotao.Location = new Point(320, 5); faixaBotao.ForeColor = Cores.Texto;
-            faixa.Controls.Add(faixaTexto); faixa.Controls.Add(faixaBotao);
-
-            grade.Dock = DockStyle.Fill; grade.Padding = new Padding(16); grade.AutoScroll = true; grade.BackColor = Cores.Fundo;
-
-            // painel na própria janela (sem caixas de diálogo): cartão no centro sobre um fundo
-            fundoPainel.Dock = DockStyle.Fill; fundoPainel.Visible = false; fundoPainel.BackColor = Cores.Escuro ? Color.FromArgb(18, 18, 20) : Color.FromArgb(214, 218, 226);
-            painel.BackColor = Cores.Cartao; painel.Padding = new Padding(18); painel.AutoScroll = true;
-            fundoPainel.Controls.Add(painel);
-            fundoPainel.Resize += (s, e) => CentralizarPainel();
-
-            Controls.Add(fundoPainel);
-            Controls.Add(grade);
-            Controls.Add(faixa);
-            Controls.Add(barra);
+            inicio = new Inicio(Icone("marca")) { Dock = DockStyle.Fill };
+            Apps();
+            inicio.Menu += AbrirMenu;
+            inicio.AbrirArquivo += AbrirArquivo;
+            inicio.CodigoFonte += () => Navegar("https://github.com/InkDOSHub/inkdoshub.github.io");
+            inicio.MouseDown += (s, e) => { menuAberto = menu.Visible; menu.Visible = false; };
+            inicio.Busca.MouseDown += (s, e) => menu.Visible = false;
+            camada.Dock = DockStyle.Fill;
+            camada.Fechar += FecharPainel;
+            Controls.Add(menu);
+            Controls.Add(camada);
+            Controls.Add(inicio);
+            Ui.Refazer = () => camada.Arrumar();
+            giro.Tick += (s, e) => { foreach (var l in Linhas()) if (l.Girando) l.Invalidate(); };
+            Deactivate += (s, e) => menu.Visible = false;
+            KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { if (menu.Visible) menu.Visible = false; else if (camada.Visible) FecharPainel(); } };
 
             catalogo = Ferramentas.Embutido();
-            Desenhar();
             Shown += async (s, e) =>
             {
                 catalogo = await Task.Run(() => Ferramentas.Carregar());
-                Desenhar();
-                ProcurarAtualizacoes(false);
+                AtualizarInstaladas();
+                ProcurarAtualizacoes();
             };
+        }
+
+        static bool WindowsEscuro()
+        {
+            try { return (int)(Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) ?? 1) == 0; }
+            catch { return false; }
         }
 
         Ferramenta F(string id) { return catalogo.ferramentas.FirstOrDefault(x => x.id == id); }
+        static string Mb(long b) { return b <= 0 ? "0 MB" : b >= 1000000000 ? (b / 1e9).ToString("0.0") + " GB" : Math.Max(0.1, b / 1e6).ToString(b < 10000000 ? "0.0" : "0") + " MB"; }
+        static void Navegar(string url) { try { Process.Start(url); } catch { } }
 
-        static string Mb(long b) { return b >= 1000000000 ? (b / 1e9).ToString("0.0") + " GB" : Math.Max(0.1, b / 1e6).ToString(b < 10000000 ? "0.0" : "0") + " MB"; }
-
-        // ---------- tela inicial ----------
-        void Desenhar()
+        // ---------- apps da tela inicial (mesma ordem do site) ----------
+        void Apps()
         {
-            grade.SuspendLayout();
-            grade.Controls.Clear();
-            Bloco("⌨", T.Tx("Linux"), "linux", () => Usar("linux", f => Ferramentas.Abrir(f)));
-            Bloco("❮❯", T.Tx("Código"), Editor, () => Usar(Editor, f => Ferramentas.Abrir(f)));
-            Bloco("▤", T.Tx("Documentos"), "onlyoffice", () => Usar("onlyoffice", f => Ferramentas.Abrir(f)));
-            Bloco("⎙", T.Tx("PDF"), "qpdf", PainelPdf);
-            Bloco("✂", T.Tx("Cortar vídeo"), "ffmpeg", () => Usar("ffmpeg", f => PainelVideo(f)));
-            Bloco("◉", T.Tx("Webcam"), "webcam", () => Usar("webcam", f => Ferramentas.Abrir(f)));
-            Bloco("⇄", T.Tx("Transferir"), "transferir", () => Usar("transferir", f => Ferramentas.Abrir(f)));
-            Bloco("⌂", T.Tx("Mais apps"), null, () => Process.Start(Ferramentas.SITE));
-            grade.ResumeLayout();
+            Action<string, string, string, string, Action> app = (icone, nome, ferramenta, dica, acao) =>
+                inicio.Apps.Add(new App { Icone = Icone(icone), Nome = T.Tx(nome), Ferramenta = ferramenta, Dica = T.Tx(dica), Acao = () => { menu.Visible = false; try { acao(); } catch (Exception ex) { Aviso(ex.Message); } } });
+            Func<string, Action> site = caminho => () => Navegar(Ferramentas.SITE + caminho);
+            const string noNavegador = "Abre no navegador.";
+            app("pdf", "PDF", null, noNavegador, site("inkdos/apps/pdf/index.html?suite=1"));
+            app("editar-pdf", "Editar PDF", "qpdf", "Juntar, girar e comprimir PDFs (qpdf e Ghostscript).", PainelPdf);
+            app("documentos", "Documentos", "onlyoffice", "Word (DOCX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:word", true)));
+            app("planilhas", "Planilhas", "onlyoffice", "Excel (XLSX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:cell", true)));
+            app("apresentacoes", "Apresentações", "onlyoffice", "PowerPoint (PPTX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:slide", true)));
+            app("texto", "Texto simples", null, "Bloco de Notas do Windows.", () => Process.Start("notepad.exe"));
+            app("epub", "Leitor EPUB", null, noNavegador, site("inkdos/apps/epub/index.html?suite=1"));
+            app("foto", "Fotos", null, noNavegador, site("apps/foto/"));
+            app("video", "Vídeo", "ffmpeg", "Cortar vídeo sem perder qualidade (ffmpeg).", () => Usar("ffmpeg", f => PainelVideo(f, null)));
+            app("musica", "Música", null, noNavegador, site("apps/musica/"));
+            app("gravador", "Gravador", null, noNavegador, site("apps/gravador/"));
+            app("webcam", "Webcam", "webcam", "A câmera do celular como webcam do PC.", () => Usar("webcam", f => Ferramentas.Abrir(f)));
+            app("transferir", "Transferir", "transferir", "Arquivos entre o celular e o PC, sem internet.", () => Usar("transferir", f => Ferramentas.Abrir(f)));
+            app("quadro", "Quadro branco", null, noNavegador, site("apps/quadro/"));
+            app("codigo", "Código", "editor", "VS Code ou Zed (escolha no ☰).", () => Usar(Editor, f => Ferramentas.Abrir(f)));
+            app("terminal", "Linux terminal", "linux", "Alpine Linux no WSL, com as pastas do Windows.", () => Usar("linux", f => Ferramentas.Abrir(f)));
         }
 
-        void Bloco(string icone, string nome, string id, Action acao)
+        async void AtualizarInstaladas()
         {
-            var f = id != null ? F(id) : null;
-            string estado = id == null ? T.Tx("no navegador") : f == null ? "" : Ferramentas.Instalada(f) ? T.Tx("Abrir") : T.Tx("Baixar · {0}", Mb(f.baixar));
-            var b = new Button { Width = 150, Height = 120, Margin = new Padding(8), FlatStyle = FlatStyle.Flat, BackColor = Cores.Cartao, ForeColor = Cores.Texto, Cursor = Cursors.Hand };
-            b.FlatAppearance.BorderColor = Cores.Linha;
-            b.Paint += (s, e) =>
-            {
-                var g = e.Graphics; g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-                var r = b.ClientRectangle;
-                TextRenderer.DrawText(g, icone, fonteIcone, new Rectangle(0, 14, r.Width, 40), Cores.Acento, TextFormatFlags.HorizontalCenter);
-                TextRenderer.DrawText(g, nome, fonte, new Rectangle(0, 62, r.Width, 22), Cores.Texto, TextFormatFlags.HorizontalCenter);
-                TextRenderer.DrawText(g, estado, new Font("Segoe UI", 8.5f), new Rectangle(0, 86, r.Width, 20), Cores.Fraco, TextFormatFlags.HorizontalCenter);
-            };
-            b.Click += (s, e) => { try { acao(); } catch (Exception ex) { Aviso(ex.Message); } };
-            grade.Controls.Add(b);
+            var c = catalogo; string ed = Editor;
+            var s = await Task.Run(() => new HashSet<string>(c.ferramentas.Where(Ferramentas.Instalada).Select(x => x.id)));
+            if (s.Contains(ed)) s.Add("editor");
+            inicio.Instaladas = s;
+            inicio.Invalidate();
         }
 
-        // Abre a ferramenta; se ainda não está no PC, mostra antes o cartão de download.
+        // Abre a ferramenta; se ainda não está no PC, abre "Ferramentas neste PC" já nela.
         void Usar(string id, Action<Ferramenta> abrir)
         {
             var f = F(id);
             if (f == null) { Aviso(T.Tx("{0} não está instalado.", id)); return; }
             if (Ferramentas.Instalada(f)) { abrir(f); return; }
-            CartaoInstalar(f, () => abrir(f));
+            PainelFerramentas(id, () => abrir(f));
         }
 
-        // ---------- painel genérico ----------
-        void MostrarPainel(string titulo, IEnumerable<Control> itens)
+        // ---------- painel na janela ----------
+        void MostrarPainel(string titulo, params Control[] itens)
         {
-            painel.SuspendLayout();
-            painel.Controls.Clear();
-            var col = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Dock = DockStyle.Top, BackColor = Cores.Cartao };
-            var topo = new Panel { Width = 460, Height = 34 };
-            topo.Controls.Add(new Label { Text = titulo, Font = fonteTitulo, AutoSize = true, Location = new Point(0, 4), ForeColor = Cores.Texto });
-            var x = new Button { Text = "✕", Width = 32, Height = 30, FlatStyle = FlatStyle.Flat, Location = new Point(428, 0), ForeColor = Cores.Fraco };
-            x.FlatAppearance.BorderSize = 0;
-            x.Click += (s, e) => FecharPainel();
-            topo.Controls.Add(x);
-            col.Controls.Add(topo);
-            foreach (var c in itens) col.Controls.Add(c);
-            painel.Controls.Add(col);
-            painel.ResumeLayout();
-            fundoPainel.Visible = true; fundoPainel.BringToFront();
-            CentralizarPainel();
-        }
-
-        void CentralizarPainel()
-        {
-            var col = painel.Controls.Count > 0 ? painel.Controls[0] : null;
-            int h = Math.Min(fundoPainel.Height - 40, (col != null ? col.PreferredSize.Height : 200) + 40);
-            painel.Size = new Size(500, Math.Max(160, h));
-            painel.Location = new Point(Math.Max(0, (fundoPainel.Width - painel.Width) / 2), Math.Max(10, (fundoPainel.Height - painel.Height) / 2));
-        }
-
-        void FecharPainel() { if (cancelar != null) cancelar.Cancel(); fundoPainel.Visible = false; Desenhar(); }
-
-        Label Texto(string t, bool fraco = false) { return new Label { Text = t, AutoSize = true, MaximumSize = new Size(460, 0), ForeColor = fraco ? Cores.Fraco : Cores.Texto, Margin = new Padding(0, 4, 0, 4) }; }
-
-        Button Botao(string t, bool principal = false)
-        {
-            var b = new Button { Text = t, AutoSize = true, MinimumSize = new Size(110, 34), FlatStyle = FlatStyle.Flat, Margin = new Padding(0, 6, 8, 0), BackColor = principal ? Cores.Verde : Cores.Cartao, ForeColor = principal ? Color.White : Cores.Texto };
-            b.FlatAppearance.BorderColor = principal ? Cores.Verde : Cores.Linha;
-            return b;
-        }
-
-        FlowLayoutPanel Linha(params Control[] c)
-        {
-            var l = new FlowLayoutPanel { AutoSize = true, WrapContents = true, MaximumSize = new Size(460, 0), Margin = new Padding(0) };
-            l.Controls.AddRange(c);
-            return l;
-        }
-
-        void Aviso(string texto) { MostrarPainel("InkDOS Hub", new Control[] { Texto(texto) }); }
-
-        // ---------- cartão de download ----------
-        void CartaoInstalar(Ferramenta f, Action depois)
-        {
-            var itens = new List<Control>();
-            Func<string, string, Control> campo = (k, v) => Texto(k + ": " + v);
-            string host = new Uri(f.url).Host;
-            itens.Add(campo(T.Tx("De onde vem"), host + "  (" + f.pagina + ")"));
-            itens.Add(campo(T.Tx("Quem publica"), f.publica));
-            itens.Add(campo(T.Tx("Licença"), f.licenca));
-            itens.Add(campo(T.Tx("Versão"), f.versao));
-            itens.Add(campo(T.Tx("Download"), Mb(f.baixar) + "   ·   " + T.Tx("No disco (aprox.)") + ": " + Mb((long)f.instalado_mb * 1000000) + "   ·   " + T.Tx("Livre no PC") + ": " + Mb(Ferramentas.EspacoLivre())));
-            itens.Add(campo(T.Tx("O que acessa"), f.acesso));
-            itens.Add(Texto(T.Tx("Segurança") + ": " + (string.IsNullOrEmpty(f.assinante)
-                ? T.Tx("Antes de instalar, o InkDOS Hub confere a impressão digital (SHA-256) do arquivo. Este fabricante não assina o programa.")
-                : T.Tx("Antes de instalar, o InkDOS Hub confere a impressão digital (SHA-256) do arquivo e a assinatura digital de {0}.", f.assinante)), true));
-            itens.Add(Texto("SHA-256: " + f.sha256, true));
-
-            var barra = new ProgressBar { Width = 460, Height = 8, Visible = false, Margin = new Padding(0, 8, 0, 0) };
-            var estado = Texto("", true);
-            var nao = Botao(T.Tx("Cancelar"));
-            var sim = Botao(T.Tx("Baixar e instalar"), true);
-            nao.Click += (s, e) => FecharPainel();
-
-            if (f.tipo == "wsl" && !Wsl.Ligado())
+            menu.Visible = false;
+            var p = new Pilha(0, Ui.P(2));
+            p.Controls.AddRange(itens);
+            if (!camada.Visible)
             {
-                itens.Add(Texto(T.Tx("O Linux roda no WSL, que vem com o Windows mas precisa ser ligado uma vez (pede permissão de administrador e, às vezes, reiniciar).")));
-                var ligar = Botao(T.Tx("Ligar o WSL"), true);
-                ligar.Click += async (s, e) => { ligar.Enabled = false; try { await Task.Run(() => Wsl.Ligar()); } catch (Exception ex) { estado.Text = T.Tx("Falhou: {0}", ex.Message); } ligar.Enabled = true; CartaoInstalar(f, depois); };
-                itens.Add(Linha(nao, ligar));
-                itens.Add(estado);
-                MostrarPainel(T.Tx("Instalar {0}?", f.nome), itens);
-                return;
+                camada.Foto = new Bitmap(inicio.Width, inicio.Height);
+                inicio.DrawToBitmap(camada.Foto, new Rectangle(0, 0, inicio.Width, inicio.Height));
+                camada.Visible = true; camada.BringToFront();
             }
+            camada.Trocar(titulo, p);
+            camada.Focus();
+        }
 
-            sim.Click += async (s, e) =>
-            {
-                sim.Enabled = false; barra.Visible = true;
-                cancelar = new CancellationTokenSource();
-                var tk = cancelar.Token;
-                try
-                {
-                    await Task.Run(() => Ferramentas.Instalar(f,
-                        p => BeginInvoke((Action)(() => barra.Value = p)),
-                        t => BeginInvoke((Action)(() => estado.Text = t)), tk));
-                    estado.Text = T.Tx("Verificado ✓") + "  " + T.Tx("Pronto.");
-                    estado.ForeColor = Cores.Verde;
-                    sim.Text = T.Tx("Abrir"); sim.Enabled = true;
-                    sim.Click += (s2, e2) => { FecharPainel(); try { depois(); } catch (Exception ex) { Aviso(ex.Message); } };
-                }
-                catch (OperationCanceledException) { }
-                catch (Exception ex) { estado.Text = T.Tx("Falhou: {0}", ex.Message); estado.ForeColor = Color.IndianRed; sim.Enabled = true; }
-                finally { cancelar = null; }
-            };
-            itens.Add(barra);
-            itens.Add(estado);
-            itens.Add(Linha(nao, sim));
-            MostrarPainel(T.Tx("Instalar {0}?", f.nome), itens);
+        void FecharPainel()
+        {
+            if (cancelar != null) cancelar.Cancel();
+            camada.Visible = false;
+            if (camada.Foto != null) { camada.Foto.Dispose(); camada.Foto = null; }
+            giro.Stop();
+            AtualizarInstaladas();
+        }
+
+        void Aviso(string texto) { MostrarPainel("InkDOS Hub", new Rotulo(texto)); }
+
+        IEnumerable<LinhaCheck> Linhas()
+        {
+            return camada.Visible ? camada.Conteudo.Controls.OfType<Pilha>().SelectMany(p => p.Controls.OfType<LinhaCheck>()) : Enumerable.Empty<LinhaCheck>();
         }
 
         // ---------- ☰ ----------
-        ContextMenuStrip MenuPrincipal()
+        void AbrirMenu()
         {
-            var m = new ContextMenuStrip { Font = fonte };
-            m.Items.Add(T.Tx("Ferramentas guardadas"), null, (s, e) => PainelGuardadas());
-            m.Items.Add(T.Tx("Procurar atualizações"), null, (s, e) => ProcurarAtualizacoes(true));
-            m.Items.Add(new ToolStripSeparator());
-            var vs = new ToolStripMenuItem(T.Tx("Editor de código: VS Code")) { Checked = Editor == "vscode" };
-            vs.Click += (s, e) => { Editor = "vscode"; Desenhar(); };
-            var zed = new ToolStripMenuItem(T.Tx("Editor de código: Zed (leve)")) { Checked = Editor == "zed" };
-            zed.Click += (s, e) => { Editor = "zed"; Desenhar(); };
-            m.Items.Add(vs); m.Items.Add(zed);
-            m.Items.Add(new ToolStripSeparator());
-            m.Items.Add(T.Tx("Segurança e privacidade"), null, (s, e) => PainelSeguranca());
-            m.Items.Add(T.Tx("Abrir o InkDOS Hub no navegador"), null, (s, e) => Process.Start(Ferramentas.SITE));
-            return m;
+            if (menuAberto) { menuAberto = false; return; }
+            var l = new List<MenuPop.Item>
+            {
+                new MenuPop.Item { Texto = T.Tx("Tema claro ou escuro"), Sol = true, Acao = TrocarTema },
+                new MenuPop.Item { Texto = T.Tx("Ferramentas neste PC"), Lado = inicio.Instaladas.Count(x => x != "editor") + "/" + catalogo.ferramentas.Count, Marcado = inicio.Instaladas.Count > 0, Acao = () => PainelFerramentas(null, null) },
+                new MenuPop.Item { Separador = true },
+                new MenuPop.Item { Rotulo = true, Texto = T.Tx("Editor de código") },
+                new MenuPop.Item { Texto = "VS Code", Marcado = Editor == "vscode", Acao = () => { Conf.Gravar("editor", "vscode"); AtualizarInstaladas(); } },
+                new MenuPop.Item { Texto = T.Tx("Zed (leve)"), Marcado = Editor == "zed", Acao = () => { Conf.Gravar("editor", "zed"); AtualizarInstaladas(); } },
+                new MenuPop.Item { Separador = true },
+                new MenuPop.Item { Texto = T.Tx("Segurança e privacidade"), Acao = PainelSeguranca },
+                new MenuPop.Item { Texto = T.Tx("Abrir no navegador"), Acao = () => Navegar(Ferramentas.SITE) },
+            };
+            if (menu.Foto != null) menu.Foto.Dispose();
+            menu.Foto = new Bitmap(inicio.Width, inicio.Height);
+            inicio.DrawToBitmap(menu.Foto, new Rectangle(0, 0, inicio.Width, inicio.Height));
+            menu.Abrir(l, new Point(inicio.MenuR.X, inicio.MenuR.Bottom + Ui.P(6)));
         }
 
-        void PainelGuardadas()
+        void TrocarTema()
         {
-            var itens = new List<Control>();
-            long total = 0;
-            foreach (var f in catalogo.ferramentas.Where(Ferramentas.Instalada))
+            Ui.Escuro = !Ui.Escuro;
+            Conf.Gravar("tema", Ui.Escuro ? "escuro" : "claro");
+            BackColor = Ui.Fundo;
+            inicio.Tema();
+        }
+
+        // ---------- Ferramentas neste PC (o Modo Offline do site) ----------
+        void PainelFerramentas(string abrirId, Action depois)
+        {
+            var status = new Rotulo("");
+            Action<string, Color?> dizer = (t, c) => { status.Cor = c; status.Text = t; status.Invalidate(); };
+            var espaco = new Rotulo("", true);
+            var lista = new Pilha(0, Ui.P(2));
+            var atualizar = new Botao(T.Tx("Atualizar"), Botao.Tipo.Suave, true);
+            Pilha aberta = null;  // detalhes ou confirmação abertos embaixo de uma linha
+
+            Action contar = async () =>
             {
-                long n = Ferramentas.TamanhoNoDisco(f); total += n;
-                var rem = Botao(T.Tx("Remover"));
-                var linha = Linha(new Label { Text = "✓ " + f.nome + "  ·  " + Mb(n), AutoSize = true, ForeColor = Cores.Texto, Margin = new Padding(0, 12, 12, 0) }, rem);
+                var c = catalogo;
+                long usado = await Task.Run(() => c.ferramentas.Where(Ferramentas.Instalada).Sum(x => Ferramentas.TamanhoNoDisco(x)));
+                espaco.Text = T.Tx("Usado pelas ferramentas: {0}. Livre no PC: {1}.", Mb(usado), Mb(Ferramentas.EspacoLivre()));
+            };
+            Action fecharAberta = () => { if (aberta != null) { lista.Controls.Remove(aberta); aberta.Dispose(); aberta = null; } };
+            Action<bool> travar = sim => { foreach (var x in lista.Controls.OfType<LinhaCheck>()) x.Apagada = sim && !x.Girando && !x.Fixo; lista.Invalidate(true); };
+
+            long exe = 0; try { exe = new FileInfo(Application.ExecutablePath).Length; } catch { }
+            lista.Controls.Add(new LinhaCheck(T.Tx("InkDOS Hub (este app)"), Mb(exe) + " · " + T.Tx("sempre guardado"), true, true));
+
+            foreach (var f in catalogo.ferramentas)
+            {
                 var ff = f;
-                rem.Click += (s, e) =>
+                bool tem = inicio.Instaladas.Contains(f.id);
+                var linha = new LinhaCheck(f.nome, Mb(f.baixar), tem);
+                if (tem) Task.Run(() => Ferramentas.TamanhoNoDisco(ff)).ContinueWith(t => { if (t.Result > 0) { linha.Tamanho = Mb(t.Result); linha.Invalidate(); } }, TaskScheduler.FromCurrentSynchronizationContext());
+                linha.Click += (s, e) =>
                 {
-                    // confirmação na própria janela
-                    var sim = Botao(T.Tx("Remover"), true); sim.BackColor = Color.IndianRed; sim.FlatAppearance.BorderColor = Color.IndianRed;
-                    var nao = Botao(T.Tx("Cancelar"));
-                    var conf = Linha(Texto(T.Tx("Remover {0} deste PC?", ff.nome)), nao, sim);
-                    int i = linha.Parent.Controls.GetChildIndex(linha);
-                    linha.Parent.Controls.Add(conf); linha.Parent.Controls.SetChildIndex(conf, i + 1);
-                    nao.Click += (s2, e2) => conf.Dispose();
-                    sim.Click += (s2, e2) => { try { Ferramentas.Remover(ff); } catch (Exception ex) { Aviso(ex.Message); return; } PainelGuardadas(); };
-                    CentralizarPainel();
+                    if (ocupado) { dizer(T.Tx("Aguarde o download atual terminar."), Ui.Perigo); return; }
+                    bool estavaAberta = aberta != null && aberta.Tag == linha;
+                    fecharAberta();
+                    if (estavaAberta) return;
+                    dizer("", null);
+                    aberta = new Pilha(Ui.P(38), 0) { Tag = linha };
+                    var nao = new Botao(T.Tx("Cancelar"));
+                    nao.Click += (s2, e2) => fecharAberta();
+
+                    if (linha.Marcado)
+                    {
+                        // remover: confirmação na própria janela
+                        var sim = new Botao(T.Tx("Remover"), Botao.Tipo.Perigo);
+                        aberta.Controls.Add(new Rotulo(T.Tx("Remover {0} deste PC? ({1})", ff.nome, linha.Tamanho), false, 13));
+                        aberta.Controls.Add(new Fila(nao, sim));
+                        sim.Click += async (s2, e2) =>
+                        {
+                            sim.Enabled = nao.Enabled = false; sim.Text = "…";
+                            dizer(T.Tx("Removendo…"), null);
+                            try
+                            {
+                                await Task.Run(() => Ferramentas.Remover(ff));
+                                linha.Marcado = false; linha.Tamanho = Mb(ff.baixar); linha.Invalidate();
+                                fecharAberta();
+                                dizer(T.Tx("{0} removido", ff.nome), Ui.Verde);
+                            }
+                            catch (Exception ex) { fecharAberta(); dizer(T.Tx("Falhou: {0}", ex.Message), Ui.Perigo); }
+                            AtualizarInstaladas(); contar();
+                        };
+                    }
+                    else
+                    {
+                        // baixar: antes, de onde vem, quem publica, tamanho e segurança
+                        foreach (var t in Detalhes(ff)) aberta.Controls.Add(new Rotulo(t, true));
+                        if (ff.tipo == "wsl" && !Wsl.Ligado())
+                        {
+                            aberta.Controls.Add(new Rotulo(T.Tx("O Linux roda no WSL, que vem com o Windows mas precisa ser ligado uma vez (pede permissão de administrador e, às vezes, reiniciar)."), false, 13));
+                            var ligar = new Botao(T.Tx("Ligar o WSL"), Botao.Tipo.Verde);
+                            ligar.Click += async (s2, e2) =>
+                            {
+                                ligar.Enabled = false; dizer(T.Tx("Ligando o WSL…"), null);
+                                try { await Task.Run(() => Wsl.Ligar()); dizer(T.Tx("Pronto. Se o Windows pedir, reinicie o PC e toque no Linux de novo."), Ui.Verde); }
+                                catch (Exception ex) { dizer(T.Tx("Falhou: {0}", ex.Message), Ui.Perigo); }
+                                ligar.Enabled = true;
+                            };
+                            aberta.Controls.Add(new Fila(nao, ligar));
+                        }
+                        else
+                        {
+                            var sim = new Botao(T.Tx("Baixar e instalar") + " · " + Mb(ff.baixar), Botao.Tipo.Verde);
+                            aberta.Controls.Add(new Fila(nao, sim));
+                            sim.Click += async (s2, e2) =>
+                            {
+                                fecharAberta();
+                                bool ok = await Instalar(ff, linha, dizer, travar);
+                                contar();
+                                if (ok && depois != null && abrirId == ff.id) { FecharPainel(); try { depois(); } catch (Exception ex) { Aviso(ex.Message); } }
+                            };
+                        }
+                    }
+                    lista.Controls.Add(aberta);
+                    lista.Controls.SetChildIndex(aberta, lista.Controls.GetChildIndex(linha) + 1);
+                    camada.Arrumar();
+                    camada.MostrarAte(aberta);
                 };
-                itens.Add(linha);
+                lista.Controls.Add(linha);
             }
-            if (itens.Count == 0) itens.Add(Texto(T.Tx("Nenhuma ferramenta guardada ainda.")));
-            itens.Add(Texto(T.Tx("Total no disco: {0}", Mb(total)) + "   ·   " + T.Tx("Livre no PC") + ": " + Mb(Ferramentas.EspacoLivre()), true));
-            itens.Add(Texto(T.Tx("Programas com instalador próprio também aparecem em Configurações > Apps do Windows."), true));
-            MostrarPainel(T.Tx("Ferramentas guardadas"), itens);
+
+            atualizar.Click += async (s, e) =>
+            {
+                if (ocupado) { dizer(T.Tx("Aguarde o download atual terminar."), Ui.Perigo); return; }
+                fecharAberta();
+                atualizar.Enabled = false; atualizar.Text = "…";
+                dizer(T.Tx("Procurando atualizações…"), null);
+                catalogo = await Task.Run(() => Ferramentas.Carregar());
+                var velhas = catalogo.ferramentas.Where(Ferramentas.TemAtualizacao).ToList();
+                bool tudoOk = true;
+                foreach (var f in velhas)
+                {
+                    var linha = lista.Controls.OfType<LinhaCheck>().FirstOrDefault(x => x.Nome == f.nome);
+                    if (linha == null || !await Instalar(f, linha, dizer, travar)) { tudoOk = false; break; }
+                }
+                if (tudoOk && await Task.Run(() => Atualizador.TemVersaoNova()))
+                {
+                    dizer(T.Tx("Atualizando o InkDOS Hub…"), null);
+                    try { await Task.Run(() => Atualizador.Instalar()); Application.Restart(); Environment.Exit(0); }
+                    catch (Exception ex) { dizer(T.Tx("Falhou: {0}", ex.Message), Ui.Perigo); tudoOk = false; }
+                }
+                if (tudoOk) { dizer(T.Tx("Tudo atualizado") + " ✓", Ui.Verde); inicio.Aviso = null; inicio.Arrumar(); }
+                atualizar.Text = T.Tx("Atualizar"); atualizar.Enabled = true;
+                contar();
+            };
+
+            MostrarPainel(T.Tx("Ferramentas neste PC"),
+                new Rotulo(T.Tx("Escolha o que fica neste PC. Toque num item para baixar; toque de novo para remover. Cada download vem da fonte oficial e é conferido antes de instalar."), true),
+                atualizar, status, espaco, lista);
+            contar();
+            if (abrirId != null)
+            {
+                var alvo = catalogo.ferramentas.FirstOrDefault(x => x.id == abrirId);
+                var l = alvo == null ? null : lista.Controls.OfType<LinhaCheck>().FirstOrDefault(x => x.Nome == alvo.nome);
+                if (l != null) l.Tocar();
+            }
+        }
+
+        IEnumerable<string> Detalhes(Ferramenta f)
+        {
+            yield return T.Tx("De onde vem") + ": " + new Uri(f.url).Host + " (" + f.pagina + ")";
+            yield return T.Tx("Quem publica") + ": " + f.publica + " · " + T.Tx("Licença") + ": " + f.licenca + " · " + T.Tx("Versão") + ": " + f.versao;
+            yield return T.Tx("Download") + ": " + Mb(f.baixar) + " · " + T.Tx("No disco (aprox.)") + ": " + Mb((long)f.instalado_mb * 1000000) + " · " + T.Tx("Livre no PC") + ": " + Mb(Ferramentas.EspacoLivre());
+            yield return T.Tx("O que acessa") + ": " + f.acesso;
+            yield return T.Tx("Segurança") + ": " + (string.IsNullOrEmpty(f.assinante)
+                ? T.Tx("Antes de instalar, o InkDOS Hub confere a impressão digital (SHA-256) do arquivo. Este fabricante não assina o programa.")
+                : T.Tx("Antes de instalar, o InkDOS Hub confere a impressão digital (SHA-256) do arquivo e a assinatura digital de {0}.", f.assinante));
+        }
+
+        // Baixa e instala uma ferramenta mostrando o progresso na linha e no status. Devolve se deu certo.
+        async Task<bool> Instalar(Ferramenta f, LinhaCheck linha, Action<string, Color?> dizer, Action<bool> travar)
+        {
+            ocupado = true;
+            linha.Girando = true; linha.Progresso = 0; linha.Invalidate(); giro.Start();
+            travar(true);
+            string etapa = T.Tx("Baixando {0}…", f.nome);
+            int pct = 0;
+            dizer(etapa + " 0%", null);
+            cancelar = new CancellationTokenSource();
+            var tk = cancelar.Token;
+            bool ok = false;
+            try
+            {
+                await Task.Run(() => Ferramentas.Instalar(f,
+                    p => BeginInvoke((Action)(() => { pct = p; linha.Progresso = p; linha.Tamanho = p + "%"; linha.Invalidate(); dizer(etapa + " " + p + "%", null); })),
+                    t => BeginInvoke((Action)(() => { etapa = t; dizer(t, null); })), tk));
+                linha.Marcado = true;
+                dizer(T.Tx("{0} instalado e verificado ✓", f.nome), Ui.Verde);
+                ok = true;
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { if (!camada.IsDisposed) dizer(T.Tx("Falhou: {0}", ex.Message), Ui.Perigo); }
+            finally
+            {
+                cancelar = null; ocupado = false; giro.Stop();
+                linha.Girando = false; linha.Progresso = -1; linha.Tamanho = Mb(f.baixar); linha.Invalidate();
+                travar(false);
+                AtualizarInstaladas();
+            }
+            return ok;
         }
 
         void PainelSeguranca()
         {
-            MostrarPainel(T.Tx("Segurança e privacidade"), new Control[]
-            {
-                Texto(T.Pt ? "O InkDOS Hub não coleta nem envia dados. Não tem conta, anúncios nem estatísticas." : "InkDOS Hub does not collect or send data. No accounts, ads or analytics."),
-                Texto(T.Pt ? "Cada ferramenta vem só do site oficial de quem a publica. Antes de instalar, o InkDOS Hub confere a impressão digital (SHA-256) publicada pela fonte e, quando existe, a assinatura digital do fabricante. Se algo não bater, nada é instalado." : "Each tool comes only from its publisher's official site. Before installing, InkDOS Hub checks the SHA-256 fingerprint published by the source and, when present, the publisher's digital signature. If anything does not match, nothing is installed."),
-                Texto(T.Pt ? "Código aberto (MIT): github.com/InkDOSHub/inkdoshub.github.io. Revisões do código em auditoria/." : "Open source (MIT): github.com/InkDOSHub/inkdoshub.github.io. Code reviews in auditoria/.", true),
-            });
+            MostrarPainel(T.Tx("Segurança e privacidade"),
+                new Rotulo(T.Tx("O InkDOS Hub não coleta nem envia dados. Não tem conta, anúncios nem estatísticas.")),
+                new Rotulo(T.Tx("Cada ferramenta vem só do site oficial de quem a publica. Antes de instalar, o InkDOS Hub confere a impressão digital (SHA-256) publicada pela fonte e, quando existe, a assinatura digital do fabricante. Se algo não bater, nada é instalado.")),
+                new Rotulo(T.Tx("Código aberto (MIT): github.com/InkDOSHub/inkdoshub.github.io. Revisões do código em auditoria/."), true));
         }
 
         // ---------- atualizações ----------
-        async void ProcurarAtualizacoes(bool mostrar)
+        async void ProcurarAtualizacoes()
         {
-            var velhas = catalogo.ferramentas.Where(Ferramentas.TemAtualizacao).ToList();
+            var c = catalogo;
+            bool ferramentas = await Task.Run(() => c.ferramentas.Any(Ferramentas.TemAtualizacao));
             bool hub = await Task.Run(() => Atualizador.TemVersaoNova());
-            if (hub)
-            {
-                faixaTexto.Text = T.Tx("Atualização disponível") + ": InkDOS Hub";
-                faixaBotao.Text = T.Tx("Atualizar");
-                faixaBotao.Left = faixaTexto.Right + 12;
-                faixaBotao.Click -= AtualizarHub; faixaBotao.Click += AtualizarHub;
-                faixa.Visible = true;
-            }
-            if (!mostrar && velhas.Count == 0) return;
-            if (!mostrar) { faixaTexto.Text = T.Tx("Atualização disponível"); faixaBotao.Text = T.Tx("Atualizar"); faixaBotao.Left = faixaTexto.Right + 12; faixaBotao.Click -= AtualizarHub; faixaBotao.Click += (s, e) => ProcurarAtualizacoes(true); faixa.Visible = true; return; }
-            var itens = new List<Control>();
-            if (velhas.Count == 0 && !hub) itens.Add(Texto(T.Tx("Tudo atualizado.")));
-            foreach (var f in velhas)
-            {
-                var b = Botao(T.Tx("Atualizar {0} ({1} → {2})", f.nome, Ferramentas.VersaoInstalada(f), f.versao));
-                var ff = f;
-                b.Click += (s, e) => CartaoInstalar(ff, () => { });
-                itens.Add(b);
-            }
-            if (hub) { var b = Botao(T.Tx("Atualizar o InkDOS Hub"), true); b.Click += AtualizarHub; itens.Add(b); }
-            MostrarPainel(T.Tx("Procurar atualizações"), itens);
+            if (!ferramentas && !hub) return;
+            inicio.Aviso = T.Tx("Atualização disponível") + " · " + T.Tx("Atualizar");
+            inicio.AvisoAcao = () => PainelFerramentas(null, null);
+            inicio.Arrumar();
         }
 
-        async void AtualizarHub(object s, EventArgs e)
+        // ---------- pasta: abrir um arquivo no app certo ----------
+        void AbrirArquivo()
         {
-            faixaBotao.Enabled = false; faixaTexto.Text = T.Tx("Trabalhando…");
-            try { await Task.Run(() => Atualizador.Instalar()); Application.Restart(); Environment.Exit(0); }
-            catch (Exception ex) { faixaTexto.Text = T.Tx("Falhou: {0}", ex.Message); faixaBotao.Enabled = true; }
+            menu.Visible = false;
+            var a = new OpenFileDialog();
+            if (a.ShowDialog(this) != DialogResult.OK) return;
+            string arq = a.FileName, ext = Path.GetExtension(arq).ToLowerInvariant();
+            try
+            {
+                if (",.docx,.doc,.odt,.rtf,.xlsx,.xls,.ods,.csv,.pptx,.ppt,.odp,".Contains("," + ext + ","))
+                    Usar("onlyoffice", f => Ferramentas.Abrir(f, arq));
+                else if (",.mp4,.mov,.mkv,.webm,.avi,.m4v,".Contains("," + ext + ","))
+                    Usar("ffmpeg", f => PainelVideo(f, arq));
+                else if (",.txt,.md,.json,.js,.ts,.py,.c,.cpp,.h,.cs,.java,.html,.css,.sh,.xml,.yml,.yaml,.ini,.toml,".Contains("," + ext + ","))
+                {
+                    var ed = F(Editor);
+                    if (ed != null && Ferramentas.Instalada(ed)) Ferramentas.Abrir(ed, arq); else Process.Start("notepad.exe", "\"" + arq + "\"");
+                }
+                else Process.Start(arq);
+            }
+            catch (Exception ex) { Aviso(ex.Message); }
         }
 
-        // ---------- PDF (qpdf e Ghostscript, nativos) ----------
+        // ---------- Editar PDF (qpdf e Ghostscript, nativos) ----------
         void PainelPdf()
         {
-            var estado = Texto("", true);
-            var juntar = Botao(T.Tx("Juntar PDFs"), true);
-            var girar = Botao(T.Tx("Girar páginas"));
-            var comprimir = Botao(T.Tx("Comprimir PDF"));
+            var estado = new Rotulo("", true);
+            var juntar = new Botao(T.Tx("Juntar PDFs"), Botao.Tipo.Principal);
+            var girar = new Botao(T.Tx("Girar páginas"));
+            var comprimir = new Botao(T.Tx("Comprimir PDF"));
             juntar.Click += (s, e) => Usar("qpdf", f =>
             {
                 var a = new OpenFileDialog { Filter = "PDF|*.pdf", Multiselect = true, Title = T.Tx("Escolha os PDFs na ordem em que devem ficar.") };
@@ -402,46 +494,46 @@ namespace InkDOSHub
                 string saida = Path.Combine(Path.GetDirectoryName(a.FileName), Path.GetFileNameWithoutExtension(a.FileName) + " (menor).pdf");
                 Trabalho(estado, () => Ferramentas.Rodar(Ferramentas.Executavel(f), "-sDEVICE=pdfwrite -dPDFSETTINGS=/ebook -dNOPAUSE -dBATCH -dQUIET -o \"" + saida + "\" \"" + a.FileName + "\""), saida);
             });
-            MostrarPainel(T.Tx("PDF"), new Control[] { Linha(juntar, girar, comprimir), estado });
+            MostrarPainel(T.Tx("Editar PDF"), new Fila(juntar, girar, comprimir), estado);
         }
 
-        async void Trabalho(Label estado, Func<string> tarefa, string saida)
+        async void Trabalho(Rotulo estado, Func<string> tarefa, string saida)
         {
-            if (!fundoPainel.Visible) PainelPdf();
             estado.Text = T.Tx("Trabalhando…");
             string erro = await Task.Run(tarefa);
-            estado.Text = erro == null ? T.Tx("Salvo: {0}", saida) : T.Tx("Falhou: {0}", erro);
+            string msg = erro == null ? T.Tx("Salvo: {0}", saida) + " ✓" : T.Tx("Falhou: {0}", erro);
+            if (camada.Visible && estado.FindForm() != null) estado.Text = msg; else Aviso(msg);
             if (erro == null) try { Process.Start("explorer.exe", "/select,\"" + saida + "\""); } catch { }
         }
 
-        // ---------- Cortar vídeo (ffmpeg, sem recompactar) ----------
-        void PainelVideo(Ferramenta f)
+        // ---------- Vídeo: cortar com o ffmpeg, sem recompactar ----------
+        void PainelVideo(Ferramenta f, string inicial)
         {
-            string arquivo = null;
-            var estado = Texto("", true);
-            var nome = Texto("—");
-            var ini = new TextBox { Width = 90, Text = "00:00" };
-            var fim = new TextBox { Width = 90, Text = "00:10" };
-            var escolher = Botao(T.Tx("Escolher vídeo"));
-            var cortar = Botao(T.Tx("Cortar"), true);
-            escolher.Click += (s, e) => { var a = new OpenFileDialog { Filter = "Vídeo|*.mp4;*.mov;*.mkv;*.webm;*.avi;*.m4v|*.*|*.*" }; if (a.ShowDialog(this) == DialogResult.OK) { arquivo = a.FileName; nome.Text = Path.GetFileName(arquivo); } };
+            string arquivo = inicial;
+            var estado = new Rotulo("", true);
+            var nome = new Rotulo(arquivo != null ? Path.GetFileName(arquivo) : "—", false, 14, true);
+            Func<string, TextBox> campo = t => new TextBox { Width = Ui.P(80), Text = t, Font = Ui.Fonte(14), BackColor = Ui.Mistura(Ui.Cartao, Ui.Hover), ForeColor = Ui.Texto, BorderStyle = BorderStyle.FixedSingle, Margin = new Padding(0, Ui.P(6), Ui.P(12), 0) };
+            var ini = campo("00:00");
+            var fim = campo("00:10");
+            var escolher = new Botao(T.Tx("Escolher vídeo"));
+            var cortar = new Botao(T.Tx("Cortar"), Botao.Tipo.Principal);
+            escolher.Click += (s, e) => { var a = new OpenFileDialog { Filter = T.Tx("Vídeo") + "|*.mp4;*.mov;*.mkv;*.webm;*.avi;*.m4v|*.*|*.*" }; if (a.ShowDialog(this) == DialogResult.OK) { arquivo = a.FileName; nome.Text = Path.GetFileName(arquivo); } };
             cortar.Click += async (s, e) =>
             {
-                if (arquivo == null) return;
+                if (arquivo == null) { estado.Text = T.Tx("Escolha um vídeo primeiro."); return; }
                 string saida = Path.Combine(Path.GetDirectoryName(arquivo), Path.GetFileNameWithoutExtension(arquivo) + " (cortado)" + Path.GetExtension(arquivo));
-                estado.Text = T.Tx("Trabalhando…");
+                cortar.Enabled = false; estado.Text = T.Tx("Trabalhando…");
                 string args = "-y -ss " + ini.Text.Trim() + " -to " + fim.Text.Trim() + " -i \"" + arquivo + "\" -c copy -map 0 \"" + saida + "\"";
                 string erro = await Task.Run(() => Ferramentas.Rodar(Ferramentas.Executavel(f), args));
-                estado.Text = erro == null ? T.Tx("Salvo: {0}", saida) : T.Tx("Falhou: {0}", erro.Split('\n').Last());
+                cortar.Enabled = true;
+                estado.Text = erro == null ? T.Tx("Salvo: {0}", saida) + " ✓" : T.Tx("Falhou: {0}", erro.Split('\n').Last());
                 if (erro == null) try { Process.Start("explorer.exe", "/select,\"" + saida + "\""); } catch { }
             };
-            MostrarPainel(T.Tx("Cortar vídeo"), new Control[]
-            {
-                Linha(escolher, nome),
-                Linha(Texto(T.Tx("Início (mm:ss)")), ini, Texto(T.Tx("Fim (mm:ss)")), fim),
-                Texto(T.Tx("Corta sem recompactar: é rápido e não perde qualidade (o corte cai no quadro-chave mais próximo)."), true),
-                cortar, estado
-            });
+            MostrarPainel(T.Tx("Cortar vídeo"),
+                new Fila(escolher, nome),
+                new Fila(new Rotulo(T.Tx("Início (mm:ss)"), false, 14, true), ini, new Rotulo(T.Tx("Fim (mm:ss)"), false, 14, true), fim),
+                new Rotulo(T.Tx("Corta sem recompactar: é rápido e não perde qualidade (o corte cai no quadro-chave mais próximo)."), true),
+                new Fila(cortar), estado);
         }
     }
 

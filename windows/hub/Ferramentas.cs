@@ -290,13 +290,13 @@ namespace InkDOSHub
         }
 
         // ---------- abrir ----------
-        public static void Abrir(Ferramenta f, string argumento = null)
+        public static void Abrir(Ferramenta f, string argumento = null, bool bruto = false)
         {
             string exe = Executavel(f);
             if (exe == null) throw new Exception(T.Tx("{0} não está instalado.", f.nome));
             if (f.id == "linux") { Wsl.AbrirTerminal(); return; }
             var psi = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) };
-            if (argumento != null) psi.Arguments = "\"" + argumento + "\"";
+            if (argumento != null) psi.Arguments = bruto ? argumento : "\"" + argumento + "\"";
             Process.Start(psi);
         }
 

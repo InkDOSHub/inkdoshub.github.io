@@ -11,7 +11,7 @@
     <AssemblyName>InkDOS Hub</AssemblyName>
     <RootNamespace>InkDOSHub</RootNamespace>
     <ApplicationIcon>icone.ico</ApplicationIcon>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>InkDOS Hub</Product>
     <Copyright>MIT</Copyright>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -21,6 +21,7 @@
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <EmbeddedResource Include="..\ferramentas.json" LogicalName="ferramentas.json" />
+    <EmbeddedResource Include="icones\*.png" LogicalName="icones/%(Filename).png" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 </Project>
