@@ -454,7 +454,8 @@ app.whenReady().then(async () => {
     try { const st = await fsp.statfs(PASTA); livre = st.bavail * st.bsize; } catch (_) {}
     return { usado, livre };
   });
-  ipcMain.handle('hub:sincronizar', (e, ids) => sincronizar(ids, p => { if (!e.sender.isDestroyed()) e.sender.send('hub:progresso', p); }));
+  // o "Atualizar" do Offline também procura versão nova do próprio app (o aviso aparece quando o instalador já baixou)
+  ipcMain.handle('hub:sincronizar', (e, ids) => { procurarVersaoNova(); return sincronizar(ids, p => { if (!e.sender.isDestroyed()) e.sender.send('hub:progresso', p); }); });
 
   // aberto por um arquivo (Abrir com / app padrão): só o app daquele arquivo; senão, a tela inicial
   const arqs = arquivosDe(process.argv);
