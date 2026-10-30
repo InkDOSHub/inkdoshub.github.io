@@ -1,0 +1,65 @@
+{
+ "formato": 1,
+ "ferramentas": [
+  {
+   "id": "linux",
+   "nome": "Linux (Alpine no WSL)",
+   "publica": "Alpine Linux",
+   "licenca": "MIT e outras (pacotes do Alpine)",
+   "tipo": "wsl",
+   "instalado_mb": 10,
+   "assinante": null,
+   "acesso": "Roda isolado no WSL do Windows; vê as pastas do Windows em /mnt/c.",
+   "versao": "3.24.3",
+   "url": "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/x86_64/alpine-minirootfs-3.24.3-x86_64.tar.gz",
+   "sha256": "f8e1cafba9b1b283b5d30d06f9885c8d2bc161ffe9083ade8e2e157813a53407",
+   "baixar": 3704080,
+   "pagina": "https://alpinelinux.org/"
+  },
+  {
+   "id": "vscode",
+   "nome": "VS Code",
+   "publica": "Microsoft Corporation",
+   "licenca": "MIT (código) / licença do produto Microsoft",
+   "tipo": "zip",
+   "instalado_mb": 1000,
+   "assinante": "Microsoft Corporation",
+   "acesso": "Abre as pastas que você escolher; extensões só se você instalar.",
+   "versao": "1.144.0",
+   "url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/2c33b50b16c472efe58357d1d2a8a5414bc23fbf/VSCode-win32-x64-1.144.0.zip",
+   "sha256": "055722269e3c9531af0c50a8b757c14e8062a0d02fc973b038863d9732c567ea",
+   "baixar": 363999322,
+   "pagina": "https://code.visualstudio.com/"
+  },
+  {
+   "id": "webcam",
+   "nome": "InkDOS Hub Webcam",
+   "publica": "InkDOS Hub",
+   "licenca": "MIT",
+   "tipo": "zip",
+   "instalado_mb": 60,
+   "assinante": null,
+   "acesso": "A câmera do celular que você parear, pela rede local.",
+   "versao": "ec028d3715cd",
+   "url": "https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip",
+   "sha256": "ec028d3715cd0fe5bd2c77792c27d93737c7f55ddc49e1dfd3117e973daa00d2",
+   "baixar": 10769286,
+   "pagina": "https://github.com/InkDOSHub/inkdoshub.github.io/tree/main/windows"
+  },
+  {
+   "id": "transferir",
+   "nome": "InkDOS Hub Transferir",
+   "publica": "InkDOS Hub",
+   "licenca": "MIT",
+   "tipo": "exe",
+   "instalado_mb": 1,
+   "assinante": null,
+   "acesso": "Os arquivos que você mandar entre o PC e o celular pareado.",
+   "versao": "8d287639c1b2",
+   "url": "https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/transferir-windows/InkDOSHub-Transferir.exe",
+   "sha256": "8d287639c1b2608e9e27fe87ffa6530faf55fb9cc44762adbe644c785453b6fc",
+   "baixar": 160768,
+   "pagina": "https://github.com/InkDOSHub/inkdoshub.github.io/tree/main/windows"
+  }
+ ]
+}

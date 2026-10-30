@@ -19,8 +19,8 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | — | Modo Offline por app | [011-offline-por-app.md](011-offline-por-app.md) |
 | — | Apresentações: tela cheia igual à edição | [013-apresentacao-tela-cheia.md](013-apresentacao-tela-cheia.md) |
 | — | Revisão depois das mudanças de 2026-10-30 | [014-revisao-final.md](014-revisao-final.md) |
+| — | InkDOS Hub nativo para Windows 0.1 | [015-windows-nativo.md](015-windows-nativo.md) |
 
-Log 015 (Windows) entra quando estiver pronto.
 
 ## Resumo (2026-10-29)
 
