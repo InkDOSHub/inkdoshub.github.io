@@ -178,6 +178,85 @@ function semInternet(rel, e) {
   return new Response(html, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
+// ---------- Webcam: no Windows abre o app nativo (câmera virtual), não a página do iPhone ----------
+// Baixa o InkDOSHub-Webcam-Windows.zip da release webcam-windows, confere o SHA-256 publicado, extrai em
+// %LOCALAPPDATA%\InkDOS Hub\webcam e abre. Nas vezes seguintes só abre (e atualiza se a release mudou).
+const WEBCAM = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip';
+const ehWebcam = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/webcam/'); } catch (_) { return false; } };
+let webcamOcupada = false;
+function acharExe(pasta) {
+  if (!fs.existsSync(pasta)) return null;
+  for (const n of fs.readdirSync(pasta, { withFileTypes: true })) {
+    const f = path.join(pasta, n.name);
+    if (n.isFile() && n.name.toLowerCase() === 'inkdos hub webcam.exe') return f;
+    if (n.isDirectory()) { const r = acharExe(f); if (r) return r; }
+  }
+  return null;
+}
+async function abrirWebcam() {
+  if (webcamOcupada) return;
+  webcamOcupada = true;
+  const pt = /^pt/i.test(app.getLocale());
+  const pasta = path.join(app.getPath('userData'), 'webcam');
+  const marca = path.join(pasta, 'versao.sha256');
+  let aviso = null;
+  const dizer = txt => {
+    if (!aviso || aviso.isDestroyed()) {
+      aviso = new BrowserWindow({ width: 440, height: 170, resizable: false, minimizable: false, maximizable: false, icon: ICONE, autoHideMenuBar: true, title: 'InkDOS Hub Webcam', backgroundColor: '#f2f2f7', webPreferences: { sandbox: true, contextIsolation: true, javascript: true } });
+      aviso.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent('<body style="font:14px -apple-system,Segoe UI,sans-serif;margin:0;display:grid;place-items:center;height:100vh;background:#f2f2f7;color:#1c1c1e;text-align:center"><p id="t" style="padding:0 18px"></p></body>'))
+        .then(() => aviso && !aviso.isDestroyed() && aviso.webContents.executeJavaScript('document.getElementById("t").textContent=' + JSON.stringify(txt)));
+    } else aviso.webContents.executeJavaScript('document.getElementById("t").textContent=' + JSON.stringify(txt)).catch(() => {});
+  };
+  try {
+    const baixar = session.fromPartition('inkhub-baixar');
+    let exe = acharExe(pasta);
+    let remoto = null;
+    try {
+      const r = await baixar.fetch(WEBCAM + '.sha256');
+      if (r.ok) remoto = (await r.text()).trim().split(/\s+/)[0].toLowerCase();
+    } catch (_) {}
+    const local = fs.existsSync(marca) ? fs.readFileSync(marca, 'utf8').trim() : '';
+    if (remoto && /^[0-9a-f]{64}$/.test(remoto) && (!exe || remoto !== local)) {
+      dizer(pt ? 'Baixando o app da Webcam para Windows…' : 'Downloading the Webcam app for Windows…');
+      const r = await baixar.fetch(WEBCAM);
+      if (!r.ok) throw new Error('download ' + r.status);
+      const total = Number(r.headers.get('content-length')) || 0, partes = [];
+      let feito = 0, ultimo = -1;
+      const leitor = r.body.getReader();
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        partes.push(Buffer.from(value)); feito += value.length;
+        const pct = total ? Math.floor(feito * 100 / total) : 0;
+        if (pct !== ultimo && pct % 5 === 0) { ultimo = pct; dizer((pt ? 'Baixando o app da Webcam para Windows… ' : 'Downloading the Webcam app for Windows… ') + pct + '%'); }
+      }
+      const zip = Buffer.concat(partes);
+      if (sha256(zip) !== remoto) throw new Error('SHA-256');
+      dizer(pt ? 'SHA-256 conferido ✓ Instalando…' : 'SHA-256 verified ✓ Installing…');
+      const novo = pasta + '.novo', arq = path.join(app.getPath('userData'), 'webcam.zip');
+      await fsp.rm(novo, { recursive: true, force: true });
+      await fsp.writeFile(arq, zip);
+      await new Promise((ok, falha) => require('child_process').execFile('powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command', 'Expand-Archive -LiteralPath $env:INK_ZIP -DestinationPath $env:INK_DEST -Force'],
+        { env: Object.assign({}, process.env, { INK_ZIP: arq, INK_DEST: novo }), windowsHide: true }, e => (e ? falha(e) : ok())));
+      await fsp.rm(arq, { force: true });
+      if (!acharExe(novo)) throw new Error('pacote sem o app');
+      try {
+        await fsp.rm(pasta, { recursive: true, force: true });
+        await fsp.rename(novo, pasta);
+        await fsp.writeFile(marca, remoto);
+      } catch (_) { /* app aberto: fica a versão anterior desta vez */ await fsp.rm(novo, { recursive: true, force: true }); }
+      exe = acharExe(pasta);
+    }
+    if (!exe) throw new Error(pt ? 'sem internet para baixar o app da Webcam' : 'no internet to download the Webcam app');
+    const err = await shell.openPath(exe);
+    if (err) throw new Error(err);
+    if (aviso && !aviso.isDestroyed()) aviso.close();
+  } catch (e) {
+    dizer((pt ? 'Não deu para abrir o app da Webcam: ' : 'Could not open the Webcam app: ') + (e.message === 'SHA-256' ? (pt ? 'o arquivo baixado não confere (SHA-256). Tente de novo.' : 'the download does not match its SHA-256. Try again.') : e.message));
+  } finally { webcamOcupada = false; }
+}
+
 // ---------- janelas ----------
 const ICONE = path.join(__dirname, 'icone.ico');
 const prefs = () => ({
@@ -195,12 +274,21 @@ const doSite = url => { try { return new URL(url).hostname === HOST; } catch (_)
 function cuidar(w) {
   w.once('ready-to-show', () => w.show());
   w.webContents.setWindowOpenHandler(({ url }) => {
+    if (ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
     if (url === 'about:blank' || doSite(url)) return { action: 'allow', overrideBrowserWindowOptions: opcoes(1200, 820) };
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
   w.webContents.on('did-create-window', cuidar);
-  w.webContents.on('will-navigate', (e, url) => { if (!doSite(url) && url !== 'about:blank') { e.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); } });
+  w.webContents.on('will-navigate', (e, url) => {
+    if (ehWebcam(url)) {
+      e.preventDefault();
+      abrirWebcam();
+      // a tela inicial abre uma janela vazia e depois manda o endereço: essa janela fecha
+      const atual = w.webContents.getURL();
+      if (w !== principal() && (!atual || atual === 'about:blank')) w.close();
+      return;
+    } if (!doSite(url) && url !== 'about:blank') { e.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); } });
   w.webContents.on('before-input-event', (e, k) => {
     if (k.type !== 'keyDown') return;
     if (k.key === 'F5' || ((k.control || k.meta) && k.key.toLowerCase() === 'r')) { e.preventDefault(); w.webContents.reload(); }
