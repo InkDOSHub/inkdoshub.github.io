@@ -14,7 +14,7 @@ namespace InkDOSHub
 {
     class App
     {
-        public string Nome, Ferramenta, Dica;
+        public string Nome, Sub, Ferramenta, Dica;  // Sub: linha pequena embaixo do nome ("ONLYOFFICE", como no site)
         public Image Icone;
         public Action Acao;
         public Rectangle Caixa, IconeR, TextoR;
@@ -112,14 +112,15 @@ namespace InkDOSHub
                 foreach (var a in fila)
                     linhas = Math.Max(linhas, TextRenderer.MeasureText(a.Nome, fonte, new Size((int)cw - Ui.P(4), int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height / Math.Max(1, fonte.Height));
                 int lh = (int)(fonte.Height * 1.1f);
-                int h = Ui.P(6) + ic + Ui.P(9) + lh * linhas + Ui.P(6);
+                int sub = !estreito && fila.Any(a => a.Sub != null) ? Ui.P(15) : 0;
+                int h = Ui.P(6) + ic + Ui.P(9) + lh * linhas + sub + Ui.P(6);
                 for (int k = 0; k < fila.Count; k++)
                 {
                     var a = fila[k];
                     int x = x0 + (int)(k * (cw + gx));
                     a.Caixa = new Rectangle(x, y, (int)cw, h);
                     a.IconeR = new Rectangle(x + ((int)cw - ic) / 2, y + Ui.P(6), ic, ic);
-                    a.TextoR = new Rectangle(x + Ui.P(2), a.IconeR.Bottom + Ui.P(9), (int)cw - Ui.P(4), lh * linhas + Ui.P(2));
+                    a.TextoR = new Rectangle(x + Ui.P(2), a.IconeR.Bottom + Ui.P(9), (int)cw - Ui.P(4), lh * linhas + Ui.P(2) + (a.Sub != null ? sub : 0));
                 }
                 y += h + gy;
             }
@@ -245,7 +246,13 @@ namespace InkDOSHub
                     using (var b = new SolidBrush(Ui.Fundo)) g.FillEllipse(b, RectangleF.Inflate(cr, Ui.E * 2, Ui.E * 2));
                     Ui.Check(g, cr, true, false);
                 }
-                Ui.Escrever(g, a.Nome, fonte, a.TextoR, Ui.Texto, TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak);
+                var nr = a.TextoR;
+                if (a.Sub != null && !estreito)
+                {
+                    nr.Height -= Ui.P(15);
+                    Ui.Escrever(g, a.Sub, Ui.Fonte(10.5f), new Rectangle(nr.X, nr.Bottom, nr.Width, Ui.P(15)), Ui.Fraco, TextFormatFlags.HorizontalCenter);
+                }
+                Ui.Escrever(g, a.Nome, fonte, nr, Ui.Texto, TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak);
             }
 
             // rodapé

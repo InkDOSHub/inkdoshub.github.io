@@ -141,14 +141,15 @@ namespace InkDOSHub
         void Apps()
         {
             Action<string, string, string, string, Action> app = (icone, nome, ferramenta, dica, acao) =>
-                inicio.Apps.Add(new App { Icone = Icone(icone), Nome = T.Tx(nome), Ferramenta = ferramenta, Dica = T.Tx(dica), Acao = () => { menu.Visible = false; try { acao(); } catch (Exception ex) { Aviso(ex.Message); } } });
+                inicio.Apps.Add(new App { Icone = Icone(icone), Nome = T.Tx(nome), Sub = icone.StartsWith("oo-") ? "ONLYOFFICE" : null, Ferramenta = ferramenta, Dica = T.Tx(dica), Acao = () => { menu.Visible = false; try { acao(); } catch (Exception ex) { Aviso(ex.Message); } } });
             Func<string, Action> site = caminho => () => Navegar(Ferramentas.SITE + caminho);
             const string noNavegador = "Abre no navegador.";
             app("pdf", "PDF", null, noNavegador, site("inkdos/apps/pdf/index.html?suite=1"));
             app("editar-pdf", "Editar PDF", "qpdf", "Juntar, girar e comprimir PDFs (qpdf e Ghostscript).", PainelPdf);
-            app("documentos", "Documentos", "onlyoffice", "Word (DOCX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:word", true)));
-            app("planilhas", "Planilhas", "onlyoffice", "Excel (XLSX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:cell", true)));
-            app("apresentacoes", "Apresentações", "onlyoffice", "PowerPoint (PPTX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:slide", true)));
+            // InkDOS (rápido, no navegador) e ONLYOFFICE (completo, nativo) separados, como no site
+            app("documentos", "Documentos", null, noNavegador, site("inkdos/apps/documents/index.html?suite=1"));
+            app("planilhas", "Planilhas", null, noNavegador, site("inkdos/apps/spreadsheets/index.html?suite=1"));
+            app("apresentacoes", "Apresentações", null, noNavegador, site("inkdos/apps/presentations/index.html?suite=1"));
             app("texto", "Texto simples", null, "Bloco de Notas do Windows.", () => Process.Start("notepad.exe"));
             app("epub", "Leitor EPUB", null, noNavegador, site("inkdos/apps/epub/index.html?suite=1"));
             app("foto", "Fotos", null, noNavegador, site("apps/foto/"));
@@ -158,6 +159,9 @@ namespace InkDOSHub
             app("webcam", "Webcam", "webcam", "A câmera do celular como webcam do PC.", () => Usar("webcam", f => Ferramentas.Abrir(f)));
             app("transferir", "Transferir", "transferir", "Arquivos entre o celular e o PC, sem internet.", () => Usar("transferir", f => Ferramentas.Abrir(f)));
             app("quadro", "Quadro branco", null, noNavegador, site("apps/quadro/"));
+            app("oo-docx", "Documentos", "onlyoffice", "Word (DOCX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:word", true)));
+            app("oo-xlsx", "Planilhas", "onlyoffice", "Excel (XLSX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:cell", true)));
+            app("oo-pptx", "Apresentações", "onlyoffice", "PowerPoint (PPTX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:slide", true)));
             app("codigo", "Código", "editor", "VS Code ou Zed (escolha no ☰).", () => Usar(Editor, f => Ferramentas.Abrir(f)));
             app("terminal", "Linux terminal", "linux", "Alpine Linux no WSL, com as pastas do Windows.", () => Usar("linux", f => Ferramentas.Abrir(f)));
         }
