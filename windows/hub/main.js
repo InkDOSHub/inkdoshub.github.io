@@ -40,7 +40,13 @@ const ESTADO = path.join(PASTA, '__estado.json');
 const MANIFESTO = path.join(PASTA, '__manifesto.json');
 
 if (!app.requestSingleInstanceLock()) { app.quit(); }
-app.on('second-instance', () => { const w = principal(); if (w) { if (w.isMinimized()) w.restore(); w.focus(); } });
+app.on('second-instance', (_e, argv) => {
+  if (!app.isReady()) return;
+  const arqs = arquivosDe(argv);
+  if (arqs.length) return arqs.forEach(abrirArquivo);
+  const w = principal();
+  if (w) { if (w.isMinimized()) w.restore(); w.focus(); } else abrirInicio();
+});
 
 // ---------- estado guardado ----------
 let estado = null;   // { versao, grupos: [ids], arquivos: { caminho: h16 } }
@@ -450,6 +456,17 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('hub:sincronizar', (e, ids) => sincronizar(ids, p => { if (!e.sender.isDestroyed()) e.sender.send('hub:progresso', p); }));
 
+  // aberto por um arquivo (Abrir com / app padrão): só o app daquele arquivo; senão, a tela inicial
+  const arqs = arquivosDe(process.argv);
+  if (arqs.length) arqs.forEach(abrirArquivo); else abrirInicio();
+  setTimeout(procurarVersaoNova, 20000);
+  setInterval(procurarVersaoNova, 6 * 3600e3);
+
+  // primeira vez (ou depois de limpar): guarda a tela inicial e os apps leves para abrir sem internet
+  if (!estado) sincronizar([]).catch(() => {});
+});
+
+function abrirInicio() {
   janelaPrincipal = new BrowserWindow(opcoes(1100, 760));
   cuidar(janelaPrincipal);
   // sem internet na primeira vez: avisa na própria janela e tenta de novo sozinho
@@ -462,12 +479,60 @@ app.whenReady().then(async () => {
 
   // versão nova da carcaça: procura 20 s depois de abrir e a cada 6 horas; o aviso volta se a tela recarregar
   janelaPrincipal.webContents.on('did-finish-load', mostrarAvisoApp);
-  setTimeout(procurarVersaoNova, 20000);
-  setInterval(procurarVersaoNova, 6 * 3600e3);
+}
 
-  // primeira vez (ou depois de limpar): guarda a tela inicial e os apps leves para abrir sem internet
-  if (!estado) sincronizar([]).catch(() => {});
-});
+// ---------- abrir um arquivo do PC no app certo (duplo clique, "Abrir com", app padrão) ----------
+// O app abre na janela dele e o arquivo entra pelo mesmo campo "Abrir" do app (DevTools Protocol, só local):
+// nada é enviado para fora, é como escolher o arquivo na tela.
+const APP_DO_TIPO = {};
+for (const [url, exts] of [
+  ['inkdos/apps/pdf/index.html?suite=1', 'pdf'],
+  ['inkdos/apps/documents/index.html?suite=1', 'docx doc odt rtf'],
+  ['inkdos/apps/spreadsheets/index.html?suite=1', 'xlsx xls ods csv tsv'],
+  ['inkdos/apps/presentations/index.html?suite=1', 'pptx ppt odp'],
+  ['inkdos/apps/txt/index.html?suite=1', 'txt xml log md'],
+  ['inkdos/apps/epub/index.html?suite=1', 'epub'],
+  ['apps/foto/', 'jpg jpeg png gif webp bmp avif heic'],
+  ['apps/video/', 'mp4 mov m4v webm mkv'],
+  ['apps/musica/', 'mp3 m4a aac wav ogg oga flac opus']
+]) for (const x of exts.split(' ')) APP_DO_TIPO[x] = url;
+const MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', avif: 'image/avif', heic: 'image/heic',
+  mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/mp4', webm: 'video/webm', mkv: 'video/x-matroska',
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', flac: 'audio/flac', opus: 'audio/opus', pdf: 'application/pdf' };
+const extDe = f => path.extname(f).slice(1).toLowerCase();
+function arquivosDe(argv) {
+  return (argv || []).slice(1).filter(a => a && !a.startsWith('-') && APP_DO_TIPO[extDe(a)] && fs.existsSync(a) && fs.statSync(a).isFile()).map(a => path.resolve(a));
+}
+function abrirArquivo(f) {
+  const ext = extDe(f), m = MIME[ext] || '';
+  const achar = "(function(x,m){for(const i of document.querySelectorAll('input[type=file]')){const a=(i.accept||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);if(!a.length||a.some(t=>t==='.'+x||t===m||(m&&t.endsWith('/*')&&m.startsWith(t.slice(0,-1)))))return i}return null})(" + JSON.stringify(ext) + ',' + JSON.stringify(m) + ')';
+  const w = new BrowserWindow(opcoes(1200, 820));
+  cuidar(w);
+  w.loadURL(SITE + APP_DO_TIPO[ext]);
+  let feito = false;
+  const tentar = async () => {
+    if (feito || w.isDestroyed()) return;
+    const d = w.webContents.debugger;
+    try {
+      // espera o app ficar pronto (na primeira visita a página pode recarregar sozinha)
+      for (let i = 0; i < 60 && !feito; i++) {
+        const pronto = await w.webContents.executeJavaScript('document.readyState==="complete"&&!!' + achar).catch(() => false);
+        if (pronto) break;
+        await new Promise(r => setTimeout(r, 500));
+      }
+      if (feito || w.isDestroyed()) return;
+      if (!d.isAttached()) d.attach('1.3');
+      await d.sendCommand('DOM.getDocument', { depth: 0 });
+      const o = await d.sendCommand('Runtime.evaluate', { expression: achar });
+      if (!o.result || !o.result.objectId) throw new Error('sem campo de arquivo');
+      await d.sendCommand('DOM.setFileInputFiles', { files: [f], objectId: o.result.objectId });
+      feito = true;
+    } catch (_) {
+      // página recarregou no meio: a próxima carga tenta de novo
+    } finally { try { if (d.isAttached()) d.detach(); } catch (_) {} }
+  };
+  w.webContents.on('did-finish-load', () => { setTimeout(tentar, 300); });
+}
 app.on('window-all-closed', () => app.quit());
 // atualização baixada e a pessoa não reiniciou: instala em silêncio ao fechar (abre já na versão nova da próxima vez)
 app.on('will-quit', () => { instalarAtualizacao(false); });

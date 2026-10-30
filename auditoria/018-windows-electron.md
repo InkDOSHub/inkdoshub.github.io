@@ -28,6 +28,9 @@ Os testes também acharam um problema do app Texto: um .txt de 20 MB custava ~65
 - **Terminal:**
   - Com o WSL instalado, o ícone abre o Linux do próprio Windows no Terminal do Windows (`wt.exe wsl.exe`).
   - Sem o WSL, explica e instala com `wsl --install -d Ubuntu` (pede administrador uma vez). O terminal do site (v86) fica de opção.
+- **Abrir arquivos:**
+  - O instalador registra o Hub no "Abrir com" e em Aplicativos padrão para PDF, Office, TXT, EPUB, fotos, vídeo e música (HKCU, sem administrador).
+  - Ao abrir um arquivo, o app certo abre com ele carregado, pelo campo "Abrir" do próprio app (DevTools Protocol, local).
 - **Carcaça atualizável:**
   - A action numera cada build (0.3.N) e publica `versao.json` com o SHA-256 do instalador.
   - O app confere 20 s depois de abrir e a cada 6 h. Se houver versão nova, baixa o instalador e confere o SHA-256.
