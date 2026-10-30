@@ -136,6 +136,7 @@ namespace InkDOSHub
                 case "linux": return Wsl.TemDistro() ? Wsl.Exe : null;
                 case "vscode": return Existe(Path.Combine(p, "Code.exe"));
                 case "qpdf": return Achar(p, "qpdf.exe");
+                case "sumatra": return Achar(p, "SumatraPDF*.exe");
                 case "ffmpeg": return Achar(p, "ffmpeg.exe");
                 case "webcam":
                 case "transferir": return Achar(p, "InkDOS*.exe");

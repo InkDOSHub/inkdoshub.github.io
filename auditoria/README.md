@@ -21,6 +21,7 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | — | Revisão depois das mudanças de 2026-10-30 | [014-revisao-final.md](014-revisao-final.md) |
 | — | InkDOS Hub nativo para Windows 0.1 | [015-windows-nativo.md](015-windows-nativo.md) |
 | — | Windows 0.2 com o visual do Hub e o check verde | [016-windows-visual-do-hub.md](016-windows-visual-do-hub.md) |
+| — | Windows sem o Edge: apps nativos e Webcam sem WebView2 | [017-windows-sem-edge.md](017-windows-sem-edge.md) |
 
 
 ## Resumo (2026-10-29)

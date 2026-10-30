@@ -62,6 +62,21 @@
    "pagina": "https://github.com/ONLYOFFICE/DesktopEditors/releases/tag/v10.0.0"
   },
   {
+   "id": "sumatra",
+   "nome": "Leitor de PDF e EPUB (SumatraPDF)",
+   "publica": "Krzysztof Kowalczyk",
+   "licenca": "GPL-3.0",
+   "tipo": "zip",
+   "instalado_mb": 20,
+   "assinante": "Krzysztof Kowalczyk",
+   "acesso": "Só os arquivos que você abrir.",
+   "versao": "3.5.2",
+   "url": "https://www.sumatrapdfreader.org/dl/rel/3.5.2/SumatraPDF-3.5.2-64.zip",
+   "sha256": "66ccb395c9184dce6822dfbb9970c877383b3ead6d9417b5106a844aac512989",
+   "baixar": 8243933,
+   "pagina": "https://www.sumatrapdfreader.org/"
+  },
+  {
    "id": "qpdf",
    "nome": "Ferramentas de PDF (qpdf)",
    "publica": "qpdf (Jay Berkenbilt e colaboradores)",

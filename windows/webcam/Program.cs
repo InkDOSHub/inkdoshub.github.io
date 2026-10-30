@@ -1,24 +1,22 @@
-// InkDOS Hub Webcam para Windows.
+// InkDOS Hub Webcam para Windows: a câmera do iPhone como webcam do Windows, sem o OBS e sem navegador.
 //
-// Mostra a página Guest do app Webcam (https://inkdoshub.github.io/apps/webcam/) num WebView2 e
-// entrega a imagem que chega do iPhone a uma câmera virtual do Windows (softcam, DirectShow), que o
-// Zoom, o Teams, o Meet e os outros apps enxergam como "InkDOS Hub Webcam". Sem o OBS.
-//
-// Como a imagem passa: a página desenha cada quadro num canvas do tamanho da câmera e copia os pixels
-// (RGBA) para um buffer compartilhado com este programa (CoreWebView2SharedBuffer). Aí avisa com
-// postMessage("frame"); este programa converte para BGR, manda para a câmera e responde "ok".
+// O iPhone abre a página Host do app Webcam (https://inkdoshub.github.io/apps/webcam/?host=<código>) no Safari.
+// Este programa faz o papel da página Guest, todo nativo: mostra o QR e o código, conversa com o servidor do
+// PeerJS e recebe o vídeo com o GStreamer (Nativo.cs). Cada quadro vai para uma câmera virtual do Windows
+// (softcam, DirectShow), que o Zoom, o Teams, o Meet e os outros apps enxergam como "InkDOS Hub Webcam".
+// Não usa o WebView2 nem o Edge.
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.Web.WebView2.Core;
-using Microsoft.Web.WebView2.WinForms;
 using Microsoft.Win32;
+
 
 namespace InkDOSHubWebcam
 {
@@ -139,86 +137,94 @@ namespace InkDOSHubWebcam
 
     class Janela : Form
     {
-        const string Pagina = "https://inkdoshub.github.io/apps/webcam/?app=1";
-        const string Origem = "https://inkdoshub.github.io/apps/webcam/";
+        // o iPhone abre esta página (Host) e liga para "inkdoshub-webcam-<código>"
+        const string Host = "https://inkdoshub.github.io/apps/webcam/?host=";
+        const string Letras = "abcdefghjkmnpqrstuvwxyz23456789";
+        static readonly bool Pt = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "pt";
+        static string Tx(string pt, string en) { return Pt ? pt : en; }
 
-        /* Só a página da Webcam pode abrir aqui: ela recebe o buffer da câmera virtual. */
-        static bool Permitida(string uri)
-        {
-            return uri != null && uri.StartsWith(Origem, StringComparison.Ordinal);
-        }
         static readonly Qualidade[] Qualidades =
         {
-            // a primeira é a padrão; as outras só aparecem com "Custom resolutions"
+            // a primeira é a padrão; as outras só aparecem com "Outras resoluções"
             // (bitrate médio = o que o iPhone manda em cada modo)
-            new Qualidade("1080p 30 fps · ~8 Mbps · light (recommended)", 1920, 1080, 30),
-            new Qualidade("720p 30 fps · ~4 Mbps · lightest", 1280, 720, 30),
-            new Qualidade("720p 60 fps · ~6 Mbps · light", 1280, 720, 60),
-            new Qualidade("1080p 60 fps · ~15 Mbps · medium", 1920, 1080, 60),
-            new Qualidade("4K 30 fps · ~25 Mbps · very heavy", 3840, 2160, 30),
-            new Qualidade("4K 60 fps · ~40 Mbps · extreme", 3840, 2160, 60),
+            new Qualidade(Tx("1080p 30 fps · ~8 Mbps · leve (recomendada)", "1080p 30 fps · ~8 Mbps · light (recommended)"), 1920, 1080, 30),
+            new Qualidade(Tx("720p 30 fps · ~4 Mbps · a mais leve", "720p 30 fps · ~4 Mbps · lightest"), 1280, 720, 30),
+            new Qualidade(Tx("720p 60 fps · ~6 Mbps · leve", "720p 60 fps · ~6 Mbps · light"), 1280, 720, 60),
+            new Qualidade(Tx("1080p 60 fps · ~15 Mbps · média", "1080p 60 fps · ~15 Mbps · medium"), 1920, 1080, 60),
+            new Qualidade(Tx("4K 30 fps · ~25 Mbps · muito pesada", "4K 30 fps · ~25 Mbps · very heavy"), 3840, 2160, 30),
+            new Qualidade(Tx("4K 60 fps · ~40 Mbps · extrema", "4K 60 fps · ~40 Mbps · extreme"), 3840, 2160, 60),
         };
 
-        readonly WebView2 web = new WebView2();
+        // cores da tela inicial do InkDOS Hub (assets/home.css), claro e escuro conforme o Windows
+        static readonly bool Escuro = LerEscuro();
+        static bool LerEscuro()
+        {
+            try { return (int)(Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) ?? 1) == 0; }
+            catch (Exception) { return false; }
+        }
+        static readonly Color Fundo = Escuro ? Color.FromArgb(28, 28, 30) : Color.FromArgb(245, 245, 247);
+        static readonly Color CorCartao = Escuro ? Color.FromArgb(44, 44, 46) : Color.White;
+        static readonly Color Texto = Escuro ? Color.FromArgb(245, 245, 247) : Color.FromArgb(29, 29, 31);
+        static readonly Color Fraco = Escuro ? Color.FromArgb(152, 152, 157) : Color.FromArgb(110, 110, 115);
+        static readonly Color Verde = Color.FromArgb(31, 157, 85);
+
         readonly CheckBox personalizadas = new CheckBox();
-        readonly CheckBox nativo = new CheckBox();
-        ReceptorNativo receptor;
-        string codigoNativo;
-        readonly Label rotuloBuffer = new Label();
         readonly ComboBox qualidade = new ComboBox();
-        readonly Label estado = new Label();
-        CoreWebView2SharedBuffer buffer;
-        // Obter o ponteiro COM do buffer somente na thread da UI; a thread de envio usa o ponteiro nativo.
-        IntPtr bufferPointer = IntPtr.Zero;
+        readonly Label taxa = new Label();
+        readonly Panel cartao = new Panel();
+        readonly Label aviso = new Label(), codigoTexto = new Label(), estado = new Label(), cameraTexto = new Label();
+        readonly PictureBox qr = new PictureBox();
+        readonly Button novo = new Button();
+        ReceptorNativo receptor;
+        string codigo;
+        bool ligado;
         IntPtr camera = IntPtr.Zero;
         byte[] bgr;
         Qualidade atual;
-        readonly AutoResetEvent temQuadro = new AutoResetEvent(false);
         readonly object trava = new object();
-        Thread envio;
-        volatile bool rodando = true;
-        // quadros avisados pela página: posição no buffer duplo e formato (BGRX do caminho rápido
-        // VideoFrame.copyTo, ou RGBA do canvas)
-        // um quadro pronto no buffer: posição, formato e, para "raw", tamanho, giro e modo "inteira"
-        sealed class Pedido { public int Slot; public bool Bgrx; public bool Cru; public int Sw, Sh, Giro; public bool Inteira; }
-        readonly System.Collections.Concurrent.ConcurrentQueue<Pedido> fila = new System.Collections.Concurrent.ConcurrentQueue<Pedido>();
-        const int Slots = 2;
 
         public Janela()
         {
             Text = "InkDOS Hub Webcam";
-            ClientSize = new Size(960, 640);
-            MinimumSize = new Size(520, 420);
+            ClientSize = new Size(640, 560);
+            MinimumSize = new Size(480, 480);
             StartPosition = FormStartPosition.CenterScreen;
+            BackColor = Fundo; ForeColor = Texto;
+            Font = new Font("Segoe UI", 10f);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
 
-            var barra = new Panel { Dock = DockStyle.Top, Height = 44, Padding = new Padding(10, 9, 10, 6) };
-            var rotulo = new Label { Text = "Quality:", AutoSize = true, Dock = DockStyle.Left, Padding = new Padding(0, 5, 6, 0) };
+            // barra de cima: qualidade da câmera virtual
+            var barra = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 46, Padding = new Padding(10, 10, 10, 0), BackColor = CorCartao, WrapContents = false };
             qualidade.DropDownStyle = ComboBoxStyle.DropDownList;
             qualidade.Width = 300;
-            qualidade.Dock = DockStyle.Left;
-            personalizadas.Text = "Custom resolutions";
+            qualidade.FlatStyle = FlatStyle.Flat;
+            personalizadas.Text = Tx("Outras resoluções", "Custom resolutions");
             personalizadas.AutoSize = true;
-            personalizadas.Dock = DockStyle.Left;
-            personalizadas.Padding = new Padding(10, 3, 0, 0);
-            nativo.Checked = true; // o app só funciona no modo nativo; a opção saiu da tela
-            rotuloBuffer.AutoSize = true;
-            rotuloBuffer.Dock = DockStyle.Right;
-            rotuloBuffer.Padding = new Padding(8, 5, 0, 0);
-            rotuloBuffer.Text = "Buffer: –";
-            estado.Dock = DockStyle.Fill;
-            estado.TextAlign = ContentAlignment.MiddleLeft;
-            estado.Padding = new Padding(12, 0, 0, 0);
-            barra.Controls.Add(estado);
-            barra.Controls.Add(rotuloBuffer);
-            barra.Controls.Add(personalizadas);
+            personalizadas.Margin = new Padding(10, 4, 0, 0);
+            taxa.AutoSize = true; taxa.ForeColor = Fraco; taxa.Margin = new Padding(12, 5, 0, 0);
+            barra.Controls.Add(new Label { Text = Tx("Qualidade:", "Quality:"), AutoSize = true, Margin = new Padding(0, 5, 6, 0) });
             barra.Controls.Add(qualidade);
-            barra.Controls.Add(rotulo);
-            web.Dock = DockStyle.Fill;
-            Controls.Add(web);
-            Controls.Add(barra);
+            barra.Controls.Add(personalizadas);
+            barra.Controls.Add(taxa);
 
-            // qualidade salva = posição na lista completa (chave nova: a ordem mudou nesta versão)
+            // cartão do pareamento: QR, código e estado (o que antes era a página no WebView2)
+            cartao.BackColor = CorCartao;
+            qr.SizeMode = PictureBoxSizeMode.Zoom; qr.BackColor = Color.White;
+            aviso.Text = Tx("Aponte a Câmera do iPhone para o QR code. Ou abra a Webcam do InkDOS Hub no iPhone, toque em Host e digite o código.",
+                "Scan it with the iPhone Camera app, or open the InkDOS Hub Webcam on the iPhone, tap Host and type the code.");
+            foreach (var l in new[] { aviso, codigoTexto, estado, cameraTexto }) { l.AutoSize = false; l.TextAlign = ContentAlignment.TopCenter; l.BackColor = CorCartao; }
+            aviso.ForeColor = Fraco; cameraTexto.ForeColor = Fraco;
+            codigoTexto.Font = new Font("Segoe UI Semibold", 13f);
+            novo.Text = Tx("Novo código", "New code");
+            novo.FlatStyle = FlatStyle.Flat; novo.AutoSize = true; novo.BackColor = CorCartao; novo.ForeColor = Texto;
+            novo.FlatAppearance.BorderColor = Escuro ? Color.FromArgb(70, 70, 74) : Color.FromArgb(220, 220, 224);
+            novo.Click += delegate { Codigo(NovoCodigo()); };
+            cartao.Controls.AddRange(new Control[] { qr, aviso, codigoTexto, estado, novo, cameraTexto });
+            cartao.Paint += (s, e) => { using (var p = new Pen(Escuro ? Color.FromArgb(60, 60, 64) : Color.FromArgb(226, 226, 230))) e.Graphics.DrawRectangle(p, 0, 0, cartao.Width - 1, cartao.Height - 1); };
+            Controls.Add(cartao);
+            Controls.Add(barra);
+            Resize += delegate { Arrumar(); };
+
             int salvo = 0; bool todas = false;
             try
             {
@@ -226,6 +232,7 @@ namespace InkDOSHubWebcam
                 {
                     salvo = Convert.ToInt32(chave.GetValue("qualidade3", 0));
                     todas = Convert.ToInt32(chave.GetValue("personalizadas", 0)) == 1;
+                    codigo = chave.GetValue("codigo", "") as string;
                 }
             }
             catch (Exception) { }
@@ -233,12 +240,7 @@ namespace InkDOSHubWebcam
             if (salvo != 0) todas = true;
             personalizadas.Checked = todas;
             PreencherLista(Qualidades[salvo]);
-            qualidade.SelectedIndexChanged += delegate
-            {
-                if (preenchendo) return;
-                Salvar();
-                AbrirCamera();
-            };
+            qualidade.SelectedIndexChanged += delegate { if (preenchendo) return; Salvar(); AbrirCamera(); };
             personalizadas.CheckedChanged += delegate
             {
                 var antes = (Qualidade)qualidade.SelectedItem;
@@ -247,71 +249,110 @@ namespace InkDOSHubWebcam
                 if (qualidade.SelectedItem != antes) AbrirCamera();
             };
 
-            Tamanho();
-
-            envio = new Thread(Enviar) { IsBackground = true, Name = "envio" };
-            envio.Start();
-            Load += async delegate
+            Load += delegate
             {
-                Program.Log("Window Load event.");
-                try
-                {
-                    var dados = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InkDOS Hub Webcam");
-                    // sem isso o Chromium desacelera a página quando a janela fica escondida ou minimizada, e a câmera congela
-                    var opcoes = new CoreWebView2EnvironmentOptions("--disable-features=CalculateNativeWinOcclusion --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --autoplay-policy=no-user-gesture-required");
-                    Program.Log("Creating WebView2 environment at " + dados);
-                    var env = await CoreWebView2Environment.CreateAsync(null, dados, opcoes);
-                    Program.Log("WebView2 environment created; ensuring CoreWebView2.");
-                    await web.EnsureCoreWebView2Async(env);
-                    Program.Log("CoreWebView2 initialized.");
-                }
-                catch (Exception e)
-                {
-                    Program.Log("WEBVIEW START ERROR: " + e);
-                    MessageBox.Show("WebView2 could not start. Install the Microsoft Edge WebView2 Runtime and open the app again.\n\n" + e.Message, "InkDOS Hub Webcam");
-                    Close();
-                    return;
-                }
-                web.CoreWebView2.Settings.AreDevToolsEnabled = false;
-                web.CoreWebView2.Settings.IsStatusBarEnabled = false;
-                web.CoreWebView2.WebMessageReceived += Mensagem;
-                web.CoreWebView2.NavigationStarting += delegate(object sender, CoreWebView2NavigationStartingEventArgs e)
-                {
-                    if (!Permitida(e.Uri)) { Program.Log("Blocked navigation to " + e.Uri); e.Cancel = true; }
-                };
-                web.CoreWebView2.NewWindowRequested += delegate(object sender, CoreWebView2NewWindowRequestedEventArgs e)
-                {
-                    e.Handled = true;
-                };
-                web.CoreWebView2.NavigationCompleted += delegate(object sender, CoreWebView2NavigationCompletedEventArgs e)
-            {
-                Program.Log("Navigation completed. success=" + e.IsSuccess + "; webError=" + e.WebErrorStatus);
                 AbrirCamera();
-            };
-                Program.Log("Navigating to " + Endereco());
-                web.CoreWebView2.Navigate(Endereco());
+                Codigo(codigo != null && codigo.Length == 10 ? codigo : NovoCodigo());
             };
             FormClosing += delegate
             {
-                rodando = false;
-                temQuadro.Set();
-                PararNativo();
+                Parar();
                 lock (trava)
                 {
                     if (camera != IntPtr.Zero) Softcam.scDeleteCamera(camera);
                     camera = IntPtr.Zero;
-                    bufferPointer = IntPtr.Zero;
-                    if (buffer != null) { buffer.Dispose(); buffer = null; }
                 }
             };
         }
 
-        /* Cria a câmera no tamanho escolhido e manda o buffer para a página. */
+        void Arrumar()
+        {
+            int w = Math.Min(420, ClientSize.Width - 40), top = 46 + 20;
+            int lado = Math.Max(140, Math.Min(240, ClientSize.Height - top - 250));
+            cartao.SetBounds((ClientSize.Width - w) / 2, top, w, ClientSize.Height - top - 20);
+            int y = 20, iw = w - 40;
+            qr.Visible = !ligado;
+            if (!ligado) { qr.SetBounds((w - lado) / 2, y, lado, lado); y += lado + 14; }
+            aviso.Visible = !ligado;
+            if (!ligado) { aviso.SetBounds(20, y, iw, TextRenderer.MeasureText(aviso.Text, aviso.Font, new Size(iw, 0), TextFormatFlags.WordBreak).Height + 4); y = aviso.Bottom + 10; }
+            codigoTexto.SetBounds(20, y, iw, 30); y += 34;
+            estado.SetBounds(20, y, iw, TextRenderer.MeasureText(estado.Text, estado.Font, new Size(iw, 0), TextFormatFlags.WordBreak).Height + 4); y = estado.Bottom + 10;
+            novo.Location = new Point((w - novo.Width) / 2, y); y = novo.Bottom + 12;
+            cameraTexto.SetBounds(20, y, iw, TextRenderer.MeasureText(cameraTexto.Text, cameraTexto.Font, new Size(iw, 0), TextFormatFlags.WordBreak).Height + 4);
+            cartao.Invalidate();
+        }
+
+        static string NovoCodigo()
+        {
+            var b = new byte[10];
+            using (var r = new System.Security.Cryptography.RNGCryptoServiceProvider()) r.GetBytes(b);
+            var s = new StringBuilder();
+            foreach (byte x in b) s.Append(Letras[x % Letras.Length]);
+            return s.ToString();
+        }
+
+        /* Mostra o QR deste código e liga o receptor nativo (Nativo.cs) com ele. */
+        void Codigo(string c)
+        {
+            codigo = c;
+            try { using (var chave = Registry.CurrentUser.CreateSubKey(@"Software\InkDOS Hub Webcam")) chave.SetValue("codigo", c); } catch (Exception) { }
+            var m = Qr.Gerar(Host + c);
+            int n = m.GetLength(0), borda = 2, esc = 8;
+            var bmp = new Bitmap((n + borda * 2) * esc, (n + borda * 2) * esc);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.White);
+                for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) if (m[y, x]) g.FillRectangle(Brushes.Black, (x + borda) * esc, (y + borda) * esc, esc, esc);
+            }
+            if (qr.Image != null) qr.Image.Dispose();
+            qr.Image = bmp;
+            codigoTexto.Text = Tx("Código: ", "Code: ") + c;
+            Ligar(false);
+            Parar();
+            var erro = Gst.Iniciar();
+            if (erro != null)
+            {
+                Program.Log("NATIVO: unavailable: " + erro);
+                Estado(Tx("O receptor não abriu. Baixe o app de novo. ", "The receiver did not start. Download the app again. ") + erro);
+                return;
+            }
+            receptor = new ReceptorNativo(c, EntregarNativo);
+            receptor.Estado += s => { try { BeginInvoke((Action)delegate { Estado(Traduzir(s)); }); } catch (Exception) { } };
+            receptor.Conectado += l => { try { BeginInvoke((Action)delegate { Ligar(l); }); } catch (Exception) { } };
+        }
+
+        void Parar() { if (receptor != null) { receptor.Dispose(); receptor = null; } }
+        void Estado(string s) { estado.Text = s; Arrumar(); }
+        void Ligar(bool l)
+        {
+            ligado = l;
+            estado.ForeColor = l ? Verde : Texto;
+            if (!l) taxa.Text = "";
+            Arrumar();
+        }
+
+        // os avisos do receptor vêm em inglês; em português, traduz os conhecidos
+        static string Traduzir(string s)
+        {
+            if (!Pt) return s;
+            switch (s)
+            {
+                case "Connecting to the pairing server…": return "Conectando ao servidor de pareamento…";
+                case "No connection to the pairing server. Trying again…": return "Sem conexão com o servidor de pareamento. Tentando de novo…";
+                case "Ready. Waiting for the iPhone…": return "Pronto. Esperando o iPhone…";
+                case "This code is open in another window (another tab or OBS). Trying again…": return "Este código está aberto em outra janela (outra aba ou o OBS). Tentando de novo…";
+                case "Connecting to the iPhone…": return "Conectando ao iPhone…";
+                case "Receiving from the iPhone (native receiver).": return "Recebendo a imagem do iPhone.";
+                default: return s;
+            }
+        }
+
+        /* Cria a câmera virtual no tamanho escolhido. */
         void AbrirCamera(int tentativa = 0)
         {
             var q = (Qualidade)qualidade.SelectedItem;
-            if (web.CoreWebView2 == null || q == null) return;
-            Program.Log("AbrirCamera entered. quality=" + q.W + "x" + q.H + "@" + q.Fps);
+            if (q == null) return;
+            Program.Log("AbrirCamera quality=" + q.W + "x" + q.H + "@" + q.Fps);
             lock (trava)
             {
                 if (camera != IntPtr.Zero && atual != null && (atual.W != q.W || atual.H != q.H || atual.Fps != q.Fps))
@@ -319,61 +360,30 @@ namespace InkDOSHubWebcam
                     Softcam.scDeleteCamera(camera);
                     camera = IntPtr.Zero;
                 }
-                if (camera == IntPtr.Zero)
-                {
-                    Program.Log("Calling native scCreateCamera.");
-                    // framerate 0: cada quadro vai na hora. Com fps fixo o scSendFrame "dorme" para manter
-                    // o ritmo, o que soma atraso (e aqui seguraria a trava). O DirectShow anuncia 60 fps.
-                    camera = Softcam.scCreateCamera(q.W, q.H, 0);
-                    Program.Log("scCreateCamera returned " + camera);
-                }
-                if (camera == IntPtr.Zero)
-                {
-                    estado.Text = "Camera initialization failed; retrying. Check whether another app is using InkDOS Hub Webcam.";
-                    Program.Log("CAMERA INIT FAILED quality=" + q.W + "x" + q.H + "@" + q.Fps + " retry=" + tentativa);
-                    // A troca de modo pode falhar logo após liberar o dispositivo nativo. Tenta novamente
-                    // na thread da UI, sem deixar a página ser informada de uma câmera pronta inexistente.
-                    if (tentativa < 3)
-                    {
-                        Task.Delay(350).ContinueWith(delegate
-                        {
-                            try
-                            {
-                                BeginInvoke((Action)delegate
-                                {
-                                    if (!IsDisposed && qualidade.SelectedItem == q && web.CoreWebView2 != null)
-                                        AbrirCamera(tentativa + 1);
-                                });
-                            }
-                            catch (Exception ex) { Program.Log("CAMERA RETRY SCHEDULE ERROR: " + ex.Message); }
-                        });
-                    }
-                    else
-                    {
-                        estado.Text = "Camera could not be created after retries. Close Zoom/Teams and retry the quality selection.";
-                        Program.Log("CAMERA INIT GAVE UP quality=" + q.W + "x" + q.H + "@" + q.Fps);
-                    }
-                    return;
-                }
-                if (buffer == null || atual == null || atual.W != q.W || atual.H != q.H)
-                {
-                    if (buffer != null) buffer.Dispose();
-                    buffer = web.CoreWebView2.Environment.CreateSharedBuffer((ulong)q.W * (ulong)q.H * 4 * Slots);
-                    // CoreWebView2SharedBuffer.Buffer é COM/UI-thread-bound: capture o ponteiro aqui.
-                    bufferPointer = buffer.Buffer;
-                    bgr = new byte[q.W * q.H * 3];
-                }
-                atual = q;
+                // framerate 0: cada quadro vai na hora (com fps fixo o scSendFrame "dorme" e soma atraso)
+                if (camera == IntPtr.Zero) camera = Softcam.scCreateCamera(q.W, q.H, 0);
+                if (camera != IntPtr.Zero) { bgr = new byte[q.W * q.H * 3]; atual = q; }
             }
-            Program.Log("Posting shared buffer to page.");
-            web.CoreWebView2.PostSharedBufferToScript(buffer, CoreWebView2SharedBufferAccess.ReadWrite,
-                "{\"w\":" + q.W + ",\"h\":" + q.H + ",\"fps\":" + q.Fps + ",\"slots\":" + Slots + "}");
-            estado.Text = "Camera \"InkDOS Hub Webcam\" ready (" + q.W + "×" + q.H + "). Choose it in Zoom. On the iPhone, pick " + (q.H >= 2160 ? "4K" : q.H + "p") + " " + q.Fps + " fps.";
-            Program.Log("Camera initialization finished.");
+            if (camera == IntPtr.Zero)
+            {
+                Program.Log("CAMERA INIT FAILED retry=" + tentativa);
+                if (tentativa < 3)
+                {
+                    cameraTexto.Text = Tx("A câmera não abriu; tentando de novo. Veja se outro app está usando a InkDOS Hub Webcam.", "Camera initialization failed; retrying. Check whether another app is using InkDOS Hub Webcam.");
+                    Task.Delay(350).ContinueWith(delegate { try { BeginInvoke((Action)delegate { if (!IsDisposed && qualidade.SelectedItem == q) AbrirCamera(tentativa + 1); }); } catch (Exception) { } });
+                }
+                else cameraTexto.Text = Tx("A câmera não abriu. Feche o Zoom ou o Teams e escolha a qualidade de novo.", "Camera could not be created. Close Zoom/Teams and choose the quality again.");
+                Arrumar();
+                return;
+            }
+            string modo = (q.H >= 2160 ? "4K" : q.H + "p") + " " + q.Fps + " fps";
+            cameraTexto.Text = Tx("Câmera \"InkDOS Hub Webcam\" pronta (" + q.W + "×" + q.H + "). Escolha-a no Zoom. No iPhone, escolha " + modo + ".",
+                "Camera \"InkDOS Hub Webcam\" ready (" + q.W + "×" + q.H + "). Choose it in Zoom. On the iPhone, pick " + modo + ".");
+            Arrumar();
         }
 
         bool preenchendo;
-        /* Só a padrão (1080p 30) ou a lista completa, conforme "Custom resolutions". */
+        /* Só a padrão (1080p 30) ou a lista completa, conforme "Outras resoluções". */
         void PreencherLista(Qualidade escolhida)
         {
             preenchendo = true;
@@ -395,79 +405,6 @@ namespace InkDOSHubWebcam
                 }
             }
             catch (Exception) { }
-        }
-
-        void Mensagem(object s, CoreWebView2WebMessageReceivedEventArgs e)
-        {
-            if (!Permitida(e.Source)) return;
-            string m;
-            try { m = e.TryGetWebMessageAsString(); } catch (Exception) { return; }
-            // "frame:<bgrx|rgba>:<posição>" (já no tamanho da câmera) ou
-            // "frame:raw:<posição>:<largura>:<altura>:<giro>:<0|1 inteira>" (BGRX cru do WebRTC; o app gira e corta)
-            if (m != null && m.StartsWith("frame:", StringComparison.Ordinal))
-            {
-                var partes = m.Split(':');
-                var p = new Pedido();
-                if (partes.Length > 2) int.TryParse(partes[2], out p.Slot);
-                if (p.Slot < 0 || p.Slot >= Slots) p.Slot = 0;
-                p.Bgrx = partes[1] != "rgba";
-                if (partes[1] == "raw" && partes.Length > 6)
-                {
-                    int.TryParse(partes[3], out p.Sw); int.TryParse(partes[4], out p.Sh); int.TryParse(partes[5], out p.Giro);
-                    p.Inteira = partes[6] == "1";
-                    p.Giro = ((p.Giro % 360) + 360) % 360;
-                    p.Cru = p.Sw > 0 && p.Sh > 0 && p.Giro % 90 == 0;
-                    if (!p.Cru) return;
-                }
-                fila.Enqueue(p);
-                temQuadro.Set();
-            }
-            else if (m != null && m.StartsWith("BUF ", StringComparison.Ordinal))
-            {
-                // atraso do buffer de vídeo agora, medido pela página a cada segundo
-                int ms;
-                if (int.TryParse(m.Substring(4), out ms)) rotuloBuffer.Text = "Buffer: " + (ms < 0 ? "–" : ms + " ms");
-            }
-            else if (m != null && m.StartsWith("NATIVO ", StringComparison.Ordinal)) IniciarNativo(m.Substring(7).Trim());
-            else if (m != null && m.StartsWith("PERFJS ", StringComparison.Ordinal)) Program.Log(m.Length > 300 ? m.Substring(0, 300) : m);
-        }
-
-        /* Receptor nativo não tem prévia: janela compacta, só a barra e o cartão do QR. */
-        void Tamanho()
-        {
-            if (nativo.Checked) { MinimumSize = new Size(520, 300); ClientSize = new Size(760, 480); }
-            else { MinimumSize = new Size(520, 420); ClientSize = new Size(960, 640); }
-        }
-
-        string Endereco() { return Pagina + (nativo.Checked ? "&nativo=1" : ""); }
-
-        /* Receptor nativo (Nativo.cs): o app recebe o vídeo com o GStreamer e a página só mostra o QR. */
-        void IniciarNativo(string codigo)
-        {
-            if (!nativo.Checked || codigo.Length != 10) return;
-            if (receptor != null && codigo == codigoNativo) return;
-            PararNativo();
-            var erro = Gst.Iniciar();
-            if (erro != null)
-            {
-                Program.Log("NATIVO: unavailable: " + erro);
-                estado.Text = "Native receiver unavailable: " + erro;
-                ParaPagina("nat:estado:Native receiver unavailable. Reinstall the Windows app.");
-                return;
-            }
-            codigoNativo = codigo;
-            receptor = new ReceptorNativo(codigo, EntregarNativo);
-            receptor.Estado += s => ParaPagina("nat:estado:" + s);
-            receptor.Conectado += ligado => ParaPagina(ligado ? "nat:on" : "nat:off");
-        }
-        void PararNativo()
-        {
-            if (receptor != null) { receptor.Dispose(); receptor = null; }
-            codigoNativo = null;
-        }
-        void ParaPagina(string m)
-        {
-            try { BeginInvoke((Action)delegate { if (web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsString(m); }); } catch (Exception) { }
         }
 
         long nativoJanela = Stopwatch.GetTimestamp(), nativoQuadros;
@@ -500,7 +437,7 @@ namespace InkDOSHubWebcam
             {
                 double fps = nativoQuadros / seg, ms = nativoConversao / Math.Max(1, nativoQuadros);
                 string texto = "Native: " + sw + "×" + sh + " · " + fps.ToString("F0") + " fps";
-                try { BeginInvoke((Action)delegate { rotuloBuffer.Text = texto; }); } catch (Exception) { }
+                try { BeginInvoke((Action)delegate { taxa.Text = texto; }); } catch (Exception) { }
                 if (DateTime.Now.Second % 5 == 0) Program.Log("PERF native in=" + sw + "x" + sh + " fps=" + fps.ToString("F1") + " copy_avg_ms=" + ms.ToString("F2"));
                 nativoJanela = agora; nativoQuadros = 0; nativoConversao = 0;
             }
@@ -568,73 +505,5 @@ namespace InkDOSHubWebcam
             });
         }
 
-        /* Mede separadamente conversão e envio à câmera virtual para localizar gargalos. */
-        void Enviar()
-        {
-            long janelaInicio = Stopwatch.GetTimestamp();
-            long quadros = 0, somaConversao = 0, maxConversao = 0, somaEnvio = 0, maxEnvio = 0;
-            while (rodando)
-            {
-                temQuadro.WaitOne();
-                if (!rodando) break;
-                Pedido item;
-                while (rodando && fila.TryDequeue(out item))
-                {
-                int slotAtual = item.Slot;
-                bool bgrx = item.Bgrx;
-                lock (trava)
-                {
-                    if (camera != IntPtr.Zero && bufferPointer != IntPtr.Zero && bgr != null && atual != null)
-                    {
-                        int n = atual.W * atual.H;
-                        unsafe
-                        {
-                            // Não acessa propriedades WebView2/COM nesta thread de fundo.
-                            fixed (byte* dst0 = bgr)
-                            {
-                                long inicioConversao = Stopwatch.GetTimestamp();
-                                IntPtr origemSlot = bufferPointer + (int)((long)slotAtual * n * 4);
-                                if (!item.Cru)
-                                    Converter(origemSlot, (IntPtr)dst0, n, bgrx);
-                                else if ((long)item.Sw * item.Sh <= n)
-                                    Transformar(origemSlot, item.Sw, item.Sh, item.Giro, item.Inteira, (IntPtr)dst0, atual.W, atual.H);
-                                // (quadro cru maior que o buffer: a página não manda; se mandar, repete o último quadro)
-                                long conversao = Stopwatch.GetTimestamp() - inicioConversao;
-                                long inicioEnvio = Stopwatch.GetTimestamp();
-                                Softcam.scSendFrame(camera, (IntPtr)dst0);
-                                long envio = Stopwatch.GetTimestamp() - inicioEnvio;
-
-                                quadros++;
-                                somaConversao += conversao;
-                                somaEnvio += envio;
-                                if (conversao > maxConversao) maxConversao = conversao;
-                                if (envio > maxEnvio) maxEnvio = envio;
-                            }
-                        }
-                    }
-                }
-                long agora = Stopwatch.GetTimestamp();
-                if (agora - janelaInicio >= Stopwatch.Frequency * 5)
-                {
-                    double segundos = (double)(agora - janelaInicio) / Stopwatch.Frequency;
-                    if (quadros > 0)
-                    {
-                        double fatorMs = 1000.0 / Stopwatch.Frequency;
-                        Program.Log("PERF camera=" + atual.W + "x" + atual.H + "@" + atual.Fps
-                            + " delivered_fps=" + (quadros / segundos).ToString("F1")
-                            + " convert_avg_ms=" + (somaConversao / (double)quadros * fatorMs).ToString("F2")
-                            + " convert_max_ms=" + (maxConversao * fatorMs).ToString("F2")
-                            + " send_avg_ms=" + (somaEnvio / (double)quadros * fatorMs).ToString("F2")
-                            + " send_max_ms=" + (maxEnvio * fatorMs).ToString("F2")
-                            + " frames=" + quadros);
-                    }
-                    else Program.Log("PERF: no frames delivered during last " + segundos.ToString("F1") + " seconds.");
-                    janelaInicio = agora;
-                    quadros = somaConversao = maxConversao = somaEnvio = maxEnvio = 0;
-                }
-                ParaPagina("ok:" + slotAtual);
-                }
-            }
-        }
     }
 }
