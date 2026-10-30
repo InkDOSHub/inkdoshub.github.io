@@ -25,6 +25,9 @@ Os testes também acharam um problema do app Texto: um .txt de 20 MB custava ~65
   - Mostra o aviso no app Código para usar o VS Code nativo.
 - `inicio/manifesto.json` agora leva o SHA-256 inteiro de cada arquivo (4º campo).
 - **Webcam:** o ícone baixa o app nativo da Webcam (release webcam-windows, conferido pelo SHA-256) e abre esse app, em vez da página do iPhone.
+- **Terminal:**
+  - Com o WSL instalado, o ícone abre o Linux do próprio Windows no Terminal do Windows (`wt.exe wsl.exe`).
+  - Sem o WSL, explica e instala com `wsl --install -d Ubuntu` (pede administrador uma vez). O terminal do site (v86) fica de opção.
 - **Carcaça atualizável:**
   - A action numera cada build (0.3.N) e publica `versao.json` com o SHA-256 do instalador.
   - O app confere 20 s depois de abrir e a cada 6 h. Se houver versão nova, baixa o instalador e confere o SHA-256.
