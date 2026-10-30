@@ -405,6 +405,7 @@
 "Home screen and light apps": "主屏幕和轻量应用",
 "always saved": "始终保存",
 "Used in this browser: {used}. Free: {free}.": "此浏览器已用：{used}。可用：{free}。",
+"On this PC: {used}. Free: {free}.": "此电脑：{used}。可用：{free}。",
 "Remove {name} from this device? ({size})": "从此设备移除 {name}？（{size}）",
 "Close": "关闭",
 "Keep {name} on this device?": "将 {name} 保存在此设备上？",

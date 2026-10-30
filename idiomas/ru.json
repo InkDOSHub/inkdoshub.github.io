@@ -405,6 +405,7 @@
 "Home screen and light apps": "Главный экран и лёгкие приложения",
 "always saved": "хранится всегда",
 "Used in this browser: {used}. Free: {free}.": "Занято в этом браузере: {used}. Свободно: {free}.",
+"On this PC: {used}. Free: {free}.": "На этом ПК: {used}. Свободно: {free}.",
 "Remove {name} from this device? ({size})": "Удалить {name} с этого устройства? ({size})",
 "Close": "Закрыть",
 "Keep {name} on this device?": "Сохранить {name} на этом устройстве?",

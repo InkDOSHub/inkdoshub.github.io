@@ -405,6 +405,7 @@
 "Home screen and light apps": "ホーム画面と軽いアプリ",
 "always saved": "常に保存",
 "Used in this browser: {used}. Free: {free}.": "このブラウザーの使用量: {used}。空き: {free}。",
+"On this PC: {used}. Free: {free}.": "この PC: {used}。空き: {free}。",
 "Remove {name} from this device? ({size})": "{name} をこの端末から削除しますか？（{size}）",
 "Close": "閉じる",
 "Keep {name} on this device?": "{name} をこの端末に保存しますか？",

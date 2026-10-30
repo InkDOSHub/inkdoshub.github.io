@@ -653,6 +653,7 @@
 "Home screen and light apps": "Tela inicial e apps leves",
 "always saved": "sempre guardado",
 "Used in this browser: {used}. Free: {free}.": "Usado neste navegador: {used}. Livre: {free}.",
+"On this PC: {used}. Free: {free}.": "Neste PC: {used}. Livre: {free}.",
 "Remove {name} from this device? ({size})": "Remover {name} deste aparelho? ({size})",
 "Close": "Fechar",
 "Keep {name} on this device?": "Guardar {name} neste aparelho?",
