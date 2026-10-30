@@ -647,5 +647,6 @@
 "Each tool opens its own page and asks for the file. Everything runs on this device; no file is uploaded.": "Cada ferramenta abre a própria página e pede o arquivo. Tudo roda neste aparelho; nenhum arquivo é enviado.",
 "Merge, split, compress, convert, sign and protect PDFs.": "Juntar, dividir, comprimir, converter, assinar e proteger PDFs.",
 "Update available": "Atualização disponível",
-"Update": "Atualizar"
+"Update": "Atualizar",
+"The drawing could not be saved in this browser.": "Não foi possível salvar o desenho neste navegador."
 }
