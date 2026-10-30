@@ -3,7 +3,7 @@
 # - só o idioma en-US do Chromium (os 7 idiomas do Hub vêm do site), sem o app de exemplo e sem o SwiftShader/Vulkan;
 # - main.js, preload.js e o ícone em resources\app; o .exe com nome, ícone e versão do InkDOS Hub.
 # Uso (Windows, com Node): .\windows\hub\montar.ps1 -Saida saida   ->  saida\InkDOS Hub\InkDOS Hub.exe
-param([string]$Saida = 'saida')
+param([string]$Saida = 'saida', [string]$Versao = '')
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $aqui = $PSScriptRoot
@@ -46,11 +46,14 @@ Rename-Item (Join-Path $app 'electron.exe') 'InkDOS Hub.exe'
 # o app
 $res = Join-Path $app 'resources\app'
 New-Item -ItemType Directory -Force -Path $res | Out-Null
-foreach ($f in @('package.json', 'main.js', 'preload.js', 'icone.ico')) { Copy-Item (Join-Path $aqui $f) $res }
+foreach ($f in @('main.js', 'preload.js', 'icone.ico')) { Copy-Item (Join-Path $aqui $f) $res }
+$pacote = Get-Content (Join-Path $aqui 'package.json') -Raw | ConvertFrom-Json
+if ($Versao) { $pacote.version = $Versao }
+$versao = $pacote.version
+[IO.File]::WriteAllText((Join-Path $res 'package.json'), ($pacote | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 Copy-Item (Join-Path $aqui '..\..\LICENSE') (Join-Path $app 'LICENSE.InkDOSHub.txt')
 
 # nome, ícone e versão no .exe (rcedit, do projeto Electron)
-$versao = (Get-Content (Join-Path $aqui 'package.json') -Raw | ConvertFrom-Json).version
 $ferr = Join-Path $Saida 'ferramentas'
 New-Item -ItemType Directory -Force -Path $ferr | Out-Null
 Push-Location $ferr

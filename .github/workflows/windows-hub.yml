@@ -25,7 +25,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: ./windows/hub/montar.ps1 -Saida saida
+        run: ./windows/hub/montar.ps1 -Saida saida -Versao "0.3.${{ github.run_number }}"
       - name: Instalador e versão portátil
         shell: pwsh
         run: |
@@ -52,7 +52,12 @@ jobs:
           sha256sum InkDOSHub-Setup.exe > InkDOSHub-Setup.exe.sha256
           sha256sum InkDOSHub-Windows-portatil.zip > InkDOSHub-Windows-portatil.zip.sha256
           cat *.sha256
+          # o app instalado lê isto para se atualizar sozinho (baixa o instalador e confere o SHA-256)
+          printf '{"versao":"%s","arquivo":"InkDOSHub-Setup.exe","sha256":"%s"}\n' "$HUB_VERSAO" "$(cut -d' ' -f1 InkDOSHub-Setup.exe.sha256)" > versao.json
+          cat versao.json
           gh release upload hub-windows InkDOSHub-Setup.exe InkDOSHub-Setup.exe.sha256 InkDOSHub-Windows-portatil.zip InkDOSHub-Windows-portatil.zip.sha256 --clobber
+          # versao.json por último: só aponta para o instalador novo depois que ele já está no ar
+          gh release upload hub-windows versao.json --clobber
           # o lançador antigo (WinForms) sai da release
           gh release delete-asset hub-windows InkDOSHub.exe -y 2>/dev/null || true
           gh release delete-asset hub-windows InkDOSHub.exe.sha256 -y 2>/dev/null || true

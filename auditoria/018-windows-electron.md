@@ -24,7 +24,12 @@ Os testes também acharam um problema do app Texto: um .txt de 20 MB custava ~65
   - `window.inkHubNativo` liga o "Offline" da tela inicial ao disco. É o mesmo painel com check verde, e `inicio/offline.js` só troca o destino.
   - Mostra o aviso no app Código para usar o VS Code nativo.
 - `inicio/manifesto.json` agora leva o SHA-256 inteiro de cada arquivo (4º campo).
-- **Atualização:** usa o mesmo "Atualização disponível" da tela inicial e baixa só o que mudou. O instalador traz só a carcaça. A action roda toda semana para pegar o Electron novo.
+- **Webcam:** o ícone baixa o app nativo da Webcam (release webcam-windows, conferido pelo SHA-256) e abre esse app, em vez da página do iPhone.
+- **Carcaça atualizável:**
+  - A action numera cada build (0.3.N) e publica `versao.json` com o SHA-256 do instalador.
+  - O app confere 20 s depois de abrir e a cada 6 h. Se houver versão nova, baixa o instalador e confere o SHA-256.
+  - Então mostra "Nova versão do app · Reiniciar" e instala em silêncio (Inno `/VERYSILENT`, sem administrador). Se a pessoa não tocar, instala ao fechar.
+- **Atualização dos apps:** usa o mesmo "Atualização disponível" da tela inicial e baixa só o que mudou. O instalador traz só a carcaça. A action roda toda semana para pegar o Electron novo.
 - **Privacidade:**
   - Os serviços de fundo do Chromium estão desligados.
   - A rede só alcança o site e o `0.peerjs.com` (Transferir/Webcam), e todo o resto é bloqueado.

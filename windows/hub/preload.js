@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('inkHubNativo', {
   versao: () => ipcRenderer.invoke('hub:versao'),
+  reiniciarAtualizando: () => ipcRenderer.invoke('hub:reiniciar'),
   estado: () => ipcRenderer.invoke('hub:estado'),
   espaco: () => ipcRenderer.invoke('hub:espaco'),
   sincronizar: (ids, progresso) => {
