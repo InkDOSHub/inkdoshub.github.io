@@ -14,7 +14,6 @@ namespace InkDOSHub
             { "Abrindo o instalador de {0}…", "Opening the installer from {0}…" },
             { "Abrir arquivo", "Open file" },
             { "Abrir no navegador", "Open in the browser" },
-            { "Abre no navegador.", "Opens in the browser." },
             { "Aguarde o download atual terminar.", "Wait for the current download to finish." },
             { "Antes de instalar, o InkDOS Hub confere a impressão digital (SHA-256) do arquivo e a assinatura digital de {0}.", "Before installing, InkDOS Hub checks the file's fingerprint (SHA-256) and the digital signature of {0}." },
             { "Antes de instalar, o InkDOS Hub confere a impressão digital (SHA-256) do arquivo. Este fabricante não assina o programa.", "Before installing, InkDOS Hub checks the file's fingerprint (SHA-256). This publisher does not sign the program." },
@@ -106,6 +105,11 @@ namespace InkDOSHub
             { "PowerPoint (PPTX) no ONLYOFFICE Desktop.", "PowerPoint (PPTX) in ONLYOFFICE Desktop." },
             { "VS Code ou Zed (escolha no ☰).", "VS Code or Zed (choose in ☰)." },
             { "Word (DOCX) no ONLYOFFICE Desktop.", "Word (DOCX) in ONLYOFFICE Desktop." },
+            { "Ler PDF no SumatraPDF, leve e nativo.", "Read PDF in SumatraPDF, light and native." },
+            { "Ler EPUB no SumatraPDF, leve e nativo.", "Read EPUB in SumatraPDF, light and native." },
+            { "App Fotos do Windows.", "Windows Photos app." },
+            { "Media Player do Windows.", "Windows Media Player." },
+            { "Gravador de Som do Windows.", "Windows Sound Recorder." },
         };
 
         public static string Tx(string s, params object[] a)

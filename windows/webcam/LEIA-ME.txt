@@ -12,8 +12,7 @@ Turns the iPhone camera into a Windows webcam, without OBS.
    scan the QR code shown in the app (Camera app) and tap Start.
 5. In Zoom, Teams, Meet or Discord, choose the camera "InkDOS Hub Webcam".
 
-Requirements: Windows 10 or 11 (64-bit) and the Microsoft Edge WebView2 Runtime (already in
-Windows 11). Keep the app open while you use the camera.
+Requirements: Windows 10 or 11 (64-bit). No browser needed. Keep the app open while you use the camera.
 
 To remove the camera: run in this folder, as administrator:
   "InkDOS Hub Webcam.exe" --remover

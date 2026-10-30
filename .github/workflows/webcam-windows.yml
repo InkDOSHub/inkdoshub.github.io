@@ -52,14 +52,14 @@ jobs:
         run: |
           $d = "pacote/InkDOS Hub Webcam"
           New-Item -ItemType Directory -Force $d | Out-Null
-          Copy-Item "out/InkDOS Hub Webcam.exe","out/InkDOS Hub Webcam.exe.config","out/Microsoft.Web.WebView2.Core.dll","out/Microsoft.Web.WebView2.WinForms.dll","out/runtimes/win-x64/native/WebView2Loader.dll" $d
+          Copy-Item "out/InkDOS Hub Webcam.exe","out/InkDOS Hub Webcam.exe.config" $d
           $dll = Get-ChildItem softcam -Recurse -Filter softcam.dll | Where-Object { $_.FullName -match '\\x64\\Release\\' } | Select-Object -First 1
           if (-not $dll) { throw "softcam.dll não foi gerada" }
           Copy-Item $dll.FullName $d
           Copy-Item windows/webcam/LEIA-ME.txt $d
           Copy-Item softcam/LICENSE "$d/softcam-LICENSE.txt"
           Copy-Item -Recurse gstmin "$d/gstreamer"
-          Set-Content "$d/gstreamer/LEIA-ME.txt" "GStreamer $env:GST_VER (https://gstreamer.freedesktop.org), LGPL-2.1. Usado pela opcao Native receiver (beta). Codigo-fonte: https://gitlab.freedesktop.org/gstreamer/gstreamer"
+          Set-Content "$d/gstreamer/LEIA-ME.txt" "GStreamer $env:GST_VER (https://gstreamer.freedesktop.org), LGPL-2.1. Recebe o video do iPhone. Codigo-fonte: https://gitlab.freedesktop.org/gstreamer/gstreamer"
           Get-ChildItem $d | Format-Table Name, Length
           "{0:N1} MB no pacote" -f ((Get-ChildItem $d -Recurse -File | Measure-Object Length -Sum).Sum / 1MB)
           Compress-Archive -Path $d -DestinationPath InkDOSHub-Webcam-Windows.zip -Force

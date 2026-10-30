@@ -1,8 +1,8 @@
 // InkDOS Hub para Windows: lançador nativo e leve (WinForms, sem motor web), com o visual da tela inicial do site.
 //
-// A tela inicial (Inicio.cs) mostra os mesmos apps do site. Os que têm versão nativa (Linux, Código, Documentos,
-// Planilhas, Apresentações, Editar PDF, Vídeo, Webcam, Transferir) usam programas que só são baixados quando a
-// pessoa quer, sempre da fonte oficial e conferidos (Ferramentas.cs). Os outros abrem no navegador.
+// A tela inicial (Inicio.cs) mostra os apps do site em versão nativa, sem navegador: programas que só são baixados
+// quando a pessoa quer, sempre da fonte oficial e conferidos (Ferramentas.cs), ou os apps que já vêm no Windows
+// (Fotos, Media Player, Gravador de Som, Bloco de Notas). Os apps que só existem na web ficam no site.
 // O ☰ > "Ferramentas neste PC" é o Modo Offline do site: um check verde por ferramenta; tocar baixa (depois de mostrar
 // de onde vem, quem publica, o tamanho e o espaço livre), tocar de novo pergunta, na própria janela, se pode remover.
 // Atualizações: o catálogo do site diz a versão de cada ferramenta e a release "hub-windows" traz o próprio Hub,
@@ -142,23 +142,18 @@ namespace InkDOSHub
         {
             Action<string, string, string, string, Action> app = (icone, nome, ferramenta, dica, acao) =>
                 inicio.Apps.Add(new App { Icone = Icone(icone), Nome = T.Tx(nome), Sub = icone.StartsWith("oo-") ? "ONLYOFFICE" : null, Ferramenta = ferramenta, Dica = T.Tx(dica), Acao = () => { menu.Visible = false; try { acao(); } catch (Exception ex) { Aviso(ex.Message); } } });
-            Func<string, Action> site = caminho => () => Navegar(Ferramentas.SITE + caminho);
-            const string noNavegador = "Abre no navegador.";
-            app("pdf", "PDF", null, noNavegador, site("inkdos/apps/pdf/index.html?suite=1"));
+            // tudo nativo, sem navegador: programas baixados sob demanda ou os apps que já vêm no Windows
+            Func<string, Action> windows = id => () => Process.Start("explorer.exe", "shell:AppsFolder\\" + id);
+            app("pdf", "PDF", "sumatra", "Ler PDF no SumatraPDF, leve e nativo.", () => Usar("sumatra", f => Ferramentas.Abrir(f)));
             app("editar-pdf", "Editar PDF", "qpdf", "Juntar, girar e comprimir PDFs (qpdf e Ghostscript).", PainelPdf);
-            // InkDOS (rápido, no navegador) e ONLYOFFICE (completo, nativo) separados, como no site
-            app("documentos", "Documentos", null, noNavegador, site("inkdos/apps/documents/index.html?suite=1"));
-            app("planilhas", "Planilhas", null, noNavegador, site("inkdos/apps/spreadsheets/index.html?suite=1"));
-            app("apresentacoes", "Apresentações", null, noNavegador, site("inkdos/apps/presentations/index.html?suite=1"));
             app("texto", "Texto simples", null, "Bloco de Notas do Windows.", () => Process.Start("notepad.exe"));
-            app("epub", "Leitor EPUB", null, noNavegador, site("inkdos/apps/epub/index.html?suite=1"));
-            app("foto", "Fotos", null, noNavegador, site("apps/foto/"));
+            app("epub", "Leitor EPUB", "sumatra", "Ler EPUB no SumatraPDF, leve e nativo.", () => Usar("sumatra", f => Ferramentas.Abrir(f)));
+            app("foto", "Fotos", null, "App Fotos do Windows.", windows("Microsoft.Windows.Photos_8wekyb3d8bbwe!App"));
             app("video", "Vídeo", "ffmpeg", "Cortar vídeo sem perder qualidade (ffmpeg).", () => Usar("ffmpeg", f => PainelVideo(f, null)));
-            app("musica", "Música", null, noNavegador, site("apps/musica/"));
-            app("gravador", "Gravador", null, noNavegador, site("apps/gravador/"));
+            app("musica", "Música", null, "Media Player do Windows.", windows("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic"));
+            app("gravador", "Gravador", null, "Gravador de Som do Windows.", windows("Microsoft.WindowsSoundRecorder_8wekyb3d8bbwe!App"));
             app("webcam", "Webcam", "webcam", "A câmera do celular como webcam do PC.", () => Usar("webcam", f => Ferramentas.Abrir(f)));
             app("transferir", "Transferir", "transferir", "Arquivos entre o celular e o PC, sem internet.", () => Usar("transferir", f => Ferramentas.Abrir(f)));
-            app("quadro", "Quadro branco", null, noNavegador, site("apps/quadro/"));
             app("oo-docx", "Documentos", "onlyoffice", "Word (DOCX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:word", true)));
             app("oo-xlsx", "Planilhas", "onlyoffice", "Excel (XLSX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:cell", true)));
             app("oo-pptx", "Apresentações", "onlyoffice", "PowerPoint (PPTX) no ONLYOFFICE Desktop.", () => Usar("onlyoffice", f => Ferramentas.Abrir(f, "--new:slide", true)));
@@ -454,7 +449,9 @@ namespace InkDOSHub
             string arq = a.FileName, ext = Path.GetExtension(arq).ToLowerInvariant();
             try
             {
-                if (",.docx,.doc,.odt,.rtf,.xlsx,.xls,.ods,.csv,.pptx,.ppt,.odp,".Contains("," + ext + ","))
+                if (ext == ".pdf" || ext == ".epub" || ext == ".mobi" || ext == ".cbz" || ext == ".xps" || ext == ".djvu")
+                    Usar("sumatra", f => Ferramentas.Abrir(f, arq));
+                else if (",.docx,.doc,.odt,.rtf,.xlsx,.xls,.ods,.csv,.pptx,.ppt,.odp,".Contains("," + ext + ","))
                     Usar("onlyoffice", f => Ferramentas.Abrir(f, arq));
                 else if (",.mp4,.mov,.mkv,.webm,.avi,.m4v,".Contains("," + ext + ","))
                     Usar("ffmpeg", f => PainelVideo(f, arq));

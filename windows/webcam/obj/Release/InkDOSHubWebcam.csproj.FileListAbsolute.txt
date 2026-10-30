@@ -1,0 +1,10 @@
+/home/user/Inkterminal.github.io/windows/webcam/bin/Release/InkDOS Hub Webcam.exe.config
+/home/user/Inkterminal.github.io/windows/webcam/bin/Release/InkDOS Hub Webcam.exe
+/home/user/Inkterminal.github.io/windows/webcam/bin/Release/InkDOS Hub Webcam.pdb
+/home/user/Inkterminal.github.io/windows/webcam/obj/Release/InkDOSHubWebcam.GeneratedMSBuildEditorConfig.editorconfig
+/home/user/Inkterminal.github.io/windows/webcam/obj/Release/InkDOSHubWebcam.AssemblyInfoInputs.cache
+/home/user/Inkterminal.github.io/windows/webcam/obj/Release/InkDOSHubWebcam.AssemblyInfo.cs
+/home/user/Inkterminal.github.io/windows/webcam/obj/Release/InkDOSHubWebcam.csproj.CoreCompileInputs.cache
+/home/user/Inkterminal.github.io/windows/webcam/obj/Release/InkDOSHubWebcam.sourcelink.json
+/home/user/Inkterminal.github.io/windows/webcam/obj/Release/InkDOS Hub Webcam.exe
+/home/user/Inkterminal.github.io/windows/webcam/obj/Release/InkDOS Hub Webcam.pdb

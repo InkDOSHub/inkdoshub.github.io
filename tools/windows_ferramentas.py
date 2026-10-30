@@ -67,6 +67,15 @@ def alpine():
             "baixar": int(re.search(r"size: (\d+)", bloco).group(1)), "pagina": "https://alpinelinux.org/"}
 
 
+def sumatra():
+    """SumatraPDF publica a versão num arquivo de texto e o .zip portátil no próprio site (sem SHA-256: calculado aqui)."""
+    txt = pegar("https://www.sumatrapdfreader.org/update-check-rel.txt", json_=False).decode()
+    v = re.search(r"Latest\s+(\S+)", txt).group(1)
+    url = "https://www.sumatrapdfreader.org/dl/rel/%s/SumatraPDF-%s-64.zip" % (v, v)
+    sha, tam = sha_e_tamanho(url)
+    return {"versao": v, "url": url, "sha256": sha, "baixar": tam, "pagina": "https://www.sumatrapdfreader.org/"}
+
+
 def nosso(tag, arq):
     """Apps do próprio InkDOS Hub (windows/webcam, windows/transferir): a release publica o .sha256 ao lado."""
     url = "https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/%s/%s" % (tag, arq)
@@ -89,6 +98,8 @@ FERRAMENTAS = [
      "Abre as pastas que você escolher.", lambda: github("zed-industries/zed", r"^zed.*x86_64.*\.exe$")),
     ("onlyoffice", "ONLYOFFICE Desktop", "Ascensio System SIA", "AGPL-3.0", "instalador", 650, "Ascensio System SIA",
      "Abre os documentos que você escolher.", lambda: github("ONLYOFFICE/DesktopEditors", r"^DesktopEditors_x64\.exe$")),
+    ("sumatra", "Leitor de PDF e EPUB (SumatraPDF)", "Krzysztof Kowalczyk", "GPL-3.0", "zip", 20, "Krzysztof Kowalczyk",
+     "Só os arquivos que você abrir.", sumatra),
     ("qpdf", "Ferramentas de PDF (qpdf)", "qpdf (Jay Berkenbilt e colaboradores)", "Apache-2.0", "zip", 30, None,
      "Só os PDFs que você escolher.", lambda: github("qpdf/qpdf", r"^qpdf-[\d.]+-msvc64\.zip$")),
     ("ghostscript", "Comprimir PDF (Ghostscript)", "Artifex Software", "AGPL-3.0", "instalador", 100, "Artifex Software",
