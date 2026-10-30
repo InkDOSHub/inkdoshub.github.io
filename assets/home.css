@@ -126,6 +126,7 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 .off-ajuda,.off-espaco{margin:6px 0 10px;font-size:13px;color:var(--muted)}
 .off-espaco{margin:8px 0 6px}
 .off-atualizar{width:100%;min-height:36px;border:1px solid var(--border);border-radius:10px;background:var(--accent-soft);color:var(--text);font:inherit;font-weight:600}
+.off-app{margin-top:8px;background:var(--card,#fff);font-weight:500}
 .off-lista{display:flex;flex-direction:column;gap:2px}
 .off-item{display:flex;align-items:center;gap:10px;width:100%;min-height:38px;padding:0 8px;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;font-size:14px;text-align:left}
 button.off-item:hover{background:var(--accent-soft)}

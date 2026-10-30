@@ -338,24 +338,40 @@ const maior = (a, b) => {
   for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
   return false;
 };
-async function procurarVersaoNova() {
-  if (instaladorPronto || !app.isPackaged || process.platform !== 'win32') return;
-  try {
-    const baixar = session.fromPartition('inkhub-baixar');
-    const r = await baixar.fetch(VERSAO_URL + '?t=' + Date.now());
-    if (!r.ok) return;
-    const v = await r.json();
-    if (!v || !maior(v.versao, app.getVersion()) || !/^[0-9a-f]{64}$/.test(v.sha256 || '')) return;
-    const url = VERSAO_URL.replace('versao.json', v.arquivo || 'InkDOSHub-Setup.exe');
-    const s = await baixar.fetch(url);
-    if (!s.ok) return;
-    const b = Buffer.from(await s.arrayBuffer());
-    if (sha256(b) !== v.sha256) return; // não confere: tenta de novo na próxima vez
-    const f = path.join(app.getPath('temp'), 'InkDOSHub-Setup-' + v.versao + '.exe');
-    await fsp.writeFile(f, b);
-    instaladorPronto = f;
-    mostrarAvisoApp();
-  } catch (_) {}
+// devolve 'atual' (já é a mais nova), 'pronto' (instalador baixado e conferido) ou 'erro'
+let procurando = null;
+function procurarVersaoNova(progresso) {
+  if (instaladorPronto) return Promise.resolve('pronto');
+  if (!app.isPackaged || process.platform !== 'win32') return Promise.resolve('atual');
+  if (procurando) return procurando;
+  procurando = (async () => {
+    try {
+      const baixar = session.fromPartition('inkhub-baixar');
+      const r = await baixar.fetch(VERSAO_URL + '?t=' + Date.now());
+      if (!r.ok) return 'erro';
+      const v = await r.json();
+      if (!v || !/^[0-9a-f]{64}$/.test(v.sha256 || '')) return 'erro';
+      if (!maior(v.versao, app.getVersion())) return 'atual';
+      const s = await baixar.fetch(VERSAO_URL.replace('versao.json', v.arquivo || 'InkDOSHub-Setup.exe'));
+      if (!s.ok) return 'erro';
+      const total = Number(s.headers.get('content-length')) || 0, partes = [], leitor = s.body.getReader();
+      let feito = 0;
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        partes.push(Buffer.from(value)); feito += value.length;
+        if (progresso && total) progresso(Math.min(99, Math.floor(feito * 100 / total)));
+      }
+      const b = Buffer.concat(partes);
+      if (sha256(b) !== v.sha256) return 'erro'; // não confere: tenta de novo na próxima vez
+      const f = path.join(app.getPath('temp'), 'InkDOSHub-Setup-' + v.versao + '.exe');
+      await fsp.writeFile(f, b);
+      instaladorPronto = f;
+      mostrarAvisoApp();
+      return 'pronto';
+    } catch (_) { return 'erro'; } finally { procurando = null; }
+  })();
+  return procurando;
 }
 function mostrarAvisoApp() {
   const w = principal();
@@ -446,6 +462,12 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('hub:versao', () => app.getVersion());
   ipcMain.handle('hub:reiniciar', () => { if (instalarAtualizacao(true)) app.quit(); });
+  // botão "Atualizar o app do Windows" do Offline: procura, baixa (com %), confere e reinstala na hora
+  ipcMain.handle('hub:atualizar-app', async e => {
+    const r = await procurarVersaoNova(p => { if (!e.sender.isDestroyed()) e.sender.send('hub:progresso-app', p); });
+    if (r === 'pronto') { setTimeout(() => { if (instalarAtualizacao(true)) app.quit(); }, 800); }
+    return r;
+  });
   ipcMain.handle('hub:estado', () => (estado ? { versao: estado.versao, grupos: estado.grupos.map(id => ({ id })) } : null));
   ipcMain.handle('hub:espaco', async () => {
     let usado = 0;
