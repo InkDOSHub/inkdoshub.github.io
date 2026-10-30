@@ -52,8 +52,8 @@ function daRedeOuCopia(req) {
   });
 }
 
-/* Com o modo offline instalado (botão "Offline" da tela inicial, inicio/offline.js), tudo o que está
-   na cópia abre direto dela: o site só muda quando a pessoa pede para atualizar. */
+/* Com o modo offline instalado (botão "Offline" da tela inicial, inicio/offline.js), o que está guardado
+   abre direto da cópia (o site só muda quando a pessoa pede para atualizar); o que não está vem do site. */
 var MARCA = self.location.origin + RAIZ + "__offline__/manifesto.json";
 function daCopiaOuRede(req) {
   var k = chave(req.url);
@@ -74,5 +74,10 @@ self.addEventListener("fetch", function (e) {
   if (u.pathname === RAIZ + "inicio/manifesto.json") return; // o botão Offline sempre compara com o site
   if (u.searchParams.has("inkoff")) return; // download da cópia offline: sempre do site
 
+  // a tela inicial (inicio/offline.js) oferece guardar o último app aberto, se ainda não estiver guardado
+  if (req.mode === "navigate") {
+    var caminho = chave(req.url).slice((self.location.origin + RAIZ).length);
+    if (caminho !== "index.html") e.waitUntil(caches.open(CACHE).then(function (c) { return c.put(self.location.origin + RAIZ + "__uso__", new Response(caminho)); }).catch(function () {}));
+  }
   e.respondWith(daCopiaOuRede(req));
 });
