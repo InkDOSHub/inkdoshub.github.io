@@ -18,8 +18,9 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | — | Quadro: desenho salvo no IndexedDB | [010-quadro-indexeddb.md](010-quadro-indexeddb.md) |
 | — | Modo Offline por app | [011-offline-por-app.md](011-offline-por-app.md) |
 | — | Apresentações: tela cheia igual à edição | [013-apresentacao-tela-cheia.md](013-apresentacao-tela-cheia.md) |
+| — | Revisão depois das mudanças de 2026-10-30 | [014-revisao-final.md](014-revisao-final.md) |
 
-Logs 014 (revisão final) e 015 (Windows) entram conforme ficam prontos.
+Log 015 (Windows) entra quando estiver pronto.
 
 ## Resumo (2026-10-29)
 
