@@ -6,7 +6,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 WORK=${WORK:-$(mktemp -d)}
 cd "$WORK"
 npm init -y >/dev/null
-npm i -s vscode-web@1.91.1 @excalidraw/excalidraw@0.18.1 react@18.3.1 react-dom@18.3.1 esbuild@0.25
+npm i -s --ignore-scripts vscode-web@1.91.1 @excalidraw/excalidraw@0.18.1 react@18.3.1 react-dom@18.3.1 esbuild@0.25
 
 # Fotos: galeria e editor são nossos (apps/foto/), sem ferramenta de fora
 
