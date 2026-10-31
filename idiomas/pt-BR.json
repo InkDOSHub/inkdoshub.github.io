@@ -631,7 +631,6 @@
 "Open videos": "Abrir vídeos",
 "Mute": "Sem som",
 "The file goes to Downloads and to the Music list.": "O arquivo vai para Downloads e para a lista da Música.",
-"InkDOS fast": "InkDOS rápido",
 "Offline": "Offline",
 "Up to date": "Atualizado",
 "Failed, try again": "Falhou, tente de novo",
@@ -681,5 +680,9 @@
 "This editor is still being installed. Try again in a few minutes.": "Este editor ainda está sendo instalado. Tente de novo em alguns minutos.",
 "Waiting for download…": "Aguardando download…",
 "Downloading {n}%": "Baixando {n}%",
-"Opening…": "Abrindo…"
+"Opening…": "Abrindo…",
+"InkDOS (legacy)": "InkDOS (legado)",
+"Word documents (DOCX, ODT, RTF); exports PDF.": "Documentos do Word (DOCX, ODT, RTF); exporta PDF.",
+"Excel spreadsheets (XLSX, ODS, CSV).": "Planilhas do Excel (XLSX, ODS, CSV).",
+"PowerPoint slides (PPTX, ODP).": "Apresentações do PowerPoint (PPTX, ODP)."
 }

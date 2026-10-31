@@ -136,6 +136,14 @@
     })();
   }
 
+  /* WordCraft: sem o botão do Discord na barra de título (opção "show_discord" das preferências dele,
+     guardadas em localStorage "wordcraft.ui", que o iframe lê ao abrir). */
+  if (APP === "wordcraft") try {
+    var pref = {};
+    try { pref = JSON.parse(localStorage.getItem("wordcraft.ui") || "{}") || {}; } catch (_) {}
+    if (pref.show_discord !== false) { pref.show_discord = false; localStorage.setItem("wordcraft.ui", JSON.stringify(pref)); }
+  } catch (_) {}
+
   var dir = "../../artcraft/" + APP + "/", base = dir + "index.html";
   status("Waiting for download…");
   fetch(base, { method: "HEAD", cache: "no-store" }).then(function (r) {
