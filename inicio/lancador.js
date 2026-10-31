@@ -1,8 +1,8 @@
 /* Lançador de arquivos da tela inicial, como na tela inicial do InkDOS.
 
-   Arquivos abertos no XeOS vão direto para o app de cada tipo (manifest.webmanifest, "file_handlers"
-   com um "action" por app; cada app lê o launchQueue). Esta página só recebe o que vem do botão
-   "Abrir arquivo" ou de um manifesto antigo ainda instalado, escolhe o app pela extensão e o abre.
+   Arquivos abertos no XeOS chegam a esta página (manifest.webmanifest, um "file_handlers" só, como o
+   XeOS espera). O launchQueue é lido logo no topo do index.html, antes de carregar o resto; aqui o
+   arquivo vai para o app pela extensão (mapa ROTAS).
 
    Como o arquivo chega a cada app:
    - apps do InkDOS (inkdos/): IndexedDB "inkdos-launch-handoff" e #inkdos-launch=<id>, o mesmo
@@ -213,14 +213,6 @@
     mostrar(r);
   }
 
-  if (window.launchQueue && typeof window.launchQueue.setConsumer === "function") {
-    window.launchQueue.setConsumer(function (params) {
-      var handles = params && params.files ? [].slice.call(params.files) : [];
-      Promise.all(handles.map(function (h) { return h && typeof h.getFile === "function" ? h.getFile().catch(function () { return null; }) : h; }))
-        .then(abrirArquivos);
-    });
-  }
-
   /* Botão "Abrir arquivo": o seletor do sistema (no iPhone, o app Arquivos) aceita qualquer tipo e o
      arquivo vai para o app certo, como no launchQueue. */
   var botao = document.getElementById("btn-abrir"), entrada = document.getElementById("abrir-arquivo");
@@ -230,4 +222,6 @@
   }
 
   window.InkLancador = { rotaDe: rotaDe, abrirArquivos: abrirArquivos };
+  // arquivos do XeOS que chegaram antes deste script (recebidos no topo do index.html)
+  (window.InkRecebidos || []).splice(0).forEach(abrirArquivos);
 })();
