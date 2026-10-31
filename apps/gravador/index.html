@@ -83,6 +83,7 @@ html.md-sem-audios #cartao-audios{display:none!important}
     <section class="md-stage" id="cartao-gravar">
       <div class="palco">
         <p id="sem-suporte" hidden>This browser cannot record the computer’s sound. Use Chrome or Edge on a Windows computer. Safari (iPad, iPhone, Mac) does not let websites capture other windows’ sound.</p>
+        <select id="fonte" class="ink-btn" hidden data-idioma-nao title="Sound source"></select>
         <span class="tempo" id="tempo" data-idioma-nao>0:00:00</span>
         <div class="nivel" title="Sound level"><span id="nivel"></span></div>
         <button class="rec" id="gravar" title="Record" aria-label="Record"></button>
@@ -109,6 +110,6 @@ html.md-sem-audios #cartao-audios{display:none!important}
 <script src="../../assets/icones.js?v=2"></script>
 <input id="arquivo-tela" type="file" accept="video/*,.mp4,.mov,.m4v" hidden>
 <script src="extrair-m4a.js?v=1"></script>
-<script src="gravar.js?v=8"></script>
+<script src="gravar.js?v=9"></script>
 </body>
 </html>

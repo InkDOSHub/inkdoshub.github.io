@@ -439,5 +439,7 @@
 "Word documents (DOCX, ODT, RTF); exports PDF.": "Документы Word (DOCX, ODT, RTF); экспорт в PDF.",
 "Excel spreadsheets (XLSX, ODS, CSV).": "Таблицы Excel (XLSX, ODS, CSV).",
 "PowerPoint slides (PPTX, ODP).": "Слайды PowerPoint (PPTX, ODP).",
-"Edit PDF: full pack (Office, OCR, compress)": "Редактор PDF: полный пакет (Office, OCR, сжатие)"
+"Edit PDF: full pack (Office, OCR, compress)": "Редактор PDF: полный пакет (Office, OCR, сжатие)",
+"Whole computer": "Весь компьютер",
+"Could not capture this program's sound.": "Не удалось записать звук этой программы."
 }

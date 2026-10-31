@@ -685,5 +685,7 @@
 "Word documents (DOCX, ODT, RTF); exports PDF.": "Documentos do Word (DOCX, ODT, RTF); exporta PDF.",
 "Excel spreadsheets (XLSX, ODS, CSV).": "Planilhas do Excel (XLSX, ODS, CSV).",
 "PowerPoint slides (PPTX, ODP).": "Apresentações do PowerPoint (PPTX, ODP).",
-"Edit PDF: full pack (Office, OCR, compress)": "Editar PDF: pacote completo (Office, OCR, comprimir)"
+"Edit PDF: full pack (Office, OCR, compress)": "Editar PDF: pacote completo (Office, OCR, comprimir)",
+"Whole computer": "Todo o computador",
+"Could not capture this program's sound.": "Não foi possível capturar o som deste programa."
 }
