@@ -68,13 +68,14 @@ iOS ("Salvar em Arquivos") ou um download.
   pasta `/mnt/ipad/.inkdoshub` (`pedido`, `estado`). Num Linux restaurado de um Salvar antigo, sem o
   `inksessao`, a página manda o programa pela pasta e digita o comando que o liga (pede antes).
 
-## Editores ONLYOFFICE (`../onlyoffice/`)
+## Editores ArtCraft (`../artcraft/`, `../apps/*craft/`)
 
-"Editar com ONLYOFFICE" nos apps do InkDOS abre uma página nova no toque, guarda o documento no
-IndexedDB `inkdos-tool-handoff` e leva essa página para `onlyoffice/editor.html`
-(`InkPaginas.abrirEditor`, veja `onlyoffice/inkdos-handoff.js`). O documento fica guardado (até 7 dias)
-para o editor reabrir o mesmo arquivo se for recarregado. O Salvar do editor baixa o arquivo (no
-iPad, o Safari pergunta onde guardar).
+WordCraft, GridCraft e DeckCraft (ArtCraft, MIT/Apache-2.0) vêm compilados das releases web pela
+action `.github/workflows/artcraft.yml` (toda segunda e manual). "Editar com ArtCraft" nos apps do
+InkDOS e a preferência "ArtCraft completo" do ☰ guardam o documento no IndexedDB
+`inkdos-tool-handoff` e abrem `apps/<editor>/?inkdos-handoff=<id>`; `assets/artcraft-host.js` entrega
+o arquivo ao editor (ponte postMessage `?host=parent` no WordCraft e GridCraft; arrastar-e-soltar
+simulado no DeckCraft). Salvar baixa o arquivo.
 
 ## Botão "Abrir arquivo" (`lancador.js`)
 

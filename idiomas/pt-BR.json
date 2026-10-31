@@ -634,7 +634,6 @@
 "Mute": "Sem som",
 "The file goes to Downloads and to the Music list.": "O arquivo vai para Downloads e para a lista da Música.",
 "InkDOS fast": "InkDOS rápido",
-"ONLYOFFICE complete": "OnlyOffice completo",
 "Offline": "Offline",
 "Up to date": "Atualizado",
 "Failed, try again": "Falhou, tente de novo",
@@ -669,12 +668,17 @@
 "Code": "Código",
 "Whiteboard": "Quadro",
 "Documents (InkDOS)": "Documentos (InkDOS)",
-"ONLYOFFICE editors": "Editores ONLYOFFICE",
 "Edit PDF (BentoPDF) and viewers": "Editar PDF (BentoPDF) e visualizadores",
 "Saving {name}… {pct}%": "Salvando {name}… {pct}%",
 "{name} saved ✓": "{name} salvo ✓",
 "{name} removed": "{name} removido",
 "Removing…": "Removendo…",
 "Wait for the current download to finish.": "Aguarde o download atual terminar.",
-"Checking for updates…": "Procurando atualizações…"
+"Checking for updates…": "Procurando atualizações…",
+"ArtCraft complete": "ArtCraft completo",
+"ArtCraft editors": "Editores ArtCraft",
+"Word processor for .docx, .odt and .rtf; exports PDF. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Editor de texto para .docx, .odt e .rtf; exporta PDF. Tudo roda neste dispositivo; nenhum arquivo é enviado. Salvar baixa o arquivo.",
+"Spreadsheet editor for .xlsx, .ods and .csv. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Editor de planilhas para .xlsx, .ods e .csv. Tudo roda neste dispositivo; nenhum arquivo é enviado. Salvar baixa o arquivo.",
+"Presentation editor for .pptx and .odp. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Editor de apresentações para .pptx e .odp. Tudo roda neste dispositivo; nenhum arquivo é enviado. Salvar baixa o arquivo.",
+"This editor is still being installed. Try again in a few minutes.": "Este editor ainda está sendo instalado. Tente de novo em alguns minutos."
 }

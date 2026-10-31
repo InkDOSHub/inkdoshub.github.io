@@ -421,12 +421,17 @@
 "Code": "Código",
 "Whiteboard": "Pizarra",
 "Documents (InkDOS)": "Documentos (InkDOS)",
-"ONLYOFFICE editors": "Editores ONLYOFFICE",
 "Edit PDF (BentoPDF) and viewers": "Editar PDF (BentoPDF) y visores",
 "Saving {name}… {pct}%": "Guardando {name}… {pct}%",
 "{name} saved ✓": "{name} guardado ✓",
 "{name} removed": "{name} eliminado",
 "Removing…": "Eliminando…",
 "Wait for the current download to finish.": "Espera a que termine la descarga actual.",
-"Checking for updates…": "Buscando actualizaciones…"
+"Checking for updates…": "Buscando actualizaciones…",
+"ArtCraft complete": "ArtCraft completo",
+"ArtCraft editors": "Editores ArtCraft",
+"Word processor for .docx, .odt and .rtf; exports PDF. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Procesador de texto para .docx, .odt y .rtf; exporta PDF. Todo se ejecuta en este dispositivo; no se sube ningún archivo. Guardar descarga el archivo.",
+"Spreadsheet editor for .xlsx, .ods and .csv. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Editor de hojas de cálculo para .xlsx, .ods y .csv. Todo se ejecuta en este dispositivo; no se sube ningún archivo. Guardar descarga el archivo.",
+"Presentation editor for .pptx and .odp. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Editor de presentaciones para .pptx y .odp. Todo se ejecuta en este dispositivo; no se sube ningún archivo. Guardar descarga el archivo.",
+"This editor is still being installed. Try again in a few minutes.": "Este editor aún se está instalando. Inténtalo de nuevo en unos minutos."
 }

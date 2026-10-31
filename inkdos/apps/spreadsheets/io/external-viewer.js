@@ -11,7 +11,7 @@ const VIEWERS=Object.freeze([
  {viewer:'pnk',ext:['numbers'],label:'Apple Numbers'}
 ]);
 const LOAD_TIMEOUT_MS=45000;
-// OpenDocument files are view only here; ONLYOFFICE edits them. The notice opens the file there
+// OpenDocument files are view only here; ArtCraft edits them. The notice opens the file there
 // (InkDOSFileLaunch.openInOffice, file-launch.js).
 const CONVERTIBLE=['odt','ods','odp'];
 function fullOffer(file){
@@ -21,8 +21,8 @@ function fullOffer(file){
  const bar=document.createElement('div');bar.className='external-viewer-notice';
  bar.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;background:var(--surface,#fff);border-bottom:1px solid var(--border,#e3e8ef);font-size:13px';
  const text=document.createElement('span');text.style.cssText='flex:1;min-width:200px';
- text.textContent=pt?'Somente visualização aqui. Para editar, abra no ONLYOFFICE.':'View only here. To edit, open it in ONLYOFFICE.';
- const go=document.createElement('button');go.type='button';go.textContent=pt?'Editar com ONLYOFFICE':'Edit with ONLYOFFICE';
+ text.textContent=pt?'Somente visualização aqui. Para editar, abra no ArtCraft.':'View only here. To edit, open it in ArtCraft.';
+ const go=document.createElement('button');go.type='button';go.textContent=pt?'Editar com ArtCraft':'Edit with ArtCraft';
  go.style.cssText='height:30px;padding:0 12px;border:1px solid var(--border,#d5dce6);border-radius:8px;background:var(--hover,#f0f2f5);color:inherit;font:inherit;cursor:pointer';
  go.addEventListener('click',()=>global.InkDOSFileLaunch.openInOffice(file));
  bar.append(text,go);return bar;

@@ -200,14 +200,12 @@
 
   // o que cada pacote traduz e o que continua em inglês (igual para todos os idiomas)
   function traduz() {
-    return [t("Home screen"), t("Documents, Spreadsheets, Presentations, PDF, Plain text and EPUB reader"), t("ONLYOFFICE editors"),
+    return [t("Home screen"), t("Documents, Spreadsheets, Presentations, PDF, Plain text and EPUB reader"),
       t("Photos"), t("Video"), t("Music"), t("Whiteboard"), t("The top bar of Code, Linux terminal and Wine")];
   }
   function ingles() {
     return [t("Code (the VS Code editor itself)"), t("Linux terminal (the Linux system itself)"), t("Wine (the Windows programs themselves)")];
   }
-  // a tela de abertura dos editores ONLYOFFICE só existe nestes idiomas
-  var ONLYOFFICE_ABERTURA = { "pt-BR": 1, es: 1, de: 1, "zh-CN": 1, ja: 1 };
 
   var CSS = ".ink-idioma-fundo{position:fixed;inset:0;z-index:2147483000;background:rgba(10,14,20,.45);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}" +
     ".ink-idioma{--c:#fff;--tx:#192235;--mu:#697486;--bd:#e3e8ef;--bt:#f0f2f5;background:var(--c);color:var(--tx);border:1px solid var(--bd);border-radius:14px;width:min(420px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:16px;box-sizing:border-box;font-size:14px;line-height:1.4}" +
@@ -293,7 +291,6 @@
         var u1 = el("ul"); traduz().forEach(function (x) { u1.appendChild(el("li", null, x)); }); corpo.appendChild(u1);
         corpo.appendChild(el("h3", null, t("Stays in English")));
         var u2 = el("ul"); ingles().forEach(function (x) { u2.appendChild(el("li", null, x)); });
-        if (!ONLYOFFICE_ABERTURA[escolhido]) u2.appendChild(el("li", null, t("The loading screen of the ONLYOFFICE editors (the editors themselves are translated)")));
         corpo.appendChild(u2);
         corpo.appendChild(el("h3", null, t("Space")));
         corpo.appendChild(el("p", null, t("Download: {size}.", { size: mb(p.bytes) })));

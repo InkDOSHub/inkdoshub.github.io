@@ -26,7 +26,6 @@ GRUPOS = [
     ("transferir", "Transfer", ["apps/transferir"]),
     ("webcam", "Webcam", ["apps/webcam"]),
     ("inkdos", "Documents (InkDOS)", ["inkdos"]),
-    ("onlyoffice", "ONLYOFFICE editors", ["onlyoffice"]),
     ("artcraft", "ArtCraft editors", ["artcraft", "apps/wordcraft", "apps/gridcraft", "apps/deckcraft"]),
     ("visualizadores", "Edit PDF (BentoPDF) and viewers", ["apps/editar-pdf", "visualizadores"]),
 ]
