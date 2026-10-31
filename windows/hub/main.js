@@ -283,6 +283,7 @@ function abrirLinux() {
 }
 function terminalDoSite() {
   const w = new BrowserWindow(opcoes(1100, 760));
+  w.versaoDoSite = true;
   cuidar(w);
   w.loadURL(SITE + 'terminal/');
 }
@@ -307,25 +308,112 @@ async function abrirTerminal() {
     instalando: 'Installing… Follow the window that opened. When it finishes (and after restarting, if Windows asks), tap Terminal again.',
     erro: 'Installation did not start (administrator declined?). Try again or use the website terminal.'
   };
+  janelaTerminal = janelaEscolha(T, dizer => {
+    dizer(T.instalando);
+    cp.execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+      "Start-Process -FilePath wsl.exe -ArgumentList '--install','-d','Ubuntu' -Verb RunAs"],
+      { windowsHide: true }, err => { if (err) dizer(T.erro); });
+  }, terminalDoSite);
+}
+
+// janelinha com explicação e dois botões: instalar a versão nativa ou usar a do site
+function janelaEscolha(T, aoInstalar, aoSite) {
   const bt = 'display:block;width:100%;margin:8px 0;padding:11px;border-radius:10px;font:inherit;font-weight:600;text-decoration:none;text-align:center;box-sizing:border-box';
   const html = '<!doctype html><meta charset="utf-8"><title>' + T.titulo + '</title><body style="font:14px -apple-system,Segoe UI,sans-serif;margin:0;padding:22px;background:#f2f2f7;color:#1c1c1e">' +
     '<h3 style="margin:0 0 10px">' + T.titulo + '</h3><p>' + T.texto + '</p><p style="color:#636366">' + T.detalhe + '</p>' +
     '<a href="https://inkhub.acao/instalar" style="' + bt + ';background:#0a84ff;color:#fff">' + T.instalar + '</a>' +
     '<a href="https://inkhub.acao/site" style="' + bt + ';background:#fff;color:#1c1c1e;border:1px solid #d1d1d6">' + T.site + '</a>' +
     '<p id="t" style="color:#636366;min-height:3em"></p></body>';
-  const w = janelaTerminal = new BrowserWindow({ width: 460, height: 400, resizable: false, maximizable: false, icon: ICONE, autoHideMenuBar: true, title: T.titulo, backgroundColor: '#f2f2f7', webPreferences: { sandbox: true, contextIsolation: true } });
+  const w = new BrowserWindow({ width: 460, height: 420, resizable: false, maximizable: false, icon: ICONE, autoHideMenuBar: true, title: T.titulo, backgroundColor: '#f2f2f7', webPreferences: { sandbox: true, contextIsolation: true } });
   const dizer = txt => w.isDestroyed() || w.webContents.executeJavaScript('document.getElementById("t").textContent=' + JSON.stringify(txt)).catch(() => {});
+  let ocupada = false;
   w.webContents.on('will-navigate', (e, url) => {
     e.preventDefault();
-    if (url.startsWith('https://inkhub.acao/site')) { w.close(); terminalDoSite(); return; }
-    if (url.startsWith('https://inkhub.acao/instalar')) {
-      dizer(T.instalando);
-      cp.execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-        "Start-Process -FilePath wsl.exe -ArgumentList '--install','-d','Ubuntu' -Verb RunAs"],
-        { windowsHide: true }, err => { if (err) dizer(T.erro); });
-    }
+    if (url.startsWith('https://inkhub.acao/site')) { w.close(); aoSite(); return; }
+    if (url.startsWith('https://inkhub.acao/instalar') && !ocupada) { ocupada = true; Promise.resolve(aoInstalar(dizer, w)).finally(() => { ocupada = false; }); }
   });
   w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  return w;
+}
+
+// ---------- Código: no Windows usa o VS Code nativo (bem mais leve e rápido que o da página) ----------
+// Com o VS Code instalado, abre ele. Sem ele, oferece instalar o oficial da Microsoft (instalador para a pessoa, sem
+// administrador; o SHA-256 vem da própria Microsoft e é conferido) já com a telemetria desligada. O Código do site fica de opção.
+const ehCodigo = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/codigo/'); } catch (_) { return false; } };
+function acharVsCode() {
+  const l = [path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Microsoft VS Code', 'Code.exe'),
+    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Microsoft VS Code', 'Code.exe'),
+    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Microsoft VS Code', 'Code.exe')];
+  return l.find(f => { try { return fs.existsSync(f); } catch (_) { return false; } }) || null;
+}
+function codigoDoSite() {
+  const w = new BrowserWindow(opcoes(1200, 820));
+  w.versaoDoSite = true; // a pessoa escolheu a do site: não desviar para o nativo dentro desta janela
+  cuidar(w);
+  w.loadURL(SITE + 'apps/codigo/');
+}
+// telemetria do VS Code desligada (só se a pessoa ainda não escolheu nada sobre isso)
+function vsCodeSemTelemetria() {
+  try {
+    const f = path.join(process.env.APPDATA || '', 'Code', 'User', 'settings.json');
+    let txt = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '';
+    if (/telemetry\.telemetryLevel/.test(txt)) return;
+    if (!txt.trim()) txt = '{\n  "telemetry.telemetryLevel": "off"\n}\n';
+    else txt = txt.replace(/\{/, '{\n  "telemetry.telemetryLevel": "off",');
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, txt);
+  } catch (_) {}
+}
+let janelaCodigo = null;
+function abrirCodigo() {
+  if (process.platform !== 'win32') return codigoDoSite();
+  const exe = acharVsCode();
+  if (exe) { vsCodeSemTelemetria(); return void shell.openPath(exe); }
+  if (janelaCodigo && !janelaCodigo.isDestroyed()) return janelaCodigo.focus();
+  const pt = /^pt/i.test(app.getLocale());
+  const T = pt ? {
+    titulo: 'VS Code para Windows',
+    texto: 'O Código abre no VS Code instalado no Windows: bem mais leve e rápido que o da página, com terminal e extensões. Ele ainda não está instalado neste PC.',
+    detalhe: 'Baixa o instalador oficial da Microsoft (uns 100 MB), confere o SHA-256 e instala só para você, sem administrador. A telemetria do VS Code já vem desligada.',
+    instalar: 'Instalar o VS Code', site: 'Usar o Código do site',
+    baixando: 'Baixando o VS Code… ', instalando: 'SHA-256 conferido ✓ Instalando…', erro: 'Não deu para instalar: '
+  } : {
+    titulo: 'VS Code for Windows',
+    texto: 'Code opens in the VS Code installed on Windows: much lighter and faster than the web page, with terminal and extensions. It is not installed on this PC yet.',
+    detalhe: 'Downloads the official installer from Microsoft (about 100 MB), checks its SHA-256 and installs it just for you, without administrator. VS Code telemetry comes turned off.',
+    instalar: 'Install VS Code', site: 'Use the website Code',
+    baixando: 'Downloading VS Code… ', instalando: 'SHA-256 verified ✓ Installing…', erro: 'Could not install: '
+  };
+  janelaCodigo = janelaEscolha(T, async (dizer, w) => {
+    try {
+      const baixar = session.fromPartition('inkhub-baixar');
+      const info = await (await baixar.fetch('https://update.code.visualstudio.com/api/update/win32-x64-user/stable/latest')).json();
+      if (!info || !/^https:\/\//.test(info.url || '') || !/^[0-9a-f]{64}$/.test(info.sha256hash || '')) throw new Error('Microsoft');
+      const r = await baixar.fetch(info.url);
+      if (!r.ok) throw new Error('download ' + r.status);
+      const total = Number(r.headers.get('content-length')) || 0, partes = [], leitor = r.body.getReader();
+      let feito = 0, ultimo = -1;
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        partes.push(Buffer.from(value)); feito += value.length;
+        const pct = total ? Math.floor(feito * 100 / total) : 0;
+        if (pct !== ultimo && pct % 5 === 0) { ultimo = pct; dizer(T.baixando + pct + '%'); }
+      }
+      const b = Buffer.concat(partes);
+      if (sha256(b) !== info.sha256hash) throw new Error('SHA-256');
+      dizer(T.instalando);
+      const f = path.join(app.getPath('temp'), 'VSCodeUserSetup-' + (info.productVersion || 'x') + '.exe');
+      await fsp.writeFile(f, b);
+      vsCodeSemTelemetria();
+      await new Promise((ok, falha) => cp.execFile(f, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/MERGETASKS=!runcode,addcontextmenufiles,addcontextmenufolders,addtopath'], { windowsHide: true }, e => (e ? falha(e) : ok())));
+      fsp.rm(f, { force: true }).catch(() => {});
+      const exe2 = acharVsCode();
+      if (!exe2) throw new Error('Code.exe');
+      if (!w.isDestroyed()) w.close();
+      shell.openPath(exe2);
+    } catch (e) { dizer(T.erro + e.message); }
+  }, codigoDoSite);
 }
 
 // ---------- a própria carcaça se atualiza ----------
@@ -409,15 +497,16 @@ function cuidar(w) {
   w.webContents.setWindowOpenHandler(({ url }) => {
     if (ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
     if (ehTerminal(url)) { abrirTerminal(); return { action: 'deny' }; }
+    if (ehCodigo(url)) { abrirCodigo(); return { action: 'deny' }; }
     if (url === 'about:blank' || doSite(url)) return { action: 'allow', overrideBrowserWindowOptions: opcoes(1200, 820) };
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
   w.webContents.on('did-create-window', cuidar);
   w.webContents.on('will-navigate', (e, url) => {
-    if (ehWebcam(url) || ehTerminal(url)) {
+    if (!w.versaoDoSite && (ehWebcam(url) || ehTerminal(url) || ehCodigo(url))) {
       e.preventDefault();
-      if (ehWebcam(url)) abrirWebcam(); else abrirTerminal();
+      if (ehWebcam(url)) abrirWebcam(); else if (ehTerminal(url)) abrirTerminal(); else abrirCodigo();
       // a tela inicial abre uma janela vazia e depois manda o endereço: essa janela fecha
       const atual = w.webContents.getURL();
       if (w !== principal() && (!atual || atual === 'about:blank')) w.close();

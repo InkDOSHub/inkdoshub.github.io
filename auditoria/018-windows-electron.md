@@ -28,6 +28,10 @@ Os testes também acharam um problema do app Texto: um .txt de 20 MB custava ~65
 - **Terminal:**
   - Com o WSL instalado, o ícone abre o Linux do próprio Windows no Terminal do Windows (`wt.exe wsl.exe`).
   - Sem o WSL, explica e instala com `wsl --install -d Ubuntu` (pede administrador uma vez). O terminal do site (v86) fica de opção.
+- **Código:**
+  - Com o VS Code instalado, o ícone abre o VS Code nativo, com a telemetria desligada em settings.json se a pessoa ainda não tiver escolhido.
+  - Sem o VS Code, oferece instalar o oficial: o instalador vem da Microsoft, só para a pessoa e sem administrador, e o SHA-256 da API de atualização deles é conferido. O Código do site fica de opção.
+- **Ícones:** cada tipo de arquivo tem o ícone do app que o abre (`windows/hub/tipos/*.ico`).
 - **Abrir arquivos:**
   - O instalador registra o Hub no "Abrir com" e em Aplicativos padrão para PDF, Office, TXT, EPUB, fotos, vídeo e música (HKCU, sem administrador).
   - Ao abrir um arquivo, o app certo abre com ele carregado, pelo campo "Abrir" do próprio app (DevTools Protocol, local).
