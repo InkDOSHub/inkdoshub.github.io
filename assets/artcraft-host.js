@@ -30,7 +30,7 @@
   }
 
   function baixar(nome, bytes) {
-    var url = URL.createObjectURL(new Blob([bytes]));
+    var url = URL.createObjectURL(bytes instanceof Blob ? bytes : new Blob([bytes]));
     var a = document.createElement("a");
     a.href = url; a.download = nome || "documento"; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
@@ -110,6 +110,22 @@
     }).catch(function () {});
   }
 
+  /* DeckCraft baixa o arquivo de dentro do iframe, e o XeOS recusa downloads feitos num iframe
+     ("invalid path"). Aqui o clique no link de download dele é desviado para esta página. */
+  function desviarDownloads() {
+    try {
+      var w = frame.contentWindow, clique = w.HTMLAnchorElement.prototype.click;
+      w.HTMLAnchorElement.prototype.click = function () {
+        if (this.download && /^blob:/.test(this.href)) {
+          var nome = this.download;
+          fetch(this.href).then(function (r) { return r.blob(); }).then(function (b) { baixar(nome, b); });
+          return;
+        }
+        return clique.apply(this, arguments);
+      };
+    } catch (_) {}
+  }
+
   function esperarDeck() {
     var n = 0;
     (function ver() {
@@ -133,6 +149,6 @@
     if (v) mostrarNome(v.name);
     var extra = PONTE ? "?host=parent" : "?blank";
     frame.src = base + extra;
-    if (!PONTE) frame.addEventListener("load", function () { if (v) soltar(v); esperarDeck(); }, { once: true });
+    if (!PONTE) frame.addEventListener("load", function () { desviarDownloads(); if (v) soltar(v); esperarDeck(); }, { once: true });
   }).catch(function () { pronto(); erro(""); });
 })();
