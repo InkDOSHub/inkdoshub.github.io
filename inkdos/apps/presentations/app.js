@@ -5,7 +5,7 @@
  const viewport=$('viewport'),shell=$('slideShell'),stage=$('stage');
  let touch=null;
  const isBlankCanvas=target=>target===$('slideCanvas')||target===shell||target===stage;
- function thumbnailAxis(){return globalThis.matchMedia?.('(orientation: portrait)').matches?'x':'y'}
+ function thumbnailAxis(){return globalThis.matchMedia?.('(orientation: portrait) and (max-width: 699.98px)').matches?'x':'y'}
  viewport.addEventListener('touchstart',e=>{
   if(e.touches.length!==1||!isBlankCanvas(e.target)||e.target.closest?.('[data-object-id],[data-p1-handle]')){touch=null;return}
   const t=e.touches[0];touch={x:t.clientX,y:t.clientY,axis:thumbnailAxis(),moved:false};
