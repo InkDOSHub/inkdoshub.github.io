@@ -9,7 +9,7 @@
 //   só alcança os endereços de LIVRES; todo o resto é bloqueado.
 // - Cada app abre numa janela própria (processo próprio); várias ao mesmo tempo.
 'use strict';
-const { app, BrowserWindow, protocol, net, session, shell, ipcMain, Menu, dialog } = require('electron');
+const { app, BrowserWindow, protocol, net, session, shell, ipcMain, Menu, dialog, desktopCapturer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -554,6 +554,11 @@ app.whenReady().then(async () => {
   const PODE = new Set(['media', 'fullscreen', 'clipboard-read', 'clipboard-sanitized-write', 'notifications', 'fileSystem', 'display-capture', 'pointerLock', 'window-management']);
   s.setPermissionRequestHandler((wc, perm, cb, det) => cb(PODE.has(perm) && doSite(det.requestingUrl || wc.getURL())));
   s.setPermissionCheckHandler((wc, perm, origem) => PODE.has(perm) && doSite(origem || ''));
+  // gravador de áudio: sem isto o getDisplayMedia do Electron responde "Not supported"; entrega a tela principal + som do Windows (loopback)
+  s.setDisplayMediaRequestHandler((req, cb) => {
+    if (!doSite(req.securityOrigin || (req.frame && req.frame.url) || '')) return cb({});
+    desktopCapturer.getSources({ types: ['screen'] }).then(f => cb(f[0] ? { video: f[0], audio: 'loopback' } : {})).catch(() => cb({}));
+  });
   protocol.handle('https', req => {
     const host = new URL(req.url).hostname;
     if (host === HOST) return responderSite(req);
