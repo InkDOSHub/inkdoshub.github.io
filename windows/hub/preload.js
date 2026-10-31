@@ -10,6 +10,17 @@ contextBridge.exposeInMainWorld('inkHubNativo', {
     ipcRenderer.on('hub:progresso-app', ouvir);
     return ipcRenderer.invoke('hub:atualizar-app').finally(() => ipcRenderer.removeListener('hub:progresso-app', ouvir));
   },
+  // Gravador: som de um programa só (lista de janelas abertas; PCM 16 bits, 48 kHz, estéreo)
+  audio: {
+    apps: () => ipcRenderer.invoke('hub:audio-apps'),
+    iniciar: (pid, aoDado, aoFim) => {
+      ipcRenderer.removeAllListeners('hub:audio-dado'); ipcRenderer.removeAllListeners('hub:audio-fim');
+      ipcRenderer.on('hub:audio-dado', (_e, d) => { try { aoDado(new Uint8Array(d)); } catch (_) {} });
+      ipcRenderer.on('hub:audio-fim', () => { try { if (aoFim) aoFim(); } catch (_) {} });
+      return ipcRenderer.invoke('hub:audio-iniciar', pid);
+    },
+    parar: () => ipcRenderer.invoke('hub:audio-parar')
+  },
   estado: () => ipcRenderer.invoke('hub:estado'),
   espaco: () => ipcRenderer.invoke('hub:espaco'),
   sincronizar: (ids, progresso) => {

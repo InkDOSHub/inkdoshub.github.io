@@ -52,6 +52,17 @@ if ($Versao) { $pacote.version = $Versao }
 $versao = $pacote.version
 [IO.File]::WriteAllText((Join-Path $res 'package.json'), ($pacote | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 Copy-Item (Join-Path $aqui '..\..\LICENSE') (Join-Path $app 'LICENSE.InkDOSHub.txt')
+# som de um programa só (Gravador): application-loopback 1.2.7 (MIT), exes conferidos pelo SHA-256
+$aud = Join-Path $app 'audio'
+New-Item -ItemType Directory -Force -Path $aud | Out-Null
+$tgz = Join-Path $Saida 'al.tgz'
+Invoke-WebRequest 'https://registry.npmjs.org/application-loopback/-/application-loopback-1.2.7.tgz' -OutFile $tgz
+if ((Get-FileHash $tgz -Algorithm SHA256).Hash -ne 'F34570E3E7E5C0BFDBDC7CDD91B17F0F7DB092BB7DF77AE1D04947C576875807') { throw 'application-loopback: SHA-256 não confere' }
+tar -xzf $tgz -C $Saida
+foreach ($f in @('ApplicationLoopback.exe', 'ProcessList.exe')) { Copy-Item (Join-Path $Saida ('package\bin\win32-x64\' + $f)) $aud }
+Copy-Item (Join-Path $Saida 'package\LICENSE') (Join-Path $aud 'LICENSE.application-loopback.txt')
+Remove-Item -Recurse -Force $tgz, (Join-Path $Saida 'package')
+
 # ícones dos tipos de arquivo (cada tipo com o ícone do app que o abre)
 Copy-Item -Recurse (Join-Path $aqui 'tipos') (Join-Path $app 'tipos')
 

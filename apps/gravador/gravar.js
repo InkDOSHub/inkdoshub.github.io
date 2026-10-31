@@ -53,10 +53,42 @@
     try { localStorage.setItem("inkdoshub-gravador-nome", base); } catch (_) {}
     return base + " " + d.getFullYear() + "-" + doisDig(d.getMonth() + 1) + "-" + doisDig(d.getDate()) + " " + doisDig(d.getHours()) + "-" + doisDig(d.getMinutes()) + ".webm";
   }
+  /* ---------- App do Windows: som de um programa só ---------- */
+  var AUD = window.inkHubNativo && window.inkHubNativo.audio, pararApp = null;
+  function listarApps() {
+    var sel = $("fonte"), atual = sel.value;
+    AUD.apps().then(function (lista) {
+      sel.textContent = "";
+      var o = document.createElement("option"); o.value = ""; o.textContent = t("Whole computer"); sel.appendChild(o);
+      lista.forEach(function (a) { var o = document.createElement("option"); o.value = a.pid; o.textContent = a.titulo; sel.appendChild(o); });
+      sel.value = lista.some(function (a) { return a.pid === atual; }) ? atual : "";
+    }).catch(function () {});
+  }
+  if (AUD) { $("fonte").hidden = false; listarApps(); $("fonte").addEventListener("focus", listarApps); $("fonte").addEventListener("mousedown", listarApps); }
+  // PCM 16 bits, 48 kHz, estéreo -> MediaStream (tocado só para o gravador, não sai nas caixas)
+  function fluxoDoApp(pid) {
+    var ac = new AudioContext({ sampleRate: 48000 }), dest = ac.createMediaStreamDestination(), quando = 0, resto = null;
+    function dado(b) {
+      if (resto) { var j = new Uint8Array(resto.length + b.length); j.set(resto); j.set(b, resto.length); b = j; resto = null; }
+      var n = Math.floor(b.length / 4); if (b.length % 4) resto = b.slice(n * 4);
+      if (!n) return;
+      var v = new DataView(b.buffer, b.byteOffset, n * 4), buf = ac.createBuffer(2, n, 48000), e = buf.getChannelData(0), d = buf.getChannelData(1);
+      for (var i = 0; i < n; i++) { e[i] = v.getInt16(i * 4, true) / 32768; d[i] = v.getInt16(i * 4 + 2, true) / 32768; }
+      var s = ac.createBufferSource(); s.buffer = buf; s.connect(dest);
+      quando = Math.max(quando, ac.currentTime + 0.05); s.start(quando); quando += buf.duration;
+    }
+    return AUD.iniciar(pid, dado, function () { parar(); }).then(function (ok) {
+      if (!ok) { ac.close(); throw new Error(t("Could not capture this program's sound.")); }
+      pararApp = function () { pararApp = null; AUD.parar(); ac.close().catch(function () {}); };
+      return dest.stream;
+    });
+  }
+
   $("gravar").onclick = async function () {
     estado("");
     try {
-      if (modo === "mic") fluxo = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      if (modo === "sistema" && AUD && $("fonte").value) fluxo = await fluxoDoApp($("fonte").value);
+      else if (modo === "mic") fluxo = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
       else fluxo = await navigator.mediaDevices.getDisplayMedia({
         video: true, // o Chrome exige vídeo para mostrar a escolha; ele não é gravado
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false },
@@ -118,6 +150,7 @@
 
   function parar() {
     if (gravador && gravador.state !== "inactive") gravador.stop();
+    if (pararApp) pararApp();
     if (fluxo) fluxo.getTracks().forEach(function (f) { f.stop(); });
   }
   $("parar").onclick = parar;
@@ -128,6 +161,7 @@
     $("nivel").style.width = "0";
     $("parar").classList.add("md-hide"); $("gravar").classList.remove("md-hide");
     $("nome").disabled = false;
+    if (pararApp) pararApp();
     var tipo = (gravador && gravador.mimeType) || "audio/webm";
     gravador = null;
     if (fluxo) fluxo.getTracks().forEach(function (f) { f.stop(); });

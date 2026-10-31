@@ -566,6 +566,33 @@ app.whenReady().then(async () => {
     return net.fetch(req, { bypassCustomProtocolHandlers: true });
   });
 
+  // Gravador: som de um programa só (WASAPI por processo, Windows 10 2004+). PCM 16 bits, 48 kHz, estéreo.
+  const audioExe = n => path.join(path.dirname(process.execPath), 'audio', n);
+  const capturas = new Map();
+  ipcMain.handle('hub:audio-apps', e => new Promise(ok => {
+    if (!doSite(e.senderFrame.url)) return ok([]);
+    let txt = '';
+    const p = require('child_process').spawn(audioExe('ProcessList.exe'), [], { windowsHide: true });
+    p.stdout.setEncoding('utf8'); p.stdout.on('data', d => { txt += d; });
+    p.on('error', () => ok([])); p.on('close', () => {
+      const vistos = new Set();
+      ok(txt.split('\n').map(l => l.replace('\r', '').split(';')).filter(x => x.length >= 3 && /^\d+$/.test(x[0]) && x[2].trim())
+        .map(x => ({ pid: x[0], titulo: x.slice(2).join(';').trim() })).filter(x => !vistos.has(x.pid) && vistos.add(x.pid)));
+    });
+  }));
+  ipcMain.handle('hub:audio-iniciar', (e, pid) => {
+    if (!doSite(e.senderFrame.url) || !/^\d+$/.test(String(pid))) return false;
+    const wc = e.sender;
+    if (capturas.has(wc.id)) capturas.get(wc.id).kill();
+    const p = require('child_process').spawn(audioExe('ApplicationLoopback.exe'), [String(pid)], { windowsHide: true });
+    capturas.set(wc.id, p);
+    p.stdout.on('data', d => { if (!wc.isDestroyed()) wc.send('hub:audio-dado', d); });
+    p.on('close', () => { if (capturas.get(wc.id) === p) capturas.delete(wc.id); if (!wc.isDestroyed()) wc.send('hub:audio-fim'); });
+    p.on('error', () => {});
+    wc.once('destroyed', () => p.kill());
+    return true;
+  });
+  ipcMain.handle('hub:audio-parar', e => { const p = capturas.get(e.sender.id); if (p) p.kill(); return true; });
   ipcMain.handle('hub:versao', () => app.getVersion());
   ipcMain.handle('hub:reiniciar', () => { if (instalarAtualizacao(true)) app.quit(); });
   // botão "Atualizar o app do Windows" do Offline: procura, baixa (com %), confere e reinstala na hora
