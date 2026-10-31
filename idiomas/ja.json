@@ -421,12 +421,17 @@
 "Code": "コード",
 "Whiteboard": "ホワイトボード",
 "Documents (InkDOS)": "ドキュメント（InkDOS）",
-"ONLYOFFICE editors": "ONLYOFFICE エディター",
 "Edit PDF (BentoPDF) and viewers": "PDF 編集（BentoPDF）とビューアー",
 "Saving {name}… {pct}%": "{name} を保存中… {pct}%",
 "{name} saved ✓": "{name} を保存しました ✓",
 "{name} removed": "{name} を削除しました",
 "Removing…": "削除中…",
 "Wait for the current download to finish.": "現在のダウンロードが終わるまでお待ちください。",
-"Checking for updates…": "アップデートを確認中…"
+"Checking for updates…": "アップデートを確認中…",
+"ArtCraft complete": "ArtCraft フル機能",
+"ArtCraft editors": "ArtCraft エディター",
+"Word processor for .docx, .odt and .rtf; exports PDF. Everything runs on this device; no file is uploaded. Saving downloads the file.": ".docx、.odt、.rtf 用のワープロ。PDF を書き出せます。すべてこの端末で動作し、ファイルはアップロードされません。保存するとファイルがダウンロードされます。",
+"Spreadsheet editor for .xlsx, .ods and .csv. Everything runs on this device; no file is uploaded. Saving downloads the file.": ".xlsx、.ods、.csv 用の表計算エディター。すべてこの端末で動作し、ファイルはアップロードされません。保存するとファイルがダウンロードされます。",
+"Presentation editor for .pptx and .odp. Everything runs on this device; no file is uploaded. Saving downloads the file.": ".pptx、.odp 用のプレゼンテーションエディター。すべてこの端末で動作し、ファイルはアップロードされません。保存するとファイルがダウンロードされます。",
+"This editor is still being installed. Try again in a few minutes.": "このエディターはまだインストール中です。数分後にもう一度お試しください。"
 }

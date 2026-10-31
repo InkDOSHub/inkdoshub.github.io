@@ -11,7 +11,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | Excalidraw (Quadro branco) | MIT | as fontes embutidas são OFL-1.1 ou MIT, que também permitem uso comercial |
 | VS Code para web (Código) | MIT (código do VS Code, "Code - OSS") | veja "Cuidados" sobre o nome |
 | mediainfo.js (leitura de dados do vídeo) | BSD-2-Clause | |
-| Apps do InkDOS (`inkdos/`) | MIT | cópia sem mudanças; as bibliotecas que vêm junto têm as licenças em `inkdos/licenses/`. O botão "Editar com ONLYOFFICE" abre a cópia dos editores em `onlyoffice/` |
+| Apps do InkDOS (`inkdos/`) | MIT | cópia sem mudanças; as bibliotecas que vêm junto têm as licenças em `inkdos/licenses/`. O botão "Editar com ArtCraft" abre os editores em `onlyoffice/` |
 | v86 (emulador do terminal) | BSD-2-Clause | |
 | xterm.js | MIT | |
 
@@ -22,7 +22,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | Kernel Linux 6.6 | GPL-2.0 | oferecer o código-fonte correspondente. Usamos a tag `v6.6` sem mudanças, mais `tools/linux/kernel-extra.config` e `tools/linux/build.sh`, então basta apontar para eles |
 | Programas do Alpine dentro da imagem (BusyBox, musl, apk-tools etc.) | GPL-2.0, MIT e outras | mesmo caso: são os pacotes oficiais do Alpine 3.22 sem mudanças, com o código-fonte público no Alpine |
 | SeaBIOS / VGA BIOS | LGPL-3.0 | manter a licença (`terminal/bios/COPYING.LESSER`) e indicar onde está o código-fonte |
-| Editores ONLYOFFICE (`onlyoffice/`, "Editar com ONLYOFFICE" nos documentos) | AGPL-3.0 | oferecer o código-fonte correspondente, inclusive das mudanças: origem e lista de mudanças em `onlyoffice/UPSTREAM-SOURCE.txt` (ranuts/document e o branch source de inkdos-tools/inkdos-tools.github.io). A AGPL vale também para quem usa pela rede, então num produto pago estas pastas precisam continuar com o código aberto |
+| Editores ArtCraft (`artcraft/`, páginas em `apps/wordcraft`, `apps/gridcraft`, `apps/deckcraft`) | MIT ou Apache-2.0 | baixados das releases web de github.com/storytold/{wordcraft,gridcraft,deckcraft} pela action `artcraft.yml`, sem mudanças; versões em `artcraft/versoes.txt`. |
 | jschardet (dentro do VS Code) | LGPL-2.1 | manter a licença; o arquivo não foi alterado |
 | ffmpeg.wasm 0.12.5 (`apps/video/cortar/ffmpeg-core/`, usado ao exportar) | GPL-2.0 ou posterior | oferecer o código-fonte: é o pacote `@ffmpeg/core@0.12.5` sem mudanças, com o código em https://github.com/ffmpegwasm/ffmpeg.wasm |
 | FFmpeg dentro do web-demuxer e do ffprobe-wasm | LGPL-2.1 | manter a licença e indicar o código-fonte (pacotes npm sem mudanças) |

@@ -31,8 +31,9 @@
       "dockerfile", "make", "mk", "cmake", "ipynb", "tex", "diff", "patch", "env", "gitignore"], varios: true },
   ];
   var OFFICE = { documentos: 1, planilhas: 1, apresentacoes: 1 }, K_PREF = "inkdoshub-abrir-office";
-  function preferencia() { try { return localStorage.getItem(K_PREF) || "inkdos"; } catch (_) { return "inkdos"; } }
-  // Menu ☰: duas linhas (InkDOS rápido / ONLYOFFICE completo), com ✓ na escolhida
+  // "onlyoffice" (guardado antes da troca) vale como ArtCraft
+  function preferencia() { var v; try { v = localStorage.getItem(K_PREF) || "inkdos"; } catch (_) { v = "inkdos"; } return v === "onlyoffice" ? "artcraft" : v; }
+  // Menu ☰: duas linhas (InkDOS rápido / ArtCraft completo), com ✓ na escolhida
   var opcoes = [].slice.call(document.querySelectorAll(".pref-office"));
   function marcar() { var v = preferencia(); opcoes.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.pref === v)); }); }
   opcoes.forEach(function (b) {
@@ -79,15 +80,14 @@
   /* Prepara a entrega e devolve o endereço do app que abre os arquivos. */
   function preparar(rota, files) {
     var id = idNovo();
-    // Preferência da tela inicial: Word, Excel e PowerPoint abrem no ONLYOFFICE (completo) em vez do InkDOS (rápido)
-    if (OFFICE[rota.app] && preferencia() === "onlyoffice") {
+    // Preferência da tela inicial: Word, Excel e PowerPoint abrem no ArtCraft (completo) em vez do InkDOS (rápido)
+    if (OFFICE[rota.app] && preferencia() === "artcraft") {
       return bytes(files.slice(0, 1)).then(function (l) {
         var v = l[0];
         // guardado por 7 dias, como nos apps do InkDOS: o editor recarrega o documento dali
         return gravar("inkdos-tool-handoff", "files", { bytes: v.data, type: v.type, name: v.name, at: Date.now() }, id, 7).then(function () {
-          var loc = window.InkIdioma ? InkIdioma.onlyoffice() : "en";
-          return RAIZ + "onlyoffice/editor.html?embed=1&embedOrigin=" + encodeURIComponent(location.origin) + "&inkdos-handoff=" + encodeURIComponent(id) +
-            "&locale=" + encodeURIComponent(loc) + "&ink-nome=" + encodeURIComponent(v.name.slice(0, 80));
+          var ed = { documentos: "wordcraft", planilhas: "gridcraft", apresentacoes: "deckcraft" }[rota.app];
+          return RAIZ + "apps/" + ed + "/?inkdos-handoff=" + encodeURIComponent(id);
         });
       });
     }

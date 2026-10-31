@@ -26,12 +26,10 @@
     { id: "editar-pdf", nome: "Edit PDF", url: "apps/editar-pdf/" },
     { id: "texto", nome: "Plain text", url: "inkdos/apps/txt/index.html?suite=1" },
     { id: "epub", nome: "EPUB reader", url: "inkdos/apps/epub/index.html?suite=1" },
-    // editores ONLYOFFICE (onlyoffice/), abertos pelo "Editar com ONLYOFFICE" dos apps do InkDOS
-    { id: "office", nome: "ONLYOFFICE", url: "onlyoffice/editor.html", oculto: true },
-    // os três editores ONLYOFFICE como apps da tela inicial (depois de "office", que continua dono da página)
-    { id: "oo-docs", nome: "Documents (ONLYOFFICE)", url: "onlyoffice/editor.html?new=docx" },
-    { id: "oo-planilhas", nome: "Spreadsheets (ONLYOFFICE)", url: "onlyoffice/editor.html?new=xlsx" },
-    { id: "oo-apresentacoes", nome: "Presentations (ONLYOFFICE)", url: "onlyoffice/editor.html?new=pptx" },
+    // editores ArtCraft (artcraft/, páginas em apps/*craft/), também abertos pelo "Editar com ArtCraft" dos apps do InkDOS
+    { id: "wordcraft", nome: "WordCraft", url: "apps/wordcraft/" },
+    { id: "gridcraft", nome: "GridCraft", url: "apps/gridcraft/" },
+    { id: "deckcraft", nome: "DeckCraft", url: "apps/deckcraft/" },
   ];
   function caminho(u) { return new URL(u, RAIZ).pathname.replace(/index\.html$/, ""); }
   function appDe(id) { return APPS.filter(function (a) { return a.id === id; })[0]; }
@@ -148,6 +146,14 @@
     return info.locale || "en";
   }
 
+  /* Editor ArtCraft pela extensão do arquivo. */
+  function editorDe(nome) {
+    var e = String(nome || "").toLowerCase().split(".").pop();
+    if (/^(xlsx|xlsm|xls|ods|csv|tsv)$/.test(e)) return "gridcraft";
+    if (/^(pptx|ppsx|ppt|odp|key)$/.test(e)) return "deckcraft";
+    return "wordcraft";
+  }
+
   /* Usado pela tela inicial (inicio/) e pelos apps do InkDOS (editor ONLYOFFICE). */
   window.InkPaginas = {
     raiz: RAIZ,
@@ -156,15 +162,12 @@
     abrir: function (id) {
       var a = appDe(id); if (!a) return;
       var u = new URL(a.url, RAIZ).href;
-      if (/^oo-/.test(id)) u += "&locale=" + encodeURIComponent(idiomaEditor({}));
       abrirUrl(u, "inkdoshub-" + id);
     },
-    /* O app do InkDOS guardou o documento no IndexedDB "inkdos-tool-handoff", lido por onlyoffice/inkdos-handoff.js.
+    /* O app do InkDOS guardou o documento no IndexedDB "inkdos-tool-handoff", lido por assets/artcraft-host.js.
        win: a aba aberta no toque, antes de ler o documento. */
     abrirEditor: function (info, win) {
-      var url = new URL("onlyoffice/editor.html?embed=1&embedOrigin=" + encodeURIComponent(location.origin) +
-        "&inkdos-handoff=" + encodeURIComponent(info.id) + "&locale=" + encodeURIComponent(idiomaEditor(info)) +
-        "&ink-nome=" + encodeURIComponent(String(info.nome || "document").slice(0, 80)), RAIZ).href;
+      var url = new URL("apps/" + editorDe(info.nome) + "/?inkdos-handoff=" + encodeURIComponent(info.id), RAIZ).href;
       if (win && !win.closed) {
         win.location.replace(url);
         try { win.focus(); } catch (_) {}
