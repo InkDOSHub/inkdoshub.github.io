@@ -73,8 +73,6 @@
           var marca = { versao: novo.versao, grupos: grupos };
           return c.put(MARCA, new Response(JSON.stringify(marca), { headers: { "Content-Type": "application/json" } }));
         })
-        // sobra do ONLYOFFICE, removido do Hub em 2026-10-31
-        .then(function () { return caches.delete("inkdoshub-onlyoffice-v1"); })
         .then(function () { return novo; });
     }).then(function (r) { ocupado = false; return r; }, function (e) { ocupado = false; throw e; });
   }

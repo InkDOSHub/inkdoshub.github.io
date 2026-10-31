@@ -1,10 +1,10 @@
 # 017 · Windows sem o Edge (2026-10-30)
 
-Pedido: no app de Windows, separar o ONLYOFFICE do InkDOS e parar de abrir o Edge e o motor gráfico dele. O Paulo escolheu "tudo nativo, inclusive a Webcam".
+Pedido: no app de Windows, separar o antigo editor de escritório do InkDOS e parar de abrir o Edge e o motor gráfico dele. O Paulo escolheu "tudo nativo, inclusive a Webcam".
 
 ## Hub (windows/hub/)
 
-- O ONLYOFFICE tem os próprios ícones (DOCX, XLSX e PPTX), com "ONLYOFFICE" embaixo do nome, como no site.
+- O editor de escritório antigo tem os próprios ícones (DOCX, XLSX e PPTX), com "editor de escritório antigo" embaixo do nome, como no site.
 - Nenhum app abre o navegador:
 
 | App | Antes | Agora |
@@ -13,7 +13,7 @@ Pedido: no app de Windows, separar o ONLYOFFICE do InkDOS e parar de abrir o Edg
 | Fotos | site | app Fotos do Windows |
 | Música | site | Media Player do Windows |
 | Gravador | site | Gravador de Som do Windows |
-| Documentos, Planilhas e Apresentações do InkDOS, Quadro | site | saíram do app de Windows, porque só existem na web. O ONLYOFFICE cobre os documentos |
+| Documentos, Planilhas e Apresentações do InkDOS, Quadro | site | saíram do app de Windows, porque só existem na web. O editor de escritório antigo cobre os documentos |
 
 - A pasta (Abrir arquivo) abre PDF, EPUB, MOBI, CBZ, XPS e DjVu no SumatraPDF.
 - `tools/windows_ferramentas.py`: a entrada `sumatra` lê a versão em `update-check-rel.txt`. O site não publica SHA-256, então o script baixa o .zip e calcula o hash.

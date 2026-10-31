@@ -5,7 +5,7 @@ web do Edge, com Linux e editor de código integrados ao Windows, atualização 
 conferidos e explicados. Ele foi feito depois das correções de hoje (logs 010, 011 e 013) e da revisão (014).
 
 ## Decisão técnica
-Um motor HTML leve (Sciter, Ultralight, litehtml) não roda ONLYOFFICE, VS Code web, BentoPDF nem o Linux v86,
+Um motor HTML leve (Sciter, Ultralight, litehtml) não roda editor de escritório antigo, VS Code web, BentoPDF nem o Linux v86,
 que são apps web pesados. Recompilar um motor completo não deixaria nada mais leve que o Edge. O ganho real vem de
 trocar cada app web pelo programa nativo:
 
@@ -13,7 +13,7 @@ trocar cada app web pelo programa nativo:
 |---|---|---|
 | Linux emulado (v86 em WebAssembly) | Alpine no WSL2 (virtualização do Windows) | Muito grande: CPU quase nativa em vez de emulada |
 | VS Code web | VS Code (padrão) ou Zed (leve) | VS Code: pequeno (também usa Chromium). Zed: grande, nativo em Rust |
-| ONLYOFFICE web | ONLYOFFICE Desktop | Moderado |
+| editor de escritório antigo web | editor de escritório desktop | Moderado |
 | BentoPDF (WebAssembly) | qpdf e Ghostscript | Grande: programas nativos de linha de comando |
 | ffmpeg.wasm | ffmpeg nativo | Grande: várias vezes mais rápido |
 | Tela inicial no navegador (aba do Edge, 150 a 300 MB) | Lançador WinForms (108 KB, cerca de 20 a 30 MB de RAM, CPU zero parado) | Grande |
@@ -31,7 +31,7 @@ passo no PC do Paulo.
     espaço no disco (aproximado), o espaço livre no PC, o que a ferramenta acessa, como ela é conferida e o
     SHA-256.
   - **Conferência:** o SHA-256 do arquivo precisa bater com o catálogo. Quando o fabricante assina (Microsoft,
-    Zed Industries, Ascensio/ONLYOFFICE, Artifex/Ghostscript), o Windows confere a assinatura (`WinVerifyTrust`)
+    Zed Industries, Ascensio/editor de escritório antigo, Artifex/Ghostscript), o Windows confere a assinatura (`WinVerifyTrust`)
     e o nome de quem assinou precisa ser o esperado. Se falhar, nada é instalado e o motivo aparece na tela.
   - **Linux:** liga o WSL (pede admin uma vez), importa o Alpine oficial (minirootfs, 3,7 MB) como
     `InkDOSHub-Alpine`, cria `~/windows` apontando para a pasta do usuário e abre no Windows Terminal, se houver.
@@ -45,7 +45,7 @@ passo no PC do Paulo.
     faixa "Atualização disponível · Atualizar" aparece. O .exe novo só entra se o hash bater.
 - `tools/windows_ferramentas.py` gera `windows/ferramentas.json` a partir das fontes oficiais:
   - API do VS Code e lista do Alpine, que publicam o SHA-256;
-  - "digest" das releases do GitHub (Zed, ONLYOFFICE, qpdf, Ghostscript, ffmpeg do Gyan Doshi);
+  - "digest" das releases do GitHub (Zed, editor de escritório antigo, qpdf, Ghostscript, ffmpeg do Gyan Doshi);
   - `.sha256` das nossas releases.
   O catálogo vai dentro do .exe e é atualizado pelo site.
 - `.github/workflows/windows-hub.yml`: toda semana e a cada mudança, atualiza o catálogo, compila e publica
@@ -55,7 +55,7 @@ passo no PC do Paulo.
 ## Teste
 - Compilado aqui com o .NET SDK 8 (net48, sem erros nem avisos). O .exe tem 108 KB.
 - O catálogo foi gerado com Alpine, VS Code (364 MB, SHA-256 da Microsoft), Webcam e Transferir. As entradas do
-  GitHub (Zed, ONLYOFFICE, qpdf, Ghostscript, ffmpeg) são preenchidas pela action, que tem acesso à API.
+  GitHub (Zed, editor de escritório antigo, qpdf, Ghostscript, ffmpeg) são preenchidas pela action, que tem acesso à API.
 - Ainda não testado num Windows de verdade. A interface e os instaladores precisam do PC do Paulo.
 
 ## Pendências

@@ -11,7 +11,7 @@ Não é parecer jurídico. Para um produto pago, vale confirmar com um advogado,
 | Excalidraw (Quadro branco) | MIT | as fontes embutidas são OFL-1.1 ou MIT, que também permitem uso comercial |
 | VS Code para web (Código) | MIT (código do VS Code, "Code - OSS") | veja "Cuidados" sobre o nome |
 | mediainfo.js (leitura de dados do vídeo) | BSD-2-Clause | |
-| Apps do InkDOS (`inkdos/`) | MIT | cópia sem mudanças; as bibliotecas que vêm junto têm as licenças em `inkdos/licenses/`. O botão "Editar com ArtCraft" abre os editores em `onlyoffice/` |
+| Apps do InkDOS (`inkdos/`) | MIT | cópia sem mudanças; as bibliotecas que vêm junto têm as licenças em `inkdos/licenses/`. O botão "Editar com ArtCraft" abre os editores em `artcraft/` |
 | v86 (emulador do terminal) | BSD-2-Clause | |
 | xterm.js | MIT | |
 

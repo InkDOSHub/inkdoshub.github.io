@@ -10,7 +10,7 @@ body:
     id: tool
     attributes:
       label: Tool
-      options: [Home, Photos, Video, Music, Recorder, Webcam, Transfer, Whiteboard, Code, Linux terminal, Documents/ONLYOFFICE, Windows helper, Other]
+      options: [Home, Photos, Video, Music, Recorder, Webcam, Transfer, Whiteboard, Code, Linux terminal, Documents/ArtCraft, Windows helper, Other]
     validations:
       required: true
   - type: textarea

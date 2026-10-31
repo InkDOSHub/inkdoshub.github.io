@@ -20,7 +20,7 @@ $apps = @(
   'apps/foto/',
   'apps/video/',
   'apps/editar-pdf/',
-  'onlyoffice/editor.html?new=docx',
+  'apps/wordcraft/',
   'apps/codigo/'
 )
 $aquecer1 = 20; $medir1 = 20   # cenario 1: so a tela inicial
