@@ -24,7 +24,7 @@
       var h = params && params.files && params.files[0];
       if (!h) return ok();
       h.getFile().then(function (f) { return f.arrayBuffer().then(function (b) { doXeos = { bytes: b, name: f.name, type: f.type || "" }; }); })
-        .then(function () { if (window.InkPaginas && InkPaginas.marcar) InkPaginas.marcar("app: file received from XeOS"); paraInkdos(); ok(); }, function () { ok(); });
+        .then(function () { paraInkdos(); ok(); }, function () { ok(); });
     });
     // sem arquivo do XeOS o consumidor não é chamado: segue depois de a página carregar
     addEventListener("load", function () { setTimeout(ok, 0); });

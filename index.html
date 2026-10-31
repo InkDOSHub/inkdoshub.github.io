@@ -37,7 +37,6 @@
           <button id="btn-offline" class="menu-linha" type="button" aria-pressed="false"><span class="marca-ok" aria-hidden="true">✓</span><span>Offline</span><small data-idioma-nao></small></button>
           <details class="i"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Choose which apps stay on this device to open without internet. The home screen and the light apps are always kept. Update downloads only what changed.</p></div></details>
         </div>
-        <button id="btn-diag" class="menu-linha" type="button">Diagnostics</button>
         <div class="menu-sep"></div>
         <div class="menu-rotulo">Open Office files in</div>
         <button class="menu-linha pref-office" type="button" data-pref="artcraft"><span class="marca-ok" aria-hidden="true">✓</span><span>ArtCraft complete</span></button>
@@ -58,12 +57,6 @@
   </section>
 
 
-  <section class="recebidos" id="diagnostico" hidden aria-label="Diagnostics">
-    <h2 class="grupo">Diagnostics</h2>
-    <p class="nota">What this browser supports and how long the last file took to open. Open a file from XeOS, come back here and copy the report.</p>
-    <pre id="diag-texto" data-idioma-nao style="white-space:pre-wrap;font-size:12px;user-select:text"></pre>
-    <div class="recebidos-lista"><button class="botao" type="button" id="diag-copiar">Copy report</button><button class="botao secundario" type="button" id="diag-fechar">Close</button></div>
-  </section>
   <section class="workspace-grid" aria-label="Apps">
     <a title="Read, annotate and export copies of PDFs." class="workspace-card pdf" data-app="pdf" href="inkdos/apps/pdf/index.html?suite=1">
       <span class="app-icon"><img src="assets/icones-inkdos/pdf.svg" alt=""></span>
@@ -141,11 +134,10 @@
   </footer>
 </main>
 
-<script src="assets/gerenciador-app.js?v=15"></script>
+<script src="assets/gerenciador-app.js?v=16"></script>
 <script src="inicio/inicio.js?v=12"></script>
 <script src="inicio/meus-apps.js?v=9"></script>
-<script src="inicio/lancador.js?v=15"></script>
+<script src="inicio/lancador.js?v=16"></script>
 <script src="inicio/offline.js?v=6"></script>
-<script src="inicio/diagnostico.js?v=1"></script>
 </body>
 </html>

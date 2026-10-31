@@ -207,7 +207,7 @@
     var r = grupos(files);
     if (r.grupos.length === 1 && !r.semApp.length && !r.bloq.length) {
       document.documentElement.classList.add("abrindo-arquivo");
-      return preparar(r.grupos[0].rota, r.grupos[0].files).then(function (url) { if (P.marcar) P.marcar("home: file saved, opening app"); location.replace(url); },
+      return preparar(r.grupos[0].rota, r.grupos[0].files).then(function (url) { location.replace(url); },
         function () { document.documentElement.classList.remove("abrindo-arquivo"); mostrar(r); });
     }
     mostrar(r);
@@ -215,7 +215,6 @@
 
   if (window.launchQueue && typeof window.launchQueue.setConsumer === "function") {
     window.launchQueue.setConsumer(function (params) {
-      if (P.marcar) { P.marcar("home: page started", true); P.marcar("home: file received from XeOS"); }
       var handles = params && params.files ? [].slice.call(params.files) : [];
       Promise.all(handles.map(function (h) { return h && typeof h.getFile === "function" ? h.getFile().catch(function () { return null; }) : h; }))
         .then(abrirArquivos);

@@ -47,47 +47,6 @@
   var noInicio = ehInicio(location.href);
   var app = noInicio ? null : appDaUrl(location.href);
 
-  /* Diagnóstico (☰ > Diagnostics, inicio/diagnostico.js): anota em localStorage
-     "inkdoshub-diag" o horário de cada etapa ao abrir um arquivo, entre páginas. */
-  function marcar(nome, novo) {
-    try {
-      // novo: começo de uma página que recebeu arquivo. Se outra recebeu há menos de 2 min, anota junto
-      // (assim aparecem as entregas repetidas do XeOS), com o horário em que a página começou a abrir.
-      var k = "inkdoshub-diag", d = JSON.parse(localStorage.getItem(k) || "null");
-      var ult = d && d.etapas && d.etapas.length ? d.etapas[d.etapas.length - 1].t : 0;
-      if (!d || Date.now() - (novo ? ult : d.t0) > 120000) d = { t0: Math.round(performance.timeOrigin || Date.now()), etapas: [] };
-      d.etapas.push({ nome: nome, t: novo ? Math.round(performance.timeOrigin || Date.now()) : Date.now(), pagina: location.pathname.split("/").slice(-3).join("/") });
-      localStorage.setItem(k, JSON.stringify(d));
-    } catch (_) {}
-  }
-  var abrindo = /(?:^#|&)(ink-arquivos|inkdos-launch)=/.test(location.hash) || /[?&]inkdos-handoff=/.test(location.search);
-  // também anota quando a tela inicial acabou de mandar abrir um app (até 2 min), mesmo sem o código na URL
-  if (!abrindo && !noInicio) try { var ud = JSON.parse(localStorage.getItem("inkdoshub-diag") || "null"); abrindo = !!(ud && Date.now() - ud.t0 < 120000); } catch (_) {}
-  if (/(?:^#|&)inkdos-launch=/.test(location.hash)) abrindo = false; // os apps do InkDOS anotam sozinhos (file-launch.js)
-  if (abrindo) {
-    marcar("app: page started (" + (location.hash ? "with file code" : "no file code in URL") + ", " + (history.length) + " in history)", false);
-    addEventListener("error", function (e) { marcar("app: error " + String(e.message || e.type).slice(0, 120)); });
-    document.addEventListener("DOMContentLoaded", function () { marcar("app: HTML ready"); });
-    addEventListener("load", function () { marcar("app: page fully loaded"); });
-  }
-  var topo = window.top === window;
-
-  /* Abas novas só no XeOS (desktop web no iPad, onde cada documento precisa da própria janela); nos
-     outros navegadores os apps abrem na mesma aba. Sinal do XeOS: "XeOS" no user agent ou o Hub
-     dentro de outra página. ?abas=nova ou ?abas=mesma no endereço fixa a escolha neste aparelho. */
-  var novaAba = (function () {
-    var q = /[?&]abas=(nova|mesma)\b/.exec(location.search), v = q ? q[1] : null;
-    try { if (q) localStorage.setItem("inkdoshub-abas", v); else v = localStorage.getItem("inkdoshub-abas"); } catch (_) {}
-    if (v === "nova" || v === "mesma") return v === "nova";
-    return /XeOS/i.test(navigator.userAgent) || !topo;
-  })();
-
-  // o nome da janela é como a tela inicial acha a aba de cada app (window.open("", nome))
-  if (topo && (!window.name || /^inkdoshub-/.test(window.name))) {
-    if (noInicio) window.name = "inkdoshub-inicio";
-    else if (app && app.id !== "office") window.name = "inkdoshub-" + app.id;
-  }
-
   function aplicarTema(t) {
     if (t !== "light" && t !== "dark") return;
     document.documentElement.dataset.theme = t;
@@ -142,7 +101,6 @@
     window.launchQueue.setConsumer(function (params) {
       var hs = params && params.files ? [].slice.call(params.files) : [];
       if (!hs.length) return;
-      marcar("XeOS sent the file straight to the app (page started)", true);
       Promise.all(hs.map(function (h) { return h.getFile().then(function (f) { return f.arrayBuffer().then(function (d) { return { name: f.name, data: d }; }); }); })).then(function (l) {
         var agora = Date.now(), caminhos = [];
         var req = indexedDB.open("inkdoshub-codigo", 1);
@@ -162,7 +120,7 @@
             r2.onsuccess = function () {
               var d2 = r2.result, t2 = d2.transaction("abrir", "readwrite");
               t2.objectStore("abrir").put({ caminhos: caminhos, at: agora }, "pedido");
-              t2.oncomplete = function () { d2.close(); marcar("app: file saved for the editor"); };
+              t2.oncomplete = function () { d2.close(); };
             };
           };
         };
@@ -176,8 +134,6 @@
     window.launchQueue.setConsumer(function (params) {
       var hs = params && params.files ? [].slice.call(params.files) : [];
       if (!hs.length) return;
-      marcar("XeOS sent the file straight to the app (page started)", true);
-      marcar("app: file received from XeOS");
       Promise.all(hs.map(function (h) { return h.getFile().catch(function () { return null; }); })).then(function (fs) {
         fs = fs.filter(Boolean);
         var entregar = function () {
@@ -187,7 +143,6 @@
           fs.forEach(function (f) { dt.items.add(f); });
           entrada.files = dt.files;
           entrada.dispatchEvent(new Event("change", { bubbles: true }));
-          marcar("app: file delivered");
         };
         if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", entregar); else entregar();
       });
@@ -214,7 +169,6 @@
         v.arquivos.forEach(function (a) { dt.items.add(new File([a.data], a.name, { type: a.type || "", lastModified: a.lastModified || Date.now() })); });
         entrada.files = dt.files;
         entrada.dispatchEvent(new Event("change", { bubbles: true }));
-        marcar("app: file delivered");
       };
       tx.oncomplete = function () { db.close(); };
     };
@@ -230,7 +184,6 @@
 
   /* Usado pela tela inicial (inicio/) e pelos apps do InkDOS (editores ArtCraft). */
   window.InkPaginas = {
-    marcar: marcar,
     raiz: RAIZ,
     apps: APPS,
     novaAba: novaAba,
