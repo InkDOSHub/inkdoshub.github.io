@@ -2,16 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>/* Arquivo do XeOS: recebido antes de qualquer outra coisa da página; inicio/lancador.js manda para o app. */
-(function(){var q=window.launchQueue;window.InkRecebidos=[];if(!q||typeof q.setConsumer!=="function")return;
-q.setConsumer(function(p){var h=[].slice.call(p&&p.files||[]);if(!h.length)return;document.documentElement.classList.add("abrindo-arquivo");
-Promise.all(h.map(function(x){return x&&x.getFile?x.getFile().catch(function(){return null}):x})).then(function(f){if(window.InkLancador)InkLancador.abrirArquivos(f);else InkRecebidos.push(f)})})})();</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="InkDOS Hub">
 <meta name="theme-color" content="#f2f5f8">
-<link rel="manifest" href="manifest.webmanifest?v=8">
+<link rel="manifest" href="manifest.webmanifest?v=5">
 <title>InkDOS Hub: advanced tools</title>
 <link rel="icon" type="image/png" sizes="32x32" href="./assets/inkdoshub-icone-32.png?v=5">
 <link rel="icon" type="image/png" sizes="192x192" href="./assets/inkdoshub-icone-192.png?v=5">
@@ -138,10 +134,10 @@ Promise.all(h.map(function(x){return x&&x.getFile?x.getFile().catch(function(){r
   </footer>
 </main>
 
-<script src="assets/gerenciador-app.js?v=17"></script>
+<script src="assets/gerenciador-app.js?v=10"></script>
 <script src="inicio/inicio.js?v=12"></script>
 <script src="inicio/meus-apps.js?v=9"></script>
-<script src="inicio/lancador.js?v=18"></script>
+<script src="inicio/lancador.js?v=14"></script>
 <script src="inicio/offline.js?v=6"></script>
 </body>
 </html>

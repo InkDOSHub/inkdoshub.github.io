@@ -1,8 +1,8 @@
 /* Lançador de arquivos da tela inicial, como na tela inicial do InkDOS.
 
-   Arquivos abertos no XeOS chegam a esta página (manifest.webmanifest, um "file_handlers" só, como o
-   XeOS espera). O launchQueue é lido logo no topo do index.html, antes de carregar o resto; aqui o
-   arquivo vai para o app pela extensão (mapa ROTAS).
+   Com o InkDOS Hub instalado (manifest.webmanifest, "file_handlers"), abrir um arquivo no XeOS
+   manda o arquivo para esta página (launchQueue). Ela escolhe o app pela extensão e abre o app
+   com o arquivo.
 
    Como o arquivo chega a cada app:
    - apps do InkDOS (inkdos/): IndexedDB "inkdos-launch-handoff" e #inkdos-launch=<id>, o mesmo
@@ -207,15 +207,18 @@
     var r = grupos(files);
     if (r.grupos.length === 1 && !r.semApp.length && !r.bloq.length) {
       document.documentElement.classList.add("abrindo-arquivo");
-      return preparar(r.grupos[0].rota, r.grupos[0].files).then(function (url) {
-        // Só troca de página depois do "load" desta: o XeOS mantém a tela de abertura (ícone girando) até
-        // a página que ele abriu terminar de carregar; trocar antes deixava a tela por ~30 s.
-        if (document.readyState === "complete") location.replace(url);
-        else addEventListener("load", function () { location.replace(url); });
-      },
+      return preparar(r.grupos[0].rota, r.grupos[0].files).then(function (url) { location.replace(url); },
         function () { document.documentElement.classList.remove("abrindo-arquivo"); mostrar(r); });
     }
     mostrar(r);
+  }
+
+  if (window.launchQueue && typeof window.launchQueue.setConsumer === "function") {
+    window.launchQueue.setConsumer(function (params) {
+      var handles = params && params.files ? [].slice.call(params.files) : [];
+      Promise.all(handles.map(function (h) { return h && typeof h.getFile === "function" ? h.getFile().catch(function () { return null; }) : h; }))
+        .then(abrirArquivos);
+    });
   }
 
   /* Botão "Abrir arquivo": o seletor do sistema (no iPhone, o app Arquivos) aceita qualquer tipo e o
@@ -227,6 +230,4 @@
   }
 
   window.InkLancador = { rotaDe: rotaDe, abrirArquivos: abrirArquivos };
-  // arquivos do XeOS que chegaram antes deste script (recebidos no topo do index.html)
-  (window.InkRecebidos || []).splice(0).forEach(abrirArquivos);
 })();
