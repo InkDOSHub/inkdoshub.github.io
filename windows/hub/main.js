@@ -9,7 +9,7 @@
 //   só alcança os endereços de LIVRES; todo o resto é bloqueado.
 // - Cada app abre numa janela própria (processo próprio); várias ao mesmo tempo.
 'use strict';
-const { app, BrowserWindow, protocol, net, session, shell, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, protocol, net, session, shell, ipcMain, Menu, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -494,6 +494,18 @@ const doSite = url => { try { return new URL(url).hostname === HOST; } catch (_)
 
 function cuidar(w) {
   w.once('ready-to-show', () => w.show());
+  // Documento com alteração não salva: o app pede para confirmar a saída (beforeunload). O Electron, sozinho,
+  // só cancela o fechamento sem avisar, e a janela parecia travada. Aqui o Windows pergunta.
+  w.webContents.on('will-prevent-unload', e => {
+    const pt = /^pt/i.test(app.getLocale());
+    const r = dialog.showMessageBoxSync(w, {
+      type: 'question', title: 'InkDOS Hub', noLink: true, defaultId: 1, cancelId: 1,
+      buttons: pt ? ['Fechar sem salvar', 'Cancelar'] : ['Close without saving', 'Cancel'],
+      message: pt ? 'Há alterações não salvas.' : 'There are unsaved changes.',
+      detail: pt ? 'Se fechar agora, as alterações desde o último salvamento se perdem.' : 'If you close now, changes since the last save are lost.'
+    });
+    if (r === 0) e.preventDefault(); // fecha mesmo assim
+  });
   w.webContents.setWindowOpenHandler(({ url }) => {
     if (ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
     if (ehTerminal(url)) { abrirTerminal(); return { action: 'deny' }; }
