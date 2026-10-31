@@ -15,8 +15,40 @@
   var titulo = document.querySelector(".ink-title");
   var sujo = false, arquivo = null;
 
+  /* Arquivo aberto no XeOS: chega direto aqui (manifest.webmanifest, "file_handlers"), sem passar
+     pela tela inicial. Se a pessoa escolheu os editores do InkDOS no ☰, vai para o app do InkDOS. */
+  var doXeos = null;
+  var chegou = new Promise(function (ok) {
+    if (!window.launchQueue || typeof launchQueue.setConsumer !== "function") return ok();
+    launchQueue.setConsumer(function (params) {
+      var h = params && params.files && params.files[0];
+      if (!h) return ok();
+      h.getFile().then(function (f) { return f.arrayBuffer().then(function (b) { doXeos = { bytes: b, name: f.name, type: f.type || "" }; }); })
+        .then(function () { if (window.InkPaginas && InkPaginas.marcar) InkPaginas.marcar("app: file received from XeOS"); paraInkdos(); ok(); }, function () { ok(); });
+    });
+    // sem arquivo do XeOS o consumidor não é chamado: segue depois de a página carregar
+    addEventListener("load", function () { setTimeout(ok, 0); });
+  });
+  function paraInkdos() {
+    var pref = null;
+    try { pref = localStorage.getItem("inkdoshub-abrir-office"); } catch (_) {}
+    if (!pref && /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent)) pref = "inkdos";
+    if (pref !== "inkdos") return;
+    var nome = { wordcraft: "documents", gridcraft: "spreadsheets", deckcraft: "presentations" }[APP], idn = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    var req = indexedDB.open("inkdos-launch-handoff", 1);
+    req.onupgradeneeded = function () { req.result.createObjectStore("files"); };
+    req.onsuccess = function () {
+      var db = req.result, tx = db.transaction("files", "readwrite");
+      tx.objectStore("files").put({ name: doXeos.name, type: doXeos.type, lastModified: Date.now(), data: doXeos.bytes, at: Date.now() }, idn);
+      tx.oncomplete = function () { db.close(); location.replace("../../inkdos/apps/" + nome + "/index.html?suite=1#inkdos-launch=" + idn); };
+    };
+    doXeos = null;
+    throw 0; // para o carregamento do ArtCraft
+  }
+
   function ler() {
     return new Promise(function (ok) {
+      if (doXeos) return ok(doXeos);
       if (!id) return ok(null);
       var req = indexedDB.open("inkdos-tool-handoff", 1);
       req.onupgradeneeded = function () { req.result.createObjectStore("files"); };
@@ -151,6 +183,8 @@
     return baixarWasm(dir);
   }).then(function () {
     status("Opening…");
+    return chegou;
+  }).then(function () {
     return ler();
   }).then(function (v) {
     arquivo = v;
