@@ -107,63 +107,11 @@
       e.stopPropagation();
       irParaInicio();
     }, true);
-    // assim que o HTML do app estiver pronto (antes esperava a página toda carregar + 400 ms)
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", receber);
-    else receber();
-  }
-
-  /* Código: arquivos do XeOS vão direto para a pasta /Received do editor (IndexedDB "inkdoshub-codigo"),
-     como faz a tela inicial (inicio/lancador.js); a extensão inkfs abre o pedido quando o editor liga. */
-  if (window.launchQueue && typeof window.launchQueue.setConsumer === "function" && app && app.id === "codigo") {
-    window.launchQueue.setConsumer(function (params) {
-      var hs = params && params.files ? [].slice.call(params.files) : [];
-      if (!hs.length) return;
-      Promise.all(hs.map(function (h) { return h.getFile().then(function (f) { return f.arrayBuffer().then(function (d) { return { name: f.name, data: d }; }); }); })).then(function (l) {
-        var agora = Date.now(), caminhos = [];
-        var req = indexedDB.open("inkdoshub-codigo", 1);
-        req.onupgradeneeded = function () { req.result.createObjectStore("files"); };
-        req.onsuccess = function () {
-          var db = req.result, tx = db.transaction("files", "readwrite"), st = tx.objectStore("files");
-          st.put({ type: 2, ctime: agora, mtime: agora }, "/Received");
-          l.forEach(function (v) {
-            var c = "/Received/" + (v.name.replace(/[\/\\]/g, "_") || "arquivo");
-            caminhos.push(c);
-            st.put({ type: 1, ctime: agora, mtime: agora, data: new Uint8Array(v.data) }, c);
-          });
-          tx.oncomplete = function () {
-            db.close();
-            var r2 = indexedDB.open("inkdoshub-codigo-abrir", 1);
-            r2.onupgradeneeded = function () { r2.result.createObjectStore("abrir"); };
-            r2.onsuccess = function () {
-              var d2 = r2.result, t2 = d2.transaction("abrir", "readwrite");
-              t2.objectStore("abrir").put({ caminhos: caminhos, at: agora }, "pedido");
-              t2.oncomplete = function () { d2.close(); };
-            };
-          };
-        };
-      });
-    });
-  }
-
-  /* Fotos, Vídeo e Música recebem do XeOS direto (manifest.webmanifest, "file_handlers"), sem
-     passar pela tela inicial: uma página a menos para carregar. */
-  if (window.launchQueue && typeof window.launchQueue.setConsumer === "function" && app && /^(foto|video|musica)$/.test(app.id)) {
-    window.launchQueue.setConsumer(function (params) {
-      var hs = params && params.files ? [].slice.call(params.files) : [];
-      if (!hs.length) return;
-      Promise.all(hs.map(function (h) { return h.getFile().catch(function () { return null; }); })).then(function (fs) {
-        fs = fs.filter(Boolean);
-        var entregar = function () {
-          var entrada = document.getElementById("arquivos");
-          if (!entrada || !fs.length) return;
-          var dt = new DataTransfer();
-          fs.forEach(function (f) { dt.items.add(f); });
-          entrada.files = dt.files;
-          entrada.dispatchEvent(new Event("change", { bubbles: true }));
-        };
-        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", entregar); else entregar();
-      });
-    });
+    var depois = function (fn, ms) {
+      if (document.readyState === "complete") setTimeout(fn, ms);
+      else addEventListener("load", function () { setTimeout(fn, ms); });
+    };
+    depois(receber, 400);
   }
 
   /* Arquivos mandados pela tela inicial (inicio/lancador.js): ficam no IndexedDB
