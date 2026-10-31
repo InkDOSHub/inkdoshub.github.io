@@ -21,20 +21,16 @@
   <!-- tool bar look (ui/visual-system.css) inline: XeOS kept the linked copy from applying -->
   <style id="toolbarLook">
 /* InkDOS visual system (docs/visual-system.md): value pickers as icon controls, zoom as a plain percentage. Generated; presentation-only. */
-#formatbar #styleSelect,#formatbar #fontSelect,#formatbar #alignmentSelect,#formatbar #lineSpacing,#formatbar .inkdos-picker[data-for="fontSelect"],#formatbar .inkdos-picker[data-for="alignmentSelect"],#formatbar .inkdos-picker[data-for="lineSpacing"],#formatbar .inkdos-picker[data-for="styleSelect"]{-webkit-appearance:none;appearance:none;width:28px!important;min-width:28px!important;max-width:28px!important;height:28px!important;padding:0!important;color:transparent!important;text-indent:-9999px;background-color:var(--panel);background-repeat:no-repeat;background-position:center;background-size:18px 18px;border-radius:10px;cursor:pointer}
-#formatbar #styleSelect option,#formatbar #fontSelect option,#formatbar #alignmentSelect option,#formatbar #lineSpacing option{color:var(--text,#1b1f27);text-indent:0}
+#formatbar #styleSelect,#formatbar #alignmentSelect,#formatbar #lineSpacing,#formatbar .inkdos-picker[data-for="alignmentSelect"],#formatbar .inkdos-picker[data-for="lineSpacing"],#formatbar .inkdos-picker[data-for="styleSelect"]{-webkit-appearance:none;appearance:none;width:28px!important;min-width:28px!important;max-width:28px!important;height:28px!important;padding:0!important;color:transparent!important;text-indent:-9999px;background-color:var(--panel);background-repeat:no-repeat;background-position:center;background-size:18px 18px;border-radius:10px;cursor:pointer}
+#formatbar #styleSelect option,#formatbar #alignmentSelect option,#formatbar #lineSpacing option{color:var(--text,#1b1f27);text-indent:0}
 #formatbar #styleSelect,
 #formatbar .inkdos-picker[data-for="styleSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M13%204v16M17%204v16%22/%3E%3Cpath%20d=%22M20%204H9.5a4%204%200%200%200%200%208H13%22/%3E%3C/svg%3E")}
-#formatbar #fontSelect,
-#formatbar .inkdos-picker[data-for="fontSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m3%2019%205-14%205%2014%22/%3E%3Cpath%20d=%22M4.8%2014h6.4%22/%3E%3Ccircle%20cx=%2217.5%22%20cy=%2215.5%22%20r=%223%22/%3E%3Cpath%20d=%22M20.5%2012v7%22/%3E%3C/svg%3E")}
 #formatbar #alignmentSelect,
 #formatbar .inkdos-picker[data-for="alignmentSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16M4%2010h10M4%2014h16M4%2018h10%22/%3E%3C/svg%3E")}
 #formatbar #lineSpacing,
 #formatbar .inkdos-picker[data-for="lineSpacing"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%231b1f27%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M11%206h9M11%2012h9M11%2018h9%22/%3E%3Cpath%20d=%22M5%204v16M3%206.5%205%204l2%202.5M3%2017.5%205%2020l2-2.5%22/%3E%3C/svg%3E")}
 :root[data-appearance-resolved="dark"] #formatbar #styleSelect,
 :root[data-appearance-resolved="dark"] #formatbar .inkdos-picker[data-for="styleSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M13%204v16M17%204v16%22/%3E%3Cpath%20d=%22M20%204H9.5a4%204%200%200%200%200%208H13%22/%3E%3C/svg%3E")}
-:root[data-appearance-resolved="dark"] #formatbar #fontSelect,
-:root[data-appearance-resolved="dark"] #formatbar .inkdos-picker[data-for="fontSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m3%2019%205-14%205%2014%22/%3E%3Cpath%20d=%22M4.8%2014h6.4%22/%3E%3Ccircle%20cx=%2217.5%22%20cy=%2215.5%22%20r=%223%22/%3E%3Cpath%20d=%22M20.5%2012v7%22/%3E%3C/svg%3E")}
 :root[data-appearance-resolved="dark"] #formatbar #alignmentSelect,
 :root[data-appearance-resolved="dark"] #formatbar .inkdos-picker[data-for="alignmentSelect"]{background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23f2f4f8%22%20stroke-width=%221.75%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M4%206h16M4%2010h10M4%2014h16M4%2018h10%22/%3E%3C/svg%3E")}
 :root[data-appearance-resolved="dark"] #formatbar #lineSpacing,
@@ -51,6 +47,31 @@
 /* a disabled picker looks disabled, as its select did */
 .inkdos-picker:has(>select:disabled){opacity:.35;cursor:default}
 .inkdos-picker:has(>select[hidden]){display:none}
+</style>
+  <style id="wordLook">
+/* Visual próximo do Word: faixa de ferramentas em grupos com nome, régua da página e página em destaque. */
+.formatbar{align-items:stretch;gap:0;padding-top:4px;padding-bottom:2px;background:var(--panel)}
+.formatbar .grupo{display:flex;flex-direction:column;align-items:center;flex:none;padding:0 6px;border-right:1px solid var(--line)}
+.formatbar .grupo:last-of-type{border-right:0}
+.formatbar .grupo-itens{display:flex;align-items:center;gap:2px;flex:1}
+.formatbar .grupo-nome{font-size:11px;line-height:15px;color:var(--muted);white-space:nowrap;pointer-events:none}
+#formatbar .inkdos-picker[data-for="fontSelect"]{width:132px;justify-content:flex-start;overflow:hidden}
+#formatbar .inkdos-picker[data-for="fontSelect"] .inkdos-picker-label{overflow:hidden;text-overflow:ellipsis}
+@media(max-width:720px){.formatbar .grupo-nome{display:none}}
+.ruler.regua-word{position:relative;display:block;height:22px;padding:0;background:var(--bg);--accent:#7b7b80}
+.ruler.regua-word .ruler-track{position:absolute;top:3px;min-width:0;height:16px;border:0;background:none}
+.ruler.regua-word .ruler-track::before{content:"";position:absolute;top:0;bottom:0;left:calc(-1 * var(--ml,0px));right:calc(-1 * var(--mr,0px));z-index:0;pointer-events:none;
+ background:linear-gradient(90deg,color-mix(in srgb,var(--muted) 45%,transparent) 1px,transparent 1px) calc(var(--ml,0px) + var(--cm,38px) / 2) 50%/calc(var(--cm,38px)) 4px repeat-x,
+ linear-gradient(90deg,color-mix(in srgb,var(--muted) 22%,var(--panel)) var(--ml,0px),var(--panel) var(--ml,0px) calc(100% - var(--mr,0px)),color-mix(in srgb,var(--muted) 22%,var(--panel)) calc(100% - var(--mr,0px)));
+ box-shadow:0 0 0 1px var(--line)}
+.ruler.regua-word .ruler-label{top:3px;z-index:1;font-size:9px}
+.ruler.regua-word .ruler-handle.first-line{top:-1px}
+.ruler.regua-word .ruler-handle.hanging,.ruler.regua-word .ruler-handle.right-indent{bottom:2px}
+.ruler.regua-word .ruler-handle.left-block{bottom:-2px}
+:root:not([data-appearance-resolved="dark"]) :is(.viewport,.ruler.regua-word){background:#e3e4e8}
+.ruler.regua-word{border-bottom:0}
+.pages-host{padding-top:22px}
+.page,.doc-page{box-shadow:0 0 0 1px rgba(0,0,0,.07),0 2px 6px rgba(0,0,0,.16),0 8px 24px rgba(0,0,0,.10)}
 </style>
   <script src="../../shared/ui-density.js"></script><script src="../../shared/work-safety.js"></script>
   <script src="runtime/platform/file-launch.js"></script>
@@ -69,40 +90,47 @@
   </header>
 
   <div id="formatbar" class="formatbar command-scroll" tabindex="0" aria-label="Horizontally scrollable editing toolbar">
-    <button id="undoBtn" class="fmt-btn icon-only" type="button" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/></svg></button>
-    <button id="redoBtn" class="fmt-btn icon-only" type="button" title="Redo" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/></svg></button>
-    <button id="printBtn" class="fmt-btn icon-only" type="button" title="Print" aria-label="Print"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5"/><path d="M7 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/></svg></button>
-    <button id="formatPainterBtn" class="fmt-btn icon-only" type="button" title="Format painter: copy formatting, then select target and press again" aria-label="Format painter" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12v6H4z"/><path d="M16 7h3v5h-7v8"/><path d="M10 20h4"/></svg></button>
-    <span id="zoomGroup" class="zoom-group" role="group" aria-label="Zoom"><button id="zoomOut" class="fmt-btn zoom-step" type="button" title="Zoom out (−25%)" aria-label="Zoom out"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/></svg></button><span class="zoom-field"><input id="zoomInput" class="zoom-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="4" value="100%" title="Type a zoom from 1 to 800%" aria-label="Document zoom percentage"><button id="zoomMenuBtn" class="fmt-btn zoom-tool" type="button" title="Zoom presets" aria-label="Document zoom presets" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></span><button id="zoomIn" class="fmt-btn zoom-step" type="button" title="Zoom in (+25%)" aria-label="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8M12 8v8"/></svg></button></span>
-    <span class="separator"></span>
-    <select id="styleSelect" title="Paragraph style"><option value="p">Normal</option><option value="h1">Title</option><option value="h2">Heading 1</option><option value="h3">Heading 2</option></select>
-    <select id="fontSelect" title="Font"><option>Calibri</option><option>Arial</option><option>Times New Roman</option><option>Georgia</option><option>Verdana</option><option>Courier New</option></select>
-    <select id="sizeSelect" title="Font size"><option value="1">8</option><option value="2">10</option><option value="3" selected>12</option><option value="4">14</option><option value="5">18</option><option value="6">24</option><option value="7">36</option></select>
-    <span class="separator"></span>
-    <button class="fmt-btn" data-cmd="bold" aria-pressed="false" title="Bold" aria-label="Bold"><b>B</b></button>
-    <button class="fmt-btn" data-cmd="italic" aria-pressed="false" title="Italic" aria-label="Italic"><i>I</i></button>
-    <button class="fmt-btn" data-cmd="underline" aria-pressed="false" title="Underline" aria-label="Underline"><u>U</u></button>
-    <button id="d1FormatBtn" class="fmt-btn icon-only" type="button" title="Text color and highlight" aria-label="Text color and highlight"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 16 6-12 6 12"/><path d="M8.5 11h7"/><path d="M4 20h16"/></svg></button>
-    <button id="hyperlinkBtn" class="fmt-btn icon-only" type="button" title="Insert or edit hyperlink" aria-label="Insert or edit hyperlink"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg></button>
-    <button id="commentBtn" class="fmt-btn icon-only" type="button" title="Comment on selected text" aria-label="Comment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v11H9l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></button>
-    <label class="fmt-btn file-label icon-only" for="imageInput" title="Insert image" aria-label="Insert image"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m20.5 16-5-5-8.5 8.5"/></svg></label>
-    <input id="imageInput" type="file" accept="image/png,image/jpeg,image/gif" hidden>
-    <span class="separator"></span>
-    <select id="alignmentSelect" title="Alignment"><option value="" selected>Align</option><option value="justifyLeft">Left</option><option value="justifyCenter">Center</option><option value="justifyRight">Right</option><option value="justifyFull">Justify</option></select>
-    <select id="lineSpacing" title="Line spacing"><option value="1">1.0</option><option value="1.15" selected>1.15</option><option value="1.5">1.5</option><option value="2">2.0</option></select>
-    <button id="checklistBtn" class="fmt-btn icon-only" type="button" title="Checklist" aria-label="Checklist"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="5.5" height="5.5" rx="1"/><rect x="3.5" y="14.5" width="5.5" height="5.5" rx="1"/><path d="m4.8 17.3 1.3 1.3 2-2.6"/><path d="M12 6.8h8.5M12 17.2h8.5"/></svg></button>
-    <button class="fmt-btn icon-only" data-cmd="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></button>
-    <button class="fmt-btn icon-only" data-cmd="insertOrderedList" title="Numbered list" aria-label="Numbered list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 4.5h1.5V9"/><path d="M4 9h3"/><path d="M4 14.5a1.5 1.5 0 0 1 3 0c0 1.3-3 2-3 4h3"/></svg></button>
-    <button id="alphaList" class="fmt-btn icon-only" title="Alphabetic list" aria-label="Alphabetic list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6h9M11 12h9M11 18h9"/><path d="m3.5 9.5 2-6 2 6"/><path d="M4.2 7.7h2.6"/><path d="M4 13.5h2a1.3 1.3 0 0 1 0 2.6H4zm0 2.6h2.4a1.45 1.45 0 0 1 0 2.9H4z"/></svg></button>
-    <button class="fmt-btn icon-only" data-cmd="outdent" title="Decrease indent" aria-label="Decrease indent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M11 10h9M11 14h9M4 19h16"/><path d="M8 9.5 5.5 12 8 14.5"/></svg></button>
-    <button class="fmt-btn icon-only" data-cmd="indent" title="Increase indent" aria-label="Increase indent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M11 10h9M11 14h9M4 19h16"/><path d="m5 9.5 2.5 2.5L5 14.5"/></svg></button>
-    <button id="clearFormattingBtn" class="fmt-btn icon-only" type="button" title="Clear formatting" aria-label="Clear formatting"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 7-7"/><path d="m14 4 6 6-8 8H6l-2-2 10-12Z"/><path d="M13 20h7"/></svg></button>
-    <span class="separator"></span>
-    <button id="tableBtn" class="fmt-btn icon-only" title="Insert table" aria-label="Insert table"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 4.5v15M14.5 4.5v15"/></svg></button>
-    <button id="rowBtn" class="fmt-btn icon-only" title="Add row" aria-label="Add row"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="11" rx="2"/><path d="M3.5 9h17M9 3.5v11M15 3.5v11"/><path d="M12 17v5M9.5 19.5h5"/></svg></button>
-    <button id="colBtn" class="fmt-btn icon-only" title="Add column" aria-label="Add column"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="11" height="17" rx="2"/><path d="M3.5 9h11M3.5 15h11M9 3.5v17"/><path d="M19.5 9.5v5M17 12h5"/></svg></button>
-    <span class="separator"></span>
-    <button id="contextBtn" class="fmt-btn icon-only" type="button" title="Document panel" aria-label="Open document panel" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/></svg></button>
+    <div class="grupo"><div class="grupo-itens">
+      <button id="undoBtn" class="fmt-btn icon-only" type="button" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/></svg></button>
+      <button id="redoBtn" class="fmt-btn icon-only" type="button" title="Redo" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/></svg></button>
+      <button id="printBtn" class="fmt-btn icon-only" type="button" title="Print" aria-label="Print"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5"/><path d="M7 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/></svg></button>
+      <button id="formatPainterBtn" class="fmt-btn icon-only" type="button" title="Format painter: copy formatting, then select target and press again" aria-label="Format painter" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12v6H4z"/><path d="M16 7h3v5h-7v8"/><path d="M10 20h4"/></svg></button>
+    </div><span class="grupo-nome">Edit</span></div>
+    <div class="grupo"><div class="grupo-itens">
+      <select id="styleSelect" title="Paragraph style"><option value="p">Normal</option><option value="h1">Title</option><option value="h2">Heading 1</option><option value="h3">Heading 2</option></select>
+      <select id="fontSelect" title="Font"><option>Calibri</option><option>Arial</option><option>Times New Roman</option><option>Georgia</option><option>Verdana</option><option>Courier New</option></select>
+      <select id="sizeSelect" title="Font size"><option value="1">8</option><option value="2">10</option><option value="3" selected>12</option><option value="4">14</option><option value="5">18</option><option value="6">24</option><option value="7">36</option></select>
+      <button class="fmt-btn" data-cmd="bold" aria-pressed="false" title="Bold" aria-label="Bold"><b>B</b></button>
+      <button class="fmt-btn" data-cmd="italic" aria-pressed="false" title="Italic" aria-label="Italic"><i>I</i></button>
+      <button class="fmt-btn" data-cmd="underline" aria-pressed="false" title="Underline" aria-label="Underline"><u>U</u></button>
+      <button id="d1FormatBtn" class="fmt-btn icon-only" type="button" title="Text color and highlight" aria-label="Text color and highlight"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 16 6-12 6 12"/><path d="M8.5 11h7"/><path d="M4 20h16"/></svg></button>
+    </div><span class="grupo-nome">Font</span></div>
+    <div class="grupo"><div class="grupo-itens">
+      <select id="alignmentSelect" title="Alignment"><option value="" selected>Align</option><option value="justifyLeft">Left</option><option value="justifyCenter">Center</option><option value="justifyRight">Right</option><option value="justifyFull">Justify</option></select>
+      <select id="lineSpacing" title="Line spacing"><option value="1">1.0</option><option value="1.15" selected>1.15</option><option value="1.5">1.5</option><option value="2">2.0</option></select>
+      <button id="checklistBtn" class="fmt-btn icon-only" type="button" title="Checklist" aria-label="Checklist"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="5.5" height="5.5" rx="1"/><rect x="3.5" y="14.5" width="5.5" height="5.5" rx="1"/><path d="m4.8 17.3 1.3 1.3 2-2.6"/><path d="M12 6.8h8.5M12 17.2h8.5"/></svg></button>
+      <button class="fmt-btn icon-only" data-cmd="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></button>
+      <button class="fmt-btn icon-only" data-cmd="insertOrderedList" title="Numbered list" aria-label="Numbered list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 4.5h1.5V9"/><path d="M4 9h3"/><path d="M4 14.5a1.5 1.5 0 0 1 3 0c0 1.3-3 2-3 4h3"/></svg></button>
+      <button id="alphaList" class="fmt-btn icon-only" title="Alphabetic list" aria-label="Alphabetic list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6h9M11 12h9M11 18h9"/><path d="m3.5 9.5 2-6 2 6"/><path d="M4.2 7.7h2.6"/><path d="M4 13.5h2a1.3 1.3 0 0 1 0 2.6H4zm0 2.6h2.4a1.45 1.45 0 0 1 0 2.9H4z"/></svg></button>
+      <button class="fmt-btn icon-only" data-cmd="outdent" title="Decrease indent" aria-label="Decrease indent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M11 10h9M11 14h9M4 19h16"/><path d="M8 9.5 5.5 12 8 14.5"/></svg></button>
+      <button class="fmt-btn icon-only" data-cmd="indent" title="Increase indent" aria-label="Increase indent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M11 10h9M11 14h9M4 19h16"/><path d="m5 9.5 2.5 2.5L5 14.5"/></svg></button>
+      <button id="clearFormattingBtn" class="fmt-btn icon-only" type="button" title="Clear formatting" aria-label="Clear formatting"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 7-7"/><path d="m14 4 6 6-8 8H6l-2-2 10-12Z"/><path d="M13 20h7"/></svg></button>
+    </div><span class="grupo-nome">Paragraph</span></div>
+    <div class="grupo"><div class="grupo-itens">
+      <button id="hyperlinkBtn" class="fmt-btn icon-only" type="button" title="Insert or edit hyperlink" aria-label="Insert or edit hyperlink"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg></button>
+      <button id="commentBtn" class="fmt-btn icon-only" type="button" title="Comment on selected text" aria-label="Comment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v11H9l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></button>
+      <label class="fmt-btn file-label icon-only" for="imageInput" title="Insert image" aria-label="Insert image"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.5"/><path d="m20.5 16-5-5-8.5 8.5"/></svg></label>
+      <input id="imageInput" type="file" accept="image/png,image/jpeg,image/gif" hidden>
+      <button id="tableBtn" class="fmt-btn icon-only" title="Insert table" aria-label="Insert table"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 4.5v15M14.5 4.5v15"/></svg></button>
+      <button id="rowBtn" class="fmt-btn icon-only" title="Add row" aria-label="Add row"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="11" rx="2"/><path d="M3.5 9h17M9 3.5v11M15 3.5v11"/><path d="M12 17v5M9.5 19.5h5"/></svg></button>
+      <button id="colBtn" class="fmt-btn icon-only" title="Add column" aria-label="Add column"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="11" height="17" rx="2"/><path d="M3.5 9h11M3.5 15h11M9 3.5v17"/><path d="M19.5 9.5v5M17 12h5"/></svg></button>
+    </div><span class="grupo-nome">Insert</span></div>
+    <div class="grupo"><div class="grupo-itens">
+      <span id="zoomGroup" class="zoom-group" role="group" aria-label="Zoom"><button id="zoomOut" class="fmt-btn zoom-step" type="button" title="Zoom out (−25%)" aria-label="Zoom out"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/></svg></button><span class="zoom-field"><input id="zoomInput" class="zoom-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="4" value="100%" title="Type a zoom from 1 to 800%" aria-label="Document zoom percentage"><button id="zoomMenuBtn" class="fmt-btn zoom-tool" type="button" title="Zoom presets" aria-label="Document zoom presets" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></span><button id="zoomIn" class="fmt-btn zoom-step" type="button" title="Zoom in (+25%)" aria-label="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8M12 8v8"/></svg></button></span>
+    </div><span class="grupo-nome">Zoom</span></div>
+    <div class="grupo"><div class="grupo-itens">
+      <button id="contextBtn" class="fmt-btn icon-only" type="button" title="Document panel" aria-label="Open document panel" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/></svg></button>
+    </div></div>
     <span class="toolbar-end-spacer" aria-hidden="true"></span>
   </div>
 
@@ -203,4 +231,5 @@
 </script>
 
 <script src="ui/toolbar-pickers.js"></script>
+<script src="runtime/platform/regua-word.js"></script>
 </body></html>
