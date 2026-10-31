@@ -207,7 +207,12 @@
     var r = grupos(files);
     if (r.grupos.length === 1 && !r.semApp.length && !r.bloq.length) {
       document.documentElement.classList.add("abrindo-arquivo");
-      return preparar(r.grupos[0].rota, r.grupos[0].files).then(function (url) { location.replace(url); },
+      return preparar(r.grupos[0].rota, r.grupos[0].files).then(function (url) {
+        // Só troca de página depois do "load" desta: o XeOS mantém a tela de abertura (ícone girando) até
+        // a página que ele abriu terminar de carregar; trocar antes deixava a tela por ~30 s.
+        if (document.readyState === "complete") location.replace(url);
+        else addEventListener("load", function () { location.replace(url); });
+      },
         function () { document.documentElement.classList.remove("abrindo-arquivo"); mostrar(r); });
     }
     mostrar(r);
