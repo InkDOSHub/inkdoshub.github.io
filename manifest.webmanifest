@@ -29,7 +29,7 @@
   ],
   "file_handlers": [
     {
-      "action": "./apps/wordcraft/",
+      "action": "./",
       "accept": {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
           ".docx"
@@ -45,12 +45,7 @@
         ],
         "application/vnd.apple.pages": [
           ".pages"
-        ]
-      }
-    },
-    {
-      "action": "./apps/gridcraft/",
-      "accept": {
+        ],
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
           ".xlsx"
         ],
@@ -68,12 +63,7 @@
         ],
         "application/vnd.apple.numbers": [
           ".numbers"
-        ]
-      }
-    },
-    {
-      "action": "./apps/deckcraft/",
-      "accept": {
+        ],
         "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
           ".pptx"
         ],
@@ -85,28 +75,13 @@
         ],
         "application/vnd.apple.keynote": [
           ".key"
-        ]
-      }
-    },
-    {
-      "action": "./inkdos/apps/pdf/index.html?suite=1",
-      "accept": {
+        ],
         "application/pdf": [
           ".pdf"
-        ]
-      }
-    },
-    {
-      "action": "./inkdos/apps/epub/index.html?suite=1",
-      "accept": {
+        ],
         "application/epub+zip": [
           ".epub"
-        ]
-      }
-    },
-    {
-      "action": "./inkdos/apps/txt/index.html?suite=1",
-      "accept": {
+        ],
         "text/plain": [
           ".cfg",
           ".conf",
@@ -122,60 +97,7 @@
           ".txt",
           ".xml",
           ".yaml",
-          ".yml"
-        ]
-      }
-    },
-    {
-      "action": "./apps/foto/",
-      "accept": {
-        "image/*": [
-          ".avif",
-          ".bmp",
-          ".gif",
-          ".heic",
-          ".heif",
-          ".jpeg",
-          ".jpg",
-          ".png",
-          ".svg",
-          ".tif",
-          ".tiff",
-          ".webp"
-        ]
-      }
-    },
-    {
-      "action": "./apps/video/",
-      "accept": {
-        "video/*": [
-          ".m4v",
-          ".mkv",
-          ".mov",
-          ".mp4",
-          ".webm"
-        ]
-      }
-    },
-    {
-      "action": "./apps/musica/",
-      "accept": {
-        "audio/*": [
-          ".aac",
-          ".flac",
-          ".m4a",
-          ".mp3",
-          ".oga",
-          ".ogg",
-          ".opus",
-          ".wav"
-        ]
-      }
-    },
-    {
-      "action": "./apps/codigo/",
-      "accept": {
-        "text/plain": [
+          ".yml",
           ".bash",
           ".bat",
           ".c",
@@ -221,6 +143,37 @@
           ".tsx",
           ".vue",
           ".zsh"
+        ],
+        "image/*": [
+          ".avif",
+          ".bmp",
+          ".gif",
+          ".heic",
+          ".heif",
+          ".jpeg",
+          ".jpg",
+          ".png",
+          ".svg",
+          ".tif",
+          ".tiff",
+          ".webp"
+        ],
+        "video/*": [
+          ".m4v",
+          ".mkv",
+          ".mov",
+          ".mp4",
+          ".webm"
+        ],
+        "audio/*": [
+          ".aac",
+          ".flac",
+          ".m4a",
+          ".mp3",
+          ".oga",
+          ".ogg",
+          ".opus",
+          ".wav"
         ]
       }
     }
