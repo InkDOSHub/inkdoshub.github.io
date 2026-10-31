@@ -193,6 +193,15 @@ svg{display:block}.svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 </style>  <link rel="stylesheet" href="../../shared/ui-density.css"><link id="inkdosLocalizationStyles" rel="stylesheet" href="../../shared/localization/localization.css">
   <script src="../../shared/ui-density.js"></script><script src="../../shared/work-safety.js"></script>
   <script src="runtime/platform/file-launch.js"></script>
+<style id="faixaLook">
+/* Faixa no visual do Office: grupos com nome embaixo. */
+#toolbar.toolstrip{height:auto;min-height:44px;align-items:stretch;gap:0;padding-top:4px;padding-bottom:2px;background:var(--panel,var(--frame-panel,#fff))}
+#toolbar .grupo{display:flex;flex-direction:column;align-items:center;flex:none;padding:0 6px}
+#toolbar .grupo-itens{display:flex;align-items:center;gap:3px;flex:1}
+#toolbar .grupo-nome{font-size:11px;line-height:15px;color:var(--muted,#6e6e73);white-space:nowrap;pointer-events:none}
+#toolbar .tool-sep{align-self:stretch;height:auto;margin:0}
+@media(max-width:720px){#toolbar .grupo-nome{display:none}}
+</style>
 </head>
 <body><svg class="svg-defs" aria-hidden="true"><defs><linearGradient id="inkdosTxtGradient" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd75e"/><stop offset="1" stop-color="#e0a716"/></linearGradient></defs><symbol id="inkdosTxtIcon" viewBox="0 0 512 512"><rect x="24" y="24" width="464" height="464" rx="112" fill="url(#inkdosTxtGradient)"/><rect x="126" y="93" width="274" height="326" rx="35" fill="#fff8d6"/><path d="M174 93v326" stroke="#d89f12" stroke-width="16"/><path d="M116 150h26M116 211h26M116 272h26M116 333h26" stroke="#5c4a20" stroke-width="16" stroke-linecap="round"/><path d="M216 173h132M216 226h132M216 279h132M216 332h91" stroke="#6b5b31" stroke-width="16" stroke-linecap="round"/></symbol></svg>
 <div class="app-frame">
@@ -799,4 +808,5 @@ t1=NS.TxtT1Essentials.create({elements:E,state,editor,commands,beforeOpen:()=>{c
 </script>
 <script>(function(g){const commands=()=>g.InkDOS2?.TxtAppDebug?.commands;document.getElementById('startNew')?.addEventListener('click',()=>commands()?.execute('file.new'));document.getElementById('startOpen')?.addEventListener('click',()=>commands()?.execute('file.open.request'))})(globalThis);</script>
 <script>document.body.dataset.runtimeReady=(globalThis.InkDOS2&&globalThis.InkDOS2.TxtAppDebug)?'true':'false';</script>
+<script src="../../shared/faixa-grupos.js" data-grupos="undoBtn:Edit;wrapBtn:View;outdentBtn:Paragraph;findBtn:Find;selectAllBtn:Clipboard"></script>
 </body></html>
