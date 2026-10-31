@@ -14,7 +14,20 @@
   function salvar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} }
 
   var grade = document.querySelector(".workspace-grid");
-  var escondidos = ler(K_ESC), meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });
+  var escondidos = ler(K_ESC);
+  /* Padrão do aparelho (uma vez): no iPhone ficam os editores do InkDOS e o ArtCraft vem escondido;
+     no iPad, computador e XeOS é o contrário. Depois a pessoa muda em Customize. */
+  try {
+    if (!localStorage.getItem("inkdoshub-padrao-office")) {
+      var celular = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent);
+      (celular ? ["wordcraft", "gridcraft", "deckcraft"] : ["documentos", "planilhas", "apresentacoes"]).forEach(function (id) {
+        if (escondidos.indexOf(id) < 0) escondidos.push(id);
+      });
+      salvar(K_ESC, escondidos);
+      localStorage.setItem("inkdoshub-padrao-office", "1");
+    }
+  } catch (_) {}
+  var meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });
 
   function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
 
