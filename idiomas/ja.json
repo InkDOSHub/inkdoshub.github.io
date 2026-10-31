@@ -441,8 +441,5 @@
 "PowerPoint slides (PPTX, ODP).": "PowerPoint スライド（PPTX、ODP）。",
 "Edit PDF: full pack (Office, OCR, compress)": "PDF 編集：フルパック（Office、OCR、圧縮）",
 "Whole computer": "コンピューター全体",
-"Could not capture this program's sound.": "このプログラムの音を取り込めませんでした。",
-"Diagnostics": "診断",
-"Copy report": "レポートをコピー",
-"What this browser supports and how long the last file took to open. Open a file from XeOS, come back here and copy the report.": "このブラウザの対応状況と、最後のファイルを開くのにかかった時間。XeOS でファイルを開いてから戻り、レポートをコピーしてください。"
+"Could not capture this program's sound.": "このプログラムの音を取り込めませんでした。"
 }

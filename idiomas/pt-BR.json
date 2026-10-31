@@ -549,7 +549,6 @@
 "Code not found. Check the code and try again.": "Código não encontrado. Confira o código e tente de novo.",
 "Connected. The files go directly between the two devices.": "Conectado. Os arquivos vão direto de um aparelho ao outro.",
 "The other device disconnected. Reload the page to connect again.": "O outro aparelho desconectou. Recarregue a página para conectar de novo.",
-"Diagnostics": "Diagnóstico",
 "Measures the route, the delay and the real speed in both directions. The result shows on both devices.": "Mede a rota, o atraso e a velocidade real nos dois sentidos. O resultado aparece nos dois aparelhos.",
 "Excellent": "Excelente",
 "Good": "Boa",
@@ -687,7 +686,5 @@
 "PowerPoint slides (PPTX, ODP).": "Apresentações do PowerPoint (PPTX, ODP).",
 "Edit PDF: full pack (Office, OCR, compress)": "Editar PDF: pacote completo (Office, OCR, comprimir)",
 "Whole computer": "Todo o computador",
-"Could not capture this program's sound.": "Não foi possível capturar o som deste programa.",
-"Copy report": "Copiar relatório",
-"What this browser supports and how long the last file took to open. Open a file from XeOS, come back here and copy the report.": "O que este navegador oferece e quanto tempo levou para abrir o último arquivo. Abra um arquivo pelo XeOS, volte aqui e copie o relatório."
+"Could not capture this program's sound.": "Não foi possível capturar o som deste programa."
 }

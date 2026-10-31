@@ -441,8 +441,5 @@
 "PowerPoint slides (PPTX, ODP).": "Слайды PowerPoint (PPTX, ODP).",
 "Edit PDF: full pack (Office, OCR, compress)": "Редактор PDF: полный пакет (Office, OCR, сжатие)",
 "Whole computer": "Весь компьютер",
-"Could not capture this program's sound.": "Не удалось записать звук этой программы.",
-"Diagnostics": "Диагностика",
-"Copy report": "Копировать отчёт",
-"What this browser supports and how long the last file took to open. Open a file from XeOS, come back here and copy the report.": "Что поддерживает этот браузер и сколько времени открывался последний файл. Откройте файл в XeOS, вернитесь сюда и скопируйте отчёт."
+"Could not capture this program's sound.": "Не удалось записать звук этой программы."
 }
