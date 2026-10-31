@@ -2,7 +2,7 @@
 
    Só o inglês vem no site. Cada outro idioma é um pacote opcional, baixado quando a pessoa escolhe:
    a tradução da tela inicial e dos apps (idiomas/<código>.json), mais os arquivos de idioma dos
-   editores ONLYOFFICE, do Quadro e dos apps do InkDOS. Fica um pacote por vez: escolher outro apaga
+   apps do Quadro e do InkDOS. Fica um pacote por vez: escolher outro apaga
    o anterior do aparelho.
 
    - Os textos da casca ficam em localStorage "inkdoshub-idioma-textos" (só o idioma escolhido),
@@ -36,7 +36,6 @@
     { codigo: "ru", nome: "Русский" },
   ];
   // o mesmo idioma no nome que cada ferramenta usa
-  var ONLYOFFICE = { en: "en", "pt-BR": "pt", es: "es", de: "de", fr: "fr", "zh-CN": "zh", ja: "ja", ru: "ru" };
   var EXCALIDRAW = { en: "en", "pt-BR": "pt-BR", es: "es-ES", de: "de-DE", fr: "fr-FR", "zh-CN": "zh-CN", ja: "ja-JP", ru: "ru-RU" };
 
   function ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
@@ -333,7 +332,6 @@
     aplicar: aplicar,
     escolher: escolher,
     nome: function () { return nomeDe(atual); },
-    onlyoffice: function () { return ONLYOFFICE[atual] || "en"; },
     excalidraw: function () { return EXCALIDRAW[atual] || "en"; },
     conferirAtualizacao: conferirAtualizacao,
   };

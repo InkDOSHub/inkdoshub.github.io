@@ -139,13 +139,6 @@
     };
   }
 
-  /* O editor abre sempre no idioma do pacote escolhido (assets/idioma.js), ou em inglês. Sem o
-     locale na URL, o ONLYOFFICE seguiria o idioma do aparelho e baixaria um idioma não escolhido. */
-  function idiomaEditor(info) {
-    if (window.InkIdioma) return InkIdioma.onlyoffice();
-    return info.locale || "en";
-  }
-
   /* Editor ArtCraft pela extensão do arquivo. */
   function editorDe(nome) {
     var e = String(nome || "").toLowerCase().split(".").pop();
@@ -154,7 +147,7 @@
     return "wordcraft";
   }
 
-  /* Usado pela tela inicial (inicio/) e pelos apps do InkDOS (editor ONLYOFFICE). */
+  /* Usado pela tela inicial (inicio/) e pelos apps do InkDOS (editores ArtCraft). */
   window.InkPaginas = {
     raiz: RAIZ,
     apps: APPS,

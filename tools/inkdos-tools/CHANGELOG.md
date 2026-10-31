@@ -6,7 +6,7 @@ Changes to InkDOS-tools, newest first.
 
 - Squoosh, ArchiveDrop, CyberChef and IT-Tools are no longer built or published. InkDOS stopped listing them
   (its legacy tools group, removed by the owner); unmaintained third-party code on this origin, which receives the
-  documents InkDOS hands to ONLYOFFICE and BentoPDF, only widened what a flaw in one tool could reach. Their
+  documents InkDOS hands to BentoPDF, only widened what a flaw in one tool could reach. Their
   builders, skins and the theme bridge they alone used (viewers/tool-theme.js) are gone. Owner request.
 
 ## 2026-10-10 · Fast deploys for small changes

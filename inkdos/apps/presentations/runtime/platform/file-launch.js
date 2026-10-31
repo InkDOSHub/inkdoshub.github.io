@@ -9,7 +9,7 @@ function compatibleInput(file){if(!doc)return null;for(const input of doc.queryS
 function dispatchError(error){try{doc?.dispatchEvent(new CustomEvent('inkdos:file-launch-error',{detail:{message:String(error?.message||error||'File launch failed')}}))}catch(_){}}
 async function injectFile(file,input=compatibleInput(file)){if(!file)return false;if(!input||!acceptsFile(input,file))throw new Error('Unsupported file format for this InkDOS workspace.');if(typeof g.DataTransfer!=='function'||typeof g.File!=='function')throw new Error('This host cannot inject a file into the workspace.');const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));return true}
 // "Edit with ArtCraft" (view-only notice of Documents, Spreadsheets and Presentations): the document goes to the
-// local ArtCraft editor (onlyoffice/) through IndexedDB "inkdos-tool-handoff" and InkPaginas.abrirEditor
+// ArtCraft editors (apps/*craft/) through IndexedDB "inkdos-tool-handoff" and InkPaginas.abrirEditor
 // (assets/gerenciador-app.js). InkDOS Hub: the old InkDOS Office site and its "Edit with ArtCraft" header button are gone.
 const OFFICE_EXT=new Set(['docx','doc','odt','rtf','xlsx','xls','ods','csv','pptx','ppt','odp','docm','dotx','dot','fodt','xlsm','xltx','fods','pptm','ppsx','pps','potx','fodp']);
 function inkDOSHub(){return g.InkPaginas&&g.InkPaginas.abrirEditor?g.InkPaginas:null}

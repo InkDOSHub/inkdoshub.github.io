@@ -1,6 +1,6 @@
 # InkDOS Hub
 
-**English:** A free, open-source home screen of power tools for iPad and iPhone (Safari), running entirely in the browser: a real Alpine Linux terminal (v86/WebAssembly, with `apk add` and internet), photo, video and music apps, VS Code for the web, Excalidraw, the InkDOS document apps plus full ONLYOFFICE editors, a screen/audio recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay in your browser. Optional Windows helpers (`.exe`, not code-signed yet, so SmartScreen may warn) live in `windows/`.
+**English:** A free, open-source home screen of power tools for iPad and iPhone (Safari), running entirely in the browser: a real Alpine Linux terminal (v86/WebAssembly, with `apk add` and internet), photo, video and music apps, VS Code for the web, Excalidraw, the InkDOS document apps plus the ArtCraft editors (WordCraft, GridCraft, DeckCraft), a screen/audio recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay in your browser. Optional Windows helpers (`.exe`, not code-signed yet, so SmartScreen may warn) live in `windows/`.
 
 **Open:** https://inkdoshub.github.io/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md)) · Personal project, no support promised.
 
@@ -21,7 +21,7 @@ A tela inicial de ferramentas avançadas feita para o iPad e o iPhone (Safari e 
 | PDF, Documentos, Planilhas, Apresentações, Texto simples, Leitor EPUB | Apps do InkDOS (2.9.0), copiados para cá e mantidos aqui, com visual Apple direto no CSS de cada app: Novo, Abrir e Salvar no menu ☰ e, em Documentos, Planilhas e Apresentações, a barra de edição atrás do pincel | `inkdos/` |
 | Editar PDF | [BentoPDF](https://github.com/alam00000/bentopdf) (AGPL-3.0): juntar, dividir, comprimir, converter, assinar, proteger, OCR e outras; cada ferramenta com a barra do Hub | `apps/editar-pdf/` (lista) e `visualizadores/bentopdf/` |
 | Visualizadores (dentro dos apps de documentos) | OpenDocument (.odt/.ods/.odp, WebODF) e Apple (.pages/.numbers/.key, pnk), só para ver | `visualizadores/` |
-| Documentos, Planilhas e Apresentações (ONLYOFFICE) | Editores ONLYOFFICE completos, como três apps próprios na tela inicial | `onlyoffice/` |
+| WordCraft, GridCraft e DeckCraft | Editores [ArtCraft](https://github.com/storytold) (MIT/Apache-2.0) de texto, planilha e apresentação, baixados das releases web pela action `artcraft.yml` | `artcraft/` e `apps/*craft/` |
 | Fotos | Galeria, visualizador e editor simples (recortar, girar, espelhar, endireitar, exposição, brilho, contraste, saturação, calor e tom) feitos aqui | `apps/foto/` (o editor é `apps/foto/editor.js`) |
 | Vídeo | Player com barra de controles igual à da Música e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
 | Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
@@ -32,7 +32,7 @@ A tela inicial de ferramentas avançadas feita para o iPad e o iPhone (Safari e 
 | Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
 | Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
 
-A tela inicial é uma gaveta de apps (ícone e nome, como o Launchpad), com busca, o botão de pasta para abrir qualquer arquivo no app certo e o menu ☰ com tema, idioma, Personalizar (esconder apps e arrastar para mudar a ordem) e o app padrão para arquivos de Office (InkDOS, rápido, ou ONLYOFFICE, completo). Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
+A tela inicial é uma gaveta de apps (ícone e nome, como o Launchpad), com busca, o botão de pasta para abrir qualquer arquivo no app certo e o menu ☰ com tema, idioma, Personalizar (esconder apps e arrastar para mudar a ordem) e o app padrão para arquivos de Office (InkDOS, rápido, ou ArtCraft, completo). Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
 
 **Offline:** no ☰, guarda o site inteiro no aparelho (cerca de 700 MB) e ele passa a abrir dali, mesmo sem internet. Quando o site muda, a tela inicial mostra "Atualização disponível · Atualizar", e um toque baixa só o que mudou (`inicio/offline.js`, `sw-portal.js`).
 
@@ -48,7 +48,7 @@ Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`ass
 
 O site vem só em inglês. Os outros idiomas (português, espanhol, alemão, francês, chinês simplificado, japonês e russo) são pacotes opcionais: o botão de idioma, na tela inicial e na barra de cada app, abre o mesmo aviso, que diz o que o pacote traduz, o que continua em inglês e quantos MB ele ocupa a mais ou a menos. Fica um pacote por vez no aparelho; escolher outro apaga o anterior.
 
-- Cada pacote traz a tradução da tela inicial e dos apps (`idiomas/<código>.json`), os textos dos editores ONLYOFFICE e os nomes das fórmulas, o idioma do Quadro e o dos apps do InkDOS. A lista de arquivos e tamanhos é gerada por `tools/portal_manifesto.py` (chave `idiomas` de `inicio/manifesto.json`); a cópia offline leva só o inglês.
+- Cada pacote traz a tradução da tela inicial e dos apps (`idiomas/<código>.json`), o idioma do Quadro e o dos apps do InkDOS. A lista de arquivos e tamanhos é gerada por `tools/portal_manifesto.py` (chave `idiomas` de `inicio/manifesto.json`); a cópia offline leva só o inglês.
 - Código (VS Code) e o sistema Linux ficam em inglês; só a barra do topo deles é traduzida.
 - Como funciona: `assets/idioma.js`. Textos novos na interface são escritos em inglês (no HTML dentro de `<body data-idioma>`, ou no JavaScript com `InkIdioma.t("...")`); `python3 tools/idiomas_textos.py` lista os textos e mostra o que falta traduzir em cada pacote.
 

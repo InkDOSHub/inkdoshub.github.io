@@ -2,8 +2,8 @@
 """Gera inicio/manifesto.json: a lista de arquivos que o botão "Offline" da tela inicial guarda neste aparelho,
 e (chave "idiomas") os arquivos de cada pacote de idioma (assets/idioma.js).
 
-Só o inglês entra na cópia offline. Os arquivos dos outros idiomas (traduções da casca, dos editores
-ONLYOFFICE, do Quadro e dos apps do InkDOS) vão para o pacote do idioma, baixado só quando a pessoa
+Só o inglês entra na cópia offline. Os arquivos dos outros idiomas (traduções da casca,
+do Quadro e dos apps do InkDOS) vão para o pacote do idioma, baixado só quando a pessoa
 escolhe. Idiomas que o InkDOS Hub não oferece ficam fora dos dois.
 
 Cada grupo (tela inicial, terminal, cada app) pode ser baixado junto. Cada arquivo é [caminho, bytes,
@@ -34,15 +34,11 @@ FORA_EXT = (".md", ".txt", ".map")
 
 # pacotes de idioma: o nome que cada ferramenta usa -> código do InkDOS Hub
 PACOTES = ["pt-BR", "es", "de", "fr", "zh-CN", "ja", "ru"]
-ONLYOFFICE = {"en": "en", "pt": "pt-BR", "pt-br": "pt-BR", "es": "es", "de": "de", "fr": "fr", "zh": "zh-CN", "ja": "ja", "ru": "ru"}
 EXCALIDRAW = {"en": "en", "pt-BR": "pt-BR", "es-ES": "es", "de-DE": "de", "fr-FR": "fr", "zh-CN": "zh-CN", "ja-JP": "ja", "ru-RU": "ru"}
 REGRAS = [
     (re.compile(r"^idiomas/([A-Za-z-]+)\.json$"), lambda x: x if x in PACOTES else "outro"),
-    (re.compile(r"^onlyoffice/web-apps/apps/[a-z]+/(?:main|embed|forms)/locale/([a-z-]+)\.json$"), lambda x: ONLYOFFICE.get(x, "outro")),
-    (re.compile(r"^onlyoffice/web-apps/apps/spreadsheeteditor/main/resources/formula-lang/([a-z-]+?)(?:_desc)?\.json$"), lambda x: ONLYOFFICE.get(x, "outro")),
     (re.compile(r"^apps/quadro/assets/([a-z]{2,3}(?:-[A-Z]{2,3})?)-[A-Z0-9]{8}-[A-Z0-9]{8}\.js$"), lambda x: EXCALIDRAW.get(x, "outro")),
     (re.compile(r"^inkdos/shared/localization/locales/([A-Za-z-]+)\.js$"), lambda x: x if x in PACOTES else "outro"),
-    (re.compile(r"^onlyoffice/shared/localization/locales/([A-Za-z-]+)\.js$"), lambda x: "outro"),
 ]
 
 def idioma_de(rel):

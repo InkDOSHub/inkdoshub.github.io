@@ -4,7 +4,7 @@
    só serve quando não há rede. Com o modo offline instalado, a cópia inteira vem primeiro. */
 "use strict";
 var CACHE = "inkdoshub-offline";
-var RAIZ = self.INK_RAIZ || new URL("./", self.location.href).pathname; // "/" no GitHub Pages (o editor do OnlyOffice informa a raiz)
+var RAIZ = self.INK_RAIZ || new URL("./", self.location.href).pathname; // "/" no GitHub Pages
 
 self.addEventListener("install", function () { self.skipWaiting(); });
 /* Conserto (2026-10-29): uma atualização da cópia pode ter guardado arquivos velhos do CDN do GitHub com o

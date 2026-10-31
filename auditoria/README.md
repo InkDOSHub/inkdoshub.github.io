@@ -1,6 +1,6 @@
 # Auditoria do código do InkDOS Hub
 
-Revisão em partes do código próprio do Hub (código de terceiros em `visualizadores/`, `onlyoffice/` e
+Revisão em partes do código próprio do Hub (código de terceiros em `visualizadores/`, a pasta do antigo editor e
 `apps/codigo/vscode/` fica de fora). Cada parte tem um log numerado com o que foi lido, o que foi
 encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 
@@ -13,7 +13,7 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | 5 | tools/ e actions | [005-tools.md](005-tools.md) |
 | 6 | InkDOS (2 rodadas) | [006-inkdos-rodada1.md](006-inkdos-rodada1.md), [007-inkdos-rodada2.md](007-inkdos-rodada2.md) |
 | 7 | Quadro | [008-quadro.md](008-quadro.md) |
-| 8 | Ponte com os apps externos (Linux, Código, ONLYOFFICE, PDF) | [009-integracao.md](009-integracao.md) |
+| 8 | Ponte com os apps externos (Linux, Código, editor de escritório antigo, PDF) | [009-integracao.md](009-integracao.md) |
 
 | — | Quadro: desenho salvo no IndexedDB | [010-quadro-indexeddb.md](010-quadro-indexeddb.md) |
 | — | Modo Offline por app | [011-offline-por-app.md](011-offline-por-app.md) |
@@ -31,7 +31,7 @@ Todas as partes foram revisadas. Principais correções de segurança: confirma�
 escape completo no Transferir Windows, prazo para conexões HTTP paradas, filtro dos webapps vindos de outra aba, filtro de pacotes
 na sessão do Linux, remoção de origens apagadas (`inkdos-tools.github.io`, InkDOS antigo) da CSP e dos visualizadores e CSP nova no
 Quadro (que bloqueia o CDN de fontes). Também saíram cerca de 2 mil linhas de código morto ou repetido, e foram corrigidos erros
-visíveis (o ✕ das listas, o 404 em todo app do InkDOS, documentos do ONLYOFFICE apagados antes do prazo).
+visíveis (o ✕ das listas, o 404 em todo app do InkDOS, documentos do antigo editor de escritório apagados antes do prazo).
 
 Pendências sugeridas (custam mais e esperam decisão): salvar o Quadro em IndexedDB (risco de perder desenho), completar as
 traduções (243 textos por idioma), lockfile e `npm ci --ignore-scripts` no `build_apps.sh`, juntar os vendors repetidos do InkDOS
