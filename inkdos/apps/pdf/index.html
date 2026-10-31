@@ -6,7 +6,16 @@
   <link rel="stylesheet" href="ui/visual-system.css">
   <script src="../../shared/ui-density.js"></script><script src="../../shared/work-safety.js"></script>
   <script src="runtime/platform/file-launch.js"></script>
-</head><body><div class="app-shell">
+<style id="faixaLook">
+/* Mesmo visual dos outros editores: faixa em grupos com nome e página em destaque. */
+.editbar{align-items:stretch;padding-top:4px;padding-bottom:2px;background:var(--panel)}
+.editbar .faixa-grupo{position:relative;padding:0 4px 16px;align-items:center}
+.editbar .grupo-nome{position:absolute;left:0;right:0;bottom:0;font-size:11px;line-height:15px;color:var(--muted);text-align:center;white-space:nowrap;pointer-events:none}
+.editbar .tool-divider{align-self:stretch;height:auto}
+@media(max-width:720px){.editbar .faixa-grupo{padding-bottom:0}.editbar .grupo-nome{display:none}}
+:root:not([data-appearance-resolved="dark"]) .content-viewport{background:#e3e4e8}
+.pdf-page-shell{border:0;box-shadow:0 0 0 1px rgba(0,0,0,.07),0 2px 6px rgba(0,0,0,.16),0 8px 24px rgba(0,0,0,.10)}
+</style></head><body><div class="app-shell">
 <header class="topbar"><div class="frame-side frame-left"><a class="frame-btn inkdos-hub-link" href="../../index.html" aria-label="Home" title="Home" style="color:inherit;text-decoration:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.5 12 4l8.5 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg></a></div><div class="document-title"><img src="assets/pdf.svg" class="pdf-icon" alt=""><span id="titleText" class="title-text">No PDF open</span><span id="dirtyDot" class="dirty-dot" aria-hidden="true"></span></div><div class="frame-side frame-right"></div></header>
 <div id="editbar" class="editbar" tabindex="0" aria-label="PDF toolbar">
   <div id="pdfHistoryGroup" class="tool-group annotate-only pdf-history-group" role="group" aria-label="Annotation history"><button id="undoBtn" class="tool-btn icon-only" type="button" title="Undo annotation" aria-label="Undo annotation" disabled><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/></svg></button><button id="redoBtn" class="tool-btn icon-only" type="button" title="Redo annotation" aria-label="Redo annotation" disabled><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/></svg></button></div>
@@ -33,4 +42,5 @@
  syncStart();
 })();
 </script><div id="zoomPopover" class="zoom-popover zoom-menu" role="menu" aria-label="PDF zoom" hidden><button class="zoom-item" type="button" role="menuitemradio" data-zoom="10">10%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="25">25%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="50">50%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="75">75%</button><button id="zoom100" class="zoom-item" type="button" role="menuitemradio" data-zoom="100">100%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="125">125%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="150">150%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="200">200%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="300">300%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="400">400%</button><button class="zoom-item" type="button" role="menuitemradio" data-zoom="800">800%</button><hr class="zoom-sep"><button id="fitPage" class="zoom-item with-icon" type="button" role="menuitemradio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M12 8v8M9.5 10.5 12 8l2.5 2.5M9.5 13.5 12 16l2.5-2.5"/></svg><span>Fit page</span></button><button id="fitWidth" class="zoom-item with-icon" type="button" role="menuitemradio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 12h8M10.5 9.5 8 12l2.5 2.5M13.5 9.5 16 12l-2.5 2.5"/></svg><span>Fit width</span></button></div>
+<script src="runtime/platform/faixa-grupos.js"></script>
 </body></html>
