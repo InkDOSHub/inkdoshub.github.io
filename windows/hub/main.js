@@ -640,7 +640,7 @@ function abrirArquivo(f) {
   cuidar(w);
   w.webContents.once('did-finish-load', async () => {
     try {
-      const pref = await w.webContents.executeJavaScript('(function(){try{return localStorage.getItem("inkdoshub-abrir-office")||"inkdos"}catch(_){return "inkdos"}})()');
+      const pref = await w.webContents.executeJavaScript('(function(){try{return localStorage.getItem("inkdoshub-abrir-office")||"artcraft"}catch(_){return "artcraft"}})()');
       if (pref === 'inkdos') { w.destroy(); return abrirNoInkdos(f); }
       const id = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
       const dados = fs.readFileSync(f).toString('base64');

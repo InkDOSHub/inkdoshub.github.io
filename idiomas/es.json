@@ -434,5 +434,9 @@
 "This editor is still being installed. Try again in a few minutes.": "Este editor aún se está instalando. Inténtalo de nuevo en unos minutos.",
 "Waiting for download…": "Esperando la descarga…",
 "Downloading {n}%": "Descargando {n}%",
-"Opening…": "Abriendo…"
+"Opening…": "Abriendo…",
+"InkDOS (legacy)": "InkDOS (heredado)",
+"Word documents (DOCX, ODT, RTF); exports PDF.": "Documentos de Word (DOCX, ODT, RTF); exporta PDF.",
+"Excel spreadsheets (XLSX, ODS, CSV).": "Hojas de cálculo de Excel (XLSX, ODS, CSV).",
+"PowerPoint slides (PPTX, ODP).": "Presentaciones de PowerPoint (PPTX, ODP)."
 }

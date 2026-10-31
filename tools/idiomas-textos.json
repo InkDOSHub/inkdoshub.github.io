@@ -180,7 +180,6 @@
  "In Zoom, Teams or Meet, choose the camera \"InkDOS Hub Webcam\". Keep the app open during the call.": "apps/webcam/index.html",
  "InkDOS Hub": "index.html",
  "InkDOS Hub: advanced tools": "index.html",
- "InkDOS fast": "index.html",
  "Install it and open it. If the setup wizard appears, choose \"Optimize just for using the virtual camera\".": "apps/webcam/index.html",
  "Installing the new app… it reopens by itself.": "inicio/offline.js",
  "It takes {size}. Without saving, it is downloaded again whenever the browser clears its cache, and it does not open without internet.": "inicio/offline.js",
@@ -517,5 +516,6 @@
  "{name} · Video": "apps/video/app.js",
  "{n} files in {app}": "inicio/lancador.js",
  "{n} photos": "apps/foto/app.js",
- "{start} to {end} · {length}": "apps/video/cortar/cortar.js"
+ "{start} to {end} · {length}": "apps/video/cortar/cortar.js",
+ "InkDOS (legacy)": "index.html"
 }

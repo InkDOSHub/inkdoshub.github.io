@@ -31,8 +31,8 @@
       "dockerfile", "make", "mk", "cmake", "ipynb", "tex", "diff", "patch", "env", "gitignore"], varios: true },
   ];
   var OFFICE = { documentos: 1, planilhas: 1, apresentacoes: 1 }, K_PREF = "inkdoshub-abrir-office";
-  function preferencia() { var v; try { v = localStorage.getItem(K_PREF) || "inkdos"; } catch (_) { v = "inkdos"; } return v === "inkdos" ? v : "artcraft"; }
-  // Menu ☰: duas linhas (InkDOS rápido / ArtCraft completo), com ✓ na escolhida
+  function preferencia() { var v; try { v = localStorage.getItem(K_PREF) || "artcraft"; } catch (_) { v = "artcraft"; } return v === "inkdos" ? v : "artcraft"; }
+  // Menu ☰: duas linhas (ArtCraft, o padrão / InkDOS legado), com ✓ na escolhida
   var opcoes = [].slice.call(document.querySelectorAll(".pref-office"));
   function marcar() { var v = preferencia(); opcoes.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.pref === v)); }); }
   opcoes.forEach(function (b) {

@@ -434,5 +434,9 @@
 "This editor is still being installed. Try again in a few minutes.": "このエディターはまだインストール中です。数分後にもう一度お試しください。",
 "Waiting for download…": "ダウンロード待ち…",
 "Downloading {n}%": "ダウンロード中 {n}%",
-"Opening…": "開いています…"
+"Opening…": "開いています…",
+"InkDOS (legacy)": "InkDOS（旧版）",
+"Word documents (DOCX, ODT, RTF); exports PDF.": "Word 文書（DOCX、ODT、RTF）。PDF を書き出せます。",
+"Excel spreadsheets (XLSX, ODS, CSV).": "Excel スプレッドシート（XLSX、ODS、CSV）。",
+"PowerPoint slides (PPTX, ODP).": "PowerPoint スライド（PPTX、ODP）。"
 }
