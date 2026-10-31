@@ -431,5 +431,8 @@
 "Word processor for .docx, .odt and .rtf; exports PDF. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Traitement de texte pour .docx, .odt et .rtf ; exporte en PDF. Tout fonctionne sur cet appareil ; aucun fichier n'est envoyé. Enregistrer télécharge le fichier.",
 "Spreadsheet editor for .xlsx, .ods and .csv. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Tableur pour .xlsx, .ods et .csv. Tout fonctionne sur cet appareil ; aucun fichier n'est envoyé. Enregistrer télécharge le fichier.",
 "Presentation editor for .pptx and .odp. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Éditeur de présentations pour .pptx et .odp. Tout fonctionne sur cet appareil ; aucun fichier n'est envoyé. Enregistrer télécharge le fichier.",
-"This editor is still being installed. Try again in a few minutes.": "Cet éditeur est encore en cours d'installation. Réessayez dans quelques minutes."
+"This editor is still being installed. Try again in a few minutes.": "Cet éditeur est encore en cours d'installation. Réessayez dans quelques minutes.",
+"Waiting for download…": "En attente du téléchargement…",
+"Downloading {n}%": "Téléchargement {n} %",
+"Opening…": "Ouverture…"
 }

@@ -431,5 +431,8 @@
 "Word processor for .docx, .odt and .rtf; exports PDF. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Текстовый редактор для .docx, .odt и .rtf; экспорт в PDF. Всё работает на этом устройстве, файлы никуда не отправляются. «Сохранить» скачивает файл.",
 "Spreadsheet editor for .xlsx, .ods and .csv. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Редактор таблиц для .xlsx, .ods и .csv. Всё работает на этом устройстве, файлы никуда не отправляются. «Сохранить» скачивает файл.",
 "Presentation editor for .pptx and .odp. Everything runs on this device; no file is uploaded. Saving downloads the file.": "Редактор презентаций для .pptx и .odp. Всё работает на этом устройстве, файлы никуда не отправляются. «Сохранить» скачивает файл.",
-"This editor is still being installed. Try again in a few minutes.": "Этот редактор ещё устанавливается. Попробуйте через несколько минут."
+"This editor is still being installed. Try again in a few minutes.": "Этот редактор ещё устанавливается. Попробуйте через несколько минут.",
+"Waiting for download…": "Ожидание загрузки…",
+"Downloading {n}%": "Загрузка {n}%",
+"Opening…": "Открытие…"
 }
