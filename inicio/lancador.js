@@ -31,7 +31,10 @@
       "dockerfile", "make", "mk", "cmake", "ipynb", "tex", "diff", "patch", "env", "gitignore"], varios: true },
   ];
   var OFFICE = { documentos: 1, planilhas: 1, apresentacoes: 1 }, K_PREF = "inkdoshub-abrir-office";
-  function preferencia() { var v; try { v = localStorage.getItem(K_PREF) || "artcraft"; } catch (_) { v = "artcraft"; } return v === "inkdos" ? v : "artcraft"; }
+  var CRAFT = { documentos: "wordcraft", planilhas: "gridcraft", apresentacoes: "deckcraft" };
+  // padrão: InkDOS no iPhone (o ArtCraft não tem layout de celular), ArtCraft no resto
+  var PADRAO = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent) ? "inkdos" : "artcraft";
+  function preferencia() { var v; try { v = localStorage.getItem(K_PREF) || PADRAO; } catch (_) { v = PADRAO; } return v === "inkdos" ? v : "artcraft"; }
   // Menu ☰: duas linhas (ArtCraft, o padrão / InkDOS legado), com ✓ na escolhida
   var opcoes = [].slice.call(document.querySelectorAll(".pref-office"));
   function marcar() { var v = preferencia(); opcoes.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.pref === v)); }); }
@@ -76,11 +79,19 @@
     }));
   }
 
+  /* Editor escolhido no ☰; se ele estiver escondido em Customize e o outro não, abre no outro. */
+  function usaArtcraft(app) {
+    var M = window.InkMeusApps, sim = preferencia() === "artcraft";
+    if (M && sim && M.escondido(CRAFT[app]) && !M.escondido(app)) return false;
+    if (M && !sim && M.escondido(app) && !M.escondido(CRAFT[app])) return true;
+    return sim;
+  }
+
   /* Prepara a entrega e devolve o endereço do app que abre os arquivos. */
   function preparar(rota, files) {
     var id = idNovo();
     // Preferência da tela inicial: Word, Excel e PowerPoint abrem no ArtCraft (completo) em vez do InkDOS (rápido)
-    if (OFFICE[rota.app] && preferencia() === "artcraft") {
+    if (OFFICE[rota.app] && usaArtcraft(rota.app)) {
       return bytes(files.slice(0, 1)).then(function (l) {
         var v = l[0];
         // guardado por 7 dias, como nos apps do InkDOS: o editor recarrega o documento dali
@@ -122,7 +133,8 @@
       var r = rotaDe(f);
       if (!r) { semApp.push(f); return; }
       // app escondido pela pessoa (meus-apps.js): o tipo dele não abre aqui
-      if (M && M.escondido(r.app)) {
+      // Word/Excel/PowerPoint: só bloqueia se o editor do InkDOS e o do ArtCraft estiverem escondidos
+      if (M && M.escondido(r.app) && !(CRAFT[r.app] && !M.escondido(CRAFT[r.app]))) {
         var b = bloq.filter(function (y) { return y.rota === r; })[0];
         if (b) b.files.push(f); else bloq.push({ rota: r, files: [f] });
         return;
