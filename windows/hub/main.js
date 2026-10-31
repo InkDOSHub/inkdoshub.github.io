@@ -627,7 +627,33 @@ const extDe = f => path.extname(f).slice(1).toLowerCase();
 function arquivosDe(argv) {
   return (argv || []).slice(1).filter(a => a && !a.startsWith('-') && APP_DO_TIPO[extDe(a)] && fs.existsSync(a) && fs.statSync(a).isFile()).map(a => path.resolve(a));
 }
+// Word, Excel e PowerPoint seguem a escolha do ☰ da tela inicial ("InkDOS rápido" ou "ArtCraft completo",
+// localStorage inkdoshub-abrir-office). No ArtCraft o arquivo vai pelo IndexedDB "inkdos-tool-handoff",
+// como na tela inicial (inicio/lancador.js), e a página apps/<editor>/ o entrega ao editor.
+const ARTCRAFT = {};
+for (const [ed, exts] of [['wordcraft', 'docx doc odt rtf'], ['gridcraft', 'xlsx xls ods csv tsv'], ['deckcraft', 'pptx ppt odp']])
+  for (const x of exts.split(' ')) ARTCRAFT[x] = ed;
 function abrirArquivo(f) {
+  const ed = ARTCRAFT[extDe(f)];
+  if (!ed) return abrirNoInkdos(f);
+  const w = new BrowserWindow(opcoes(1200, 820));
+  cuidar(w);
+  w.webContents.once('did-finish-load', async () => {
+    try {
+      const pref = await w.webContents.executeJavaScript('(function(){try{return localStorage.getItem("inkdoshub-abrir-office")||"inkdos"}catch(_){return "inkdos"}})()');
+      if (pref === 'inkdos') { w.destroy(); return abrirNoInkdos(f); }
+      const id = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      const dados = fs.readFileSync(f).toString('base64');
+      await w.webContents.executeJavaScript('new Promise(function(ok,erro){var b=Uint8Array.from(atob(' + JSON.stringify(dados) + '),function(c){return c.charCodeAt(0)});' +
+        'var r=indexedDB.open("inkdos-tool-handoff",1);r.onupgradeneeded=function(){r.result.createObjectStore("files")};r.onerror=function(){erro(r.error)};' +
+        'r.onsuccess=function(){var db=r.result,tx=db.transaction("files","readwrite");tx.objectStore("files").put({bytes:b.buffer,type:"",name:' + JSON.stringify(path.basename(f)) + ',at:Date.now()},' + JSON.stringify(id) + ');' +
+        'tx.oncomplete=function(){db.close();ok(true)};tx.onerror=function(){db.close();erro(tx.error)}}})');
+      w.loadURL(SITE + 'apps/' + ed + '/?inkdos-handoff=' + encodeURIComponent(id));
+    } catch (_) { if (!w.isDestroyed()) w.destroy(); abrirNoInkdos(f); }
+  });
+  w.loadURL(SITE + 'idiomas/pt-BR.json'); // página leve do mesmo site, só para ler a escolha e guardar o arquivo
+}
+function abrirNoInkdos(f) {
   const ext = extDe(f), m = MIME[ext] || '';
   const achar = "(function(x,m){for(const i of document.querySelectorAll('input[type=file]')){const a=(i.accept||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);if(!a.length||a.some(t=>t==='.'+x||t===m||(m&&t.endsWith('/*')&&m.startsWith(t.slice(0,-1)))))return i}return null})(" + JSON.stringify(ext) + ',' + JSON.stringify(m) + ')';
   const w = new BrowserWindow(opcoes(1200, 820));
