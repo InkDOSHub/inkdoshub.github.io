@@ -52,6 +52,8 @@ if ($Versao) { $pacote.version = $Versao }
 $versao = $pacote.version
 [IO.File]::WriteAllText((Join-Path $res 'package.json'), ($pacote | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 Copy-Item (Join-Path $aqui '..\..\LICENSE') (Join-Path $app 'LICENSE.InkDOSHub.txt')
+# ícones dos tipos de arquivo (cada tipo com o ícone do app que o abre)
+Copy-Item -Recurse (Join-Path $aqui 'tipos') (Join-Path $app 'tipos')
 
 # nome, ícone e versão no .exe (rcedit, do projeto Electron)
 $ferr = Join-Path $Saida 'ferramentas'
