@@ -41,6 +41,7 @@
   addEventListener("message", function (e) {
     if (e.origin !== location.origin || e.source !== frame.contentWindow) return;
     var d = e.data || {}, t = String(d.type || "");
+    if (t === APP + ":ready") pronto();
     if (t === APP + ":ready" && arquivo) {
       var b = arquivo.bytes instanceof ArrayBuffer ? arquivo.bytes.slice(0) : arquivo.bytes;
       frame.contentWindow.postMessage({ type: APP + ":open", name: arquivo.name, bytes: b }, location.origin);
@@ -50,6 +51,7 @@
     } else if (t === APP + ":dirty") {
       sujo = !!d.dirty;
     } else if (t === APP + ":failed") {
+      pronto();
       erro(String(d.error || ""));
     }
   });
@@ -79,15 +81,58 @@
     if (txt) p.querySelector("code").textContent = txt;
   }
 
-  var base = "../../artcraft/" + APP + "/index.html";
+  /* Aviso de carregamento: "Aguardando download", "Baixando N%" (o .wasm, tamanho em artcraft/tamanhos.json)
+     e "Abrindo" até o editor ficar pronto. O download fica no cache do navegador e o editor o reaproveita. */
+  var carga = document.createElement("div");
+  carga.id = "carga";
+  carga.style.cssText = "position:fixed;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:var(--muted);font-size:15px;pointer-events:none";
+  document.body.appendChild(carga);
+  function tr(txt, v) { return window.InkIdioma ? InkIdioma.t(txt, v) : txt.replace("{n}", v && v.n); }
+  function status(txt, v) { carga.hidden = false; carga.textContent = tr(txt, v); }
+  function pronto() { carga.hidden = true; }
+
+  function baixarWasm(dir) {
+    return fetch(dir + "../tamanhos.json", { cache: "no-cache" }).then(function (r) { return r.json(); }).then(function (tam) {
+      var info = tam[APP];
+      if (!info) return;
+      return fetch(dir + info.wasm).then(function (r) {
+        if (!r.ok || !r.body || !r.body.getReader) return r.arrayBuffer();
+        var leitor = r.body.getReader(), lidos = 0;
+        return (function ler() {
+          return leitor.read().then(function (p) {
+            if (p.done) return;
+            lidos += p.value.length;
+            status("Downloading {n}%", { n: Math.min(100, Math.floor(lidos * 100 / info.bytes)) });
+            return ler();
+          });
+        })();
+      });
+    }).catch(function () {});
+  }
+
+  function esperarDeck() {
+    var n = 0;
+    (function ver() {
+      var doc = null;
+      try { doc = frame.contentDocument; } catch (_) {}
+      if (doc && doc.querySelector("canvas") && !doc.getElementById(APP + "_loading")) return pronto();
+      if (++n < 480) setTimeout(ver, 250); else pronto();
+    })();
+  }
+
+  var dir = "../../artcraft/" + APP + "/", base = dir + "index.html";
+  status("Waiting for download…");
   fetch(base, { method: "HEAD", cache: "no-store" }).then(function (r) {
     if (!r.ok) throw 0;
+    return baixarWasm(dir);
+  }).then(function () {
+    status("Opening…");
     return ler();
   }).then(function (v) {
     arquivo = v;
     if (v) mostrarNome(v.name);
     var extra = PONTE ? "?host=parent" : "?blank";
     frame.src = base + extra;
-    if (!PONTE && v) frame.addEventListener("load", function () { soltar(v); }, { once: true });
-  }).catch(function () { erro(""); });
+    if (!PONTE) frame.addEventListener("load", function () { if (v) soltar(v); esperarDeck(); }, { once: true });
+  }).catch(function () { pronto(); erro(""); });
 })();
