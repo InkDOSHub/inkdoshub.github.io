@@ -2,8 +2,8 @@ name: Atualizar ArtCraft
 # Baixa a versão web lançada do WordCraft, GridCraft e DeckCraft (ArtCraft, MIT/Apache-2.0) e guarda em
 # artcraft/<app>/. Se a release não tiver o .zip web, compila a mesma tag com trunk.
 # Só publica quando todos os apps passam; se algo falhar, o site continua na versão anterior.
-# Depois reescreve a main para o histórico guardar só as 2 últimas versões do ArtCraft (e nada da
-# pasta onlyoffice/ antiga). É um force push: quem tiver um clone precisa baixar de novo.
+# Depois reescreve a main para o histórico guardar só as 2 últimas versões do ArtCraft.
+# É um force push: quem tiver um clone precisa baixar de novo.
 on:
   schedule:
     - cron: "17 6 * * 1"
@@ -81,11 +81,10 @@ jobs:
           corte=$(git log --format=%H -- artcraft/versoes.txt | sed -n 2p)
           velho=""
           if [ -n "$corte" ] && [ -n "$(git log --format=%H -1 "$corte^" -- artcraft 2>/dev/null)" ]; then velho=1; fi
-          if [ -z "$velho" ] && [ -z "$(git log --format=%H -1 -- onlyoffice)" ]; then echo "nada a limpar"; exit 0; fi
+          if [ -z "$velho" ]; then echo "nada a limpar"; exit 0; fi
           export CORTE="$corte"
           antes=$(git rev-parse HEAD)
           FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --prune-empty --index-filter '
-            git rm -rq --cached --ignore-unmatch onlyoffice
             if [ -n "$CORTE" ] && [ "$GIT_COMMIT" != "$CORTE" ] && git merge-base --is-ancestor "$GIT_COMMIT" "$CORTE"; then
               git rm -rq --cached --ignore-unmatch artcraft
             fi' -- main
