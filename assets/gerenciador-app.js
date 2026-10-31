@@ -51,9 +51,12 @@
      "inkdoshub-diag" o horário de cada etapa ao abrir um arquivo, entre páginas. */
   function marcar(nome, novo) {
     try {
-      var k = "inkdoshub-diag", d = novo ? null : JSON.parse(localStorage.getItem(k) || "null");
-      if (!d || Date.now() - d.t0 > 120000) d = { t0: Math.round(performance.timeOrigin || Date.now()), etapas: [] };
-      d.etapas.push({ nome: nome, t: Date.now(), pagina: location.pathname.split("/").slice(-3).join("/") });
+      // novo: começo de uma página que recebeu arquivo. Se outra recebeu há menos de 2 min, anota junto
+      // (assim aparecem as entregas repetidas do XeOS), com o horário em que a página começou a abrir.
+      var k = "inkdoshub-diag", d = JSON.parse(localStorage.getItem(k) || "null");
+      var ult = d && d.etapas && d.etapas.length ? d.etapas[d.etapas.length - 1].t : 0;
+      if (!d || Date.now() - (novo ? ult : d.t0) > 120000) d = { t0: Math.round(performance.timeOrigin || Date.now()), etapas: [] };
+      d.etapas.push({ nome: nome, t: novo ? Math.round(performance.timeOrigin || Date.now()) : Date.now(), pagina: location.pathname.split("/").slice(-3).join("/") });
       localStorage.setItem(k, JSON.stringify(d));
     } catch (_) {}
   }
