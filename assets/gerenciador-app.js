@@ -58,8 +58,11 @@
     } catch (_) {}
   }
   var abrindo = /(?:^#|&)(ink-arquivos|inkdos-launch)=/.test(location.hash) || /[?&]inkdos-handoff=/.test(location.search);
+  // também anota quando a tela inicial acabou de mandar abrir um app (até 2 min), mesmo sem o código na URL
+  if (!abrindo && !noInicio) try { var ud = JSON.parse(localStorage.getItem("inkdoshub-diag") || "null"); abrindo = !!(ud && Date.now() - ud.t0 < 120000); } catch (_) {}
   if (abrindo) {
-    marcar("app: page started", false);
+    marcar("app: page started (" + (location.hash ? "with file code" : "no file code in URL") + ", " + (history.length) + " in history)", false);
+    addEventListener("error", function (e) { marcar("app: error " + String(e.message || e.type).slice(0, 120)); });
     document.addEventListener("DOMContentLoaded", function () { marcar("app: HTML ready"); });
     addEventListener("load", function () { marcar("app: page fully loaded"); });
   }
