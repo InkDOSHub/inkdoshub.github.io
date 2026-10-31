@@ -46,6 +46,23 @@
 
   var noInicio = ehInicio(location.href);
   var app = noInicio ? null : appDaUrl(location.href);
+
+  /* Diagnóstico (☰ > Diagnostics, inicio/diagnostico.js): anota em localStorage
+     "inkdoshub-diag" o horário de cada etapa ao abrir um arquivo, entre páginas. */
+  function marcar(nome, novo) {
+    try {
+      var k = "inkdoshub-diag", d = novo ? null : JSON.parse(localStorage.getItem(k) || "null");
+      if (!d || Date.now() - d.t0 > 120000) d = { t0: Math.round(performance.timeOrigin || Date.now()), etapas: [] };
+      d.etapas.push({ nome: nome, t: Date.now(), pagina: location.pathname.split("/").slice(-3).join("/") });
+      localStorage.setItem(k, JSON.stringify(d));
+    } catch (_) {}
+  }
+  var abrindo = /(?:^#|&)(ink-arquivos|inkdos-launch)=/.test(location.hash) || /[?&]inkdos-handoff=/.test(location.search);
+  if (abrindo) {
+    marcar("app: page started", false);
+    document.addEventListener("DOMContentLoaded", function () { marcar("app: HTML ready"); });
+    addEventListener("load", function () { marcar("app: page fully loaded"); });
+  }
   var topo = window.top === window;
 
   /* Abas novas só no XeOS (desktop web no iPad, onde cada documento precisa da própria janela); nos
@@ -107,11 +124,33 @@
       e.stopPropagation();
       irParaInicio();
     }, true);
-    var depois = function (fn, ms) {
-      if (document.readyState === "complete") setTimeout(fn, ms);
-      else addEventListener("load", function () { setTimeout(fn, ms); });
-    };
-    depois(receber, 400);
+    // assim que o HTML do app estiver pronto (antes esperava a página toda carregar + 400 ms)
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", receber);
+    else receber();
+  }
+
+  /* Fotos, Vídeo e Música recebem do XeOS direto (manifest.webmanifest, "file_handlers"), sem
+     passar pela tela inicial: uma página a menos para carregar. */
+  if (window.launchQueue && typeof window.launchQueue.setConsumer === "function" && app && /^(foto|video|musica)$/.test(app.id)) {
+    window.launchQueue.setConsumer(function (params) {
+      var hs = params && params.files ? [].slice.call(params.files) : [];
+      if (!hs.length) return;
+      marcar("XeOS sent the file straight to the app (page started)", true);
+      marcar("app: file received from XeOS");
+      Promise.all(hs.map(function (h) { return h.getFile().catch(function () { return null; }); })).then(function (fs) {
+        fs = fs.filter(Boolean);
+        var entregar = function () {
+          var entrada = document.getElementById("arquivos");
+          if (!entrada || !fs.length) return;
+          var dt = new DataTransfer();
+          fs.forEach(function (f) { dt.items.add(f); });
+          entrada.files = dt.files;
+          entrada.dispatchEvent(new Event("change", { bubbles: true }));
+          marcar("app: file delivered");
+        };
+        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", entregar); else entregar();
+      });
+    });
   }
 
   /* Arquivos mandados pela tela inicial (inicio/lancador.js): ficam no IndexedDB
@@ -134,6 +173,7 @@
         v.arquivos.forEach(function (a) { dt.items.add(new File([a.data], a.name, { type: a.type || "", lastModified: a.lastModified || Date.now() })); });
         entrada.files = dt.files;
         entrada.dispatchEvent(new Event("change", { bubbles: true }));
+        marcar("app: file delivered");
       };
       tx.oncomplete = function () { db.close(); };
     };
@@ -149,6 +189,7 @@
 
   /* Usado pela tela inicial (inicio/) e pelos apps do InkDOS (editores ArtCraft). */
   window.InkPaginas = {
+    marcar: marcar,
     raiz: RAIZ,
     apps: APPS,
     novaAba: novaAba,

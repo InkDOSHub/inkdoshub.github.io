@@ -143,7 +143,12 @@
           ".yaml",
           ".yml",
           ".zsh"
-        ],
+        ]
+      }
+    },
+    {
+      "action": "./apps/foto/",
+      "accept": {
         "image/*": [
           ".avif",
           ".bmp",
@@ -157,14 +162,24 @@
           ".tif",
           ".tiff",
           ".webp"
-        ],
+        ]
+      }
+    },
+    {
+      "action": "./apps/video/",
+      "accept": {
         "video/*": [
           ".m4v",
           ".mkv",
           ".mov",
           ".mp4",
           ".webm"
-        ],
+        ]
+      }
+    },
+    {
+      "action": "./apps/musica/",
+      "accept": {
         "audio/*": [
           ".aac",
           ".flac",
