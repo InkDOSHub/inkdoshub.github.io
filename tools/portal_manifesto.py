@@ -28,7 +28,13 @@ GRUPOS = [
     ("inkdos", "Documents (InkDOS)", ["inkdos"]),
     ("artcraft", "ArtCraft editors", ["artcraft", "apps/wordcraft", "apps/gridcraft", "apps/deckcraft"]),
     ("visualizadores", "Edit PDF (BentoPDF) and viewers", ["apps/editar-pdf", "visualizadores"]),
+    # motores pesados do Editar PDF: o básico offline fica abaixo de 100 MB, o resto é o "pacote completo"
+    ("pdf-completo", "Edit PDF: full pack (Office, OCR, compress)", [
+        "visualizadores/bentopdf/libreoffice-wasm", "visualizadores/bentopdf/wasm/pymupdf",
+        "visualizadores/bentopdf/wasm/ocr", "visualizadores/bentopdf/wasm/gs"]),
 ]
+# um caminho listado em outro grupo sai do grupo da pasta-mãe
+DONO = {c: g for g, _, cs in GRUPOS for c in cs}
 FORA = {"inicio/manifesto.json"}
 FORA_EXT = (".md", ".txt", ".map")
 
@@ -59,6 +65,11 @@ def arquivos(caminho):
         for n in sorted(nomes):
             rel = os.path.relpath(os.path.join(d, n), RAIZ).replace(os.sep, "/")
             if rel in FORA or n.startswith(".") or n.endswith(FORA_EXT):
+                continue
+            # x.br / x.gz ao lado de x: cópia para servidores que mandam comprimido (o Pages não), nunca carregada
+            if n.endswith((".br", ".gz")) and os.path.isfile(os.path.join(d, n[:-3])):
+                continue
+            if any(rel.startswith(c + "/") and DONO[c] != DONO.get(caminho) and len(c) > len(caminho) for c in DONO):
                 continue
             yield rel
 

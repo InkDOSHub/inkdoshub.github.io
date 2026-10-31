@@ -216,15 +216,17 @@
 
   /* ---------- depois de usar um app pesado não guardado: oferecer guardar ---------- */
   var RECUSOU = "inkdoshub-offline-recusou";
-  caches.open(CACHE).then(function (c) {
+  // "?guardar=<grupo>&volta=<página>": um app pede para guardar um grupo (ex.: Editar PDF › Ampliar)
+  var pede = new URLSearchParams(location.search), PEDIDO = pede.get("guardar"), VOLTA = pede.get("volta");
+  (PEDIDO ? Promise.resolve(null) : caches.open(CACHE).then(function (c) {
     return c.match(USO).then(function (r) { if (!r) return null; c.delete(USO); return r.text(); });
-  }).then(function (caminho) {
-    if (!caminho) return;
+  })).then(function (caminho) {
+    if (!caminho && !PEDIDO) return;
     return Promise.all([site(), estado()]).then(function (x) {
       var tem = guardados(x[1]), recusou = {};
       try { recusou = JSON.parse(localStorage.getItem(RECUSOU) || "{}"); } catch (_) {}
-      var g = x[0].grupos.filter(function (g) { return !base(g) && g.arquivos.some(function (a) { return a[0] === caminho; }); })[0];
-      if (!g || tem[g.id] || recusou[g.id]) return;
+      var g = x[0].grupos.filter(function (g) { return !base(g) && (PEDIDO ? g.id === PEDIDO : g.arquivos.some(function (a) { return a[0] === caminho; })); })[0];
+      if (!g || tem[g.id] || (recusou[g.id] && !PEDIDO)) return;
       var card = el("div", "off-oferta"); card.setAttribute("role", "status");
       card.appendChild(el("strong", null, t("Keep {name} on this device?", { name: t(g.nome) })));
       card.appendChild(el("p", null, t("It takes {size}. Without saving, it is downloaded again whenever the browser clears its cache, and it does not open without internet.", { size: mb(g.bytes) })));
@@ -234,7 +236,7 @@
       sim.onclick = function () {
         sim.disabled = nao.disabled = true;
         var quer = Object.assign({}, tem); quer[g.id] = 1;
-        sincronizar(quer, function (p) { sim.textContent = p + "%"; }).then(function () { card.remove(); marcarBotao(); }, function () { sim.disabled = nao.disabled = false; sim.textContent = t("Failed, try again"); });
+        sincronizar(quer, function (p) { sim.textContent = p + "%"; }).then(function () { card.remove(); marcarBotao(); if (VOLTA && /^apps\/[a-z-]+\/$/.test(VOLTA)) location.href = VOLTA; }, function () { sim.disabled = nao.disabled = false; sim.textContent = t("Failed, try again"); });
       };
       var botoes = el("div", "off-botoes"); botoes.appendChild(nao); botoes.appendChild(sim); card.appendChild(botoes);
       document.body.appendChild(card);
