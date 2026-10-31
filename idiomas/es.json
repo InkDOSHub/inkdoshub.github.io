@@ -441,5 +441,8 @@
 "PowerPoint slides (PPTX, ODP).": "Presentaciones de PowerPoint (PPTX, ODP).",
 "Edit PDF: full pack (Office, OCR, compress)": "Editar PDF: paquete completo (Office, OCR, comprimir)",
 "Whole computer": "Todo el ordenador",
-"Could not capture this program's sound.": "No se pudo capturar el sonido de este programa."
+"Could not capture this program's sound.": "No se pudo capturar el sonido de este programa.",
+"Diagnostics": "Diagnóstico",
+"Copy report": "Copiar informe",
+"What this browser supports and how long the last file took to open. Open a file from XeOS, come back here and copy the report.": "Qué ofrece este navegador y cuánto tardó en abrirse el último archivo. Abre un archivo desde XeOS, vuelve aquí y copia el informe."
 }

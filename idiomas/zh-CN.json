@@ -441,5 +441,8 @@
 "PowerPoint slides (PPTX, ODP).": "PowerPoint 幻灯片（PPTX、ODP）。",
 "Edit PDF: full pack (Office, OCR, compress)": "编辑 PDF：完整包（Office、OCR、压缩）",
 "Whole computer": "整台电脑",
-"Could not capture this program's sound.": "无法捕获此程序的声音。"
+"Could not capture this program's sound.": "无法捕获此程序的声音。",
+"Diagnostics": "诊断",
+"Copy report": "复制报告",
+"What this browser supports and how long the last file took to open. Open a file from XeOS, come back here and copy the report.": "此浏览器支持的功能以及上一个文件打开所用的时间。在 XeOS 中打开文件，回到这里并复制报告。"
 }
