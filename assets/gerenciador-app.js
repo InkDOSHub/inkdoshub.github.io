@@ -46,6 +46,23 @@
 
   var noInicio = ehInicio(location.href);
   var app = noInicio ? null : appDaUrl(location.href);
+  var topo = window.top === window;
+
+  /* Abas novas só no XeOS (desktop web no iPad, onde cada documento precisa da própria janela); nos
+     outros navegadores os apps abrem na mesma aba. Sinal do XeOS: "XeOS" no user agent ou o Hub
+     dentro de outra página. ?abas=nova ou ?abas=mesma no endereço fixa a escolha neste aparelho. */
+  var novaAba = (function () {
+    var q = /[?&]abas=(nova|mesma)\b/.exec(location.search), v = q ? q[1] : null;
+    try { if (q) localStorage.setItem("inkdoshub-abas", v); else v = localStorage.getItem("inkdoshub-abas"); } catch (_) {}
+    if (v === "nova" || v === "mesma") return v === "nova";
+    return /XeOS/i.test(navigator.userAgent) || !topo;
+  })();
+
+  // o nome da janela é como a tela inicial acha a aba de cada app (window.open("", nome))
+  if (topo && (!window.name || /^inkdoshub-/.test(window.name))) {
+    if (noInicio) window.name = "inkdoshub-inicio";
+    else if (app && app.id !== "office") window.name = "inkdoshub-" + app.id;
+  }
 
   function aplicarTema(t) {
     if (t !== "light" && t !== "dark") return;
