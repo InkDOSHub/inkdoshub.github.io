@@ -1,8 +1,8 @@
 /* Lançador de arquivos da tela inicial, como na tela inicial do InkDOS.
 
-   Com o InkDOS Hub instalado (manifest.webmanifest, "file_handlers"), abrir um arquivo no XeOS
-   manda o arquivo para esta página (launchQueue). Ela escolhe o app pela extensão e abre o app
-   com o arquivo.
+   Arquivos abertos no XeOS vão direto para o app de cada tipo (manifest.webmanifest, "file_handlers"
+   com um "action" por app; cada app lê o launchQueue). Esta página só recebe o que vem do botão
+   "Abrir arquivo" ou de um manifesto antigo ainda instalado, escolhe o app pela extensão e o abre.
 
    Como o arquivo chega a cada app:
    - apps do InkDOS (inkdos/): IndexedDB "inkdos-launch-handoff" e #inkdos-launch=<id>, o mesmo

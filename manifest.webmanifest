@@ -29,7 +29,7 @@
   ],
   "file_handlers": [
     {
-      "action": "./",
+      "action": "./apps/wordcraft/",
       "accept": {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
           ".docx"
@@ -45,7 +45,12 @@
         ],
         "application/vnd.apple.pages": [
           ".pages"
-        ],
+        ]
+      }
+    },
+    {
+      "action": "./apps/gridcraft/",
+      "accept": {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
           ".xlsx"
         ],
@@ -63,7 +68,12 @@
         ],
         "application/vnd.apple.numbers": [
           ".numbers"
-        ],
+        ]
+      }
+    },
+    {
+      "action": "./apps/deckcraft/",
+      "accept": {
         "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
           ".pptx"
         ],
@@ -75,74 +85,44 @@
         ],
         "application/vnd.apple.keynote": [
           ".key"
-        ],
+        ]
+      }
+    },
+    {
+      "action": "./inkdos/apps/pdf/index.html?suite=1",
+      "accept": {
         "application/pdf": [
           ".pdf"
-        ],
+        ]
+      }
+    },
+    {
+      "action": "./inkdos/apps/epub/index.html?suite=1",
+      "accept": {
         "application/epub+zip": [
           ".epub"
-        ],
+        ]
+      }
+    },
+    {
+      "action": "./inkdos/apps/txt/index.html?suite=1",
+      "accept": {
         "text/plain": [
-          ".bash",
-          ".bat",
-          ".c",
-          ".cc",
           ".cfg",
-          ".cjs",
-          ".cmake",
           ".conf",
-          ".cpp",
-          ".cs",
-          ".css",
-          ".dart",
-          ".diff",
-          ".fish",
-          ".go",
-          ".gradle",
-          ".h",
-          ".hpp",
-          ".htm",
-          ".html",
           ".ini",
-          ".ipynb",
-          ".java",
-          ".js",
           ".json",
           ".jsonl",
-          ".jsx",
-          ".kt",
-          ".less",
           ".log",
-          ".lua",
           ".markdown",
           ".md",
-          ".mjs",
-          ".mk",
           ".ndjson",
-          ".patch",
-          ".php",
-          ".pl",
           ".properties",
-          ".ps1",
-          ".py",
-          ".r",
-          ".rb",
-          ".rs",
-          ".scss",
-          ".sh",
-          ".sql",
-          ".svelte",
-          ".swift",
-          ".tex",
           ".toml",
-          ".ts",
-          ".tsx",
           ".txt",
-          ".vue",
           ".xml",
           ".yaml",
-          ".yml",
-          ".zsh"
+          ".yml"
         ]
       }
     },
@@ -189,6 +169,58 @@
           ".ogg",
           ".opus",
           ".wav"
+        ]
+      }
+    },
+    {
+      "action": "./apps/codigo/",
+      "accept": {
+        "text/plain": [
+          ".bash",
+          ".bat",
+          ".c",
+          ".cc",
+          ".cjs",
+          ".cmake",
+          ".cpp",
+          ".cs",
+          ".css",
+          ".dart",
+          ".diff",
+          ".fish",
+          ".go",
+          ".gradle",
+          ".h",
+          ".hpp",
+          ".htm",
+          ".html",
+          ".ipynb",
+          ".java",
+          ".js",
+          ".jsx",
+          ".kt",
+          ".less",
+          ".lua",
+          ".mjs",
+          ".mk",
+          ".patch",
+          ".php",
+          ".pl",
+          ".ps1",
+          ".py",
+          ".r",
+          ".rb",
+          ".rs",
+          ".scss",
+          ".sh",
+          ".sql",
+          ".svelte",
+          ".swift",
+          ".tex",
+          ".ts",
+          ".tsx",
+          ".vue",
+          ".zsh"
         ]
       }
     }
