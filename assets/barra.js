@@ -18,7 +18,7 @@
     if (home) esq.appendChild(home);
     var m = location.pathname.match(/\/apps\/([^/]+)\//), app = m ? m[1] : (/\/terminal\//.test(location.pathname) ? "terminal" : "");
     var raiz = home ? home.getAttribute("href") : "../../";
-    if (app) { var img = document.createElement("img"); img.className = "ink-simbolo"; img.alt = ""; img.src = raiz + "assets/icones-inkdos/" + app + ".svg?v=3"; meio.appendChild(img); }
+    if (app) { var img = document.createElement("img"); img.className = "ink-simbolo"; img.alt = ""; img.src = document.body.getAttribute("data-simbolo") || raiz + "assets/icones-inkdos/" + app + ".svg?v=3"; meio.appendChild(img); }
     if (titulo) meio.appendChild(titulo);
     dir.appendChild(itens);
     info.forEach(function (d) { dir.appendChild(d); });

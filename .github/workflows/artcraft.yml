@@ -1,0 +1,69 @@
+name: Atualizar ArtCraft
+# Baixa a versão web lançada do WordCraft, GridCraft e DeckCraft (ArtCraft, MIT/Apache-2.0) e guarda em
+# artcraft/<app>/. Se a release não tiver o .zip web, compila a mesma tag com trunk.
+# Só publica quando todos os apps passam; se algo falhar, o site continua na versão anterior.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/artcraft.yml]
+permissions:
+  contents: write
+concurrency:
+  group: artcraft
+  cancel-in-progress: false
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Baixar ou compilar
+        run: |
+          set -euo pipefail
+          mkdir -p artcraft
+          [ -f artcraft/versoes.txt ] || : > artcraft/versoes.txt
+          novo=$(mktemp -d)
+          for app in wordcraft gridcraft deckcraft; do
+            tag=$(gh release view --repo storytold/$app --json tagName -q .tagName)
+            if grep -qx "$app $tag" artcraft/versoes.txt && [ -f artcraft/$app/index.html ]; then
+              echo "$app $tag já está no site"; continue
+            fi
+            echo "== $app $tag"
+            t=$(mktemp -d)
+            if gh release download "$tag" --repo storytold/$app --pattern "$app-web-*.zip" --dir "$t"; then
+              unzip -q "$t"/*.zip -d "$t/x"
+              src=$(dirname "$(find "$t/x" -name index.html | head -1)")
+            else
+              echo "sem .zip web na release: compilando"
+              if ! command -v trunk >/dev/null; then
+                rustup target add wasm32-unknown-unknown
+                curl -sSL https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin
+              fi
+              git clone -q --depth 1 --branch "$tag" https://github.com/storytold/$app "$t/src"
+              (cd "$t/src/apps/$app-web" && trunk build --release)
+              src="$t/src/dist/web"
+            fi
+            test -f "$src/index.html"
+            ls "$src"/*.wasm >/dev/null
+            mkdir -p "$novo/$app"; cp -r "$src"/. "$novo/$app/"
+            sed -i "/^$app /d" artcraft/versoes.txt; echo "$app $tag" >> artcraft/versoes.txt
+          done
+          for app in wordcraft gridcraft deckcraft; do
+            if [ -d "$novo/$app" ]; then rm -rf artcraft/$app; mv "$novo/$app" artcraft/$app; fi
+          done
+          sort -o artcraft/versoes.txt artcraft/versoes.txt
+      - name: Gravar se mudou
+        run: |
+          git add -A artcraft
+          if git diff --cached --quiet; then echo "sem mudanças"; exit 0; fi
+          python3 tools/portal_manifesto.py
+          git add inicio/manifesto.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "ArtCraft: $(tr '\n' ' ' < artcraft/versoes.txt)"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push && exit 0; sleep 5; done
+          exit 1
