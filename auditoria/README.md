@@ -23,6 +23,7 @@ found, what changed and the commit. The git history proves each change.
 | — | Windows without Edge: native apps and Webcam without WebView2 | [017-windows-sem-edge.md](017-windows-sem-edge.md) |
 | — | Windows on Electron: the same apps as the web, stored on disk, no telemetry | [018-windows-electron.md](018-windows-electron.md) |
 | — | Symbol regression check | [019-symbol-regression.md](019-symbol-regression.md) |
+| — | Repository in English and redundancy check | [020-english-and-redundancy.md](020-english-and-redundancy.md) |
 
 ## Summary (2026-10-29)
 
