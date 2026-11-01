@@ -1,142 +1,131 @@
 # InkDOS Hub
 
-**English:** A free, open-source home screen of power tools for iPad and iPhone (Safari), running entirely in the browser: a real Alpine Linux terminal (v86/WebAssembly, with `apk add` and internet), photo, video and music apps, VS Code for the web, Excalidraw, the InkDOS document apps plus the ArtCraft editors (WordCraft, GridCraft, DeckCraft), a screen/audio recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay in your browser. Optional Windows helpers (`.exe`, not code-signed yet, so SmartScreen may warn) live in `windows/`.
+A free, open-source home screen of power tools for iPad and iPhone (Safari and XeOS), also available as a Windows app. Everything runs in the browser: a real Alpine Linux terminal, photo, video and music apps, VS Code for the web, a whiteboard, document, spreadsheet, presentation and PDF apps, a recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay on your device. Everything lives in this repository; nothing is loaded from CDNs or other sites.
 
-**Open:** https://inkdoshub.github.io/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md)) · Personal project, no support promised.
+**Open:** https://inkdoshub.github.io/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md))
 
-Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
+Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Code audit logs](auditoria/README.md)
 
 <p><img src=".github/prints/hub-ipad.png" width="68%" alt="InkDOS Hub on iPad"> <img src=".github/prints/hub-iphone.png" width="28%" alt="InkDOS Hub on iPhone, dark theme"></p>
 
----
+> **No support promised.** InkDOS Hub is a personal project made in spare time. It was tested on iPhone, iPad and a Windows laptop; other devices may or may not work. Feel free to use, copy and adapt it, but fixes, new features and quick answers are not guaranteed. 🙂
 
-A tela inicial de ferramentas avançadas feita para o iPad e o iPhone (Safari e XeOS). Tudo fica neste repositório: nada é buscado de outro site do projeto.
+## Apps
 
-**Abrir:** https://inkdoshub.github.io/
-
-> **Sem promessa de suporte.** O InkDOS Hub é um projeto pessoal, feito no tempo livre, e está aqui do jeito que está porque funcionou para quem criou. Foi testado no iPhone, no iPad e num notebook com Windows; em outros aparelhos pode funcionar, ou não. Fique à vontade para usar, copiar e adaptar, só não dá para garantir correções, novidades ou respostas rápidas. 🙂
-
-| Cartão | Ferramenta (código aberto) | Pasta |
+| App | Tool (open source) | Folder |
 |---|---|---|
-| PDF, Documentos, Planilhas, Apresentações, Texto simples, Leitor EPUB | Apps do InkDOS (2.9.0), copiados para cá e mantidos aqui, com visual Apple direto no CSS de cada app: Novo, Abrir e Salvar no menu ☰ e, em Documentos, Planilhas e Apresentações, a barra de edição atrás do pincel | `inkdos/` |
-| Editar PDF | [BentoPDF](https://github.com/alam00000/bentopdf) (AGPL-3.0): juntar, dividir, comprimir, converter, assinar, proteger, OCR e outras; cada ferramenta com a barra do Hub | `apps/editar-pdf/` (lista) e `visualizadores/bentopdf/` |
-| Visualizadores (dentro dos apps de documentos) | OpenDocument (.odt/.ods/.odp, WebODF) e Apple (.pages/.numbers/.key, pnk), só para ver | `visualizadores/` |
-| WordCraft, GridCraft e DeckCraft | Editores [ArtCraft](https://github.com/storytold) (MIT/Apache-2.0) de texto, planilha e apresentação, baixados das releases web pela action `artcraft.yml` | `artcraft/` e `apps/*craft/` |
-| Fotos | Galeria, visualizador e editor simples (recortar, girar, espelhar, endireitar, exposição, brilho, contraste, saturação, calor e tom) feitos aqui | `apps/foto/` (o editor é `apps/foto/editor.js`) |
-| Vídeo | Player com barra de controles igual à da Música e editor simples (cortar, som, exportar em 1080p/720p/480p) feitos aqui, com o ffmpeg.wasm | `apps/video/` |
-| Música | Player feito aqui, com o `<audio>` do Safari, lista, equalizador de 10 faixas, volume extra, balanço e velocidade | `apps/musica/` |
-| Gravador | Grava o áudio do computador, o microfone ou o som da tela; cada gravação baixa sozinha para Downloads e entra na lista da Música | `apps/gravador/` |
-| Webcam | A câmera do iPhone (Safari) vira webcam do PC: o iPhone manda o vídeo por WebRTC, até 4K 60 fps, para a página aberta no PC, pareada por QR code ([PeerJS](https://github.com/peers/peerjs), MIT, com o servidor público gratuito dele só para o pareamento). No Windows, o OBS Studio transforma a imagem em webcam (fonte de navegador + câmera virtual); as instruções estão no próprio app | `apps/webcam/` |
-| Transferir | Manda arquivos entre o celular e um PC com Windows pela rede local (WebRTC), sem internet, com diagnóstico de conexão; o app de Windows opcional fica em `windows/transferir/` | `apps/transferir/` |
-| Quadro branco | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) | `apps/quadro/` |
-| Código | [VS Code para web](https://github.com/Felx-B/vscode-web) (MIT), com uma pasta guardada no navegador | `apps/codigo/` |
-| Linux terminal | Alpine Linux 3.22 no [v86](https://github.com/copy/v86), feito aqui | `terminal/` |
+| PDF, Documents, Spreadsheets, Presentations, Plain text, EPUB reader | InkDOS apps (2.9.0), copied here and maintained in this repo: New, Open and Save in the ☰ menu; in Documents, Spreadsheets and Presentations the editing ribbon sits behind the brush button | `inkdos/` |
+| WordCraft, GridCraft, DeckCraft | [ArtCraft](https://github.com/storytold) editors (MIT/Apache-2.0) for text, spreadsheets and presentations, downloaded from their web releases by the `artcraft.yml` action | `artcraft/` and `apps/*craft/` |
+| Edit PDF | [BentoPDF](https://github.com/alam00000/bentopdf) (AGPL-3.0): merge, split, compress, convert, sign, protect, OCR and more, each tool with the Hub top bar | `apps/editar-pdf/` (list) and `visualizadores/bentopdf/` |
+| Viewers (inside the document apps) | OpenDocument (.odt/.ods/.odp, WebODF) and Apple (.pages/.numbers/.key, pnk), view only | `visualizadores/` |
+| Photos | Gallery, viewer and simple editor (crop, rotate, flip, straighten, exposure, brightness, contrast, saturation, warmth, tint) | `apps/foto/` |
+| Video | Player and simple editor (trim, sound, export at original/1080p/720p/480p) with single-thread ffmpeg.wasm 0.12.5 | `apps/video/` |
+| Music | Player with playlist, 10-band equalizer, volume boost, balance and speed | `apps/musica/` |
+| Recorder | Records computer audio, microphone or screen sound; each recording downloads automatically and shows up in Music | `apps/gravador/` |
+| Webcam | Turns the iPhone camera into a PC webcam over WebRTC (up to 4K 60 fps), paired by QR code with [PeerJS](https://github.com/peers/peerjs) (its free public server is used only for pairing). On Windows, OBS Studio or the native receiver turns it into a virtual camera | `apps/webcam/` |
+| Transfer | Sends files between the phone and a Windows PC over the local network (WebRTC), no internet needed, with connection diagnostics | `apps/transferir/` |
+| Whiteboard | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT), saved in IndexedDB | `apps/quadro/` |
+| Code | [VS Code for the web](https://github.com/Felx-B/vscode-web) (MIT), with a folder stored in the browser | `apps/codigo/` |
+| Linux terminal | Alpine Linux 3.22 on [v86](https://github.com/copy/v86) | `terminal/` |
 
-A tela inicial é uma gaveta de apps (ícone e nome, como o Launchpad), com busca, o botão de pasta para abrir qualquer arquivo no app certo e o menu ☰ com tema, idioma, Personalizar (esconder apps e arrastar para mudar a ordem) e o app padrão para arquivos de Office (InkDOS, rápido, ou ArtCraft, completo). Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
+The home screen is an app drawer (icon and name, like Launchpad) with search, a folder button that opens any file in the right app, and the ☰ menu with theme, language, Offline mode, Customize (hide apps, drag to reorder) and the default Office app (InkDOS, fast, or ArtCraft, full). Each tool opens only when asked and manages its own memory. All pages share the same top bar and light/dark theme (`assets/barra.css`, `assets/tema.js`).
 
-**Offline:** no ☰, cada app pode ser guardado no aparelho (check verde por app; a base vai sempre junto; tudo junto dá cerca de 700 MB) e passa a abrir dali, mesmo sem internet. Quando o site muda, a tela inicial mostra "Atualização disponível · Atualizar", e um toque baixa só o que mudou (`inicio/offline.js`, `sw-portal.js`).
+Every third-party folder has `UPSTREAM-LICENSE.txt` and `UPSTREAM-SOURCE.txt`; `tools/build_apps.sh` rebuilds the tools from their pinned versions.
 
-Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas.
+## How it works
 
-Fotos, Vídeo e Música seguem a mesma ideia: primeiro o visualizador, e a edição como segunda opção; sem nada aberto, mostram só um aviso no meio. Os arquivos abertos ficam guardados no próprio navegador (IndexedDB deste site), neste aparelho, e nada é enviado. Tudo é servido por este site; nenhuma ferramenta abre outro site nem busca código em CDNs.
+1. **Home screen** (`index.html`, `inicio/`): lists the apps, opens files in the right app and keeps preferences in the site's `localStorage` (`inkdoshub-*` keys).
+2. **Passing files between apps:** the home screen stores the chosen file in the `inkdos-tool-handoff` IndexedDB and opens the app with `?inkdos-handoff=<id>`; the app reads the record and deletes it. Nothing leaves the device.
+3. **Manifest** (`inicio/manifesto.json`, generated by `tools/portal_manifesto.py`): lists every file of the site by group (app), with size and full SHA-256. It drives Offline mode, partial updates and the Windows integrity check.
+4. **Service worker** (`sw-portal.js`): only active when an offline copy exists; serves from the cache and only replaces a file when its hash in the manifest changes.
+5. **Third-party apps** (BentoPDF, ArtCraft, VS Code, Excalidraw, v86, ffmpeg.wasm) are copied here with pinned versions and their licenses.
 
-O editor de vídeo (`apps/video/cortar/`) corta o trecho, tira ou deixa o som e exporta no original (só corta, sem converter) ou em 1080p, 720p ou 480p, com o ffmpeg.wasm 0.12.5 de uma thread só (não precisa de isolamento entre origens). O resultado vira um vídeo novo na lista do Vídeo.
+**Offline mode:** in the ☰ menu, each app can be stored on the device (a green check per app; the base always comes along; everything together is about 700 MB) and then opens from there, even without internet. When the site changes, the home screen shows "Update available · Update", and one tap downloads only what changed (`inicio/offline.js`, `sw-portal.js`).
 
-Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no menu ☰ da tela inicial.
+## Versions
 
-## Como funciona
-
-1. **Tela inicial** (`index.html`, `inicio/`): lista os apps, abre arquivos no app certo e guarda as preferências no `localStorage` do site (chaves `inkdoshub-*`).
-2. **Entrega de arquivos entre apps:** a tela inicial grava o arquivo escolhido no IndexedDB `inkdos-tool-handoff` e abre o app com `?inkdos-handoff=<id>`; o app lê e apaga o registro. Nada sai do aparelho.
-3. **Manifesto** (`inicio/manifesto.json`, gerado por `tools/portal_manifesto.py`): lista cada arquivo do site por grupo (app), com tamanho e SHA-256 completo. É a base do Modo Offline, das atualizações parciais e da conferência do Windows.
-4. **Service worker** (`sw-portal.js`): só entra em ação quando há cópia offline; serve do cache e só troca um arquivo quando o hash do manifesto muda.
-5. **Apps de terceiros** (BentoPDF, ArtCraft, VS Code, Excalidraw, v86, ffmpeg.wasm) ficam copiados aqui, com versão fixada e licença na pasta; nenhum é buscado de CDN.
-
-## Versões
-
-| Versão | Como se usa | Particularidades |
+| Version | How to use | Specifics |
 |---|---|---|
-| **Web** | Abrir https://inkdoshub.github.io/ no Safari, Chrome, Edge ou Firefox | Sempre a versão mais nova. Os arquivos ficam no armazenamento do navegador (IndexedDB/OPFS); apagar os dados do site apaga tudo. O Safari pode limpar dados de sites pouco usados; o Modo Offline e a Tela de Início evitam isso. |
-| **Tela de Início (iPhone/iPad)** | Safari › Compartilhar › Adicionar à Tela de Início | Abre em tela cheia como app (`manifest.webmanifest`), com service worker: o Modo Offline funciona e a cópia atualiza pelo aviso "Atualizar". |
-| **XeOS (contêiner no Dock do iOS)** | Adicionar o Hub como Web App no XeOS | O XeOS usa WKWebView sem service worker, então o Modo Offline some do ☰ e o site é sempre carregado da internet. Não aceita `confirm()`/`alert()` nem downloads dentro de iframes (o Hub age direto, sem pop-ups, e desvia downloads para a página principal). Abrir arquivo pelo XeOS sempre passa pela tela inicial, que entrega o arquivo ao app certo. Sem compartilhar tela: o Gravador grava só o microfone. |
-| **Windows (instalado)** | `InkDOSHub-Setup.exe` ou o `.zip` portátil da [release hub-windows](https://github.com/InkDOSHub/inkdoshub.github.io/releases/tag/hub-windows) | Electron enxuto (`windows/hub/`) com os **mesmos apps da web**, sem substitutos. Os apps guardados ficam em `%LOCALAPPDATA%\InkDOS Hub\site` e cada arquivo é conferido pelo SHA-256 do manifesto antes de ser servido; o resto vem do site, também conferido. Rede liberada só para o site e o pareamento do PeerJS; sem telemetria. O Gravador captura a tela e o som do PC (ou de um programa só). O `.exe` ainda não é assinado, por isso o SmartScreen pode avisar ([ASSINATURA.md](ASSINATURA.md)). |
-| **Ajudantes de Windows** | Webcam e Transferir, em [windows/](windows/) | Programas pequenos opcionais: receptor nativo da Webcam (GStreamer) e o Transferir pela rede local. Também sem assinatura. |
+| **Web** | Open https://inkdoshub.github.io/ in Safari, Chrome, Edge or Firefox | Always the latest version. Files live in the browser storage (IndexedDB/OPFS); clearing site data erases them. Safari may clear data of rarely used sites; Offline mode and the Home Screen install prevent that. |
+| **Home Screen (iPhone/iPad)** | Safari › Share › Add to Home Screen | Opens full screen like an app (`manifest.webmanifest`) with a service worker, so Offline mode works and the copy updates through the "Update" notice. |
+| **XeOS (container in the iOS Dock)** | Add the Hub as a Web App in XeOS | XeOS uses WKWebView without service workers, so Offline mode is hidden and the site always loads from the internet. It blocks `confirm()`/`alert()` and downloads inside iframes, so the Hub acts without pop-ups and redirects downloads to the main page. Opening a file from XeOS always goes through the home screen, which hands it to the right app. No screen sharing, so the Recorder only records the microphone. |
+| **Windows (installed)** | `InkDOSHub-Setup.exe` or the portable `.zip` from the [hub-windows release](https://github.com/InkDOSHub/inkdoshub.github.io/releases/tag/hub-windows) | Lean Electron app (`windows/hub/`) with **the same apps as the web**, no substitutes. Stored apps live in `%LOCALAPPDATA%\InkDOS Hub\site`, and every file is checked against the manifest SHA-256 before it is served; the rest comes from the site, also checked. Network is allowed only to the site and PeerJS pairing; no telemetry. The Recorder captures the screen and PC sound (or a single program). The `.exe` is not code-signed yet, so SmartScreen may warn ([ASSINATURA.md](ASSINATURA.md)). |
+| **Windows helpers** | Webcam and Transfer, in [windows/](windows/) | Small optional programs: native Webcam receiver (GStreamer) and local-network Transfer. Also unsigned. |
 
-## Idiomas
+## Languages
 
-O site vem só em inglês. Os outros idiomas (português, espanhol, alemão, francês, chinês simplificado, japonês e russo) são pacotes opcionais: o botão de idioma, na tela inicial e na barra de cada app, abre o mesmo aviso, que diz o que o pacote traduz, o que continua em inglês e quantos MB ele ocupa a mais ou a menos. Fica um pacote por vez no aparelho; escolher outro apaga o anterior.
+The site ships in English only. Other languages (Portuguese, Spanish, German, French, Simplified Chinese, Japanese and Russian) are optional packs: the language button on the home screen opens a notice that says what the pack translates, what stays in English and how many MB it adds. One pack at a time is kept on the device; picking another removes the previous one.
 
-- Cada pacote traz a tradução da tela inicial e dos apps (`idiomas/<código>.json`), o idioma do Quadro e o dos apps do InkDOS. A lista de arquivos e tamanhos é gerada por `tools/portal_manifesto.py` (chave `idiomas` de `inicio/manifesto.json`); a cópia offline leva só o inglês.
-- Código (VS Code) e o sistema Linux ficam em inglês; só a barra do topo deles é traduzida.
-- Como funciona: `assets/idioma.js`. Textos novos na interface são escritos em inglês (no HTML dentro de `<body data-idioma>`, ou no JavaScript com `InkIdioma.t("...")`); `python3 tools/idiomas_textos.py` lista os textos e mostra o que falta traduzir em cada pacote.
+- Each pack has the home screen and app texts (`idiomas/<code>.json`) plus the Whiteboard and InkDOS app languages. The file list and sizes are generated by `tools/portal_manifesto.py` (`idiomas` key of `inicio/manifesto.json`); the offline copy keeps only English.
+- Code (VS Code) and Linux stay in English; only their top bar is translated.
+- How it works: `assets/idioma.js`. New interface text is written in English (in HTML inside `<body data-idioma>`, or in JavaScript with `InkIdioma.t("...")`); `python3 tools/idiomas_textos.py` lists the texts and what is missing in each pack.
 
 ## Linux terminal
 
-- Roda Alpine Linux 3.22 com kernel Linux 6.6 (i386), emulado pelo [v86](https://github.com/copy/v86) em WebAssembly.
-- Instala qualquer programa do Alpine com `apk add` (por exemplo `apk add python3 git nano`).
-- Tem internet de verdade dentro do Linux, com http e https (veja "Rede" abaixo).
-- **Sessão:** guarda num arquivo com senha a lista de pacotes instalados e a pasta pessoal, e no outro aparelho (ou depois de apagar os dados) reinstala os pacotes e devolve os arquivos. Detalhes em `inicio/README.md`.
-- O kernel e o Alpine embutido são recompilados por `tools/linux/build.sh`.
-- A pasta `~/files` troca arquivos com o aparelho. **Enviar** coloca arquivos do iPad nela, e **Baixar** salva arquivos dela no app Arquivos.
-- **Salvar** guarda a máquina inteira (arquivos, programas instalados e a pasta `~/files`) no navegador. Na próxima visita ela volta do mesmo ponto. **Reiniciar** apaga tudo e começa do zero.
-- **Memória:** o botão alterna entre 256 MB (padrão, a sessão pode ser salva) e **640 MB + swap**. No segundo modo o Linux tem 640 MB de RAM, 192 MB de zram (memória comprimida) e 1 GB de swap num arquivo do armazenamento privado do site (OPFS), gravado aos pedaços por um worker (`terminal/swap-worker.js`) sem passar pela RAM da página. A aba fica abaixo de 1 GB mesmo com o Linux usando mais memória do que tem. Nesse modo a sessão não é salva, porque o swap recomeça a cada boot.
-- Tem uma barra de teclas extras para o teclado do celular: Esc, Tab, Ctrl, setas, `|`, `/`, `-`, `~` e Ctrl+C.
+- Runs Alpine Linux 3.22 with Linux kernel 6.6 (i386), emulated by [v86](https://github.com/copy/v86) in WebAssembly.
+- Installs any Alpine package with `apk add` (for example `apk add python3 git nano`).
+- Real internet inside Linux, with http and https (see "Network" below).
+- **Session:** saves the list of installed packages and the home folder in a password-protected file; on another device (or after clearing data) it reinstalls the packages and restores the files. Details in `inicio/README.md`.
+- The `~/files` folder exchanges files with the device: **Upload** puts files in it, **Download** saves files from it.
+- **Save** stores the whole machine (files, installed programs and `~/files`) in the browser, and the next visit resumes from there. **Restart** erases everything and boots fresh.
+- **Memory:** the button switches between 256 MB (default, session can be saved) and **640 MB + swap**: 640 MB RAM, 192 MB zram and 1 GB swap in a file in the site's private storage (OPFS), written in chunks by a worker (`terminal/swap-worker.js`) without going through page RAM. The tab stays under 1 GB. In this mode the session is not saved, because swap restarts on each boot.
+- Extra key bar for the phone keyboard: Esc, Tab, Ctrl, arrows, `|`, `/`, `-`, `~` and Ctrl+C.
 
-### Rede
+### Network
 
-Igual aos outros emuladores de Linux no navegador (como o [copy.sh/v86](https://copy.sh/v86/)), o Linux sai para a internet por um servidor de rede público. Com isso funcionam `apk add` de qualquer pacote do Alpine, `http://`, `https://`, `git clone`, `pip install` e `ssh`.
+Like other in-browser Linux emulators (such as [copy.sh/v86](https://copy.sh/v86/)), Linux reaches the internet through a public network server, so `apk add`, `http://`, `https://`, `git clone`, `pip install` and `ssh` work.
 
-| Opção | Como funciona |
+| Option | How it works |
 |---|---|
-| Rede: wisp (padrão) | Conexões TCP pelo servidor [Wisp](https://github.com/MercuryWorkshop/wisp-protocol) público `wisps://wisp.mercurywork.shop/v86/` (o mesmo que o copy.sh/v86 oferece). Os nomes de sites são resolvidos por DNS-over-HTTPS da Cloudflare. |
-| Rede: relay | Rede completa pelo relay público do v86 (`wss://relay.widgetry.org/`). Use se o wisp estiver fora do ar. |
-| Sem rede | O Linux fica sem internet. |
+| Network: wisp (default) | TCP connections through the public [Wisp](https://github.com/MercuryWorkshop/wisp-protocol) server `wisps://wisp.mercurywork.shop/v86/` (the same one copy.sh/v86 offers). Names are resolved by Cloudflare DNS-over-HTTPS. |
+| Network: relay | Full network through the public v86 relay (`wss://relay.widgetry.org/`). Use it if wisp is down. |
+| No network | Linux stays offline. |
 
-Esses servidores são de terceiros e gratuitos, então podem ficar lentos ou fora do ar. A escolha fica guardada no navegador. Também dá para passar `?rede=wisp`, `?rede=relay`, `?rede=off` ou a URL `wss://`, `wisp://` ou `wisps://` de outro servidor.
+These are free third-party servers and may be slow or down. The choice is stored in the browser. You can also pass `?rede=wisp`, `?rede=relay`, `?rede=off` or a `wss://`, `wisp://` or `wisps://` URL of another server.
 
-### Parâmetros de URL (terminal/)
+### URL parameters (terminal/)
 
-| Parâmetro | Efeito |
+| Parameter | Effect |
 |---|---|
-| `?embed=1` | Esconde a barra do topo (para usar dentro de um iframe no InkDOS) |
-| `?fresh=1` | Ignora o estado salvo e liga do zero |
-| `?font=18` | Muda o tamanho da fonte |
-| `?rede=…` | Escolhe a rede (veja acima) |
-| `?memoria=limitada` | Liga o modo 640 MB + swap (`?memoria=normal` volta para 256 MB) |
+| `?embed=1` | Hides the top bar (for use inside an iframe) |
+| `?fresh=1` | Ignores saved state and boots fresh |
+| `?font=18` | Changes the font size |
+| `?rede=…` | Picks the network (see above) |
+| `?memoria=limitada` | Turns on 640 MB + swap mode (`?memoria=normal` goes back to 256 MB) |
 
-### Usar dentro de outra página
+### Embedding
 
 ```html
 <iframe src="https://inkdoshub.github.io/terminal/?embed=1" style="width:100%;height:100%;border:0"></iframe>
 ```
 
-### Limitações
+### Limitations
 
-- É emulação, então é bem mais lento que um computador de verdade. Instalar Python leva alguns minutos.
-- O sistema fica na memória (256 MB). Programas instalados só continuam lá depois de tocar em **Salvar**.
-- O estado salvo pesa de 20 a 100 MB, conforme o que estiver instalado.
+- It is emulation, so it is much slower than a real computer. Installing Python takes a few minutes.
+- The system lives in memory (256 MB). Installed programs only persist after tapping **Save**.
+- Saved state weighs 20 to 100 MB, depending on what is installed.
 
-### Estrutura
+### Structure
 
-| Caminho | O que é |
+| Path | What it is |
 |---|---|
-| `terminal/index.html`, `app.js`, `style.css` | A página do terminal |
-| `terminal/vendor/v86/` | Emulador v86 0.5.471 (licença BSD-2) |
-| `terminal/vendor/xterm/` | xterm.js 6.0.0 + addon-fit (licença MIT) |
-| `terminal/bios/` | SeaBIOS e VGA BIOS (LGPL-3) |
-| `terminal/images/inkdoshub-bzImage.bin` | Kernel Linux 6.6 com o Alpine embutido (GPL-2 e licenças do Alpine) |
-| `tools/linux/` | Script e configurações para recompilar a imagem |
+| `terminal/index.html`, `app.js`, `style.css` | The terminal page |
+| `terminal/vendor/v86/` | v86 emulator 0.5.471 (BSD-2) |
+| `terminal/vendor/xterm/` | xterm.js 6.0.0 + addon-fit (MIT) |
+| `terminal/bios/` | SeaBIOS and VGA BIOS (LGPL-3) |
+| `terminal/images/inkdoshub-bzImage.bin` | Linux 6.6 kernel with embedded Alpine (GPL-2 and Alpine licenses) |
+| `tools/linux/` | Script and configs to rebuild the image |
 
-### Recompilar a imagem do Linux
+### Rebuilding the Linux image
 
-Precisa de uma máquina Linux (ou um runner de CI) com `gcc make flex bison bc cpio libelf-dev git`:
+Needs a Linux machine (or CI runner) with `gcc make flex bison bc cpio libelf-dev git`:
 
 ```sh
 ./tools/linux/build.sh
 ```
 
-O kernel vem de `torvalds/linux` na tag `v6.6`, sem modificações. O Alpine vem do minirootfs oficial x86 (`alpinelinux/docker-alpine`, branch `v3.22`), com o checksum conferido. Os arquivos próprios do InkDOS Hub ficam em `tools/linux/alpine-overlay/`.
+The kernel comes from `torvalds/linux` at tag `v6.6`, unmodified. Alpine comes from the official x86 minirootfs (`alpinelinux/docker-alpine`, branch `v3.22`), with its checksum verified. InkDOS Hub's own files are in `tools/linux/alpine-overlay/`.
 
-## Assinatura de código
+## Code signing
 
-Os programas para Windows ainda não são assinados (a SignPath Foundation recusou o pedido em 2026-10-29; dá para pedir de novo mais tarde). Até lá, confira o SHA-256 publicado na release. Política: [ASSINATURA.md](ASSINATURA.md).
+The Windows programs are not code-signed yet (SignPath Foundation declined the request on 2026-10-29; it can be requested again later). Until then, check the SHA-256 published in the release. Policy: [ASSINATURA.md](ASSINATURA.md).
