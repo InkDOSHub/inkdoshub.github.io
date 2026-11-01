@@ -36,6 +36,31 @@
   }
   function guardados(m) { var s = {}; if (m) m.grupos.forEach(function (g) { s[g.id] = 1; }); return s; }
 
+  /* Downloads one manifest entry and checks its SHA-256 (4th field) before it is stored, like the Windows app does.
+  A file that does not match (stale CDN copy, broken download, changed in transit) is never stored.
+  Files over 16 MB are checked one at a time, to keep memory low on iPhone. */
+  var filaGrande = Promise.resolve();
+  function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return (b < 16 ? "0" : "") + b.toString(16); }).join(""); }
+  function baixarConferido(a) {
+    function tarefa() {
+      return fetch(chave(a[0]) + "?inkoff=" + a[2], { cache: "reload" }).then(function (r) {
+        if (!r.ok) throw new Error(a[0]);
+        var tipo = r.headers.get("Content-Type");
+        return r.arrayBuffer().then(function (buf) {
+          if (!a[3] || !(crypto.subtle && crypto.subtle.digest)) return buf;
+          return crypto.subtle.digest("SHA-256", buf).then(function (h) {
+            if (hex(h) !== a[3]) throw new Error(a[0] + ": SHA-256 mismatch");
+            return buf;
+          });
+        }).then(function (buf) { return new Response(buf, { headers: tipo ? { "Content-Type": tipo } : {} }); });
+      });
+    }
+    if (a[1] <= 16e6) return tarefa();
+    var p = filaGrande.then(tarefa);
+    filaGrande = p.catch(function () {});
+    return p;
+  }
+
   /* Leaves exactly the "ids" groups (plus the base) in the cache, at the site version. Downloads only what changed. */
   var ocupado = false;
   function sincronizar(ids, progresso) {
@@ -51,19 +76,19 @@
       if (!grupos.some(function (g) { return !base(g); }) && !ids.__base) grupos = [];
       var todos = {}, fila = [], total = 0, feito = 0;
       grupos.forEach(function (g) { g.arquivos.forEach(function (a) { todos[chave(a[0])] = 1; if (antes[a[0]] !== a[2]) { fila.push(a); total += a[1]; } }); });
-      var i = 0;
+      var i = 0, parou = false;
       function proximo() {
-        if (i >= fila.length) return Promise.resolve();
+        if (parou || i >= fila.length) return Promise.resolve();
         var a = fila[i++];
         // "?inkoff=" + file number: a new address for each version, so the GitHub CDN does not serve the old one
-        return fetch(chave(a[0]) + "?inkoff=" + a[2], { cache: "reload" }).then(function (r) {
-          if (!r.ok) throw new Error(a[0]);
+        return baixarConferido(a).then(function (r) {
           return c.put(chave(a[0]), r);
         }).then(function () {
+          if (parou) return;
           feito += a[1];
           if (progresso) progresso(Math.min(99, Math.floor(feito * 100 / Math.max(1, total))));
           return proximo();
-        });
+        }, function (e) { parou = true; throw e; });
       }
       return Promise.all([proximo(), proximo(), proximo(), proximo(), proximo(), proximo()])
         .then(function () { return c.keys(); })
