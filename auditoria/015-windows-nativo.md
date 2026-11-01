@@ -1,64 +1,65 @@
-# 015 · InkDOS Hub nativo para Windows, versão 0.1 (2026-10-30)
+# 015 · Native InkDOS Hub for Windows, version 0.1 (2026-10-30)
 
-Pedido do Paulo: um InkDOS Hub para Windows que gaste menos CPU e memória que o site no navegador, sem o motor
-web do Edge, com Linux e editor de código integrados ao Windows, atualização só do que mudou e downloads
-conferidos e explicados. Ele foi feito depois das correções de hoje (logs 010, 011 e 013) e da revisão (014).
+> Superseded by log 018 (Electron, the same apps as the web). Kept as history.
 
-## Decisão técnica
-Um motor HTML leve (Sciter, Ultralight, litehtml) não roda editor de escritório antigo, VS Code web, BentoPDF nem o Linux v86,
-que são apps web pesados. Recompilar um motor completo não deixaria nada mais leve que o Edge. O ganho real vem de
-trocar cada app web pelo programa nativo:
+Paulo's request: an InkDOS Hub for Windows that uses less CPU and memory than the site in the browser, without the Edge
+web engine, with Linux and a code editor integrated with Windows, updates of only what changed, and downloads
+checked and explained. Done after today's fixes (logs 010, 011 and 013) and the review (014).
 
-| No site (navegador) | No Windows (nativo) | Ganho esperado |
+## Technical decision
+A light HTML engine (Sciter, Ultralight, litehtml) cannot run the old office editor, VS Code web, BentoPDF or v86 Linux,
+which are heavy web apps. Rebuilding a full engine would be no lighter than Edge. The real gain comes from
+replacing each web app with the native program:
+
+| On the site (browser) | On Windows (native) | Expected gain |
 |---|---|---|
-| Linux emulado (v86 em WebAssembly) | Alpine no WSL2 (virtualização do Windows) | Muito grande: CPU quase nativa em vez de emulada |
-| VS Code web | VS Code (padrão) ou Zed (leve) | VS Code: pequeno (também usa Chromium). Zed: grande, nativo em Rust |
-| editor de escritório antigo web | editor de escritório desktop | Moderado |
-| BentoPDF (WebAssembly) | qpdf e Ghostscript | Grande: programas nativos de linha de comando |
-| ffmpeg.wasm | ffmpeg nativo | Grande: várias vezes mais rápido |
-| Tela inicial no navegador (aba do Edge, 150 a 300 MB) | Lançador WinForms (108 KB, cerca de 20 a 30 MB de RAM, CPU zero parado) | Grande |
+| Emulated Linux (v86 in WebAssembly) | Alpine on WSL2 (Windows virtualization) | Very large: near-native CPU instead of emulated |
+| VS Code web | VS Code (default) or Zed (light) | VS Code: small (also Chromium). Zed: large, native Rust |
+| Old office editor, web | Office editor, desktop | Moderate |
+| BentoPDF (WebAssembly) | qpdf and Ghostscript | Large: native command-line programs |
+| ffmpeg.wasm | native ffmpeg | Large: several times faster |
+| Home screen in the browser (Edge tab, 150 to 300 MB) | WinForms launcher (108 KB, about 20 to 30 MB RAM, zero CPU idle) | Large |
 
-Os números de RAM do lançador são estimativas para WinForms com .NET Framework, ainda não medidas num PC. A
-medição real (Gerenciador de Tarefas, com o Hub aberto parado e com cada ferramenta aberta) fica como próximo
-passo no PC do Paulo.
+The launcher RAM numbers are estimates for WinForms on .NET Framework, not yet measured on a PC. The
+real measurement (Task Manager, with the Hub idle and with each tool open) is the next step on Paulo's PC.
 
-## O que foi feito
-- `windows/hub/` (C#, .NET Framework 4.8, que já vem no Windows 10 e 11, sem admin): `Program.cs` (janela),
-  `Ferramentas.cs` (catálogo, download, conferência, instalação), `Textos.cs` (português e inglês).
-  - **Visual do Hub:** barra com "InkDOS Hub" e ☰, blocos das ferramentas, tema claro ou escuro igual ao do
-    Windows. Nada abre caixa de diálogo: os cartões aparecem dentro da própria janela.
-  - **Antes de baixar**, o cartão mostra de onde vem, quem publica, a licença, a versão, o tamanho do download, o
-    espaço no disco (aproximado), o espaço livre no PC, o que a ferramenta acessa, como ela é conferida e o
+## What was done
+- `windows/hub/` (C#, .NET Framework 4.8, built into Windows 10 and 11, no admin): `Program.cs` (window),
+  `Ferramentas.cs` (catalog, download, verification, install), `Textos.cs` (Portuguese and English).
+  - **Hub look:** bar with "InkDOS Hub" and ☰, tool tiles, light or dark theme matching
+    Windows. Nothing opens a dialog box: cards appear inside the window.
+  - **Before downloading**, the card shows where it comes from, the publisher, license, version, download size,
+    disk space (approximate), free space on the PC, what the tool accesses, how it is verified and the
     SHA-256.
-  - **Conferência:** o SHA-256 do arquivo precisa bater com o catálogo. Quando o fabricante assina (Microsoft,
-    Zed Industries, Ascensio/editor de escritório antigo, Artifex/Ghostscript), o Windows confere a assinatura (`WinVerifyTrust`)
-    e o nome de quem assinou precisa ser o esperado. Se falhar, nada é instalado e o motivo aparece na tela.
-  - **Linux:** liga o WSL (pede admin uma vez), importa o Alpine oficial (minirootfs, 3,7 MB) como
-    `InkDOSHub-Alpine`, cria `~/windows` apontando para a pasta do usuário e abre no Windows Terminal, se houver.
-  - **Código:** o VS Code portátil (zip oficial com a pasta `data`) é o padrão. O Zed pode ser escolhido no ☰.
-  - **PDF:** juntar e girar com o qpdf e comprimir com o Ghostscript. **Cortar vídeo:** ffmpeg sem recompactar.
-  - Webcam e Transferir: os apps do próprio Hub, conferidos pelo SHA-256 que a release publica.
-  - "Mais apps" abre o site para o que continua web (fotos, música, gravador, quadro, documentos rápidos).
-  - **☰:** ferramentas guardadas, com tamanho no disco, total e remoção com confirmação na janela; procurar
-    atualizações, que baixa de novo só a ferramenta com versão nova; editor de código; segurança e privacidade.
-  - **Atualização do próprio Hub:** compara o SHA-256 publicado na release `hub-windows`. Se for diferente, uma
-    faixa "Atualização disponível · Atualizar" aparece. O .exe novo só entra se o hash bater.
-- `tools/windows_ferramentas.py` gera `windows/ferramentas.json` a partir das fontes oficiais:
-  - API do VS Code e lista do Alpine, que publicam o SHA-256;
-  - "digest" das releases do GitHub (Zed, editor de escritório antigo, qpdf, Ghostscript, ffmpeg do Gyan Doshi);
-  - `.sha256` das nossas releases.
-  O catálogo vai dentro do .exe e é atualizado pelo site.
-- `.github/workflows/windows-hub.yml`: toda semana e a cada mudança, atualiza o catálogo, compila e publica
-  `InkDOSHub.exe` e o `.sha256` na release `hub-windows`.
-- `windows/index.html`: o link de download entrou na página.
+  - **Verification:** the file SHA-256 must match the catalog. When the vendor signs (Microsoft,
+    Zed Industries, Ascensio, Artifex/Ghostscript), Windows checks the signature (`WinVerifyTrust`)
+    and the signer name must be the expected one. If it fails, nothing is installed and the reason is shown.
+  - **Linux:** enables WSL (asks for admin once), imports the official Alpine (minirootfs, 3.7 MB) as
+    `InkDOSHub-Alpine`, creates `~/windows` pointing to the user folder and opens it in Windows Terminal, if present.
+  - **Code:** portable VS Code (official zip with the `data` folder) is the default. Zed can be chosen in the ☰ menu.
+  - **PDF:** merge and rotate with qpdf, compress with Ghostscript. **Video trim:** ffmpeg without re-encoding.
+  - Webcam and Transfer: the Hub's own apps, verified by the SHA-256 the release publishes.
+  - "More apps" opens the site for what stays web (photos, music, recorder, whiteboard, quick documents).
+  - **☰:** stored tools, with disk size, total and removal with in-window confirmation; check for
+    updates, which re-downloads only the tool with a new version; code editor; security and privacy.
+  - **Hub self-update:** compares the SHA-256 published in the `hub-windows` release. If different, an
+    "Update available · Update" bar appears. The new .exe is only used if the hash matches.
+- `tools/windows_ferramentas.py` builds `windows/ferramentas.json` from the official sources:
+  - VS Code API and Alpine list, which publish SHA-256;
+  - GitHub release "digest" (Zed, office editor, qpdf, Ghostscript, Gyan Doshi's ffmpeg);
+  - `.sha256` of our releases.
+  The catalog ships inside the .exe and is updated from the site.
+- `.github/workflows/windows-hub.yml`: weekly and on every change, updates the catalog, builds and publishes
+  `InkDOSHub.exe` and its `.sha256` to the `hub-windows` release.
+- `windows/index.html`: the download link was added.
 
-## Teste
-- Compilado aqui com o .NET SDK 8 (net48, sem erros nem avisos). O .exe tem 108 KB.
-- O catálogo foi gerado com Alpine, VS Code (364 MB, SHA-256 da Microsoft), Webcam e Transferir. As entradas do
-  GitHub (Zed, editor de escritório antigo, qpdf, Ghostscript, ffmpeg) são preenchidas pela action, que tem acesso à API.
-- Ainda não testado num Windows de verdade. A interface e os instaladores precisam do PC do Paulo.
+## Test
+- Built here with the .NET 8 SDK (net48, no errors or warnings). The .exe is 108 KB.
+- The catalog was generated with Alpine, VS Code (364 MB, Microsoft SHA-256), Webcam and Transfer. GitHub entries
+  (Zed, office editor, qpdf, Ghostscript, ffmpeg) are filled by the action, which has API access.
+- Not yet tested on real Windows. The interface and installers need Paulo's PC.
 
-## Pendências
-- Medir RAM e CPU no PC e registrar aqui.
-- Assinar o `InkDOSHub.exe` quando a SignPath aprovar.
-- OCR (Tesseract) e MuPDF ainda não estão no catálogo.
+## Pending
+- Measure RAM and CPU on the PC and record it here.
+- Sign `InkDOSHub.exe` when SignPath approves.
+- OCR (Tesseract) and MuPDF are not in the catalog yet.

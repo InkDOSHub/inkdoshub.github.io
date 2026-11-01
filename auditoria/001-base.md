@@ -1,35 +1,35 @@
 # 001 · Base (2026-10-29)
 
-**Lido:** `index.html`, `sw-portal.js`, `inicio/` (inicio, lancador, meus-apps, offline, guardada),
-`assets/` (gerenciador-app, sessao, tema, barra, icones, midia, início de idioma), trecho de `terminal/app.js`,
+**Read:** `index.html`, `sw-portal.js`, `inicio/` (inicio, lancador, meus-apps, offline, guardada),
+`assets/` (gerenciador-app, sessao, tema, barra, icones, midia, start of idioma), part of `terminal/app.js`,
 `.github/workflows/`.
 
-## Mudanças feitas
+## Changes made
 
-1. **Código morto removido em `assets/gerenciador-app.js`:** o campo `peso` (memória estimada, nunca usada),
-   `pesoDe`, `InkPaginas.peso`, `window.INK_APPS` e `window.inkGerenciador.aoGuardar` (não fazia nada).
-2. **`terminal/app.js`:** saiu o bloco que registrava `aoGuardar` (nunca era chamado; o comentário dizia o contrário).
-3. **Tela "app guardado" removida** (`inicio/guardada.html` e `.js`): nada abre mais essa página desde que
-   o Hub deixou de descarregar apps; só sobrava uma checagem dela no gerenciador.
-4. **`inicio/lancador.js`:** saiu `window.INK_ROTAS` (ninguém lê).
-5. **Segurança, `inicio/meus-apps.js`:** ao recarregar os webapps por outra aba (evento `storage`), a lista
-   agora passa pelo mesmo filtro `http(s)://` da carga inicial. Antes um valor diferente (ex. `javascript:`)
-   poderia virar link de cartão.
-6. **Comentários errados:** menções ao Wine (que não existe mais) em `lancador.js` e `sessao.js`.
-7. **Versões `?v=` do `gerenciador-app.js` unificadas** em `v=10` nas 17 páginas (estavam entre 7 e 9).
+1. **Dead code removed from `assets/gerenciador-app.js`:** the `peso` field (estimated memory, never used),
+   `pesoDe`, `InkPaginas.peso`, `window.INK_APPS` and `window.inkGerenciador.aoGuardar` (did nothing).
+2. **`terminal/app.js`:** removed the block that registered `aoGuardar` (never called; the comment said otherwise).
+3. **"Stored app" screen removed** (`inicio/guardada.html` and `.js`): nothing opens that page since
+   the Hub stopped unloading apps; only a check for it remained in the manager.
+4. **`inicio/lancador.js`:** removed `window.INK_ROTAS` (nobody reads it).
+5. **Security, `inicio/meus-apps.js`:** when reloading webapps from another tab (`storage` event), the list
+   now goes through the same `http(s)://` filter as the initial load. Before, a different value (e.g. `javascript:`)
+   could become a card link.
+6. **Wrong comments:** mentions of Wine (which no longer exists) in `lancador.js` and `sessao.js`.
+7. **`?v=` versions of `gerenciador-app.js` unified** at `v=10` in the 17 pages (they ranged from 7 to 9).
 
-## Achados sem mudança (baixo ganho ou risco)
+## Findings without change (low gain or risk)
 
-- A função `t()` de reserva (sem `idioma.js`) está copiada em 5 arquivos. Dá para centralizar, mas o ganho é pequeno.
-- `sw-portal.js` tem o `REPARO` de 2026-10-29 (conserto único da cópia offline). Pode sair daqui a algumas
-  semanas, quando todas as cópias tiverem passado por ele.
-- `assets/tema.js` migra chaves antigas `inkterminal-*` e `inicio.js` apaga chaves antigas a cada abertura. Custo quase nulo; podem sair no futuro.
-- `inicio/offline.js`: se a atualização falha no meio, a cópia fica com arquivos novos e velhos misturados até a próxima tentativa
-  (o aviso de atualização continua aparecendo). Aceitável; corrigir exigiria um segundo cache.
-- Actions usam tags (`@v4`) em vez de hash fixo. Comum, mas fixar por hash é mais seguro contra troca de tag.
-- Nenhum envio de dados para fora foi encontrado: os arquivos ficam em IndexedDB/cache do aparelho; `sessao.js`
-  usa AES-GCM com PBKDF2 (310 mil rodadas).
+- The fallback `t()` function (without `idioma.js`) is copied in 5 files. It could be centralized, but the gain is small.
+- `sw-portal.js` has the 2026-10-29 `REPARO` (one-time fix of the offline copy). It can go in a few
+  weeks, once every copy has gone through it.
+- `assets/tema.js` migrates old `inkterminal-*` keys and `inicio.js` deletes old keys on every open. Near-zero cost; can go later.
+- `inicio/offline.js`: if an update fails midway, the copy has new and old files mixed until the next attempt
+  (the update notice keeps showing). Acceptable; fixing it would need a second cache.
+- Actions use tags (`@v4`) instead of a pinned hash. Common, but pinning by hash is safer against tag swaps.
+- No data sent outside was found: files stay in the device IndexedDB/cache; `sessao.js`
+  uses AES-GCM with PBKDF2 (310 thousand rounds).
 
 ## Commit
 
-Ver `git log -- auditoria/001-base.md`.
+See `git log -- auditoria/001-base.md`.

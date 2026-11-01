@@ -1,8 +1,8 @@
-# InkDOS Hub Webcam para Windows (teste)
+# InkDOS Hub Webcam for Windows (test)
 
-App pequeno (.NET Framework 4.8, que já vem no Windows) que transforma a câmera do iPhone em webcam do Windows sem o OBS.
+Small app (.NET Framework 4.8, built into Windows) that turns the iPhone camera into a Windows webcam without OBS.
 
-- **Tela:** nativa, sem WebView2 nem Edge: o QR (gerado em `Qr.cs`), o código, o estado e a escolha de qualidade (720p, 1080p ou 4K, 30 ou 60 fps).
-- **Câmera virtual:** [softcam](https://github.com/tshino/softcam) (MIT, DirectShow), o mesmo tipo de câmera da câmera virtual do OBS. O app registra a `softcam.dll` uma vez, como administrador, com o nome "InkDOS Hub Webcam" e um CLSID próprio.
-- **Caminho da imagem:** o app fala com o servidor do PeerJS e recebe o vídeo com o GStreamer (`Nativo.cs`). Cada quadro decodificado vira BGR e vai para `scSendFrame` (`Program.cs`).
-- **Compilação:** `.github/workflows/webcam-windows.yml` compila o softcam (commit fixado, com o nome e o CLSID trocados) e o app no GitHub Actions e publica `InkDOSHub-Webcam-Windows.zip` na release `webcam-windows`.
+- **Window:** native, no WebView2 or Edge: the QR code (generated in `Qr.cs`), the code, the status and the quality choice (720p, 1080p or 4K, 30 or 60 fps).
+- **Virtual camera:** [softcam](https://github.com/tshino/softcam) (MIT, DirectShow), the same kind of camera as the OBS virtual camera. The app registers `softcam.dll` once, as administrator, with the name "InkDOS Hub Webcam" and its own CLSID.
+- **Video path:** the app talks to the PeerJS server and receives the video with GStreamer (`Nativo.cs`). Each decoded frame becomes BGR and goes to `scSendFrame` (`Program.cs`).
+- **Build:** `.github/workflows/webcam-windows.yml` builds softcam (pinned commit, with the name and CLSID changed) and the app on GitHub Actions and publishes `InkDOSHub-Webcam-Windows.zip` to the `webcam-windows` release.

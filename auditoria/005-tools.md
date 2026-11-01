@@ -1,38 +1,38 @@
-# 005 · tools/ e actions (2026-10-29)
+# 005 · tools/ and actions (2026-10-29)
 
-**Lido:** `tools/portal_manifesto.py` (roda na action com permissão de escrita), `tools/idiomas_textos.py`,
-`tools/build_apps.sh`, `tools/linux/` (build do kernel, `init`, `inksessao`), `tools/README.md`, as 3 actions.
-`tools/inkdos-tools/` é a receita antiga dos visualizadores (repositório apagado em 2026-10-29) e foi só conferida por cima.
+**Read:** `tools/portal_manifesto.py` (runs in the action with write permission), `tools/idiomas_textos.py`,
+`tools/build_apps.sh`, `tools/linux/` (kernel build, `init`, `inksessao`), `tools/README.md`, the 3 actions.
+`tools/inkdos-tools/` is the old viewers recipe (repository deleted on 2026-10-29) and was only skimmed.
 
-## Mudanças feitas
+## Changes made
 
-1. **Referências a coisas que não existem mais:** `idiomas_textos.py` olhava pastas apagadas (`apps/wine/`, `apps/foto/app/`,
-   `coi-serviceworker`, `idiomas-extra`); `portal_manifesto.py` tinha `FORA_PASTAS` vazio com comentário velho; a action do
-   manifesto e as duas do Windows tinham uma condição para o espelho `vfydr2m9wk-ops/*`, que foi arquivado; os textos falavam do
-   botão "Baixar tudo", que hoje se chama "Offline"; `gerenciador-app.js` e `inicio/README.md` apontavam para
-   `tools/adaptar_inkdos.py`, que não existe (o certo é `inkdos/assets/handoff.js`).
-2. **`inksessao` (Linux), segurança:** ao restaurar uma sessão, os nomes de pacote vindos do arquivo iam direto para o
-   `apk add`. Um nome começando com `-` viraria opção do apk (ex.: `--allow-untrusted`). Agora só passam nomes válidos.
-   O arquivo de sessão é da própria pessoa, cifrado com a senha dela, e roda numa máquina virtual no navegador, então o risco era
-   baixo. **Vale só depois de recompilar o Linux** (`tools/linux/build.sh`), porque o script vai dentro da imagem.
-3. **`tools/README.md`:** agora diz que `visualizadores/` é a fonte. A receita em `tools/inkdos-tools/` já não gera os
-   mesmos arquivos (`bento-carry.js` e `docx/viewer.js` foram ajustados direto no site).
-4. `tools/idiomas-textos.json` foi regerado (os caminhos acompanham a mudança do Gravador da parte 2).
+1. **References to things that no longer exist:** `idiomas_textos.py` looked at deleted folders (`apps/wine/`, `apps/foto/app/`,
+   `coi-serviceworker`, `idiomas-extra`); `portal_manifesto.py` had an empty `FORA_PASTAS` with an old comment; the manifest
+   action and both Windows actions had a condition for the `vfydr2m9wk-ops/*` mirror, which was archived; texts mentioned the
+   "Download all" button, now called "Offline"; `gerenciador-app.js` and `inicio/README.md` pointed to
+   `tools/adaptar_inkdos.py`, which does not exist (the right one is `inkdos/assets/handoff.js`).
+2. **`inksessao` (Linux), security:** when restoring a session, package names from the file went straight to
+   `apk add`. A name starting with `-` would become an apk option (e.g. `--allow-untrusted`). Now only valid names pass.
+   The session file belongs to the person, encrypted with their password, and runs in a virtual machine in the browser, so the risk was
+   low. **Only takes effect after rebuilding Linux** (`tools/linux/build.sh`), because the script ships inside the image.
+3. **`tools/README.md`:** now says `visualizadores/` is the source. The recipe in `tools/inkdos-tools/` no longer produces the
+   same files (`bento-carry.js` and `docx/viewer.js` were changed directly in the site).
+4. `tools/idiomas-textos.json` regenerated (paths follow the Recorder move from part 2).
 
-## Achados sem mudança
+## Findings without change
 
-- **Traduções incompletas:** de 508 textos, faltam 243 em cada idioma (146 no português), e 123 a 139 chaves sobram (são textos que não existem mais). Completar custa bastante (7 idiomas) e fica para quando o Paulo quiser.
-- `build_apps.sh` fixa as versões principais, mas não tem lockfile (as dependências das dependências podem mudar) e o
-  `npm i` roda scripts de instalação. Para um build reprodutível: guardar o `package-lock.json` e usar `npm ci --ignore-scripts`.
-  Não mudei porque não dá para testar o build aqui sem gastar muito.
-- `linux/build.sh` confere o Alpine pelo SHA-512 oficial e baixa o kernel por tag. Ok.
-- As actions usam `@v4`/`@v2` (tags), não hash fixo. A publicação nas releases só acontece no `main`.
-- `tools/inkdos-tools/.github/workflows/` não roda (só a pasta `.github` da raiz conta).
+- **Incomplete translations:** of 508 texts, 243 are missing in each language (146 in Portuguese), and 123 to 139 keys are left over (texts that no longer exist). Completing them is costly (7 languages) and waits for Paulo's call.
+- `build_apps.sh` pins the main versions but has no lockfile (transitive dependencies can change) and
+  `npm i` runs install scripts. For a reproducible build: keep `package-lock.json` and use `npm ci --ignore-scripts`.
+  Not changed because the build cannot be tested here cheaply.
+- `linux/build.sh` checks Alpine against the official SHA-512 and downloads the kernel by tag. OK.
+- Actions use `@v4`/`@v2` (tags), not a pinned hash. Publishing to releases only happens on `main`.
+- `tools/inkdos-tools/.github/workflows/` does not run (only the root `.github` folder counts).
 
-## Builds conferidos
+## Builds checked
 
-As actions das partes 3 e 4 rodaram depois do push: `transferir-windows` passou. `webcam-windows` estava rodando quando esta parte começou.
+The part 3 and 4 actions ran after the push: `transferir-windows` passed. `webcam-windows` was running when this part started.
 
 ## Commit
 
-Ver `git log -- auditoria/005-tools.md`.
+See `git log -- auditoria/005-tools.md`.

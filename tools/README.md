@@ -1,13 +1,13 @@
-# Ferramentas de build
+# Build tools
 
-Como recriar cada parte do site. Tudo o que vem de fora tem a origem em `UPSTREAM-SOURCE.txt` na própria pasta.
+How to rebuild each part of the site. Everything from outside has its origin in `UPSTREAM-SOURCE.txt` in its own folder.
 
-| Pasta do site | Como recriar |
+| Site folder | How to rebuild |
 |---|---|
-| `terminal/images/` (Linux) | `tools/linux/build.sh` (kernel 6.6 + Alpine 3.22; arquivos próprios em `tools/linux/alpine-overlay/`) |
+| `terminal/images/` (Linux) | `tools/linux/build.sh` (kernel 6.6 + Alpine 3.22; own files in `tools/linux/alpine-overlay/`) |
 | `apps/video/cortar/ffmpeg-core/`, `apps/quadro/`, `apps/codigo/vscode/` | `tools/build_apps.sh` |
-| `artcraft/` | `.github/workflows/artcraft.yml` (baixa as releases web do WordCraft, GridCraft e DeckCraft) |
-| `inkdos/` | mantido aqui (o repositório do InkDOS foi apagado em 2026-10-29); mudanças em `inkdos/UPSTREAM-SOURCE.txt` |
-| `visualizadores/` (BentoPDF, WebODF, pnk) | receita original em `tools/inkdos-tools/` (`build.py` + `tools.json`, do repositório InkDOS-tools apagado em 2026-10-29); depois do build, `/InkDOS-tools/` foi trocado por `/visualizadores/`. A pasta `visualizadores/` já tem ajustes próprios (ex.: `viewers/bento-carry.js`, `docx/viewer.js`), então ela é a fonte; a receita serve só de referência |
-| `idiomas/*.json` | traduções da interface; `tools/idiomas_textos.py` mostra os textos que faltam em cada pacote |
-| `inicio/manifesto.json` | `tools/portal_manifesto.py` (o workflow faz sozinho a cada push no main) |
+| `artcraft/` | `.github/workflows/artcraft.yml` (downloads the WordCraft, GridCraft and DeckCraft web releases) |
+| `inkdos/` | maintained here (the InkDOS repository was deleted on 2026-10-29); changes in `inkdos/UPSTREAM-SOURCE.txt` |
+| `visualizadores/` (BentoPDF, WebODF, pnk) | original recipe in `tools/inkdos-tools/` (`build.py` + `tools.json`, from the InkDOS-tools repository deleted on 2026-10-29); after the build, `/InkDOS-tools/` was replaced by `/visualizadores/`. `visualizadores/` already has its own changes (e.g. `viewers/bento-carry.js`, `docx/viewer.js`), so it is the source; the recipe is reference only |
+| `idiomas/*.json` | interface translations; `tools/idiomas_textos.py` shows the missing texts in each pack |
+| `inicio/manifesto.json` | `tools/portal_manifesto.py` (the workflow runs it on every push to main) |

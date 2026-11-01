@@ -1,41 +1,41 @@
-# 006 · InkDOS, rodada 1 (2026-10-29)
+# 006 · InkDOS, round 1 (2026-10-29)
 
-**Lido:** `inkdos/shared/` (work-safety, ui-density), `runtime/platform/file-launch.js` dos 6 apps, `apps/pdf/ui/edit-pdf-button.js`,
-`handoff.html` + `assets/handoff.js`, a estrutura de `apps/txt/`. As engines de documentos, planilhas e apresentações ficam para a rodada 2.
+**Read:** `inkdos/shared/` (work-safety, ui-density), `runtime/platform/file-launch.js` of the 6 apps, `apps/pdf/ui/edit-pdf-button.js`,
+`handoff.html` + `assets/handoff.js`, the structure of `apps/txt/`. The document, spreadsheet and presentation engines are left for round 2.
 
-## Mudanças feitas
+## Changes made
 
-1. **`file-launch.js`: de 145 para 46 linhas, igual nos 6 apps.** Saíram o caminho para o antigo editor de escritório do site antigo
-   (`inkdos-tools.github.io`, apagado), a camada em tela cheia que só ele usava, o botão "Editar com editor de escritório antigo" do topo (desligado
-   desde 2026-10-28), a preparação do documento para ele e o `handOff` usado só pelo botão Editar PDF. Fica o que é usado: abrir
-   arquivos, a fila do `launchQueue`, a entrega da tela inicial e o "Editar com editor de escritório antigo" do aviso de visualização, que usa o editor local.
-2. **PDF:** `ui/edit-pdf-button.js` (118 linhas) era carregado em toda abertura, mas o botão não era mais instalado (as ferramentas de PDF ficam no app Editar PDF). Arquivo e `<script>` removidos.
-3. **`inkdos/handoff.html` + `assets/handoff.js` removidos:** só eram usados pelo caminho acima. Além disso, apagavam
-   do banco compartilhado `inkdos-tool-handoff` os documentos com mais de 1 dia, que o antigo editor de escritório guarda por 7 dias para poder recarregar.
-4. **Mesmo problema na tela inicial (`inicio/lancador.js`):** ao entregar um Office ao antigo editor de escritório, também apagava as
-   entregas com mais de 1 dia. Agora `gravar()` recebe o prazo em dias: 7 para o antigo editor de escritório, 1 para as outras.
-5. **Erro 404 em toda abertura de app do InkDOS:** `shared/ui-density.js` registrava `inkdos/service-worker.js`, que nunca
-   foi copiado (a cópia offline é a do Hub). O registro saiu.
-6. **Texto (`apps/txt/`):** a página servida (`index.html`) traz todo o código embutido. As 23 cópias soltas (JS e CSS,
-   cerca de 160 KB) não eram carregadas por nada e já tinham ficado diferentes da versão servida. Foram removidas; a fonte agora é o `index.html`.
-7. `inkdos/UPSTREAM-SOURCE.txt` registra essas mudanças. Comentários de `gerenciador-app.js` e `inicio/README.md` apontam para o leitor certo (a pasta do antigo editor).
+1. **`file-launch.js`: from 145 to 46 lines, identical in the 6 apps.** Removed the path to the old office editor of the old site
+   (`inkdos-tools.github.io`, deleted), the full-screen layer only it used, the top "Edit with old office editor" button (disabled
+   since 2026-10-28), the document preparation for it and the `handOff` used only by the Edit PDF button. What is used stays: opening
+   files, the `launchQueue` queue, the home screen hand-off and the "Edit with old office editor" entry of the viewer notice, which uses the local editor.
+2. **PDF:** `ui/edit-pdf-button.js` (118 lines) was loaded on every open, but the button was no longer installed (PDF tools live in the Edit PDF app). File and `<script>` removed.
+3. **`inkdos/handoff.html` + `assets/handoff.js` removed:** only used by the path above. They also deleted
+   documents older than 1 day from the shared `inkdos-tool-handoff` database, which the old office editor keeps for 7 days so it can reload.
+4. **Same problem on the home screen (`inicio/lancador.js`):** when handing an Office file to the old office editor, it also deleted
+   hand-offs older than 1 day. Now `gravar()` takes the expiry in days: 7 for the old office editor, 1 for the others.
+5. **404 on every InkDOS app open:** `shared/ui-density.js` registered `inkdos/service-worker.js`, which was never
+   copied (the offline copy is the Hub's). The registration was removed.
+6. **Text (`apps/txt/`):** the served page (`index.html`) embeds all the code. The 23 loose copies (JS and CSS,
+   about 160 KB) were loaded by nothing and had already drifted from the served version. Removed; `index.html` is now the source.
+7. `inkdos/UPSTREAM-SOURCE.txt` records these changes. Comments in `gerenciador-app.js` and `inicio/README.md` point to the right reader.
 
-**Teste:** abri os 6 apps do InkDOS, a tela inicial e os apps leves num Chromium sem tela: nenhum erro de JavaScript nem 404. O PDF
-abriu `4-artigo.pdf` normalmente.
+**Test:** opened the 6 InkDOS apps, the home screen and the light apps in a headless Chromium: no JavaScript errors and no 404. PDF
+opened `4-artigo.pdf` normally.
 
-## Segurança conferida (sem mudança)
+## Security checked (no change)
 
-- `shared/work-safety.js` (rascunhos de recuperação): AES-GCM 256 com chave não exportável gerada no navegador, ou, no modo
-  com senha, PBKDF2-SHA-256 com 310 mil rodadas e sal aleatório; IV novo a cada gravação. Correto.
-- As entregas entre páginas usam IndexedDB do próprio site, com id aleatório (`crypto.randomUUID`), e são apagadas depois de lidas.
+- `shared/work-safety.js` (recovery drafts): AES-GCM 256 with a non-exportable key generated in the browser, or, in
+  password mode, PBKDF2-SHA-256 with 310 thousand rounds and a random salt; new IV on every write. Correct.
+- Hand-offs between pages use the site's own IndexedDB, with a random id (`crypto.randomUUID`), and are deleted after being read.
 
-## Achados sem mudança
+## Findings without change
 
-- `jszip.min.js` está copiado em 4 apps, `pako_inflate.min.js` em 3 e `pdf-lib.min.js` (cerca de 500 KB) em 2. Juntar em
-  `inkdos/shared/vendor/` deixaria a cópia offline cerca de 1 MB menor, mas mexe nos 6 apps. Fica como sugestão.
-- `apps/*/ui/zoom-menu.css` é igual em 4 apps (pequeno).
-- Os textos dos apps do InkDOS têm o próprio sistema de idiomas (`shared/localization/`), separado do Hub.
+- `jszip.min.js` is copied in 4 apps, `pako_inflate.min.js` in 3 and `pdf-lib.min.js` (about 500 KB) in 2. Merging them into
+  `inkdos/shared/vendor/` would make the offline copy about 1 MB smaller, but touches the 6 apps. Left as a suggestion.
+- `apps/*/ui/zoom-menu.css` is identical in 4 apps (small).
+- The InkDOS apps have their own language system (`shared/localization/`), separate from the Hub's.
 
 ## Commit
 
-Ver `git log -- auditoria/006-inkdos-rodada1.md`.
+See `git log -- auditoria/006-inkdos-rodada1.md`.

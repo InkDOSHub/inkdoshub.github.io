@@ -1,32 +1,34 @@
-# 017 · Windows sem o Edge (2026-10-30)
+# 017 · Windows without Edge (2026-10-30)
 
-Pedido: no app de Windows, separar o antigo editor de escritório do InkDOS e parar de abrir o Edge e o motor gráfico dele. O Paulo escolheu "tudo nativo, inclusive a Webcam".
+> Superseded by log 018 (Electron, the same apps as the web). Kept as history.
+
+Request: in the Windows app, separate the old office editor from InkDOS and stop opening Edge and its graphics engine. Paulo chose "everything native, including the Webcam".
 
 ## Hub (windows/hub/)
 
-- O editor de escritório antigo tem os próprios ícones (DOCX, XLSX e PPTX), com "editor de escritório antigo" embaixo do nome, como no site.
-- Nenhum app abre o navegador:
+- The old office editor has its own icons (DOCX, XLSX and PPTX), with its name under the app name, as on the site.
+- No app opens the browser:
 
-| App | Antes | Agora |
+| App | Before | Now |
 | --- | --- | --- |
-| PDF e Leitor EPUB | site no navegador | SumatraPDF (GPL-3.0, .zip portátil do site oficial, assinado por Krzysztof Kowalczyk, 8 MB) |
-| Fotos | site | app Fotos do Windows |
-| Música | site | Media Player do Windows |
-| Gravador | site | Gravador de Som do Windows |
-| Documentos, Planilhas e Apresentações do InkDOS, Quadro | site | saíram do app de Windows, porque só existem na web. O editor de escritório antigo cobre os documentos |
+| PDF and EPUB reader | site in the browser | SumatraPDF (GPL-3.0, portable .zip from the official site, signed by Krzysztof Kowalczyk, 8 MB) |
+| Photos | site | Windows Photos app |
+| Music | site | Windows Media Player |
+| Recorder | site | Windows Sound Recorder |
+| InkDOS Documents, Spreadsheets and Presentations, Whiteboard | site | removed from the Windows app, because they only exist on the web. The office editor covers documents |
 
-- A pasta (Abrir arquivo) abre PDF, EPUB, MOBI, CBZ, XPS e DjVu no SumatraPDF.
-- `tools/windows_ferramentas.py`: a entrada `sumatra` lê a versão em `update-check-rel.txt`. O site não publica SHA-256, então o script baixa o .zip e calcula o hash.
-- O navegador só abre quando a pessoa pede, em "Abrir no navegador" ou "Código-fonte".
+- The folder (Open file) opens PDF, EPUB, MOBI, CBZ, XPS and DjVu in SumatraPDF.
+- `tools/windows_ferramentas.py`: the `sumatra` entry reads the version from `update-check-rel.txt`. The site publishes no SHA-256, so the script downloads the .zip and computes the hash.
+- The browser only opens when the person asks, in "Open in browser" or "Source code".
 
 ## Webcam (windows/webcam/)
 
-- O WebView2 saiu. A janela é nativa, com o QR, o código, o estado, "Novo código" e a qualidade.
-- O QR é gerado em `Qr.cs` (modo byte, correção M, versões 1 a 10, algoritmo do Project Nayuki, MIT). Foi conferido com o zbarimg em três tamanhos de texto.
-- O código é guardado no registro (`HKCU\Software\InkDOS Hub Webcam\codigo`).
-- O vídeo já vinha pelo receptor nativo (GStreamer, `Nativo.cs`). Agora ele é o único caminho. Saíram o buffer compartilhado, a fila e a thread de envio da página.
-- A action `webcam-windows.yml` não copia mais as DLLs do WebView2.
+- WebView2 was removed. The window is native, with the QR code, the code, the status, "New code" and quality.
+- The QR code is generated in `Qr.cs` (byte mode, M correction, versions 1 to 10, Project Nayuki algorithm, MIT). Checked with zbarimg at three text sizes.
+- The code is stored in the registry (`HKCU\Software\InkDOS Hub Webcam\codigo`).
+- Video already came through the native receiver (GStreamer, `Nativo.cs`). Now it is the only path. The shared buffer, queue and page send thread were removed.
+- The `webcam-windows.yml` action no longer copies the WebView2 DLLs.
 
-## Falta
+## Pending
 
-- Testar no PC: a janela da Webcam (não roda no Linux, porque precisa do softcam) e os atalhos dos apps do Windows (Fotos, Media Player, Gravador de Som).
+- Test on the PC: the Webcam window (does not run on Linux, needs softcam) and the Windows app shortcuts (Photos, Media Player, Sound Recorder).

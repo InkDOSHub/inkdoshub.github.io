@@ -1,65 +1,65 @@
-# 018 — InkDOS Hub para Windows em Electron (2026-10-30)
+# 018 — InkDOS Hub for Windows on Electron (2026-10-30)
 
-## Por quê
-Os logs 016 e 017 trocaram apps do Hub por programas de terceiros (SumatraPDF, apps do Windows). O pedido era outro: os apps têm de ser **os mesmos da versão web**, sem navegador. Testes no PC do Paulo (i5-1235U, 8 GB), com `windows/teste-desempenho.bat` e `windows/teste-arquivos.bat` (arquivos da release `arquivos-teste`):
+## Why
+Logs 016 and 017 replaced Hub apps with third-party programs (SumatraPDF, Windows apps). The request was different: the apps must be **the same as the web version**, without a browser. Tests on Paulo's PC (i5-1235U, 8 GB), with `windows/teste-desempenho.bat` and `windows/teste-arquivos.bat` (files from the `arquivos-teste` release):
 
-| Motor | Tela inicial (MB) | + 7 apps (MB) | Abrir arquivo complexo (s, média) | Memória do arquivo complexo (MB) |
+| Engine | Home screen (MB) | + 7 apps (MB) | Open complex file (s, average) | Complex file memory (MB) |
 |---|---|---|---|---|
-| Edge | 272 | 953 | 0,78 | 280 |
-| Brave | 235 | 910 | 0,81 | 258 |
-| WebView2 | 172 | 799 | 0,80 | 236 |
-| Electron | — | — | 0,7 (sem o vídeo*) | 260 |
+| Edge | 272 | 953 | 0.78 | 280 |
+| Brave | 235 | 910 | 0.81 | 258 |
+| WebView2 | 172 | 799 | 0.80 | 236 |
+| Electron | — | — | 0.7 (without video*) | 260 |
 
-\* No Electron o vídeo tocou sozinho e a tela não "parou de mudar" até o fim; não é lentidão.
+\* In Electron the video autoplayed and the screen never "stopped changing" until the end; it is not slowness.
 
-Electron e WebView2 empatam, e o Electron não depende do Edge. Escolhido: **Electron oficial, enxuto**.
+Electron and WebView2 tie, and Electron does not depend on Edge. Chosen: **official Electron, trimmed**.
 
-Os testes também acharam um problema do app Texto: um .txt de 20 MB custava ~650 MB em qualquer motor. Corrigido em `inkdos/apps/txt/runtime/platform/texto-grande.js`, que deixa o campo com só uma janela do documento, e agora custa +96 MB.
+The tests also found a Text app problem: a 20 MB .txt cost ~650 MB in any engine. Fixed in `inkdos/apps/txt/runtime/platform/texto-grande.js`, which keeps only a window of the document in the field; it now costs +96 MB.
 
-## Como ficou (`windows/hub/`)
+## Result (`windows/hub/`)
 - `main.js`:
-  - Abre `https://inkdoshub.github.io/` numa janela própria, e cada app abre na sua janela.
-  - Todos os pedidos ao site passam pelo app. O que está guardado abre do disco (`%LOCALAPPDATA%\InkDOS Hub\site`). O resto vem do site e é conferido pelo SHA-256.
+  - Opens `https://inkdoshub.github.io/` in its own window, and each app opens in its own window.
+  - Every request to the site goes through the app. What is stored opens from disk (`%LOCALAPPDATA%\InkDOS Hub\site`). The rest comes from the site and is checked by SHA-256.
 - `preload.js`:
-  - `window.inkHubNativo` liga o "Offline" da tela inicial ao disco. É o mesmo painel com check verde, e `inicio/offline.js` só troca o destino.
-  - Mostra o aviso no app Código para usar o VS Code nativo.
-- `inicio/manifesto.json` agora leva o SHA-256 inteiro de cada arquivo (4º campo).
-- **Webcam:** o ícone baixa o app nativo da Webcam (release webcam-windows, conferido pelo SHA-256) e abre esse app, em vez da página do iPhone.
+  - `window.inkHubNativo` connects the home screen "Offline" to the disk. Same panel with the green check; `inicio/offline.js` only changes the destination.
+  - Shows the notice in the Code app to use native VS Code.
+- `inicio/manifesto.json` now carries the full SHA-256 of each file (4th field).
+- **Webcam:** the icon downloads the native Webcam app (webcam-windows release, verified by SHA-256) and opens it, instead of the iPhone page.
 - **Terminal:**
-  - Com o WSL instalado, o ícone abre o Linux do próprio Windows no Terminal do Windows (`wt.exe wsl.exe`).
-  - Sem o WSL, explica e instala com `wsl --install -d Ubuntu` (pede administrador uma vez). O terminal do site (v86) fica de opção.
-- **Código:**
-  - Com o VS Code instalado, o ícone abre o VS Code nativo, com a telemetria desligada em settings.json se a pessoa ainda não tiver escolhido.
-  - Sem o VS Code, oferece instalar o oficial: o instalador vem da Microsoft, só para a pessoa e sem administrador, e o SHA-256 da API de atualização deles é conferido. O Código do site fica de opção.
-- **Ícones:** cada tipo de arquivo tem o ícone do app que o abre (`windows/hub/tipos/*.ico`).
-- **Abrir arquivos:**
-  - O instalador registra o Hub no "Abrir com" e em Aplicativos padrão para PDF, Office, TXT, EPUB, fotos, vídeo e música (HKCU, sem administrador).
-  - Ao abrir um arquivo, o app certo abre com ele carregado, pelo campo "Abrir" do próprio app (DevTools Protocol, local).
-- **Carcaça atualizável:**
-  - A action numera cada build (0.3.N) e publica `versao.json` com o SHA-256 do instalador.
-  - O app confere 20 s depois de abrir e a cada 6 h. Se houver versão nova, baixa o instalador e confere o SHA-256.
-  - Então mostra "Nova versão do app · Reiniciar" e instala em silêncio (Inno `/VERYSILENT`, sem administrador). Se a pessoa não tocar, instala ao fechar.
-- **Atualização dos apps:** usa o mesmo "Atualização disponível" da tela inicial e baixa só o que mudou. O instalador traz só a carcaça. A action roda toda semana para pegar o Electron novo.
-- **Privacidade:**
-  - Os serviços de fundo do Chromium estão desligados.
-  - A rede só alcança o site e o `0.peerjs.com` (Transferir/Webcam), e todo o resto é bloqueado.
-  - Não há corretor ortográfico, que baixaria dicionários do Google.
-  - Câmera e microfone só valem para o site, e a localização nunca é liberada.
-- **Enxuto (`montar.ps1`):**
-  - Electron oficial conferido pelo SHA-256 deles.
-  - Só o idioma en-US do Chromium (os 7 idiomas do Hub vêm do site).
-  - Sem o app de exemplo e sem SwiftShader/Vulkan.
-- **Instalador (`instalador.iss`):** Inno Setup, sem administrador. Também sai uma versão portátil em .zip.
-- O lançador WinForms (0.1/0.2), o catálogo de ferramentas nativas e o SumatraPDF saíram.
+  - With WSL installed, the icon opens Windows' own Linux in Windows Terminal (`wt.exe wsl.exe`).
+  - Without WSL, it explains and installs with `wsl --install -d Ubuntu` (asks for administrator once). The site terminal (v86) remains an option.
+- **Code:**
+  - With VS Code installed, the icon opens native VS Code, with telemetry turned off in settings.json if the person has not chosen yet.
+  - Without VS Code, it offers to install the official one: the installer comes from Microsoft, per-user, no administrator, and the SHA-256 from their update API is verified. The site Code app remains an option.
+- **Icons:** each file type has the icon of the app that opens it (`windows/hub/tipos/*.ico`).
+- **Opening files:**
+  - The installer registers the Hub in "Open with" and Default apps for PDF, Office, TXT, EPUB, photos, video and music (HKCU, no administrator).
+  - When a file is opened, the right app opens with it loaded, through the app's own "Open" field (DevTools Protocol, local).
+- **Updatable shell:**
+  - The action numbers each build (0.3.N) and publishes `versao.json` with the installer SHA-256.
+  - The app checks 20 s after opening and every 6 h. If there is a new version, it downloads the installer and verifies the SHA-256.
+  - It then shows "New app version · Restart" and installs silently (Inno `/VERYSILENT`, no administrator). If the person does not tap, it installs on close.
+- **App updates:** uses the same home screen "Update available" and downloads only what changed. The installer ships only the shell. The action runs weekly to pick up new Electron releases.
+- **Privacy:**
+  - Chromium background services are off.
+  - The network only reaches the site and `0.peerjs.com` (Transfer/Webcam); everything else is blocked.
+  - No spell checker, which would download dictionaries from Google.
+  - Camera and microphone are only allowed for the site, and location is never allowed.
+- **Trimmed (`montar.ps1`):**
+  - Official Electron verified by their SHA-256.
+  - Only the Chromium en-US locale (the Hub's 7 languages come from the site).
+  - No sample app and no SwiftShader/Vulkan.
+- **Installer (`instalador.iss`):** Inno Setup, no administrator. A portable .zip is also produced.
+- The WinForms launcher (0.1/0.2), the native tools catalog and SumatraPDF were removed.
 
-![Offline no app do Windows](img/018-offline-no-windows.png)
+![Offline in the Windows app](img/018-offline-no-windows.png)
 
-## Testado (Linux, Electron 45.2)
-- A tela inicial abre e guarda sozinha a base. "Documents (InkDOS)" foi guardado em 0,6 s, com check verde e o espaço do PC.
-- Um app abre em janela nova.
-- Sem internet, a tela inicial e o PDF abriram do disco. Um app não guardado mostra como guardá-lo.
-- `fetch` para o Google foi bloqueado, e a página não tem `require` (Node isolado).
+## Tested (Linux, Electron 45.2)
+- The home screen opens and stores the base by itself. "Documents (InkDOS)" was stored in 0.6 s, with the green check and the PC space.
+- An app opens in a new window.
+- Without internet, the home screen and PDF opened from disk. An app that is not stored shows how to store it.
+- `fetch` to Google was blocked, and the page has no `require` (Node isolated).
 
-## Falta
-- Testar no PC com Windows: instalador, memória com vários apps.
-- Assinatura do .exe (SignPath recusou em 2026-10-29).
+## Pending
+- Test on the Windows PC: installer, memory with several apps.
+- Code signing of the .exe (SignPath declined on 2026-10-29).
