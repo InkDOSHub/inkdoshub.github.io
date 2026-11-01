@@ -88,4 +88,9 @@
     var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
     return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0");
   };
+  /* "Open" button of the empty screen (data-abrir): clicks the page's file input, without inline handlers (CSP). */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-abrir]"), a = document.getElementById("abrir");
+    if (b && a) a.click();
+  });
 })();

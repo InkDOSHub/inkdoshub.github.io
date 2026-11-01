@@ -24,6 +24,7 @@ found, what changed and the commit. The git history proves each change.
 | — | Windows on Electron: the same apps as the web, stored on disk, no telemetry | [018-windows-electron.md](018-windows-electron.md) |
 | — | Symbol regression check | [019-symbol-regression.md](019-symbol-regression.md) |
 | — | Repository in English and redundancy check | [020-english-and-redundancy.md](020-english-and-redundancy.md) |
+| — | Integrity: SHA-256 checks and CSP on every page | [021-integrity.md](021-integrity.md) |
 
 ## Summary (2026-10-29)
 
