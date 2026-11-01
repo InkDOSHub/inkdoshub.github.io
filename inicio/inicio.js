@@ -15,16 +15,7 @@
     });
   });
 
-  // Search: filters apps by name, like Launchpad
-  var busca = $("busca");
-  if (busca) busca.addEventListener("input", function () {
-    var q = busca.value.trim().toLowerCase();
-    Array.prototype.forEach.call(document.querySelectorAll(".workspace-card"), function (c) {
-      c.classList.toggle("fora-busca", !!q && c.textContent.toLowerCase().indexOf(q) < 0);
-    });
-  });
-
-  // Menu: closes when tapping outside; "Customize" closes the menu and shows "Done" next to the search
+  // Menu: closes when tapping outside; "Customize" closes the menu and shows "Done" next to the open-file bar
   var menu = $("menu-inicio"), pronto = $("btn-pronto"), editar = $("btn-editar");
   document.addEventListener("click", function (e) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
   editar.addEventListener("click", function () {

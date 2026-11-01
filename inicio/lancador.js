@@ -227,6 +227,14 @@
   if (botao && entrada) {
     botao.addEventListener("click", function () { entrada.value = ""; entrada.click(); });
     entrada.addEventListener("change", function () { abrirArquivos([].slice.call(entrada.files || [])); });
+    // drag and drop onto the bar (computers)
+    ["dragenter", "dragover"].forEach(function (t) { botao.addEventListener(t, function (e) { e.preventDefault(); botao.classList.add("soltar"); }); });
+    botao.addEventListener("dragleave", function () { botao.classList.remove("soltar"); });
+    botao.addEventListener("drop", function (e) {
+      e.preventDefault(); botao.classList.remove("soltar");
+      var f = [].slice.call(e.dataTransfer && e.dataTransfer.files || []);
+      if (f.length) abrirArquivos(f);
+    });
   }
 
   window.InkLancador = { rotaDe: rotaDe, abrirArquivos: abrirArquivos };

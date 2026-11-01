@@ -27,8 +27,14 @@ svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-l
 .icone-btn::-webkit-details-marker{display:none}
 .icone-btn:hover,.menu-inicio[open]>.icone-btn{background:var(--hover);color:var(--text)}
 .icone-btn svg{width:20px;height:20px}
-.busca{flex:1 1 auto;min-width:0;font:inherit;font-size:14px;padding:7px 12px;border:0;border-radius:8px;background:var(--hover);color:var(--text)}
-.busca:focus{outline:3px solid var(--accent-soft);outline-offset:0}
+.abrir-faixa{flex:1 1 auto;min-width:0;height:48px;display:flex;align-items:center;gap:10px;padding:0 16px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--muted);font:inherit;font-size:16px;text-align:left;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:background .15s,border-color .15s}
+.abrir-faixa svg{width:22px;height:22px;flex:none;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linejoin:round}
+.abrir-faixa span{color:var(--text);font-weight:500}
+.abrir-faixa small{margin-left:auto;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.abrir-faixa:hover,.abrir-faixa.soltar{background:var(--hover)}
+.abrir-faixa.soltar{border-color:var(--accent);border-style:dashed}
+@media (hover:none){.abrir-faixa small{display:none}}
+.abrir-faixa:focus-visible{outline:3px solid var(--accent-soft);outline-offset:0}
 
 /* Menu ☰ */
 .menu-inicio{position:relative}
