@@ -25,6 +25,7 @@ found, what changed and the commit. The git history proves each change.
 | — | Symbol regression check | [019-symbol-regression.md](019-symbol-regression.md) |
 | — | Repository in English and redundancy check | [020-english-and-redundancy.md](020-english-and-redundancy.md) |
 | — | Integrity: SHA-256 checks and CSP on every page | [021-integrity.md](021-integrity.md) |
+| — | App isolation (sandbox per app) | [022-app-isolation.md](022-app-isolation.md) |
 
 ## Summary (2026-10-29)
 
