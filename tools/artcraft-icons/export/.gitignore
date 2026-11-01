@@ -1,0 +1,7 @@
+target/
+out/
+src/wc/
+src/gc/
+src/dcm/
+src/main.rs
+Cargo.lock
