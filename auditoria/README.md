@@ -23,6 +23,7 @@ encontrado, o que mudou e o commit. O histórico do git prova cada mudança.
 | — | Windows 0.2 com o visual do Hub e o check verde | [016-windows-visual-do-hub.md](016-windows-visual-do-hub.md) |
 | — | Windows sem o Edge: apps nativos e Webcam sem WebView2 | [017-windows-sem-edge.md](017-windows-sem-edge.md) |
 | — | Windows em Electron: os mesmos apps da web, guardados no disco, sem telemetria | [018-windows-electron.md](018-windows-electron.md) |
+| — | Symbol regression check | [019-symbol-regression.md](019-symbol-regression.md) |
 
 
 ## Resumo (2026-10-29)
