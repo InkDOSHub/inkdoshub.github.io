@@ -1,14 +1,14 @@
-// Editor de vídeo simples, como o da Fotos do iPhone: escolher o trecho, tirar ou deixar o som e
-// exportar no original (só corta, rápido) ou em 1080p, 720p ou 480p. O resultado vira um vídeo novo
-// na lista do Vídeo. "Só o som" guarda só o áudio (.m4a) na lista da Música (por exemplo, o som de
-// uma gravação de tela). O vídeo chega pelo ?id= (o "Editar" do player).
+// Simple video editor, like the iPhone Photos one: pick the segment, remove or keep the sound and
+// export at original (trim only, fast) or 1080p, 720p or 480p. The result becomes a new video
+// in the Video list. "Sound only" stores just the audio (.m4a) in the Music list (for example, the sound of
+// a screen recording). The video arrives via ?id= (the player's "Edit").
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var t = InkIdioma.t;
   var video = $("video"), faixa = $("faixa"), bib = InkBiblioteca("inkdoshub-video");
   var item = null, dur = 0, ini = 0, fim = 0, som = "com", altura = 0, url = null;
-  var MIN = 0.5; // trecho mínimo, em segundos
+  var MIN = 0.5; // minimum segment, in seconds
 
   function hms(s) {
     s = Math.max(0, s);
@@ -46,9 +46,9 @@
     v.addEventListener("loadeddata", proximo, { once: true });
   }
 
-  /* ---------- Arrastar as alças ---------- */
-  /* Prévia ao arrastar: mostra o quadro do ponto (fastSeek no Safari, um pulo por vez para não
-     acumular pedidos) e, ao soltar, toca dali: do início, ou os últimos segundos até o fim. */
+  /* ---------- Dragging the handles ---------- */
+  /* Preview while dragging: shows the frame at that point (fastSeek in Safari, one jump at a time so
+     requests do not pile up) and, on release, plays from there: from the start, or the last seconds up to the end. */
   var alvo = null, buscando = false;
   function pular(t) {
     alvo = t;
@@ -88,7 +88,7 @@
   }
   arrastar($("alca-ini"), "ini");
   arrastar($("alca-fim"), "fim");
-  // toque no meio da faixa: vai para aquele ponto do trecho
+  // tap in the middle of the strip: goes to that point of the segment
   faixa.addEventListener("pointerdown", function (e) {
     if (e.target.classList.contains("alca")) return;
     var r = faixa.getBoundingClientRect(), t = (e.clientX - r.left) / r.width * dur;
@@ -96,7 +96,7 @@
     desenhar();
   });
 
-  /* ---------- Tocar só o trecho ---------- */
+  /* ---------- Play only the segment ---------- */
   $("tocar").onclick = function () {
     if (video.paused) {
       if (video.currentTime < ini || video.currentTime >= fim - 0.05) video.currentTime = ini;
@@ -163,7 +163,7 @@
       ]);
     });
   }
-  // só o som: vai para a lista da Música
+  // sound only: goes to the Music list
   function guardarSom(blob, ext) {
     var arq = new File([blob], item.nome.replace(/\.[^.]+$/, "") + ext, { type: blob.type });
     InkBiblioteca("inkdoshub-musica").adicionar([arq]).then(function (novos) {
@@ -175,7 +175,7 @@
     });
   }
 
-  /* ---------- Abrir o vídeo ---------- */
+  /* ---------- Open the video ---------- */
   $("nome").textContent = t("Edit");
   var id = +new URLSearchParams(location.search).get("id");
   bib.listar().then(function (lst) {

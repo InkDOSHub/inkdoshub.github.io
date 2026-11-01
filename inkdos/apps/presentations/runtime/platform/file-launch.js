@@ -19,7 +19,7 @@ function toInkDOSHub(it,file,win){
  const LOCALE={pt:'pt',es:'es',de:'de',ja:'ja',zh:'zh-CN',fr:'fr',ru:'ru'}[lang.toLowerCase().split('-')[0]];
  return file.arrayBuffer().then(bytes=>new Promise((resolve,reject)=>{const req=g.indexedDB.open('inkdos-tool-handoff',1);req.onupgradeneeded=()=>req.result.createObjectStore('files');req.onerror=()=>reject(req.error);
   req.onsuccess=()=>{const db=req.result,tx=db.transaction('files','readwrite'),st=tx.objectStore('files');st.put({bytes,type:file.type||'',name:file.name,at:Date.now()},id);
-  /* documentos passados ao editor há mais de 7 dias */const c=st.openCursor();c.onsuccess=()=>{const k=c.result;if(!k)return;if(k.key!==id&&Date.now()-(k.value?.at||0)>7*864e5)k.delete();k.continue()};tx.oncomplete=()=>{db.close();resolve()};tx.onerror=tx.onabort=()=>reject(tx.error)}}))
+  /* documents handed to the editor more than 7 days ago */const c=st.openCursor();c.onsuccess=()=>{const k=c.result;if(!k)return;if(k.key!==id&&Date.now()-(k.value?.at||0)>7*864e5)k.delete();k.continue()};tx.oncomplete=()=>{db.close();resolve()};tx.onerror=tx.onabort=()=>reject(tx.error)}}))
   .then(()=>{it.abrirEditor({id,nome:file.name,locale:LOCALE||''},win);return true});
 }
 function openInOffice(file,win){

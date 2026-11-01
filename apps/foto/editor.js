@@ -1,11 +1,11 @@
-// Editor de fotos do InkDOS Hub: o básico de um editor de celular, feito aqui.
-// Recortar (com proporções), girar 90°, espelhar, endireitar e ajustes de luz e cor.
-// Não tem camadas: a foto original fica como está e "Save copy" grava uma cópia nova.
+// InkDOS Hub photo editor: the basics of a phone editor, made here.
+// Crop (with ratios), rotate 90°, flip, straighten and light and color adjustments.
+// No layers: the original photo stays as is and "Save copy" writes a new copy.
 //
-// Prévia: uma cópia reduzida da foto (até 1600 px) é desenhada a cada mudança.
-// Cópia final: a foto inteira é desenhada de novo (até 16 megapixels, o limite de canvas do Safari).
-// Cor: exposição, brilho, contraste, calor e tom viram uma tabela por canal (LUT); a saturação
-// mistura cada pixel com o cinza dele.
+// Preview: a reduced copy of the photo (up to 1600 px) is drawn on every change.
+// Final copy: the full photo is drawn again (up to 16 megapixels, Safari's canvas limit).
+// Color: exposure, brightness, contrast, warmth and tint become a per-channel table (LUT); saturation
+// mixes each pixel with its gray.
 (function () {
   "use strict";
   var t = window.InkIdioma ? InkIdioma.t : function (s) { return s; };
@@ -39,14 +39,14 @@
 
   /* ---------- geometria ---------- */
 
-  // tamanho da foto depois dos giros de 90°
+  // photo size after the 90° rotations
   function orientado(w, h) { return estado.giro % 180 ? { w: h, h: w } : { w: w, h: h }; }
-  // quanto ampliar ao endireitar para não aparecer canto vazio
+  // how much to zoom when straightening so no empty corner shows
   function ampliacao(w, h) {
     var a = Math.abs(estado.endireitar) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
     return Math.max((w * c + h * s) / w, (w * s + h * c) / h);
   }
-  /* Desenha a foto (fonte de tamanho fw×fh) no canvas, com recorte opcional, na escala k. */
+  /* Draws the photo (source of size fw×fh) on the canvas, with optional crop, at scale k. */
   function desenhar(fonte, fw, fh, k, comRecorte) {
     var o = orientado(fw, fh), r = comRecorte ? estado.recorte : { x: 0, y: 0, w: 1, h: 1 };
     var cw = Math.max(1, Math.round(r.w * o.w * k)), ch = Math.max(1, Math.round(r.h * o.h * k));
@@ -71,9 +71,9 @@
   function temCor() { return AJUSTES.some(function (a) { return estado[a.id] !== 0; }); }
   function tabelas() {
     var ex = Math.pow(2, estado.exposicao / 50);         // ±2 pontos de luz
-    var br = estado.brilho / 100 * 0.35;                 // soma até ±35%
+    var br = estado.brilho / 100 * 0.35;                 // adds up to ±35%
     var ct = 1 + estado.contraste / 100 * (estado.contraste > 0 ? 1 : 0.7);
-    // calor: mais vermelho e menos azul; tom: positivo puxa para o magenta, negativo para o verde
+    // warmth: more red and less blue; tint: positive pulls toward magenta, negative toward green
     var q = estado.calor / 100 * 0.12, tm = estado.tom / 100 * 0.1;
     var mult = [(1 + q) * (1 + tm / 2), 1 - tm, (1 - q) * (1 + tm / 2)];
     var L = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)];
@@ -163,7 +163,7 @@
     $("fe-aba-ajustar").onclick = function () { aba = "ajustar"; controles(); pedirDesenho(); };
     $("fe-aba-recortar").onclick = function () { aba = "recortar"; controles(); pedirDesenho(); };
     $("fe-girar").onclick = function () {
-      // gira a foto e o recorte juntos, 90° para a esquerda
+      // rotates the photo and the crop together, 90° to the left
       var r = estado.recorte;
       estado.recorte = { x: r.y, y: 1 - r.x - r.w, w: r.h, h: r.w };
       estado.giro = (estado.giro + 270) % 360;
@@ -205,7 +205,7 @@
     if (!p || p.id === "livre") return 0;
     var o = orientado(img.naturalWidth, img.naturalHeight);
     if (p.id === "original") return o.w / o.h;
-    // segue a orientação da foto (deitada ou em pé)
+    // follows the photo orientation (landscape or portrait)
     return o.w >= o.h ? p.r : 1 / p.r;
   }
   function escolherProporcao(id) {
@@ -214,7 +214,7 @@
     controles();
     pedirDesenho();
   }
-  // encaixa o recorte na proporção escolhida, centrado no recorte atual
+  // fits the crop to the chosen ratio, centered on the current crop
   function ajustarRecorte() {
     var alvo = razaoAlvo();
     if (!alvo) return;
@@ -256,7 +256,7 @@
         if (c.indexOf("s") >= 0) y2 = Math.max(Math.min(1, y2 + dy), y1 + MIN);
         var alvo = razaoAlvo();
         if (alvo) {
-          // mantém a proporção: a altura segue a largura, presa pelo canto oposto
+          // keeps the ratio: height follows width, anchored at the opposite corner
           var o = orientado(img.naturalWidth, img.naturalHeight);
           var w = (x2 - x1) * o.w, h = w / alvo, hn = h / o.h;
           if (c.indexOf("n") >= 0) { y1 = y2 - hn; if (y1 < 0) { y1 = 0; hn = y2; x1 = c.indexOf("w") >= 0 ? x2 - hn * o.h * alvo / o.w : x1; x2 = c.indexOf("e") >= 0 ? x1 + hn * o.h * alvo / o.w : x2; } }
@@ -282,12 +282,12 @@
   function desenharPrevia() {
     if (!img) return;
     controles();
-    var recortar = aba !== "recortar"; // no modo recorte a foto inteira aparece, com a moldura por cima
+    var recortar = aba !== "recortar"; // in crop mode the whole photo shows, with the frame on top
     var c = aplicarCor(desenhar(previa, previa.width, previa.height, 1, recortar));
     var tela = $("fe-tela"), palco = $("fe-palco");
     tela.width = c.width; tela.height = c.height;
     tela.getContext("2d").drawImage(c, 0, 0);
-    // cabe no palco, sem passar do tamanho da prévia
+    // fits the stage, without exceeding the preview size
     var k = Math.min((palco.clientWidth - 24) / c.width, (palco.clientHeight - 24) / c.height);
     var m = $("fe-moldura");
     m.style.width = Math.max(1, Math.floor(c.width * k)) + "px";

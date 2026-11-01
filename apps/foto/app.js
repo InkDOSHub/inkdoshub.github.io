@@ -1,9 +1,9 @@
-// Fotos do InkDOS Hub: visualizador com <img> nativo (zoom, giro, lista) e
-// edição como segunda opção, no editor simples daqui (editor.js), que devolve uma cópia nova.
+// InkDOS Hub Photos: viewer with a native <img> (zoom, rotate, list) and
+// editing as a second option, in the simple editor here (editor.js), which returns a new copy.
 const $ = (id) => document.getElementById(id);
 const t = InkIdioma.t;
 const bib = InkBiblioteca("inkdoshub-fotos");
-let fotos = [], atual = -1, urls = new Map(), zoom = 0, giro = 0; // zoom 0 = ajustar à tela
+let fotos = [], atual = -1, urls = new Map(), zoom = 0, giro = 0; // zoom 0 = fit to screen
 
 const urlDe = (f) => { if (!urls.has(f.id)) urls.set(f.id, URL.createObjectURL(f.blob)); return urls.get(f.id); };
 function soltar(f) { const u = urls.get(f.id); if (u) { URL.revokeObjectURL(u); urls.delete(f.id); } }
@@ -64,12 +64,12 @@ function mudarZoom(fator, cx, cy) {
   v.scrollTop = ry * v.scrollHeight - (cy ?? v.clientHeight / 2);
 }
 $("ver").addEventListener("dblclick", (e) => { if (zoom === 0) { const r = $("ver").getBoundingClientRect(); zoom = 0; mudarZoom(1 / escalaAjustada(), e.clientX - r.left, e.clientY - r.top); } else { zoom = 0; aplicar(); } });
-// pinça no iPad (eventos de gesto do Safari) e Ctrl+roda no computador
+// pinch on iPad (Safari gesture events) and Ctrl+wheel on the computer
 let base = 1;
 $("ver").addEventListener("gesturestart", (e) => { e.preventDefault(); base = zoom || escalaAjustada(); });
 $("ver").addEventListener("gesturechange", (e) => { e.preventDefault(); const alvo = base * e.scale, agora = zoom || escalaAjustada(); mudarZoom(alvo / agora); });
 $("ver").addEventListener("wheel", (e) => { if (!e.ctrlKey) return; e.preventDefault(); mudarZoom(e.deltaY < 0 ? 1.1 : 1 / 1.1); }, { passive: false });
-// deslizar para o lado troca de foto (só quando a foto está ajustada à tela)
+// swiping sideways changes photo (only when the photo is fitted to the screen)
 let toque = null;
 $("ver").addEventListener("touchstart", (e) => { toque = e.touches.length === 1 && zoom === 0 ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, { passive: true });
 $("ver").addEventListener("touchend", (e) => {
@@ -115,7 +115,7 @@ $("partilhar").onclick = async () => {
   inkPartilhar(new File([f.blob], f.nome, { type: f.tipo || f.blob.type }));
 };
 
-// ---- Edição (editor.js) ----
+// ---- Editing (editor.js) ----
 $("editar").onclick = () => {
   const orig = fotos[atual];
   if (!orig) return;

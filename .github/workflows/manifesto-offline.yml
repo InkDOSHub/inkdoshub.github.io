@@ -1,6 +1,6 @@
-name: Atualizar lista da cópia offline
-# Recria inicio/manifesto.json (a lista que o botão "Offline" da tela inicial usa)
-# sempre que algum arquivo do site muda no main.
+name: Update offline copy list
+# Rebuilds inicio/manifesto.json (the list used by the home screen "Offline" button)
+# whenever a site file changes on main.
 on:
   push:
     branches: [main]
@@ -17,12 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 tools/portal_manifesto.py
-      - name: Gravar se mudou
+      - name: Commit if changed
         run: |
-          if git diff --quiet -- inicio/manifesto.json; then echo "sem mudanças"; exit 0; fi
+          if git diff --quiet -- inicio/manifesto.json; then echo "no changes"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add inicio/manifesto.json
-          git commit -m "Atualiza a lista da cópia offline"
+          git commit -m "Update offline copy list"
           for i in 1 2 3; do git pull --rebase -q origin main && git push && exit 0; sleep 5; done
           exit 1

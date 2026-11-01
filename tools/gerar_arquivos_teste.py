@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Gera os arquivos de teste de desempenho do InkDOS Hub: um simples, um médio e um complexo para cada app.
+"""Builds the InkDOS Hub performance test files: a simple, a medium and a complex one for each app.
 
-Saída em testes/arquivos/<nível>/ (fora do git). A action arquivos-teste.yml gera os três níveis e publica na
-release "arquivos-teste", de onde o windows/teste-arquivos.bat baixa (assim o clone do repositório não cresce). Os arquivos são sintéticos, mas com a estrutura
-de arquivos reais (texto, tabelas, imagens, fórmulas, capítulos), e saem sempre iguais (semente fixa).
+Output in testes/arquivos/<level>/ (outside git). The arquivos-teste.yml action builds the three levels and publishes them to the
+"arquivos-teste" release, from where windows/teste-arquivos.bat downloads them (so the repository clone does not grow). The files are synthetic, but with the structure
+of real files (text, tables, images, formulas, chapters), and always come out the same (fixed seed).
 Precisa de: python-docx, openpyxl, python-pptx, reportlab, Pillow e ffmpeg (libx264, libmp3lame).
 Uso: python3 tools/gerar_arquivos_teste.py [simples|medio|complexo ...]
 """
@@ -12,7 +12,7 @@ import io, json, os, random, subprocess, sys, zipfile
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAIDA = os.path.join(RAIZ, "testes", "arquivos")
 NIVEIS = {
-    #            páginas PDF, págs. DOCX, linhas XLSX, slides, KB de texto, capítulos EPUB, foto (px), vídeo, música (s), linhas de código, formas do quadro
+    #            PDF pages, DOCX pages, XLSX rows, slides, KB of text, EPUB chapters, photo (px), video, music (s), lines of code, whiteboard shapes
     "simples":  dict(pdf=1,   docx=1,   xlsx=50,     pptx=3,  txt=2,     epub=3,   foto=(1600, 1200), video=("1280x720", 10, "2M"),   musica=30,   codigo=200,    quadro=10),
     "medio":    dict(pdf=30,  docx=15,  xlsx=5000,   pptx=20, txt=500,   epub=30,  foto=(4032, 3024), video=("1920x1080", 30, "8M"),  musica=240,  codigo=5000,   quadro=500),
     "complexo": dict(pdf=300, docx=120, xlsx=100000, pptx=80, txt=20000, epub=300, foto=(8064, 6048), video=("3840x2160", 30, "25M"), musica=3600, codigo=100000, quadro=5000),
@@ -33,7 +33,7 @@ def paragrafo(r, n=None):
 
 
 def foto(r, w, h, nome=None):
-    """Imagem com gradiente, formas e ruído: comprime como uma foto, não como um desenho liso."""
+    """Image with gradient, shapes and noise: compresses like a photo, not like a flat drawing."""
     from PIL import Image, ImageDraw, ImageFilter
     base = Image.linear_gradient("L").resize((w, h)).convert("RGB")
     d = ImageDraw.Draw(base)
@@ -172,7 +172,7 @@ def gerar_txt(r, kb, arq):
 def gerar_epub(r, n, arq):
     img = jpg_bytes(r, 1000, 700) if n > 3 else None
     with zipfile.ZipFile(arq, "w") as z:
-        z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip")  # sem compressão, primeiro arquivo
+        z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip")  # uncompressed, first file
         z.writestr("META-INF/container.xml", '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>', zipfile.ZIP_DEFLATED)
         itens, ordem, nav = [], [], []
         if img:
@@ -200,7 +200,7 @@ def ffmpeg(*args):
 
 
 def gerar_video(tam, seg, taxa, arq):
-    # imagem que muda o tempo todo (como uma câmera), H.264 com som AAC, igual a um vídeo de celular
+    # image that changes all the time (like a camera), H.264 with AAC sound, like a phone video
     ffmpeg("-f", "lavfi", "-i", "testsrc2=size=%s:rate=30" % tam, "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
            "-vf", "noise=alls=12:allf=t", "-t", str(seg), "-c:v", "libx264", "-preset", "veryfast", "-b:v", taxa, "-maxrate", taxa, "-bufsize", taxa,
            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", arq)

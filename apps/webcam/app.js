@@ -1,12 +1,12 @@
-/* Webcam do InkDOS Hub (versão de teste).
+/* InkDOS Hub Webcam (test version).
 
-   O iPhone (Host) manda a câmera para o PC (Guest) por WebRTC, direto de um aparelho para o outro.
-   O pareamento usa o servidor público do PeerJS (lib/peerjs.min.js): o Guest se registra como
-   "inkdoshub-webcam-<código>" e mostra um QR code com ?host=<código>; o Host liga para ele.
-   No PC, a imagem vira webcam do Windows pelo OBS (fonte de navegador com ?guest=<código>&obs=1 e
-   "Iniciar câmera virtual").
+   The iPhone (Host) sends the camera to the PC (Guest) over WebRTC, directly from one device to the other.
+   Pairing uses the public PeerJS server (lib/peerjs.min.js): the Guest registers as
+   "inkdoshub-webcam-<code>" and shows a QR code with ?host=<code>; the Host calls it.
+   On the PC, the image becomes a Windows webcam through OBS (browser source with ?guest=<code>&obs=1 and
+   "Start virtual camera").
 
-   Endereços: ?host=<código> abre o Host; ?guest=<código> abre o Guest com esse código; &obs=1 mostra só
+   Addresses: ?host=<code> opens the Host; ?guest=<code> opens the Guest with that code; &obs=1 shows only
    a imagem. */
 (function () {
   "use strict";
@@ -28,13 +28,13 @@
     "720p30": { w: 1280, h: 720, fps: 30, bps: 4e6 },
   };
   var q = new URLSearchParams(location.search);
-  // window.obsstudio existe dentro da fonte de navegador do OBS: lá mostra só a imagem, mesmo sem &obs=1
-  // app de Windows (windows/webcam/): a página roda dentro dele, num WebView2
+  // window.obsstudio exists inside the OBS browser source: there it shows only the image, even without &obs=1
+  // Windows app (windows/webcam/): the page runs inside it, in a WebView2
   var app = !!(window.chrome && window.chrome.webview);
   var obs = q.get("obs") === "1" || !!window.obsstudio || app;
   if (obs) document.body.classList.add("obs");
   if (app) document.body.classList.add("app-webcam");
-  // app de Windows (sempre no receptor nativo): o próprio app recebe o vídeo (GStreamer); a página só mostra o QR e o estado
+  // Windows app (always the native receiver): the app itself receives the video (GStreamer); the page only shows the QR code and the status
   var nativo = app && q.get("nativo") === "1";
   if (nativo) document.body.classList.add("nativo");
 
@@ -75,7 +75,7 @@
       if (m && codec && m[2].toUpperCase() === codec) escolhidos.push(m[1]);
     }
     if (codec === "H264") {
-      // primeiro o perfil High com packetization-mode=1, que dá mais qualidade por bit
+      // first the High profile with packetization-mode=1, which gives more quality per bit
       var nota = function (pt) {
         var p = fmtp[pt] || "";
         return (/packetization-mode=1/.test(p) ? 2 : 0) + (/profile-level-id=64/i.test(p) ? 1 : 0);
@@ -93,12 +93,12 @@
     }
     if (bps) {
       for (i = fim - 1; i > ini; i--) if (/^b=(AS|TIAS):/.test(linhas[i])) { linhas.splice(i, 1); fim--; }
-      // b= vem logo depois de c= (ou da linha m=)
+      // b= comes right after c= (or the m= line)
       var pos = ini + 1;
       for (i = ini + 1; i < fim; i++) if (linhas[i].indexOf("c=") === 0) { pos = i + 1; break; }
       linhas.splice(pos, 0, "b=AS:" + Math.round(bps / 1000), "b=TIAS:" + Math.round(bps));
       fim += 2;
-      // o WebRTC começa em ~300 kbps e sobe aos poucos; isto faz começar perto da qualidade pedida
+      // WebRTC starts at ~300 kbps and ramps up slowly; this makes it start close to the requested quality
       var inicio = "x-google-start-bitrate=" + Math.round(bps / 2000) + ";x-google-max-bitrate=" + Math.round(bps / 1000);
       linhas[ini].split(" ").slice(3).forEach(function (pt) {
         var achou = false;
@@ -114,7 +114,7 @@
     return linhas.join("\r\n");
   }
 
-  /* ---------- Estatísticas ---------- */
+  /* ---------- Statistics ---------- */
   function lerStats(pc, tipo, ant, cb) {
     pc.getStats().then(function (r) {
       var rtp = null, codec = "", par = null, tipos = {};
@@ -142,7 +142,7 @@
   function guest(codigo) {
     mostrar("guest");
     codigo = limpo(codigo);
-    if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = limpo(ler(CHAVE_CODIGO)); // o app de Windows abre sem código: usa o salvo
+    if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = limpo(ler(CHAVE_CODIGO)); // the Windows app opens without a code: use the saved one
     if (!/^[a-z0-9]{10}$/.test(codigo)) codigo = novoCodigo();
     gravar(CHAVE_CODIGO, codigo);
     if (q.get("guest") !== codigo) history.replaceState(null, "", "?guest=" + codigo + (obs ? "&obs=1" : "") + (nativo ? "&nativo=1" : ""));
@@ -156,8 +156,8 @@
     $("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
     function estado(s) { $("gestado").textContent = s; }
     var bomba = app && !nativo ? bombaApp(video, function () { return formato; }, pedirQualidade) : null;
-    /* App de Windows: pede ao iPhone a mesma resolução e fps da câmera escolhida no app, para o quadro
-       chegar já no tamanho certo e ir pelo caminho rápido (sem redimensionar). */
+    /* Windows app: asks the iPhone for the same resolution and fps as the camera chosen in the app, so the frame
+       arrives at the right size and takes the fast path (no resizing). */
     function pedirQualidade() {
       var alvo = bomba && bomba.alvo();
       if (alvo) avisarHost({ type: "inkdoshub-quality", w: alvo.w, h: alvo.h, fps: alvo.fps });
@@ -204,8 +204,8 @@
       peer.on("call", receber);
     }
 
-    // Safari/WebKit pode receber e decodificar frames WebRTC sem iniciar o elemento <video>.
-    // Reassocia o MediaStream e tenta reproduzir nos eventos de mídia, não só uma vez.
+    // Safari/WebKit can receive and decode WebRTC frames without starting the <video> element.
+    // Reattach the MediaStream and try to play on media events, not just once.
     function ligarVideo(stream, reiniciar) {
       video.autoplay = true;
       video.muted = true;
@@ -233,14 +233,14 @@
     }
 
     function receber(c) {
-      // Um peer ID público não autentica o chamador: rejeite chamadas concorrentes e
-      // trate todos os metadados recebidos como dados não confiáveis.
+      // A public peer ID does not authenticate the caller: reject concurrent calls and
+      // treat all received metadata as untrusted data.
       if (chamada) {
         var anterior = chamada;
         var estadoAtual = anterior.peerConnection && anterior.peerConnection.connectionState;
-        // Uma chamada presa em "disconnected" após modo avião também é obsoleta:
-        // aceite a nova chamada do Host para que a reconexão possa se completar.
-        // (ou um reinício pedido por esta página para tirar o atraso do buffer)
+        // A call stuck in "disconnected" after airplane mode is also stale:
+        // accept the Host's new call so the reconnection can complete.
+        // (or a restart requested by this page to clear the buffer delay)
         if (estadoAtual !== "connected" || reiniciando) {
           reiniciando = false;
           chamada = null;
@@ -268,7 +268,7 @@
         pedirQualidade();
         $("parear").hidden = true;
         $("bparartransmissao").hidden = false;
-        // menos atraso: o Chrome toca o quadro assim que chega
+        // less delay: Chrome plays the frame as soon as it arrives
         try { c.peerConnection.getReceivers().forEach(function (r) { if ("jitterBufferTarget" in r) r.jitterBufferTarget = 0; else r.playoutDelayHint = 0; }); } catch (_) {}
         clearInterval(timer);
         ant = null;
@@ -286,7 +286,7 @@
       });
     }
 
-    /* Fim da chamada (o iPhone saiu ou o PC parou): volta a mostrar o QR e a câmera mostra "esperando". */
+    /* End of the call (iPhone left or the PC stopped): shows the QR code again and the camera shows "waiting". */
     function semChamada(msg) {
       chamada = null;
       clearInterval(timer);
@@ -298,7 +298,7 @@
       if (bomba) bomba.espera();
     }
 
-    /* Formato da imagem no PC: preencher 16:9 (corta), inteira, ou girada 90° para um lado. */
+    /* Image format on the PC: fill 16:9 (crops), whole, or rotated 90° to one side. */
     var formato = "preencher";
     function aplicarFormato() {
       video.className = formato;
@@ -317,10 +317,10 @@
         var a = ant && ant.rtp;
         ant = s;
         var r = s.rtp, atraso = 0, parado = false;
-        // atraso do buffer AGORA (no último segundo), não a média desde o início
+        // buffer delay NOW (in the last second), not the average since the start
         if (a && r.jitterBufferEmittedCount > a.jitterBufferEmittedCount)
           atraso = Math.round((r.jitterBufferDelay - a.jitterBufferDelay) / (r.jitterBufferEmittedCount - a.jitterBufferEmittedCount) * 1000);
-        // pacotes chegando sem quadro nenhum sair do buffer: o PC está atrás (conta como atraso)
+        // packets arriving without any frame leaving the buffer: the PC is behind (counts as delay)
         else if (a && r.packetsReceived > a.packetsReceived) parado = true;
         vigiarAtraso(c, parado ? Infinity : atraso);
         if (app) try { chrome.webview.postMessage("BUF " + (parado ? -1 : atraso)); } catch (_) {}
@@ -331,9 +331,9 @@
       });
     }
 
-    /* O buffer do Chrome cresce sem parar quando o PC não decodifica no ritmo (quanto mais pesada a
-       qualidade, mais rápido) e o vídeo fica segundos atrás. Se passar de 0,5 s por 3 leituras seguidas,
-       refaz a chamada: o iPhone reconecta sozinho e o atraso volta a ~30 ms. No máximo a cada 10 s. */
+    /* Chrome's buffer grows endlessly when the PC cannot decode at pace (the heavier the
+       quality, the faster) and the video falls seconds behind. If it passes 0.5 s for 3 readings in a row,
+       it redoes the call: the iPhone reconnects by itself and the delay goes back to ~30 ms. At most every 10 s. */
     var acimaDoLimite = 0, ultimoReinicio = 0;
     function vigiarAtraso(c, ms) {
       if (c !== chamada) return;
@@ -355,21 +355,21 @@
       function linha(k, v) { linhas.push(k + ": " + (v === undefined || v === null || v === "" ? "—" : v)); }
       linha("Hora", new Date().toLocaleString());
       linha("Navegador", navigator.userAgent);
-      linha("Visibilidade da página", document.visibilityState);
+      linha("Page visibility", document.visibilityState);
       linha("Tela cheia", !!document.fullscreenElement);
       linha("WebRTC chamada", chamada ? "presente" : "ausente");
       linha("PeerConnection", pc ? pc.connectionState : "ausente");
       linha("ICE", pc ? pc.iceConnectionState : "ausente");
-      linha("Vídeo ligado ao stream", !!video.srcObject);
+      linha("Video attached to stream", !!video.srcObject);
       linha("Stream ativo", video.srcObject ? video.srcObject.active : false);
-      linha("Tracks de vídeo", tracks.length);
+      linha("Video tracks", tracks.length);
       linha("Track", tr ? tr.readyState + ", muted=" + tr.muted + ", enabled=" + tr.enabled : "ausente");
       linha("Video element", "readyState=" + video.readyState + ", paused=" + video.paused + ", networkState=" + video.networkState);
-      linha("Dimensões renderizadas", video.videoWidth + "×" + video.videoHeight);
-      linha("Tempo do vídeo", Number(video.currentTime || 0).toFixed(2) + " s");
-      linha("Último erro de mídia", video.error ? ("code=" + video.error.code + " " + video.error.message) : "nenhum");
+      linha("Rendered size", video.videoWidth + "×" + video.videoHeight);
+      linha("Video time", Number(video.currentTime || 0).toFixed(2) + " s");
+      linha("Last media error", video.error ? ("code=" + video.error.code + " " + video.error.message) : "none");
       if (!pc) {
-        $("diagnostico").textContent = linhas.join("\n") + "\n\nSem PeerConnection: confirme se o iPhone tocou em Start e se o código corresponde.";
+        $("diagnostico").textContent = linhas.join("\n") + "\n\nNo PeerConnection: check that the iPhone tapped Start and that the code matches.";
         return;
       }
       pc.getStats().then(function (rel) {
@@ -378,7 +378,7 @@
         rel.forEach(function (s) {
           if (s.type === "inbound-rtp" && (s.kind === "video" || s.mediaType === "video")) inbound = s;
         });
-        linha("Stats de vídeo recebidas", !!inbound);
+        linha("Video stats received", !!inbound);
         if (inbound) {
           var c = inbound.codecId && map[inbound.codecId];
           codec = c && c.mimeType ? c.mimeType : "desconhecido";
@@ -389,7 +389,7 @@
           linha("Frames recebidos", inbound.framesReceived);
           linha("Frames decodificados", inbound.framesDecoded);
           linha("Frames descartados", inbound.framesDropped);
-          linha("Resolução recebida", (inbound.frameWidth || "?") + "×" + (inbound.frameHeight || "?"));
+          linha("Received resolution", (inbound.frameWidth || "?") + "×" + (inbound.frameHeight || "?"));
           linha("FPS recebido", inbound.framesPerSecond);
         }
         $("diagnostico").textContent = linhas.join("\n") + "\n\nLeitura rápida:\n- Bytes/frames não aumentam: problema de envio ou rede/WebRTC.\n- Frames recebidos aumentam, mas decodificados ficam em 0: possível incompatibilidade de codec/decodificador do XeOS.\n- Frames decodificados aumentam, mas a imagem continua preta até tela cheia: provável falha de composição/renderização de vídeo do navegador; o botão Refresh video tenta forçar uma atualização.";
@@ -423,7 +423,7 @@
       if (!painel.hidden) diagnosticar();
     };
     $("brefrescar").onclick = function () {
-      // Recupera o elemento de mídia sem encerrar a chamada WebRTC.
+      // Recovers the media element without ending the WebRTC call.
       var stream = video.srcObject;
       if (stream) ligarVideo(stream, true);
       video.style.transform = "translateZ(0)";
@@ -438,8 +438,8 @@
       });
     };
     $("bstats").onclick = function () { statsVisivel = !statsVisivel; $("gstats").hidden = !statsVisivel || !chamada; };
-    /* App de Windows: a prévia na janela custa placa de vídeo e memória (pesa em 4K) e não muda o que
-       vai para a câmera virtual. Fica desligada por padrão; o botão liga e a escolha fica salva. */
+    /* Windows app: the in-window preview costs GPU and memory (heavy at 4K) and does not change what
+       goes to the virtual camera. Off by default; the button turns it on and the choice is saved. */
     if (app) {
       var CHAVE_PREVIA = "inkdoshub-webcam-previa";
       var previa = ler(CHAVE_PREVIA) === "1";
@@ -476,32 +476,32 @@
       if (peer) { peer.destroy(); peer = null; }
     });
     if (!nativo) { conectar(); return; }
-    // receptor nativo: o app conecta com este código e manda o estado de volta
+    // native receiver: the app connects with this code and sends the status back
     chrome.webview.addEventListener("message", function (e) {
       var m = typeof e.data === "string" ? e.data : "";
       if (m.indexOf("nat:estado:") === 0) estado(t(m.slice(11)));
-      else if (m === "nat:on") $("parear").classList.add("ligado");   // conectado: some o QR, fica o estado
+      else if (m === "nat:on") $("parear").classList.add("ligado");   // connected: the QR code disappears, the status stays
       else if (m === "nat:off") $("parear").classList.remove("ligado");
     });
     chrome.webview.postMessage("NATIVO " + codigo);
   }
 
-  /* ---------- App de Windows: manda os quadros para a câmera virtual ----------
-     O app (windows/webcam/Program.cs) entrega um buffer compartilhado do tamanho da câmera.
+  /* ---------- Windows app: sends frames to the virtual camera ----------
+     The app (windows/webcam/Program.cs) provides a shared buffer the size of the camera.
 
-     Caminho rápido (quase sempre): lê os quadros decodificados direto da faixa do WebRTC
-     (MediaStreamTrackProcessor), sem passar pelo <video> nem por canvas, e copia cada quadro já em
-     BGRX para o buffer (VideoFrame.copyTo). O ritmo é o dos próprios quadros, não de um timer, então a
-     aba escondida ou coberta pelo Zoom não desacelera. Enquanto o app ainda está entregando o quadro
-     anterior, os novos são descartados: nunca forma fila, então o atraso não cresce.
+     Fast path (almost always): reads the decoded frames straight from the WebRTC track
+     (MediaStreamTrackProcessor), without going through <video> or canvas, and copies each frame already in
+     BGRX to the buffer (VideoFrame.copyTo). The pace is the frames' own, not a timer, so a
+     hidden tab or one covered by Zoom does not slow down. While the app is still delivering the previous
+     frame, new ones are dropped: no queue forms, so the delay does not grow.
 
-     Caminho lento (só quando o quadro não tem o tamanho da câmera, está em pé ou girado): desenha o
-     quadro num canvas no formato escolhido e copia os pixels (RGBA).
+     Slow path (only when the frame is not the camera size, is portrait or rotated): draws the
+     frame onto a canvas in the chosen format and copies the pixels (RGBA).
 
-     Mensagens para o app: "frame:bgrx" ou "frame:rgba"; o app responde "ok" quando já mandou para a
-     câmera. A cada 5 s vai "PERFJS ..." para o log do app. */
+     Messages to the app: "frame:bgrx" or "frame:rgba"; the app replies "ok" once it has sent it to the
+     camera. Every 5 s "PERFJS ..." goes to the app log. */
   function bombaApp(video, formatoAtual, aoMudarQualidade) {
-    // o buffer pode ter 2 posições (buffer duplo): enquanto o app entrega uma, a página copia na outra
+    // the buffer may have 2 slots (double buffer): while the app delivers one, the page copies into the other
     var mem = null, slots = [], livre = [], W = 0, H = 0, fps = 30, leitor = null, faixaAtual = null, ultimo = 0;
     var canvas = document.createElement("canvas"), ctx = null, bgrxOk = true;
     var perf = { ini: performance.now(), rapido: 0, lento: 0, descartados: 0, copia: 0, ack: 0, envio: 0 };
@@ -549,14 +549,14 @@
       reportar();
     });
 
-    /* Entrega um quadro: um VideoFrame do WebRTC (que esta função fecha) ou, sem o processador, o
-       próprio <video>. */
+    /* Delivers a frame: a WebRTC VideoFrame (which this function closes) or, without the processor, the
+       <video> itself. */
     function entregar(fonte, largura, altura) {
       var quadro = fonte instanceof window.VideoFrame ? fonte : null;
       function fechar() { if (quadro) { try { quadro.close(); } catch (_) {} } }
       if (!slots.length || !ctx) { fechar(); return; }
-      // limita ao fps da câmera escolhida (o iPhone pode mandar mais)
-      // (relógio com "vaga" por período: aguenta a variação natural entre quadros sem descartar à toa)
+      // limits to the fps of the chosen camera (the iPhone may send more)
+      // (clock with a "slot" per period: tolerates the natural variation between frames without needless drops)
       var agora = performance.now(), periodo = 1000 / fps;
       if (agora < ultimo - 2) { perf.descartados++; fechar(); return; }
       var slot = pegarSlot();
@@ -575,17 +575,17 @@
           avisar(tipo, slot, t0);
         }, function () {
           fechar();
-          bgrxOk = false; // este Chrome não converte para BGRX: usa o canvas daqui em diante
+          bgrxOk = false; // this Chrome does not convert to BGRX: use the canvas from now on
           livre[slot] = true;
         });
       }
       if (quadro && bgrxOk && rot === 0 && g === 0 && largura === W && altura === H) {
-        // caminho rápido: o Chrome converte para BGRX e copia direto para a memória do app
+        // fast path: Chrome converts to BGRX and copies straight into the app memory
         copiar("bgrx", [{ offset: 0, stride: W * 4 }]);
         return;
       }
       if (quadro && bgrxOk && vr && rot !== null && !quadro.flip && vr.width * vr.height <= W * H) {
-        // quadro cru (em qualquer tamanho e giro): o app gira, corta e escala na conversão para a câmera
+        // raw frame (any size and rotation): the app rotates, crops and scales when converting for the camera
         var giro = (rot + g) % 360;
         copiar("raw:" + slot + ":" + vr.width + ":" + vr.height + ":" + giro + ":" + (f === "ajustar" ? 1 : 0), [{ offset: 0, stride: vr.width * 4 }]);
         return;
@@ -610,7 +610,7 @@
       ctx.restore();
     }
 
-    /* Lê os quadros da faixa de vídeo assim que o iPhone conecta. */
+    /* Reads the frames of the video track as soon as the iPhone connects. */
     function ligar(stream) {
       var faixa = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
       if (!faixa || faixa === faixaAtual || !slots.length) return;
@@ -630,7 +630,7 @@
         }, function () {});
       })();
     }
-    // sem MediaStreamTrackProcessor: um quadro por quadro novo do <video>
+    // without MediaStreamTrackProcessor: one frame per new <video> frame
     function peloVideo(faixa) {
       function quadro() {
         if (faixaAtual !== faixa) return;
@@ -644,10 +644,10 @@
       faixaAtual = null;
       if (leitor) { var r = leitor; leitor = null; try { r.cancel(); } catch (_) {} }
     }
-    // o <video> ganha a faixa um pouco depois da chamada: confere de tempos em tempos
+    // <video> gets the track a little after the call: check from time to time
     setInterval(function () { if (video.srcObject) ligar(video.srcObject); }, 500);
 
-    // sem iPhone: a câmera mostra um aviso em vez de congelar no último quadro
+    // no iPhone: the camera shows a notice instead of freezing on the last frame
     function espera() {
       if (!ctx || !slots.length) return;
       parar();
@@ -676,7 +676,7 @@
     var codigoInicial = limpo(codigo), codigoSalvo = limpo(cfg.codigo);
     $("hcodigo").value = /^[a-z0-9]{10}$/.test(codigoInicial) ? codigoInicial : (/^[a-z0-9]{10}$/.test(codigoSalvo) ? codigoSalvo : "");
     if (cfg.qualidade && QUALIDADES[cfg.qualidade]) $("qualidade").value = cfg.qualidade;
-    // H.264 é codificado pelo hardware do iPhone e decodificado pela placa de vídeo do PC (versão 3 volta todos para ele)
+    // H.264 is encoded by the iPhone hardware and decoded by the PC GPU (version 3 brings everyone back to it)
     if (cfg.codecVersion === 3 && cfg.codec) $("codec").value = cfg.codec;
     else $("codec").value = "H264";
     if (cfg.formato) $("formato").value = cfg.formato;
@@ -699,8 +699,8 @@
       return navigator.mediaDevices.getUserMedia({ audio: false, video: v }).then(function (s) {
         var tr = s.getVideoTracks()[0];
         try { tr.contentHint = "motion"; } catch (_) {}
-        // só reabre se a câmera que caiu ainda é a atual (o Safari também avisa "ended" quando a
-        // própria página para a câmera antiga ao trocar, e isso virava um laço de troca a cada ~2 s)
+        // only reopens if the camera that dropped is still the current one (Safari also reports "ended" when the
+        // page itself stops the old camera while switching, which turned into a switching loop every ~2 s)
         tr.addEventListener("ended", function () { if (ligado && stream && stream.getVideoTracks()[0] === tr) trocarCamera(); });
         listarCameras();
         return s;
@@ -735,7 +735,7 @@
         p.encodings[0].maxBitrate = Q.bps;
         p.encodings[0].maxFramerate = Q.fps;
         p.encodings[0].scaleResolutionDownBy = 1;
-        // com pouca banda, baixa o fps e não a resolução: o PC recebe sempre o tamanho da câmera
+        // with little bandwidth, lowers fps and not resolution: the PC always receives the camera size
         try { p.degradationPreference = "maintain-resolution"; } catch (_) {}
         snd.setParameters(p).catch(function () {});
       });
@@ -771,9 +771,9 @@
           conn.on("data", function (msg) {
             if (conn.peer !== PREFIXO + limpo($("hcodigo").value) || !msg || typeof msg !== "object") return;
             if (msg.type === "inkdoshub-stop") pararLocal(t("Transmission stopped by the PC."));
-            else if (msg.type === "inkdoshub-restart" && ligado) { clearTimeout(tentativa); ligar(); } // o PC pediu uma chamada nova (atraso acumulado)
+            else if (msg.type === "inkdoshub-restart" && ligado) { clearTimeout(tentativa); ligar(); } // the PC asked for a new call (accumulated delay)
             else if (msg.type === "inkdoshub-quality") {
-              // o app de Windows pede a resolução da câmera dele (ex.: 1080p60); só aceita as da lista
+              // the Windows app asks for its camera resolution (e.g. 1080p60); only accepts the listed ones
               var chave = (msg.h >= 2160 ? "2160p" : msg.h >= 1080 ? "1080p" : "720p") + (msg.fps >= 60 ? "60" : "30");
               if (QUALIDADES[chave] && $("qualidade").value !== chave) {
                 $("qualidade").value = chave;
@@ -872,7 +872,7 @@
       if (!ligado) return;
       var velho = stream;
       stream = null;
-      if (velho) velho.getTracks().forEach(function (x) { x.stop(); }); // o iPhone abre uma câmera por vez
+      if (velho) velho.getTracks().forEach(function (x) { x.stop(); }); // the iPhone opens one camera at a time
       abrirCamera().then(function (s) {
         stream = s;
         video.srcObject = s;
@@ -915,7 +915,7 @@
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState !== "visible" || !ligado) return;
       travarTela();
-      // o iOS desliga a câmera quando o Safari sai da frente; ao voltar, abre de novo
+      // iOS turns the camera off when Safari leaves the foreground; on return, opens it again
       var tr = stream && stream.getVideoTracks()[0];
       if (!tr || tr.readyState === "ended" || tr.muted) trocarCamera();
     });

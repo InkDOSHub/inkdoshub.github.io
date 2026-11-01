@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Grava artcraft/tamanhos.json: o .wasm de cada editor ArtCraft e o tamanho dele (sem compressão),
-usado por assets/artcraft-host.js para mostrar o percentual do download."""
+"""Writes artcraft/tamanhos.json: the .wasm of each ArtCraft editor and its size (uncompressed),
+used by assets/artcraft-host.js to show the download percentage."""
 import glob, json, os
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 out = {}

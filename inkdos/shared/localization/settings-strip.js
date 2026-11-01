@@ -56,8 +56,8 @@ function confirmOverwrite(P,h){saveCard(card=>{saveHeading(card,'Overwrite the o
 function installFrameActions(){if(frameInstalled||!drawer)return;const header=doc.querySelector('header.topbar,header.framebar,header');const left=header?.querySelector('.frame-left');if(!header||!left)return;frameInstalled=true;doc.documentElement.classList.add('inkdos-frame-actions');
  const home=header.querySelector('a.inkdos-hub-link');if(home&&left.firstChild!==home)left.insertBefore(home,left.firstChild);
  const open=drawerTarget(['openMenuBtn','menuOpen','openBtn']),save=drawerTarget(['saveMenuBtn','menuSave','saveBtn']),share=drawerTarget(['shareMenuBtn','menuShare','shareBtn']);
- // InkDOS Hub 2026-10-28: Novo, Abrir e Salvar ficam num menu ☰ (formato do menu do Quadro/Excalidraw), ao lado
- // de "‹ InkDOS Hub"; os botões são os mesmos de antes (proxyButton), só mudam de lugar.
+ // InkDOS Hub 2026-10-28: New, Open and Save sit in a ☰ menu (Whiteboard/Excalidraw menu format), next to
+ // "‹ InkDOS Hub"; the buttons are the same as before (proxyButton), they only move.
  const create=drawerTarget(['newMenuBtn','menuNew','newBtn']);
  const label=(el,fb)=>((el.querySelector('span:not(.hint)')||el).textContent||fb).replace(/⌘.*/,'').trim()||fb;
  const items=[create&&proxyButton('new',label(create,'New'),create),open&&proxyButton('open',label(open,'Open'),open),save&&proxyButton('save',label(save,'Save'),save)].filter(Boolean);
@@ -65,7 +65,7 @@ function installFrameActions(){if(frameInstalled||!drawer)return;const header=do
   const menu=doc.createElement('div');menu.className='inkdos-hamburger';menu.hidden=true;menu.setAttribute('role','menu');
   const burger=frameButton('menu','Menu',()=>{if(menu.hidden){const r=burger.getBoundingClientRect();menu.style.top=(r.bottom+6)+'px';menu.hidden=false;menu.style.left=Math.max(8,r.right-menu.offsetWidth)+'px'}else menu.hidden=true});
   burger.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
-  // cada botão que entra no menu vira uma linha (ícone + nome); o menu fecha depois do toque
+  // each button that enters the menu becomes a row (icon + name); the menu closes after the tap
   const decorate=b=>{if(b.classList.contains('inkdos-menu-item'))return;b.classList.remove('frame-btn');b.classList.add('inkdos-frame-action','inkdos-menu-item');if(!b.querySelector(':scope>span')){const txt=b.textContent.trim();for(const n of [...b.childNodes])if(n.nodeType===3)n.remove();if(!b.querySelector('svg'))b.insertAdjacentHTML('afterbegin','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>');const t=doc.createElement('span');t.textContent=txt||b.title||b.getAttribute('aria-label')||'';b.appendChild(t)}b.setAttribute('role','menuitem');b.addEventListener('click',()=>setTimeout(()=>{menu.hidden=true},0))};
   for(const b of items){decorate(b);menu.appendChild(b)}
   new MutationObserver(()=>{for(const b of menu.children)decorate(b)}).observe(menu,{childList:true});
@@ -75,7 +75,7 @@ function installFrameActions(){if(frameInstalled||!drawer)return;const header=do
   {const inp=header.children[1]&&header.children[1].querySelector('input');if(inp){const cv=doc.createElement('canvas').getContext('2d');let last=null;const sz=()=>{const cs=getComputedStyle(inp),f=cs.font,k=inp.value+'|'+f+'|'+cs.paddingLeft;if(k===last)return;last=k;cv.font=f;inp.style.width=Math.ceil(cv.measureText(inp.value||inp.placeholder||'').width+parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight)+6)+'px'};inp.addEventListener('input',sz);setInterval(sz,400);setTimeout(sz,0)}}
   {const sides=()=>[header.firstElementChild,header.lastElementChild];const fit=()=>{const w=Math.max(...sides().map(e=>e?e.scrollWidth:0));header.style.setProperty('--ink-side',Math.ceil(w)+'px')};if(window.ResizeObserver){const ro=new ResizeObserver(fit);sides().forEach(e=>e&&ro.observe(e))}setTimeout(fit,0)}
  }
- // Pincel (como no Pages): a barra de edição fica escondida e abre ao tocar no pincel
+ // Brush (as in Pages): the editing bar is hidden and opens when the brush is tapped
  const bar=doc.querySelector('#formatbar,#editbar,.toolstrip-shell');
  if(bar){const KEY='inkdoshub-edicao-aberta';const set=v=>{doc.documentElement.classList.toggle('inkdos-edicao-aberta',v);brush.setAttribute('aria-pressed',String(v));try{localStorage.setItem(KEY,v?'1':'0')}catch(_){}};
   const brush=frameButton('brush','Format',()=>set(!doc.documentElement.classList.contains('inkdos-edicao-aberta')));
@@ -84,7 +84,7 @@ function installFrameActions(){if(frameInstalled||!drawer)return;const header=do
   let v=false;try{v=localStorage.getItem(KEY)==='1'}catch(_){}set(v);
   header.__inkBrush=brush}
  let right=header.querySelector('.frame-right');if(!right){right=doc.createElement('div');right.className='frame-side frame-right';header.appendChild(right)}right.removeAttribute('aria-hidden');right.classList.add('inkdos-frame-right');if(header.__inkBrush)right.appendChild(header.__inkBrush);
- // InkDOS Hub: Aparência, Segurança e Compartilhar ficam no menu ☰ (o pincel e o ☰ são os únicos botões à direita)
+ // InkDOS Hub: Appearance, Security and Share live in the ☰ menu (the brush and ☰ are the only buttons on the right)
  const box=header.__inkMenu||right;if(header.__inkBurger)right.appendChild(header.__inkBurger);
  const sun=frameButton('sun','Appearance',()=>{if(activeButton===sun&&!popover.hidden){closePopover();return}showSettings(sun)});box.appendChild(sun);if(root.InkDOSWorkSafety){const lock=frameButton('lock','Security',()=>{if(activeButton===lock&&!popover.hidden){closePopover();return}showSecurity(lock)});box.appendChild(lock)}if(share)box.appendChild(proxyButton('share','Share',share));else{const slot=frameButton('share','Share',()=>{});slot.disabled=true;box.appendChild(slot);let tries=0;const timer=setInterval(()=>{const t=drawerTarget(['shareMenuBtn','menuShare','shareBtn']);if(t){clearInterval(timer);slot.replaceWith(proxyButton('share','Share',t))}else if(++tries>40){clearInterval(timer);slot.remove()}},100)}
  const status=doc.querySelector('footer.statusbar,footer.bottom-shell,footer');if(status){const help=frameButton('help','Help',()=>{if(activeButton===help&&!popover.hidden){closePopover();return}showHelp(help)});help.classList.add('inkdos-status-help');status.appendChild(help)}

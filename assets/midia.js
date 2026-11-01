@@ -1,5 +1,5 @@
-/* Biblioteca local de arquivos (fotos, vídeos, músicas) do InkDOS Hub.
-   Os arquivos ficam no IndexedDB deste site, neste aparelho. Nada é enviado. */
+/* InkDOS Hub local file library (photos, videos, music).
+   Files live in this site's IndexedDB, on this device. Nothing is uploaded. */
 (function () {
   function abrir(nome) {
     return new Promise(function (ok, erro) {
@@ -18,7 +18,7 @@
   }
   window.InkBiblioteca = function (nome) {
     var dbp = abrir(nome).catch(function () { return null; });
-    var memoria = [], prox = 1; // sem IndexedDB (navegação privada): só nesta sessão
+    var memoria = [], prox = 1; // without IndexedDB (private browsing): only for this session
     return {
       listar: function () {
         return dbp.then(function (db) { return db ? pedido(db, "readonly", function (s) { return s.getAll(); }) : memoria.slice(); });
@@ -51,21 +51,21 @@
     function um(v) { return v.toLocaleString(loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
     return n > 1e9 ? um(n / 1e9) + " GB" : n > 1e6 ? um(n / 1e6) + " MB" : Math.max(1, Math.round(n / 1e3)).toLocaleString(loc) + " kB";
   };
-  /* Baixa o arquivo (Downloads). */
+  /* Downloads the file (Downloads). */
   window.inkBaixar = function (arq) {
     var a = document.createElement("a"), u = URL.createObjectURL(arq);
     a.href = u; a.download = arq.name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
   };
-  /* Folha de compartilhar do sistema ("Salvar em Arquivos" no iPhone); onde não existe, baixa. */
+  /* System share sheet ("Save to Files" on iPhone); where it does not exist, downloads. */
   window.inkPartilhar = function (arq) {
     var pode = false;
     try { pode = !!(navigator.canShare && navigator.canShare({ files: [arq] })); } catch (_) {}
     if (!pode) { inkBaixar(arq); return Promise.resolve(); }
     return navigator.share({ files: [arq] }).catch(function (e) { if (!e || e.name !== "AbortError") inkBaixar(arq); });
   };
-  /* Painel de progresso do Vídeo e do editor de vídeo (#progresso, #p-titulo, #p-texto, #p-barra, #p-botoes).
-     parte: 0 a 1, ou null sem barra. botoes: [{texto, acao, principal}] */
+  /* Progress panel of Video and the video editor (#progresso, #p-titulo, #p-texto, #p-barra, #p-botoes).
+     parte: 0 to 1, or null without a bar. botoes: [{texto, acao, principal}] */
   window.inkPainel = function (titulo, texto, parte, botoes) {
     var $ = function (id) { return document.getElementById(id); };
     $("progresso").classList.add("on");

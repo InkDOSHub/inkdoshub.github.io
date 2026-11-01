@@ -1,14 +1,14 @@
-// Receptor nativo: recebe o vídeo do iPhone direto com o GStreamer, sem passar pelo
+// Native receiver: receives the iPhone video directly with GStreamer, without going through the
 // navegador interno.
 //
-// O iPhone continua igual (página Host no Safari). Este arquivo faz o papel da página Guest:
-//   1. SinalPeerJs: fala com o servidor público do PeerJS (o "telefone" que liga o iPhone ao PC) e
-//      se registra como "inkdoshub-webcam-<código>".
-//   2. ReceptorGst: para cada chamada do iPhone, monta um pipeline GStreamer
-//      webrtcbin → rtph264depay → h264parse → decodificador da placa de vídeo → BGRA → appsink
-//      e entrega cada quadro já decodificado para a câmera virtual.
+// The iPhone stays the same (Host page in Safari). This file plays the role of the Guest page:
+//   1. SinalPeerJs: talks to the public PeerJS server (the "phone line" that connects the iPhone to the PC) and
+//      registers as "inkdoshub-webcam-<code>".
+//   2. ReceptorGst: for each iPhone call, builds a GStreamer pipeline
+//      webrtcbin → rtph264depay → h264parse → GPU decoder → BGRA → appsink
+//      and hands each decoded frame to the virtual camera.
 //
-// O GStreamer fica na pasta "gstreamer" ao lado do app (só os plugins usados; LGPL).
+// GStreamer lives in the "gstreamer" folder next to the app (only the plugins used; LGPL).
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -22,7 +22,7 @@ using System.Threading.Tasks;
 
 namespace InkDOSHubWebcam
 {
-    /* ---------- JSON mínimo (o .NET Framework 4.8 não traz um leitor de JSON pronto) ---------- */
+    /* ---------- Minimal JSON (.NET Framework 4.8 does not ship a JSON reader) ---------- */
     static class Json
     {
         public static object Ler(string s) { int i = 0; var v = Valor(s, ref i); return v; }
@@ -169,15 +169,15 @@ namespace InkDOSHubWebcam
         }
     }
 
-    /* ---------- Sinalização: servidor público do PeerJS ---------- */
+    /* ---------- Signaling: public PeerJS server ---------- */
     sealed class SinalPeerJs : IDisposable
     {
         public delegate void OfertaHandler(string origem, string conexao, string sdp, Dictionary<string, object> metadata);
         public delegate void CandidatoHandler(string origem, string conexao, string candidato, int linha);
         public event OfertaHandler Oferta;
         public event CandidatoHandler Candidato;
-        public event Action<string> Saiu;        // o iPhone fechou a página (LEAVE/EXPIRE)
-        public event Action<string> Estado;      // texto para a barra de estado
+        public event Action<string> Saiu;        // the iPhone closed the page (LEAVE/EXPIRE)
+        public event Action<string> Estado;      // text for the status bar
 
         readonly string id;
         readonly CancellationTokenSource fim = new CancellationTokenSource();
@@ -257,7 +257,7 @@ namespace InkDOSHubWebcam
                     Program.Log("NATIVO: server error " + texto);
                     break;
                 case "OFFER":
-                    if (carga == null || Json.Str(carga, "type") != "media") return; // só chamadas de vídeo
+                    if (carga == null || Json.Str(carga, "type") != "media") return; // video calls only
                     var sdp = Json.Obj(carga.ContainsKey("sdp") ? carga["sdp"] : null);
                     var meta = carga.ContainsKey("metadata") ? Json.Obj(carga["metadata"]) : null;
                     if (sdp != null && Oferta != null) Oferta(origem, Json.Str(carga, "connectionId"), Json.Str(sdp, "sdp"), meta);
@@ -314,7 +314,7 @@ namespace InkDOSHubWebcam
         }
     }
 
-    /* ---------- SDP: só H.264, sem giro por metadado, e o bitrate pedido ---------- */
+    /* ---------- SDP: H.264 only, no metadata rotation, and the requested bitrate ---------- */
     static class SdpNativo
     {
         static int[] SecaoVideo(List<string> l)
@@ -328,8 +328,8 @@ namespace InkDOSHubWebcam
             return new[] { ini, fim };
         }
 
-        /* Oferta do iPhone: deixa só o melhor H.264 (e o RTX dele) e tira o giro por metadado
-           (urn:3gpp:video-orientation), para o iPhone mandar a imagem já em pé. */
+        /* iPhone offer: keeps only the best H.264 (and its RTX) and removes metadata rotation
+           (urn:3gpp:video-orientation), so the iPhone sends the image already upright. */
         public static string LimparOferta(string sdp)
         {
             var l = new List<string>(sdp.Replace("\r\n", "\n").Split('\n'));
@@ -369,9 +369,9 @@ namespace InkDOSHubWebcam
             return string.Join("\r\n", l);
         }
 
-        /* O PeerJS põe um canal de dados (m=application) na chamada. O SCTP dele caía depois de ~15 s
-           e derrubava a chamada inteira (o vídeo usa o mesmo transporte): recusa essa seção (porta 0)
-           e tira ela do BUNDLE. A resposta continua com o mesmo número de seções, como o WebRTC exige. */
+        /* PeerJS adds a data channel (m=application) to the call. Its SCTP dropped after ~15 s
+           and took down the whole call (video uses the same transport): refuse that section (port 0)
+           and remove it from BUNDLE. The answer keeps the same number of sections, as WebRTC requires. */
         static void RecusarDados(List<string> l)
         {
             var recusados = new List<string>();
@@ -395,7 +395,7 @@ namespace InkDOSHubWebcam
             Program.Log("NATIVO: data section rejected (mid " + string.Join(",", recusados) + ")");
         }
 
-        /* Resposta para o iPhone: limite de bitrate e começo já perto dele (igual à página Guest). */
+        /* Answer to the iPhone: bitrate limit and a start close to it (same as the Guest page). */
         public static string Bitrate(string sdp, int bps)
         {
             if (bps <= 0) return sdp;
@@ -415,7 +415,7 @@ namespace InkDOSHubWebcam
             return string.Join("\r\n", l);
         }
 
-        /* "a=mid" de cada linha m=, para mandar os candidatos com o sdpMid certo. */
+        /* "a=mid" of each m= line, to send candidates with the right sdpMid. */
         public static List<string> Mids(string sdp)
         {
             var r = new List<string>();
@@ -470,7 +470,7 @@ namespace InkDOSHubWebcam
         [DllImport(Rtc, CallingConvention = C)] public static extern void gst_webrtc_session_description_free(IntPtr desc);
         [DllImport(GObj, CallingConvention = C)] public static extern ulong g_signal_connect_data(IntPtr instance, string signal, Delegate handler, IntPtr data, IntPtr destroy, int flags);
         [DllImport(GObj, CallingConvention = C)] public static extern IntPtr g_value_get_boxed(IntPtr value);
-        // g_signal_emit_by_name tem argumentos variáveis; no Windows x64 inteiros e ponteiros vão como argumentos comuns
+        // g_signal_emit_by_name has variable arguments; on Windows x64 integers and pointers go as regular arguments
         [DllImport(GObj, CallingConvention = C, EntryPoint = "g_signal_emit_by_name")] public static extern void Emitir(IntPtr instance, string signal, IntPtr a, IntPtr b);
         [DllImport(GObj, CallingConvention = C, EntryPoint = "g_signal_emit_by_name")] public static extern void Emitir(IntPtr instance, string signal, uint a, string b);
         [DllImport(GLib, CallingConvention = C)] public static extern void g_free(IntPtr p);
@@ -500,7 +500,7 @@ namespace InkDOSHubWebcam
 
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool SetDllDirectory(string path);
 
-        /* Carrega o GStreamer da pasta "gstreamer" do app. Devolve null se deu certo, ou o motivo. */
+        /* Loads GStreamer from the app's "gstreamer" folder. Returns null on success, or the reason. */
         public static string Iniciar()
         {
             lock (travaInit)
@@ -538,7 +538,7 @@ namespace InkDOSHubWebcam
         }
     }
 
-    /* Uma chamada do iPhone: pipeline webrtcbin → decodificador → appsink. */
+    /* One iPhone call: pipeline webrtcbin → decoder → appsink. */
     sealed class ReceptorGst : IDisposable
     {
         public delegate void QuadroHandler(IntPtr bgra, int largura, int altura);
@@ -555,7 +555,7 @@ namespace InkDOSHubWebcam
         public DateTime UltimoQuadro = DateTime.UtcNow;
         public bool TeveQuadro;
         public long Quadros;
-        // os delegates ficam guardados aqui: o GStreamer chama esses ponteiros enquanto o pipeline existir
+        // delegates are kept here: GStreamer calls these pointers while the pipeline exists
         readonly Gst.PromiseFunc aoRemoto, aoResposta;
         readonly Gst.PadAdded aoPad;
         readonly Gst.IceCandidate aoCandidato;
@@ -572,7 +572,7 @@ namespace InkDOSHubWebcam
             webrtc = Gst.gst_element_factory_make("webrtcbin", "w");
             if (webrtc == IntPtr.Zero) throw new InvalidOperationException("webrtcbin plugin missing");
             Gst.gst_util_set_object_arg(webrtc, "bundle-policy", "max-bundle");
-            Gst.gst_util_set_object_arg(webrtc, "latency", "40"); // ms no buffer de rede: só o bastante para reordenar pacotes
+            Gst.gst_util_set_object_arg(webrtc, "latency", "40"); // ms in the network buffer: just enough to reorder packets
             Gst.gst_util_set_object_arg(webrtc, "stun-server", "stun://stun.l.google.com:19302");
             Gst.gst_util_set_object_arg(webrtc, "turn-server", "turn://peerjs:peerjsp@eu-0.turn.peerjs.com:3478");
             Gst.gst_bin_add(pipeline, webrtc);
@@ -637,7 +637,7 @@ namespace InkDOSHubWebcam
         {
             if (decodificador == null)
             {
-                // placa de vídeo primeiro (Direct3D 11, Media Foundation); no Linux (testes) o FFmpeg
+                // GPU first (Direct3D 11, Media Foundation); on Linux (tests) FFmpeg
                 if (Gst.Existe("d3d11h264dec") && Gst.Existe("d3d11download"))
                     decodificador = "d3d11h264dec ! d3d11convert ! video/x-raw(memory:D3D11Memory),format=BGRA ! d3d11download ! video/x-raw,format=BGRA";
                 else if (Gst.Existe("mfh264dec"))
@@ -749,7 +749,7 @@ namespace InkDOSHubWebcam
         }
     }
 
-    /* Junta sinalização e chamadas: uma chamada por vez (a mais nova substitui a anterior). */
+    /* Joins signaling and calls: one call at a time (the newest replaces the previous one). */
     sealed class ReceptorNativo : IDisposable
     {
         public event Action<string> Estado;
@@ -817,7 +817,7 @@ namespace InkDOSHubWebcam
                     if (Estado != null) Estado("Receiving from the iPhone (native receiver).");
                     if (Conectado != null) Conectado(true);
                 }
-                // sem quadro por 8 s (ou 20 s sem nunca ter chegado nenhum): a chamada morreu
+                // no frame for 8 s (or 20 s without any ever arriving): the call is dead
                 double parado = (DateTime.UtcNow - c.UltimoQuadro).TotalSeconds;
                 if (parado > (c.TeveQuadro ? 8 : 20)) Encerrar("The iPhone disconnected. Waiting for it again…");
             }

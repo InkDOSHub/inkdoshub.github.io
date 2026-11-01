@@ -1,5 +1,5 @@
-// Ponte mínima entre a tela inicial do site e o app do Windows (janela isolada, sem Node na página).
-// offline.js usa window.inkHubNativo para guardar os apps no disco em vez do cache do navegador.
+// Minimal bridge between the site home screen and the Windows app (isolated window, no Node in the page).
+// offline.js uses window.inkHubNativo to store apps on disk instead of the browser cache.
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('inkHubNativo', {
@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('inkHubNativo', {
     ipcRenderer.on('hub:progresso-app', ouvir);
     return ipcRenderer.invoke('hub:atualizar-app').finally(() => ipcRenderer.removeListener('hub:progresso-app', ouvir));
   },
-  // Gravador: som de um programa só (lista de janelas abertas; PCM 16 bits, 48 kHz, estéreo)
+  // Recorder: sound from a single program (list of open windows; PCM 16-bit, 48 kHz, stereo)
   audio: {
     apps: () => ipcRenderer.invoke('hub:audio-apps'),
     iniciar: (pid, aoDado, aoFim) => {
@@ -30,7 +30,7 @@ contextBridge.exposeInMainWorld('inkHubNativo', {
   }
 });
 
-// Código: o VS Code nativo é bem mais leve que a versão web; um aviso discreto, que some ao fechar.
+// Code: native VS Code is much lighter than the web version; a discreet notice that goes away when closed.
 window.addEventListener('DOMContentLoaded', () => {
   if (!location.pathname.startsWith('/apps/codigo/')) return;
   try { if (localStorage.getItem('inkhub-aviso-vscode') === '0') return; } catch (_) {}

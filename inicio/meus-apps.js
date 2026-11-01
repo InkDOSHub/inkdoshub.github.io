@@ -1,10 +1,10 @@
-/* Tela inicial: webapps da pessoa e apps escondidos. Tudo fica só neste aparelho (localStorage).
+/* Home screen: the person's webapps and hidden apps. Everything stays on this device (localStorage).
 
-   - Último cartão "Add webapp" (contorno pontilhado): a pessoa cola o link de qualquer site; o cartão
-     usa o ícone do site (apple-touch-icon.png, depois favicon.ico) ou a letra inicial do nome.
-     Os sites são de terceiros: o Hub só guarda o link, sem garantia nenhuma.
-   - "Customize": esconde ou mostra os apps do Hub e remove webapps. Um app escondido também deixa de
-     abrir os tipos de arquivo dele (inicio/lancador.js pergunta em InkMeusApps.escondido). */
+   - Last card "Add webapp" (dotted outline): the person pastes a link to any site; the card
+     uses the site icon (apple-touch-icon.png, then favicon.ico) or the initial of the name.
+     The sites are third-party: the Hub only stores the link, with no guarantee at all.
+   - "Customize": hides or shows Hub apps and removes webapps. A hidden app also stops
+     open its file types (inicio/lancador.js checks InkMeusApps.escondido). */
 (function () {
   "use strict";
   var K_APPS = "inkdoshub-meus-apps", K_ESC = "inkdoshub-escondidos";
@@ -15,8 +15,8 @@
 
   var grade = document.querySelector(".workspace-grid");
   var escondidos = ler(K_ESC);
-  /* Padrão do aparelho (uma vez): no iPhone ficam os editores do InkDOS e o ArtCraft vem escondido;
-     no iPad, computador e XeOS é o contrário. Depois a pessoa muda em Customize. */
+  /* Device default (once): on iPhone the InkDOS editors stay and ArtCraft is hidden;
+     on iPad, computer and XeOS it is the opposite. Later the person changes it in Customize. */
   try {
     if (!localStorage.getItem("inkdoshub-padrao-office")) {
       var celular = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent);
@@ -31,7 +31,7 @@
 
   function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
 
-  /* Ícone: tenta os arquivos comuns do próprio site; se nenhum carregar, a letra inicial. */
+  /* Icon: tries the site's common files; if none loads, the initial letter. */
   function icone(app) {
     var caixa = el("span", "app-icon"), origem = new URL(app.url).origin;
     var tentativas = [origem + "/apple-touch-icon.png", origem + "/favicon.ico"], img = new Image();
@@ -49,7 +49,7 @@
 
   function cartaoMeu(app) {
     var a = el("a", "workspace-card meu");
-    // link direto: se a pessoa tiver o app do site, o iOS pode abrir o app
+    // direct link: if the person has the site's app, iOS may open the app
     a.href = app.url; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.dataset.meu = app.url;
     a.appendChild(icone(app));
@@ -80,7 +80,7 @@
     if (editando) marcas();
   }
 
-  /* ---------- Ordem dos apps: no Personalizar, arrastar (mouse, touchpad ou dedo) ---------- */
+  /* ---------- App order: in Customize, drag (mouse, touchpad or finger) ---------- */
   var K_ORDEM = "inkdoshub-ordem";
   function chave(c) { return c.dataset.app || c.dataset.meu; }
   function ordenar() {
@@ -173,13 +173,13 @@
     botaoEditar.textContent = editando ? t("Done") : t("Customize");
     if (editando) marcas(); else Array.prototype.forEach.call(grade.querySelectorAll(".marca"), function (m) { m.remove(); });
   });
-  // fase de captura: no modo de edição o toque esconde/remove em vez de abrir (inicio.js abre os cartões)
+  // capture phase: in edit mode a tap hides/removes instead of opening (inicio.js opens the cards)
   grade.addEventListener("click", function (e) {
     if (!editando) return;
     var c = e.target.closest("[data-app],[data-meu]");
     if (!c) return;
     e.preventDefault(); e.stopPropagation();
-    if (arrastou) return; // fim de um arrasto, não um toque
+    if (arrastou) return; // end of a drag, not a tap
     if (c.dataset.meu) {
       meus = meus.filter(function (a) { return a.url !== c.dataset.meu; });
       salvar(K_APPS, meus);

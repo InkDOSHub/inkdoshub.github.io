@@ -1,3 +1,3 @@
 Excalidraw 0.18.1 (MIT) https://github.com/excalidraw/excalidraw
-npm @excalidraw/excalidraw@0.18.1 com react@18.3.1, empacotado com esbuild a partir de src/main.jsx
-(veja tools/build_apps.sh na raiz do site). As fontes em fonts/ vêm de dist/prod/fonts sem mudanças.
+npm @excalidraw/excalidraw@0.18.1 with react@18.3.1, bundled with esbuild from src/main.jsx
+(see tools/build_apps.sh at the site root). The fonts in fonts/ come from dist/prod/fonts unmodified.

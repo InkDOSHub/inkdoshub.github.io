@@ -1,10 +1,10 @@
-/* Arquivo de sessão do InkDOS Hub (.inksessao): guarda o trabalho de um app (hoje só o Linux) num
-   arquivo no aparelho, para recuperar mesmo se o site apagar os dados. Sempre com senha.
+/* InkDOS Hub session file (.inksessao): saves an app's work (today only Linux) in a
+   file on the device, to recover it even if the site data is erased. Always password-protected.
 
-   Formato: "INKSESSAO" + versão (1 byte) + sal (16) + iv (12) + dados cifrados com AES-GCM
+   Format: "INKSESSAO" + version (1 byte) + salt (16) + iv (12) + data encrypted with AES-GCM
    (chave de 256 bits tirada da senha por PBKDF2-SHA256, 310 mil rodadas).
-   Por dentro: tamanho do cabeçalho (4 bytes) + cabeçalho JSON {app, versao, criado, partes:[{nome, tamanho}]}
-   + as partes, uma depois da outra.
+   Inside: header size (4 bytes) + JSON header {app, versao, criado, partes:[{nome, tamanho}]}
+   + the parts, one after another.
 
    InkSessao.salvar(app, meta, partes)  partes: {nome: Uint8Array}; pede a senha e entrega o arquivo
    InkSessao.abrir(app)                 escolhe o arquivo, pede a senha e devolve {meta, partes} ou null */
@@ -86,7 +86,7 @@
   }
   function esc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
-  /* confirmar: pede a senha duas vezes (para salvar). Devolve a senha ou null. */
+  /* confirmar: asks for the password twice (to save). Returns the password or null. */
   function pedirSenha(titulo, texto, confirmar) {
     return new Promise(function (ok) {
       var d = janela("<form method='dialog'><h2>" + esc(titulo) + "</h2><p>" + esc(texto) + "</p>" +
@@ -129,8 +129,8 @@
     });
   }
 
-  /* Entrega o arquivo: o toque em "Guardar" abre a folha de compartilhar do iOS ("Salvar em Arquivos"),
-     ou baixa o arquivo onde a folha não existe. O toque precisa ser da pessoa, por isso o botão. */
+  /* Delivers the file: tapping "Save" opens the iOS share sheet ("Save to Files"),
+     or downloads the file where the sheet does not exist. The tap must come from the person, hence the button. */
   function entregar(blob, nome, texto) {
     var arquivo = new File([blob], nome, { type: "application/octet-stream" });
     var d = janela("<h2>" + esc(t("Session ready")) + "</h2><p>" + esc(texto) + "</p><div class='botoes'>" +

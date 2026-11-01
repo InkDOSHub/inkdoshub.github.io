@@ -1,5 +1,5 @@
-# Gera os arquivos de teste (simples, médio e complexo para cada app) com tools/gerar_arquivos_teste.py
-# e publica na release "arquivos-teste", usada pelo windows/teste-arquivos.bat.
+# Builds the test files (simple, medium and complex for each app) with tools/gerar_arquivos_teste.py
+# and publishes them to the "arquivos-teste" release, used by windows/teste-arquivos.bat.
 name: arquivos-teste
 on:
   workflow_dispatch:
@@ -13,19 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Dependências
+      - name: Dependencies
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
           pip install -q python-docx openpyxl python-pptx reportlab pillow
-      - name: Gerar
+      - name: Generate
         run: python3 tools/gerar_arquivos_teste.py simples medio complexo
-      - name: Lista com SHA-256 (nivel sha256 nome)
+      - name: List with SHA-256 (level sha256 name)
         run: |
           cd testes/arquivos
           : > lista.txt
           for n in simples medio complexo; do for f in $n/*; do echo "$n $(sha256sum "$f" | cut -d' ' -f1) $(basename "$f")" >> lista.txt; done; done
           cat lista.txt
-      - name: Publicar na release arquivos-teste
+      - name: Publish to the arquivos-teste release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

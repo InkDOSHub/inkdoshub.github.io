@@ -1,6 +1,6 @@
-name: App Transferir para Windows
-# Compila windows/transferir/ (um .exe só) e publica na release "transferir-windows",
-# que o app Transferir do site oferece para baixar.
+name: Transfer app for Windows
+# Builds windows/transferir/ (a single .exe) and publishes it to the "transferir-windows" release,
+# which the site's Transfer app offers for download.
 on:
   push:
     branches: [main, 'claude/**']
@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: App
         run: dotnet build windows/transferir/InkDOSHubTransferir.csproj -c Release -o out
-      - name: Arquivo
+      - name: File
         shell: pwsh
         run: |
           Copy-Item "out/InkDOS Hub Transferir.exe" InkDOSHub-Transferir.exe
@@ -27,7 +27,7 @@ jobs:
         with:
           name: InkDOSHub-Transferir
           path: InkDOSHub-Transferir.exe
-      - name: Publicar na release transferir-windows
+      - name: Publish to the release transferir-windows
         if: github.ref == 'refs/heads/main'
         shell: bash
         env:

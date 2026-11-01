@@ -1,5 +1,5 @@
-/* Barra comum: "‹ InkDOS Hub" à esquerda, símbolo + nome do app no centro, botões à direita.
-   No celular os botões vão para um menu ☰. */
+/* Common bar: "‹ InkDOS Hub" on the left, app symbol + name in the center, buttons on the right.
+   On the phone the buttons go into a ☰ menu. */
 (function () {
   function montar() {
     var bar = document.querySelector(".ink-bar");
@@ -22,7 +22,7 @@
     if (titulo) meio.appendChild(titulo);
     dir.appendChild(itens);
     info.forEach(function (d) { dir.appendChild(d); });
-    // botões só com ícone ganham o nome escrito, para ficarem legíveis no menu
+    // icon-only buttons get their name written, to be readable in the menu
     Array.prototype.forEach.call(itens.querySelectorAll(".ink-btn"), function (b) {
       if (!b.textContent.trim() && (b.title || b.getAttribute("aria-label"))) { var t = document.createElement("span"); t.className = "ink-rotulo"; t.textContent = b.title || b.getAttribute("aria-label"); b.appendChild(t); }
     });
@@ -41,7 +41,7 @@
       var visiveis = Array.prototype.some.call(itens.querySelectorAll(".ink-btn,details,a"), function (e) { return e.offsetWidth > 0; });
       if (!visiveis) { if (menu) menu.hidden = true; return; }
       if (menu) menu.hidden = false;
-      bar.classList.add("compacta"); // todos os botões ficam no menu ☰, em todos os tamanhos de tela
+      bar.classList.add("compacta"); // all buttons go into the ☰ menu, at every screen size
     }
     ajustar(); addEventListener("resize", ajustar); addEventListener("load", ajustar);
     if (window.MutationObserver) new MutationObserver(function () { if (!bar.classList.contains("menu-aberto")) ajustar(); }).observe(itens, { attributes: true, subtree: true, attributeFilter: ["hidden", "class", "disabled"] });

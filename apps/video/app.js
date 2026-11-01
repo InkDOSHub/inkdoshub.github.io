@@ -1,7 +1,7 @@
-// Player de vídeo do InkDOS Hub: <video> nativo do Safari, com lista guardada
-// neste aparelho. "Editar" abre o vídeo atual no editor simples (cortar/).
-// "Extrair som" tira só o áudio (.m4a, para a Música) de um vídeo escolhido, sem guardar o vídeo
-// aqui: serve para gravações longas (uma aula de 1 h), que ocupariam gigabytes.
+// InkDOS Hub video player: Safari's native <video>, with a list stored
+// on this device. "Edit" opens the current video in the simple editor (cortar/).
+// "Extract sound" takes only the audio (.m4a, for Music) of a chosen video, without storing the video
+// here: useful for long recordings (a 1 h class) that would take gigabytes.
 const $ = (id) => document.getElementById(id);
 const t = InkIdioma.t;
 const video = $("video"), lista = $("lista");
@@ -97,10 +97,10 @@ $("editar").onclick = () => {
   location.href = "cortar/?id=" + v.id;
 };
 
-/* ---------- Extrair só o som, sem guardar o vídeo ---------- */
+/* ---------- Extract only the sound, without storing the video ---------- */
 const painel = inkPainel, fecharPainel = inkFecharPainel;
 function duracaoDe(arquivo) {
-  // a duração só serve para a barra de progresso; se o Safari não souber ler, segue sem ela
+  // duration is only for the progress bar; if Safari cannot read it, go on without it
   return new Promise((ok) => {
     const v = document.createElement("video"), u = URL.createObjectURL(arquivo);
     const fim = (d) => { clearTimeout(tempo); v.removeAttribute("src"); v.load(); URL.revokeObjectURL(u); ok(d); };
@@ -147,7 +147,7 @@ $("arquivo-som").onchange = async (e) => {
     }
   };
   worker.onerror = (ev) => painel(t("Could not extract the sound"), ev.message || t("ffmpeg error"), null, [{ texto: t("OK"), acao: fecharPainel }]);
-  // fim enorme quando a duração não é conhecida: o ffmpeg para no fim do arquivo
+  // huge end when the duration is unknown: ffmpeg stops at the end of the file
   worker.postMessage({ arquivo, ini: 0, fim: dur || 360000, som: true, soSom: true, altura: 0 });
 };
 
@@ -160,7 +160,7 @@ bib.listar().then((lst) => {
   if (itens.length) abrir(i >= 0 ? i : 0, false); else desenhar();
 });
 
-/* ---------- Controles (como a barra da Música): tocar, tempo, posição, som e tela cheia ---------- */
+/* ---------- Controls (like the Music bar): play, time, position, sound and full screen ---------- */
 const SOM = '<svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
 const MUDO = '<svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>';
 const barra = $("c-barra");

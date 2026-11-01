@@ -63,15 +63,15 @@ header .inkdos-frame-action svg{width:19px;height:19px;fill:none;stroke:currentC
 .inkdos-toolbar-rail.inkdos-toolbar-fits{grid-template-columns:0 0 minmax(0,1fr) 0 0!important}
 .inkdos-toolbar-rail.inkdos-toolbar-fits>.inkdos-toolbar-arrow,.inkdos-toolbar-rail.inkdos-toolbar-fits>.inkdos-toolbar-separator{display:none!important}
 
-/* InkDOS Hub: volta "‹ InkDOS Hub", menu ☰ (Novo, Abrir, Salvar) e pincel da barra de edição (settings-strip.js) */
-/* "‹ InkDOS Hub" no lugar da casinha (a volta para a tela inicial, como nos outros apps) */
+/* InkDOS Hub: "‹ InkDOS Hub" back link, ☰ menu (New, Open, Save) and editing bar brush (settings-strip.js) */
+/* "‹ InkDOS Hub" instead of the little house (back to the home screen, as in the other apps) */
 header a.inkdos-hub-link{width:auto;min-width:0;height:34px;flex:none;padding:0 8px 0 4px;gap:2px;display:inline-flex;align-items:center;font-size:14px;font-weight:600;white-space:nowrap}
 header a.inkdos-hub-link[hidden]{display:none}
 header a.inkdos-hub-link svg{display:none}
 header a.inkdos-hub-link::before{content:"‹";font-size:24px;font-weight:400;line-height:1;margin-top:-3px}
 header a.inkdos-hub-link::after{content:"InkDOS Hub"}
 
-/* Menu ☰ (Novo, Abrir, Salvar) no formato do menu do Quadro (Excalidraw) */
+/* ☰ menu (New, Open, Save) in the Whiteboard (Excalidraw) menu format */
 .inkdos-hamburger{position:fixed;z-index:1000;width:230px;padding:6px;border-radius:12px;background:var(--panel,var(--surface,#fff));border:1px solid var(--line,var(--edge,rgba(0,0,0,.1)));box-shadow:var(--shadow);display:flex;flex-direction:column;gap:1px}
 .inkdos-hamburger[hidden]{display:none}
 .inkdos-menu-item{width:100%;height:32px;padding:0 8px;display:flex;align-items:center;gap:10px;border:0;border-radius:6px;background:transparent;font:inherit;font-size:14px;color:var(--text);text-align:left;white-space:nowrap;cursor:pointer}
@@ -79,13 +79,13 @@ header a.inkdos-hub-link::after{content:"InkDOS Hub"}
 .inkdos-menu-item:disabled{opacity:.4;cursor:default}
 .inkdos-menu-item svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
-/* Pincel (como no Pages): a barra de edição só aparece com ele ligado */
-/* Fechado: some a barra de edição (e a faixa que a envolve), a régua dos Documentos e a barra de fórmulas das Planilhas;
-   a grade do app fica só com topo, área de trabalho e status */
+/* Brush (as in Pages): the editing bar only shows when it is on */
+/* Closed: hides the editing bar (and the strip around it), the Documents ruler and the Spreadsheets formula bar;
+   the app grid keeps only top, workspace and status */
 html.inkdos-com-pincel:not(.inkdos-edicao-aberta) :is(#formatbar,#editbar,#ruler,.formula-bar),
 html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .inkdos-toolbar-rail:has(#formatbar,#editbar){display:none}
 html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .app-shell:has(#formatbar,#editbar){grid-template-rows:auto minmax(0,1fr) auto}
-/* Texto e EPUB: a faixa da barra fica com altura zero (mantém a linha da grade do app) */
+/* Text and EPUB: the bar strip gets zero height (keeps the app grid row) */
 html.inkdos-com-pincel:not(.inkdos-edicao-aberta) .toolstrip-shell{height:0;min-height:0;overflow:hidden;border:0;padding:0;box-shadow:none}
 
 .inkdos-frame-actions header>:nth-child(2){position:relative}

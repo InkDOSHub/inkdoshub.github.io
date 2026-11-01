@@ -1,4 +1,4 @@
-// Faixa como a do Excel: os botões ficam em grupos com o nome embaixo.
+// Excel-like ribbon: buttons sit in groups with the name below.
 (function () {
   'use strict';
   const bar = document.getElementById('formatbar');
@@ -13,7 +13,7 @@
     ['Editing', ['operationSelect', 'sortAscBtn', 'sortDescBtn', 'filterBtn', 'clearBtn']],
     ['View', ['zoomGroup', 'gridlinesBtn']]
   ];
-  // o elemento que está direto na faixa (as listas podem estar dentro de uma caixa)
+  // the element that sits directly in the ribbon (lists may be inside a box)
   const topo = el => { while (el && el.parentElement && el.parentElement !== bar && !el.parentElement.classList.contains('grupo-itens')) el = el.parentElement; return el; };
   const fim = bar.querySelector('.toolbar-end-spacer');
   for (const [nome, ids] of GRUPOS) {

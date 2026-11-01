@@ -1,7 +1,7 @@
-// Tema do InkDOS Hub (claro/escuro), igual em todas as páginas.
-// Fica em localStorage "inkdoshub-tema"; sem escolha, segue o aparelho.
+// InkDOS Hub theme (light/dark), the same on every page.
+// Stored in localStorage "inkdoshub-tema"; with no choice, follows the device.
 (function () {
-  // Migra uma vez as chaves do nome antigo ("inkter" + "minal-*") para "inkdoshub-*".
+  // Migrates once the keys of the old name ("inkter" + "minal-*") to "inkdoshub-*".
   try {
     var p = "inkter" + "minal-";
     for (var i = localStorage.length - 1; i >= 0; i--) {

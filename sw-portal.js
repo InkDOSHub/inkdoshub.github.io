@@ -1,14 +1,14 @@
-/* Service worker do portal offline do InkDOS Hub.
+/* InkDOS Hub offline portal service worker.
 
-   Ele é registrado pela tela inicial (inicio/offline.js). Sem o modo offline, tudo vem do site e o cache
-   só serve quando não há rede. Com o modo offline instalado, a cópia inteira vem primeiro. */
+   It is registered by the home screen (inicio/offline.js). Without offline mode, everything comes from the site and the cache
+   is only used when there is no network. With offline mode installed, the whole copy comes first. */
 "use strict";
 var CACHE = "inkdoshub-offline";
 var RAIZ = self.INK_RAIZ || new URL("./", self.location.href).pathname; // "/" no GitHub Pages
 
 self.addEventListener("install", function () { self.skipWaiting(); });
-/* Conserto (2026-10-29): uma atualização da cópia pode ter guardado arquivos velhos do CDN do GitHub com o
-   número novo. Estes arquivos saem da cópia (abrem do site) e a tela inicial oferece atualizar de novo. */
+/* Repair (2026-10-29): an update of the copy may have stored old files from the GitHub CDN with the
+   new number. These files leave the copy (open from the site) and the home screen offers to update again. */
 var REPARO = ["index.html", "inicio/offline.js", "inicio/lancador.js", "assets/home.css", "assets/gerenciador-app.js",
   "assets/icones-inkdos/editar-pdf.svg", "apps/editar-pdf/index.html", "idiomas/de.json", "idiomas/es.json", "idiomas/fr.json",
   "idiomas/ja.json", "idiomas/pt-BR.json", "idiomas/ru.json", "idiomas/zh-CN.json",
@@ -30,7 +30,7 @@ function reparar() {
 }
 self.addEventListener("activate", function (e) { e.waitUntil(reparar().then(function () { return self.clients.claim(); })); });
 
-/* A chave no cache é o caminho sem "?…"; uma pasta vira pasta/index.html. */
+/* The cache key is the path without "?…"; a folder becomes folder/index.html. */
 function chave(url) {
   var u = new URL(url);
   var p = u.pathname;
@@ -38,10 +38,10 @@ function chave(url) {
   return u.origin + p;
 }
 
-/* Rede primeiro; a cópia offline só quando a rede falha. */
+/* Network first; the offline copy only when the network fails. */
 function daRedeOuCopia(req) {
   return fetch(req).catch(function (erro) {
-    // a cópia offline ou o pacote de idioma (cache "inkdoshub-idioma", de assets/idioma.js)
+    // the offline copy or the language pack ("inkdoshub-idioma" cache, from assets/idioma.js)
     var k = chave(req.url || req);
     return caches.open(CACHE).then(function (c) { return c.match(k); }).then(function (r) {
       return r || caches.open("inkdoshub-idioma").then(function (c) { return c.match(k); });
@@ -52,8 +52,8 @@ function daRedeOuCopia(req) {
   });
 }
 
-/* Com o modo offline instalado (botão "Offline" da tela inicial, inicio/offline.js), o que está guardado
-   abre direto da cópia (o site só muda quando a pessoa pede para atualizar); o que não está vem do site. */
+/* With offline mode installed (home screen "Offline" button, inicio/offline.js), what is stored
+   opens straight from the copy (the site only changes when the person asks to update); what is not comes from the site. */
 var MARCA = self.location.origin + RAIZ + "__offline__/manifesto.json";
 function daCopiaOuRede(req) {
   var k = chave(req.url);
@@ -70,11 +70,11 @@ self.addEventListener("fetch", function (e) {
   if (req.method !== "GET") return;
   var u = new URL(req.url);
   if (u.origin !== self.location.origin) return;
-  if (req.headers.has("range")) return; // vídeo e áudio pedem pedaços; o navegador cuida disso
-  if (u.pathname === RAIZ + "inicio/manifesto.json") return; // o botão Offline sempre compara com o site
-  if (u.searchParams.has("inkoff")) return; // download da cópia offline: sempre do site
+  if (req.headers.has("range")) return; // video and audio request ranges; the browser handles it
+  if (u.pathname === RAIZ + "inicio/manifesto.json") return; // the Offline button always compares with the site
+  if (u.searchParams.has("inkoff")) return; // offline copy download: always from the site
 
-  // a tela inicial (inicio/offline.js) oferece guardar o último app aberto, se ainda não estiver guardado
+  // the home screen (inicio/offline.js) offers to store the last opened app, if not stored yet
   if (req.mode === "navigate") {
     var caminho = chave(req.url).slice((self.location.origin + RAIZ).length);
     if (caminho !== "index.html") e.waitUntil(caches.open(CACHE).then(function (c) { return c.put(self.location.origin + RAIZ + "__uso__", new Response(caminho)); }).catch(function () {}));

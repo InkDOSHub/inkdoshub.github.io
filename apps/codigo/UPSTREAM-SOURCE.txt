@@ -1,3 +1,3 @@
-VS Code para web 1.91.1 (MIT) via npm vscode-web@1.91.1 (https://github.com/Felx-B/vscode-web),
-compilação oficial do https://github.com/microsoft/vscode. Copiado sem mudanças (sem os .map) em vscode/.
-As páginas index.html e editor.html e a extensão ext/inkfs (pasta guardada no navegador) são do InkDOS Hub.
+VS Code for the web 1.91.1 (MIT) via npm vscode-web@1.91.1 (https://github.com/Felx-B/vscode-web),
+official build of https://github.com/microsoft/vscode. Copied unmodified (without .map files) into vscode/.
+The index.html and editor.html pages and the ext/inkfs extension (folder stored in the browser) are InkDOS Hub's own.

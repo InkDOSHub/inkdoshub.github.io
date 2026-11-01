@@ -1,9 +1,9 @@
-/* Página do Hub para os editores ArtCraft (WordCraft, GridCraft, DeckCraft; MIT/Apache-2.0).
-   O editor compilado fica em artcraft/<app>/ (atualizado pela action artcraft.yml) e roda num iframe.
-   Arquivo aberto pela tela inicial ou pelos apps do InkDOS: vem do IndexedDB "inkdos-tool-handoff"
+/* Hub page for the ArtCraft editors (WordCraft, GridCraft, DeckCraft; MIT/Apache-2.0).
+   The built editor lives in artcraft/<app>/ (updated by the artcraft.yml action) and runs in an iframe.
+   File opened by the home screen or the InkDOS apps: comes from the "inkdos-tool-handoff" IndexedDB
    (?inkdos-handoff=<id>). WordCraft e GridCraft falam a ponte postMessage deles (?host=parent:
-   <app>:ready/open/save/dirty); o DeckCraft não tem ponte, então o arquivo entra como se fosse
-   arrastado para a janela e o Salvar do próprio editor baixa o arquivo. */
+   <app>:ready/open/save/dirty); DeckCraft has no bridge, so the file comes in as if it were
+   dragged onto the window and the editor's own Save downloads the file. */
 (function () {
   "use strict";
   var APP = document.body.getAttribute("data-artcraft");
@@ -57,7 +57,7 @@
   });
   addEventListener("beforeunload", function (e) { if (sujo) { e.preventDefault(); e.returnValue = ""; } });
 
-  /* DeckCraft: entrega o arquivo como um arrastar-e-soltar na tela do editor. */
+  /* DeckCraft: hands the file over as a drag-and-drop on the editor screen. */
   function soltar(v) {
     var tentativas = 0;
     (function tentar() {
@@ -82,7 +82,7 @@
   }
 
   /* Aviso de carregamento: "Aguardando download", "Baixando N%" (o .wasm, tamanho em artcraft/tamanhos.json)
-     e "Abrindo" até o editor ficar pronto. O download fica no cache do navegador e o editor o reaproveita. */
+     and "Opening" until the editor is ready. The download stays in the browser cache and the editor reuses it. */
   var carga = document.createElement("div");
   carga.id = "carga";
   carga.style.cssText = "position:fixed;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:var(--muted);font-size:15px;pointer-events:none";
@@ -110,8 +110,8 @@
     }).catch(function () {});
   }
 
-  /* DeckCraft baixa o arquivo de dentro do iframe, e o XeOS recusa downloads feitos num iframe
-     ("invalid path"). Aqui o clique no link de download dele é desviado para esta página. */
+  /* DeckCraft downloads the file from inside the iframe, and XeOS refuses downloads made in an iframe
+     ("invalid path"). Here the click on its download link is redirected to this page. */
   function desviarDownloads() {
     try {
       var w = frame.contentWindow, clique = w.HTMLAnchorElement.prototype.click;
@@ -136,8 +136,8 @@
     })();
   }
 
-  /* WordCraft: sem o botão do Discord na barra de título (opção "show_discord" das preferências dele,
-     guardadas em localStorage "wordcraft.ui", que o iframe lê ao abrir). */
+  /* WordCraft: no Discord button in the title bar (its "show_discord" preference,
+     stored in localStorage "wordcraft.ui", which the iframe reads on open). */
   if (APP === "wordcraft") try {
     var pref = {};
     try { pref = JSON.parse(localStorage.getItem("wordcraft.ui") || "{}") || {}; } catch (_) {}

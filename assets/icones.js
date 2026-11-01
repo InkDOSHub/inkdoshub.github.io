@@ -1,5 +1,5 @@
-/* Ícones de linha do InkDOS Hub (desenhos do Lucide, licença ISC, https://lucide.dev).
-   Uso: <button data-icone="play"></button>, ou inkIcone("play") para gerar o SVG. */
+/* InkDOS Hub line icons (Lucide drawings, ISC license, https://lucide.dev).
+   Usage: <button data-icone="play"></button>, or inkIcone("play") to build the SVG. */
 (function () {
   var P = {
     voltar: '<path d="m15 18-6-6 6-6"/>',

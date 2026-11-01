@@ -1,6 +1,6 @@
-// Gerador de QR code mínimo (modo byte, correção M, versões 1 a 10), sem bibliotecas.
-// Segue o algoritmo do "QR Code generator library" de Project Nayuki (MIT), reduzido ao que o app usa:
-// o link do iPhone, com uns 60 caracteres.
+// Minimal QR code generator (byte mode, M correction, versions 1 to 10), no libraries.
+// Follows the algorithm of Project Nayuki's "QR Code generator library" (MIT), reduced to what the app uses:
+// the iPhone link, about 60 characters.
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -19,7 +19,7 @@ namespace InkDOSHubWebcam
             int ver = 1;
             for (; ver <= 10; ver++)
                 if (4 + (ver < 10 ? 8 : 16) + dados.Length * 8 <= Capacidade(ver) * 8) break;
-            if (ver > 10) throw new ArgumentException("texto longo demais para o QR");
+            if (ver > 10) throw new ArgumentException("text too long for the QR code");
 
             // bits: modo byte, tamanho, dados, terminador, preenchimento
             var bits = new List<bool>();
@@ -59,7 +59,7 @@ namespace InkDOSHubWebcam
                 var r = Resto(d, div);
                 var b = new byte[tamCurto + 1];
                 Array.Copy(d, 0, b, 0, n);
-                Array.Copy(r, 0, b, tamCurto + 1 - ecc, ecc);  // o bloco curto fica com um buraco antes do ECC
+                Array.Copy(r, 0, b, tamCurto + 1 - ecc, ecc);  // the short block has a gap before the ECC
                 blocos.Add(b);
             }
             var saida = new List<byte>();
@@ -103,7 +103,7 @@ namespace InkDOSHubWebcam
             public readonly bool[,] M;
             readonly bool[,] fixo;
             readonly int n, ver;
-            const int Mascara = 0;  // qualquer máscara vale para a leitura
+            const int Mascara = 0;  // any mask works for reading
 
             public Matriz(int ver) { this.ver = ver; n = ver * 4 + 17; M = new bool[n, n]; fixo = new bool[n, n]; }
 
@@ -128,7 +128,7 @@ namespace InkDOSHubWebcam
                     long b = (long)ver << 12 | (long)r;
                     for (int i = 0; i < 18; i++) { bool v = ((b >> i) & 1) != 0; int a = n - 11 + i % 3, c = i / 3; P(a, c, v); P(c, a, v); }
                 }
-                // dados em zigue-zague, de baixo para cima, duas colunas por vez
+                // data in zigzag, bottom to top, two columns at a time
                 int k = 0;
                 for (int dir = n - 1; dir >= 1; dir -= 2)
                 {
@@ -142,7 +142,7 @@ namespace InkDOSHubWebcam
                 }
                 for (int y = 0; y < n; y++)
                     for (int x = 0; x < n; x++)
-                        if (!fixo[y, x] && (x + y) % 2 == 0) M[y, x] = !M[y, x];  // máscara 0
+                        if (!fixo[y, x] && (x + y) % 2 == 0) M[y, x] = !M[y, x];  // mask 0
             }
 
             void Localizador(int x, int y)
@@ -168,7 +168,7 @@ namespace InkDOSHubWebcam
 
             void Formato()
             {
-                int dados = (0 << 3) | Mascara;  // correção M = 00
+                int dados = (0 << 3) | Mascara;  // M correction = 00
                 int r = dados;
                 for (int i = 0; i < 10; i++) r = (r << 1) ^ ((r >> 9) * 0x537);
                 int b = (dados << 10 | r) ^ 0x5412;

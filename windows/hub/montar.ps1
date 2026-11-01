@@ -1,8 +1,8 @@
-# Monta o InkDOS Hub para Windows a partir do Electron oficial, enxuto:
-# - a versão estável mais nova do Electron (GitHub electron/electron), conferida pelo SHA-256 publicado por eles;
-# - só o idioma en-US do Chromium (os 7 idiomas do Hub vêm do site), sem o app de exemplo e sem o SwiftShader/Vulkan;
-# - main.js, preload.js e o ícone em resources\app; o .exe com nome, ícone e versão do InkDOS Hub.
-# Uso (Windows, com Node): .\windows\hub\montar.ps1 -Saida saida   ->  saida\InkDOS Hub\InkDOS Hub.exe
+# Builds InkDOS Hub for Windows from the official Electron, trimmed:
+# - the newest stable Electron (GitHub electron/electron), checked against the SHA-256 they publish;
+# - only the Chromium en-US locale (the Hub's 7 languages come from the site), no sample app and no SwiftShader/Vulkan;
+# - main.js, preload.js and the icon in resources\app; the .exe with InkDOS Hub name, icon and version.
+# Usage (Windows, with Node): .\windows\hub\montar.ps1 -Saida saida   ->  saida\InkDOS Hub\InkDOS Hub.exe
 param([string]$Saida = 'saida', [string]$Versao = '')
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -19,7 +19,7 @@ foreach ($r in $rels) {
   $nomeZip = 'electron-' + $r.tag_name + '-win32-x64.zip'
   if (($r.assets | Where-Object { $_.name -eq $nomeZip }) -and ($r.assets | Where-Object { $_.name -eq 'SHASUMS256.txt' })) { $rel = $r; break }
 }
-if (-not $rel) { throw 'nenhuma versão estável do Electron com pacote do Windows' }
+if (-not $rel) { throw 'no stable Electron release with a Windows package' }
 $base = 'https://github.com/electron/electron/releases/download/' + $rel.tag_name + '/'
 Write-Host ('Electron ' + $rel.tag_name)
 $zip = Join-Path $Saida $nomeZip
@@ -28,7 +28,7 @@ Invoke-WebRequest ($base + $nomeZip) -OutFile $zip -UseBasicParsing
 Invoke-WebRequest ($base + 'SHASUMS256.txt') -OutFile $shas -UseBasicParsing
 $esperado = ((Get-Content $shas | Where-Object { $_ -match ('\*?' + [regex]::Escape($nomeZip) + '$') } | Select-Object -First 1) -split '\s+')[0].ToLower()
 $real = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-if (-not $esperado -or $esperado -ne $real) { throw 'SHA-256 do Electron não confere' }
+if (-not $esperado -or $esperado -ne $real) { throw 'Electron SHA-256 mismatch' }
 Write-Host 'SHA-256 do Electron conferido'
 
 $app = Join-Path $Saida 'InkDOS Hub'
@@ -52,21 +52,21 @@ if ($Versao) { $pacote.version = $Versao }
 $versao = $pacote.version
 [IO.File]::WriteAllText((Join-Path $res 'package.json'), ($pacote | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 Copy-Item (Join-Path $aqui '..\..\LICENSE') (Join-Path $app 'LICENSE.InkDOSHub.txt')
-# som de um programa só (Gravador): application-loopback 1.2.7 (MIT), exes conferidos pelo SHA-256
+# sound from a single program (Recorder): application-loopback 1.2.7 (MIT), exes checked by SHA-256
 $aud = Join-Path $app 'audio'
 New-Item -ItemType Directory -Force -Path $aud | Out-Null
 $tgz = Join-Path $Saida 'al.tgz'
 Invoke-WebRequest 'https://registry.npmjs.org/application-loopback/-/application-loopback-1.2.7.tgz' -OutFile $tgz
-if ((Get-FileHash $tgz -Algorithm SHA256).Hash -ne 'F34570E3E7E5C0BFDBDC7CDD91B17F0F7DB092BB7DF77AE1D04947C576875807') { throw 'application-loopback: SHA-256 não confere' }
+if ((Get-FileHash $tgz -Algorithm SHA256).Hash -ne 'F34570E3E7E5C0BFDBDC7CDD91B17F0F7DB092BB7DF77AE1D04947C576875807') { throw 'application-loopback: SHA-256 mismatch' }
 tar -xzf $tgz -C $Saida
 foreach ($f in @('ApplicationLoopback.exe', 'ProcessList.exe')) { Copy-Item (Join-Path $Saida ('package\bin\win32-x64\' + $f)) $aud }
 Copy-Item (Join-Path $Saida 'package\LICENSE') (Join-Path $aud 'LICENSE.application-loopback.txt')
 Remove-Item -Recurse -Force $tgz, (Join-Path $Saida 'package')
 
-# ícones dos tipos de arquivo (cada tipo com o ícone do app que o abre)
+# file type icons (each type with the icon of the app that opens it)
 Copy-Item -Recurse (Join-Path $aqui 'tipos') (Join-Path $app 'tipos')
 
-# nome, ícone e versão no .exe (rcedit, do projeto Electron)
+# name, icon and version in the .exe (rcedit, from the Electron project)
 $ferr = Join-Path $Saida 'ferramentas'
 New-Item -ItemType Directory -Force -Path $ferr | Out-Null
 Push-Location $ferr
@@ -78,6 +78,6 @@ Pop-Location
 Remove-Item -Recurse -Force $ferr
 
 $mb = [Math]::Round(((Get-ChildItem $app -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 1)
-Write-Host ('Pronto: ' + $app + ' (' + $mb + ' MB, Electron ' + $rel.tag_name + ', versão ' + $versao + ')')
+Write-Host ('Done: ' + $app + ' (' + $mb + ' MB, Electron ' + $rel.tag_name + ', version ' + $versao + ')')
 "HUB_VERSAO=$versao" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV -ErrorAction SilentlyContinue
 "ELECTRON_VERSAO=$($rel.tag_name)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV -ErrorAction SilentlyContinue

@@ -1,16 +1,16 @@
-/* Lançador de arquivos da tela inicial, como na tela inicial do InkDOS.
+/* Home screen file launcher, like the InkDOS home screen.
 
-   Com o InkDOS Hub instalado (manifest.webmanifest, "file_handlers"), abrir um arquivo no XeOS
-   manda o arquivo para esta página (launchQueue). Ela escolhe o app pela extensão e abre o app
-   com o arquivo.
+   With InkDOS Hub installed (manifest.webmanifest, "file_handlers"), opening a file in XeOS
+   sends it to this page (launchQueue). It picks the app by extension and opens the app
+   with the file.
 
-   Como o arquivo chega a cada app:
-   - apps do InkDOS (inkdos/): IndexedDB "inkdos-launch-handoff" e #inkdos-launch=<id>, o mesmo
-     caminho da tela inicial do InkDOS original (runtime/platform/file-launch.js de cada app);
-   - Fotos, Vídeo e Música: IndexedDB "inkdoshub-entrada" e #ink-arquivos=<id>; o app recebe pelo
-     botão de abrir dele (assets/gerenciador-app.js);
-   - Código: o arquivo é gravado na pasta do editor (IndexedDB "inkdoshub-codigo", em /Received)
-     e o editor o abre (apps/codigo/ext/inkfs). */
+   How the file reaches each app:
+   - InkDOS apps (inkdos/): IndexedDB "inkdos-launch-handoff" and #inkdos-launch=<id>, the same
+     path as the original InkDOS home screen (runtime/platform/file-launch.js of each app);
+   - Photos, Video and Music: IndexedDB "inkdoshub-entrada" and #ink-arquivos=<id>; the app receives it through
+     its open button (assets/gerenciador-app.js);
+   - Code: the file is written to the editor folder (IndexedDB "inkdoshub-codigo", in /Received)
+     and the editor opens it (apps/codigo/ext/inkfs). */
 (function () {
   "use strict";
   var P = window.InkPaginas;
@@ -32,10 +32,10 @@
   ];
   var OFFICE = { documentos: 1, planilhas: 1, apresentacoes: 1 }, K_PREF = "inkdoshub-abrir-office";
   var CRAFT = { documentos: "wordcraft", planilhas: "gridcraft", apresentacoes: "deckcraft" };
-  // padrão: InkDOS no iPhone (o ArtCraft não tem layout de celular), ArtCraft no resto
+  // default: InkDOS on iPhone (ArtCraft has no phone layout), ArtCraft elsewhere
   var PADRAO = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent) ? "inkdos" : "artcraft";
   function preferencia() { var v; try { v = localStorage.getItem(K_PREF) || PADRAO; } catch (_) { v = PADRAO; } return v === "inkdos" ? v : "artcraft"; }
-  // Menu ☰: duas linhas (ArtCraft, o padrão / InkDOS legado), com ✓ na escolhida
+  // ☰ menu: two rows (ArtCraft, the default / InkDOS legacy), with ✓ on the chosen one
   var opcoes = [].slice.call(document.querySelectorAll(".pref-office"));
   function marcar() { var v = preferencia(); opcoes.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.pref === v)); }); }
   opcoes.forEach(function (b) {
@@ -54,7 +54,7 @@
   }
 
   function idNovo() { return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10); }
-  /* limpar: dias depois dos quais as entregas esquecidas saem (0 = não limpa) */
+  /* limpar: days after which forgotten hand-offs are removed (0 = no cleanup) */
   function gravar(banco, loja, valor, chave, limpar) {
     return new Promise(function (ok, erro) {
       var req = indexedDB.open(banco, 1);
@@ -63,7 +63,7 @@
       req.onsuccess = function () {
         var db = req.result, tx = db.transaction(loja, "readwrite"), st = tx.objectStore(loja);
         if (limpar) {
-          // entregas esquecidas há mais de "limpar" dias
+          // hand-offs forgotten for more than "limpar" days
           var c = st.openCursor();
           c.onsuccess = function () { var k = c.result; if (!k) return; if (Date.now() - (k.value && (k.value.at || k.value.lastModified) || 0) > limpar * 864e5) k.delete(); k.continue(); };
         }
@@ -79,7 +79,7 @@
     }));
   }
 
-  /* Editor escolhido no ☰; se ele estiver escondido em Customize e o outro não, abre no outro. */
+  /* Editor chosen in ☰; if it is hidden in Customize and the other is not, opens in the other. */
   function usaArtcraft(app) {
     var M = window.InkMeusApps, sim = preferencia() === "artcraft";
     if (M && sim && M.escondido(CRAFT[app]) && !M.escondido(app)) return false;
@@ -87,14 +87,14 @@
     return sim;
   }
 
-  /* Prepara a entrega e devolve o endereço do app que abre os arquivos. */
+  /* Prepares the hand-off and returns the address of the app that opens the files. */
   function preparar(rota, files) {
     var id = idNovo();
-    // Preferência da tela inicial: Word, Excel e PowerPoint abrem no ArtCraft (completo) em vez do InkDOS (rápido)
+    // Home screen preference: Word, Excel and PowerPoint open in ArtCraft (full) instead of InkDOS (fast)
     if (OFFICE[rota.app] && usaArtcraft(rota.app)) {
       return bytes(files.slice(0, 1)).then(function (l) {
         var v = l[0];
-        // guardado por 7 dias, como nos apps do InkDOS: o editor recarrega o documento dali
+        // kept for 7 days, as in the InkDOS apps: the editor reloads the document from there
         return gravar("inkdos-tool-handoff", "files", { bytes: v.data, type: v.type, name: v.name, at: Date.now() }, id, 7).then(function () {
           var ed = { documentos: "wordcraft", planilhas: "gridcraft", apresentacoes: "deckcraft" }[rota.app];
           return RAIZ + "apps/" + ed + "/?inkdos-handoff=" + encodeURIComponent(id);
@@ -126,14 +126,14 @@
     }).then(function () { return RAIZ + P.apps.filter(function (a) { return a.id === rota.app; })[0].url + "#ink-arquivos=" + id; });
   }
 
-  /* Agrupa os arquivos por app. Apps do InkDOS abrem um arquivo por página. */
+  /* Groups files by app. InkDOS apps open one file per page. */
   function grupos(files) {
     var g = [], semApp = [], bloq = [], M = window.InkMeusApps;
     files.forEach(function (f) {
       var r = rotaDe(f);
       if (!r) { semApp.push(f); return; }
-      // app escondido pela pessoa (meus-apps.js): o tipo dele não abre aqui
-      // Word/Excel/PowerPoint: só bloqueia se o editor do InkDOS e o do ArtCraft estiverem escondidos
+      // app hidden by the person (meus-apps.js): its type does not open here
+      // Word/Excel/PowerPoint: only blocks if both the InkDOS and the ArtCraft editors are hidden
       if (M && M.escondido(r.app) && !(CRAFT[r.app] && !M.escondido(CRAFT[r.app]))) {
         var b = bloq.filter(function (y) { return y.rota === r; })[0];
         if (b) b.files.push(f); else bloq.push({ rota: r, files: [f] });
@@ -161,7 +161,7 @@
       b.className = "botao";
       b.textContent = x.files.length === 1 ? t("{file} in {app}", { file: x.files[0].name, app: nomeApp(x.rota.app) }) : t("{n} files in {app}", { n: x.files.length, app: nomeApp(x.rota.app) });
       b.addEventListener("click", function () {
-        // a página nova abre no toque; o endereço chega depois de o arquivo ser guardado
+        // the new page opens on tap; the address arrives after the file is stored
         var w = null;
         if (!window.InkPaginas || InkPaginas.novaAba) try { w = window.open("", "_blank"); } catch (_) {}
         b.disabled = true;
@@ -200,7 +200,7 @@
     sec.scrollIntoView({ block: "nearest" });
   }
 
-  /* Abre os arquivos: um app só abre nesta página (como no InkDOS); mais de um mostra a lista. */
+  /* Opens the files: a single app opens in this page (as in InkDOS); more than one shows the list. */
   function abrirArquivos(files) {
     files = [].filter.call(files || [], Boolean);
     if (!files.length) return;
@@ -221,8 +221,8 @@
     });
   }
 
-  /* Botão "Abrir arquivo": o seletor do sistema (no iPhone, o app Arquivos) aceita qualquer tipo e o
-     arquivo vai para o app certo, como no launchQueue. */
+  /* "Open file" button: the system picker (on iPhone, the Files app) accepts any type and the
+     file goes to the right app, as with launchQueue. */
   var botao = document.getElementById("btn-abrir"), entrada = document.getElementById("abrir-arquivo");
   if (botao && entrada) {
     botao.addEventListener("click", function () { entrada.value = ""; entrada.click(); });

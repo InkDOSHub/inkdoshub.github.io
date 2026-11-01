@@ -1,7 +1,7 @@
-/* Abertura dos apps do InkDOS Hub.
+/* Opening the InkDOS Hub apps.
 
-   Cada ferramenta abre na própria aba e só carrega quando é pedida. O site não aplica limite de
-   memória: as abas não se coordenam e o sistema (iOS, XeOS, navegador) decide o que fecha. */
+   Each tool opens in its own tab and only loads when requested. The site sets no memory
+   limit: tabs do not coordinate and the system (iOS, XeOS, browser) decides what closes. */
 (function () {
   "use strict";
   var script = document.currentScript;
@@ -18,7 +18,7 @@
     { id: "gravador", nome: "Recorder", url: "apps/gravador/" },
     { id: "webcam", nome: "Webcam", url: "apps/webcam/" },
     { id: "transferir", nome: "Transfer", url: "apps/transferir/" },
-    // cópia dos apps do InkDOS (inkdos/); suite=1 mostra o botão Home, que volta para a tela inicial
+    // copy of the InkDOS apps (inkdos/); suite=1 shows the Home button, which goes back to the home screen
     { id: "documentos", nome: "Documents", url: "inkdos/apps/documents/index.html?suite=1" },
     { id: "planilhas", nome: "Spreadsheets", url: "inkdos/apps/spreadsheets/index.html?suite=1" },
     { id: "apresentacoes", nome: "Presentations", url: "inkdos/apps/presentations/index.html?suite=1" },
@@ -26,7 +26,7 @@
     { id: "editar-pdf", nome: "Edit PDF", url: "apps/editar-pdf/" },
     { id: "texto", nome: "Plain text", url: "inkdos/apps/txt/index.html?suite=1" },
     { id: "epub", nome: "EPUB reader", url: "inkdos/apps/epub/index.html?suite=1" },
-    // editores ArtCraft (artcraft/, páginas em apps/*craft/), também abertos pelo "Editar com ArtCraft" dos apps do InkDOS
+    // ArtCraft editors (artcraft/, pages in apps/*craft/), also opened by "Edit with ArtCraft" in the InkDOS apps
     { id: "wordcraft", nome: "WordCraft", url: "apps/wordcraft/" },
     { id: "gridcraft", nome: "GridCraft", url: "apps/gridcraft/" },
     { id: "deckcraft", nome: "DeckCraft", url: "apps/deckcraft/" },
@@ -48,9 +48,9 @@
   var app = noInicio ? null : appDaUrl(location.href);
   var topo = window.top === window;
 
-  /* Abas novas só no XeOS (desktop web no iPad, onde cada documento precisa da própria janela); nos
-     outros navegadores os apps abrem na mesma aba. Sinal do XeOS: "XeOS" no user agent ou o Hub
-     dentro de outra página. ?abas=nova ou ?abas=mesma no endereço fixa a escolha neste aparelho. */
+  /* New tabs only in XeOS (desktop web on iPad, where each document needs its own window); in the
+     other browsers apps open in the same tab. XeOS signal: "XeOS" in the user agent or the Hub
+     inside another page. ?abas=nova or ?abas=mesma in the address pins the choice on this device. */
   var novaAba = (function () {
     var q = /[?&]abas=(nova|mesma)\b/.exec(location.search), v = q ? q[1] : null;
     try { if (q) localStorage.setItem("inkdoshub-abas", v); else v = localStorage.getItem("inkdoshub-abas"); } catch (_) {}
@@ -58,7 +58,7 @@
     return /XeOS/i.test(navigator.userAgent) || !topo;
   })();
 
-  // o nome da janela é como a tela inicial acha a aba de cada app (window.open("", nome))
+  // the window name is how the home screen finds each app's tab (window.open("", name))
   if (topo && (!window.name || /^inkdoshub-/.test(window.name))) {
     if (noInicio) window.name = "inkdoshub-inicio";
     else if (app && app.id !== "office") window.name = "inkdoshub-" + app.id;
@@ -71,20 +71,20 @@
   }
   addEventListener("storage", function (e) { if (e.key === "inkdoshub-tema") aplicarTema(e.newValue); });
 
-  /* Abre um app na aba dele, se já estiver aberta (mesmo nome de janela), ou numa nova. */
+  /* Opens an app in its tab, if already open (same window name), or in a new one. */
   function abrirUrl(url, janela) {
     var w = null;
     if (!novaAba) { location.href = url; return; }
     try { w = window.open("", janela); } catch (_) {}
-    if (!w) { location.href = url; return; } // o navegador bloqueou a aba nova: abre nesta
+    if (!w) { location.href = url; return; } // the browser blocked the new tab: open in this one
     var atual = "";
     try { atual = w.location.href; } catch (_) {}
     if (!atual || atual === "about:blank") w.location.replace(url);
     try { w.focus(); } catch (_) {}
   }
-  /* Volta para a tela inicial. Se esta aba foi aberta por ela, tenta trazer a aba dela para a
-     frente; se a troca não acontece (o XeOS e alguns navegadores não deixam uma aba focar outra),
-     abre a tela inicial nesta mesma aba. Nunca abre uma janela vazia. */
+  /* Goes back to the home screen. If this tab was opened by it, tries to bring its tab to the
+     front; if the switch does not happen (XeOS and some browsers do not let one tab focus another),
+     opens the home screen in this same tab. Never opens an empty window. */
   function irParaInicio() {
     var mae = null;
     try { if (window.opener && !window.opener.closed && ehInicio(window.opener.location.href)) mae = window.opener; } catch (_) {}
@@ -99,7 +99,7 @@
   }
 
   if (topo && !noInicio && app) {
-    // o link para a tela inicial (barra do app, Home do InkDOS) vai para a aba dela sem fechar esta
+    // the link to the home screen (app bar, InkDOS Home) goes to its tab without closing this one
     document.addEventListener("click", function (e) {
       var a = e.target && e.target.closest && e.target.closest("a[href]");
       if (!a || !ehInicio(a.href) || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -114,8 +114,8 @@
     depois(receber, 400);
   }
 
-  /* Arquivos mandados pela tela inicial (inicio/lancador.js): ficam no IndexedDB
-     "inkdoshub-entrada" e chegam ao app pelo botão de abrir dele (o input #arquivos). */
+  /* Files sent by the home screen (inicio/lancador.js): stored in the IndexedDB
+     "inkdoshub-entrada" and reach the app through its open button (the #arquivos input). */
   function receber() {
     var m = /(?:^#|&)ink-arquivos=([A-Za-z0-9-]+)/.exec(location.hash);
     if (!m || !window.indexedDB) return;
@@ -139,7 +139,7 @@
     };
   }
 
-  /* Editor ArtCraft pela extensão do arquivo. */
+  /* ArtCraft editor by file extension. */
   function editorDe(nome) {
     var e = String(nome || "").toLowerCase().split(".").pop();
     if (/^(xlsx|xlsm|xls|ods|csv|tsv)$/.test(e)) return "gridcraft";
@@ -147,7 +147,7 @@
     return "wordcraft";
   }
 
-  /* Usado pela tela inicial (inicio/) e pelos apps do InkDOS (editores ArtCraft). */
+  /* Used by the home screen (inicio/) and the InkDOS apps (ArtCraft editors). */
   window.InkPaginas = {
     raiz: RAIZ,
     apps: APPS,
@@ -157,8 +157,8 @@
       var u = new URL(a.url, RAIZ).href;
       abrirUrl(u, "inkdoshub-" + id);
     },
-    /* O app do InkDOS guardou o documento no IndexedDB "inkdos-tool-handoff", lido por assets/artcraft-host.js.
-       win: a aba aberta no toque, antes de ler o documento. */
+    /* The InkDOS app stored the document in the "inkdos-tool-handoff" IndexedDB, read by assets/artcraft-host.js.
+       win: the tab opened on tap, before reading the document. */
     abrirEditor: function (info, win) {
       var url = new URL("apps/" + editorDe(info.nome) + "/?inkdos-handoff=" + encodeURIComponent(info.id), RAIZ).href;
       if (win && !win.closed) {
