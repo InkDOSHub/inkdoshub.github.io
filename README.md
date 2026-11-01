@@ -34,7 +34,7 @@ A tela inicial de ferramentas avançadas feita para o iPad e o iPhone (Safari e 
 
 A tela inicial é uma gaveta de apps (ícone e nome, como o Launchpad), com busca, o botão de pasta para abrir qualquer arquivo no app certo e o menu ☰ com tema, idioma, Personalizar (esconder apps e arrastar para mudar a ordem) e o app padrão para arquivos de Office (InkDOS, rápido, ou ArtCraft, completo). Cada ferramenta abre na própria aba, só quando é pedida, e cuida da própria memória.
 
-**Offline:** no ☰, guarda o site inteiro no aparelho (cerca de 700 MB) e ele passa a abrir dali, mesmo sem internet. Quando o site muda, a tela inicial mostra "Atualização disponível · Atualizar", e um toque baixa só o que mudou (`inicio/offline.js`, `sw-portal.js`).
+**Offline:** no ☰, cada app pode ser guardado no aparelho (check verde por app; a base vai sempre junto; tudo junto dá cerca de 700 MB) e passa a abrir dali, mesmo sem internet. Quando o site muda, a tela inicial mostra "Atualização disponível · Atualizar", e um toque baixa só o que mudou (`inicio/offline.js`, `sw-portal.js`).
 
 Cada pasta tem `UPSTREAM-LICENSE.txt` e `UPSTREAM-SOURCE.txt`; o resumo de licenças e uso comercial está em [LICENCAS.md](LICENCAS.md). `tools/build_apps.sh` recria as ferramentas a partir das versões fixadas.
 
@@ -43,6 +43,24 @@ Fotos, Vídeo e Música seguem a mesma ideia: primeiro o visualizador, e a ediç
 O editor de vídeo (`apps/video/cortar/`) corta o trecho, tira ou deixa o som e exporta no original (só corta, sem converter) ou em 1080p, 720p ou 480p, com o ffmpeg.wasm 0.12.5 de uma thread só (não precisa de isolamento entre origens). O resultado vira um vídeo novo na lista do Vídeo.
 
 Todas as páginas usam a mesma barra e o mesmo tema claro/escuro do InkDOS (`assets/barra.css`, `assets/tema.js`); o tema se troca no menu ☰ da tela inicial.
+
+## Como funciona
+
+1. **Tela inicial** (`index.html`, `inicio/`): lista os apps, abre arquivos no app certo e guarda as preferências no `localStorage` do site (chaves `inkdoshub-*`).
+2. **Entrega de arquivos entre apps:** a tela inicial grava o arquivo escolhido no IndexedDB `inkdos-tool-handoff` e abre o app com `?inkdos-handoff=<id>`; o app lê e apaga o registro. Nada sai do aparelho.
+3. **Manifesto** (`inicio/manifesto.json`, gerado por `tools/portal_manifesto.py`): lista cada arquivo do site por grupo (app), com tamanho e SHA-256 completo. É a base do Modo Offline, das atualizações parciais e da conferência do Windows.
+4. **Service worker** (`sw-portal.js`): só entra em ação quando há cópia offline; serve do cache e só troca um arquivo quando o hash do manifesto muda.
+5. **Apps de terceiros** (BentoPDF, ArtCraft, VS Code, Excalidraw, v86, ffmpeg.wasm) ficam copiados aqui, com versão fixada e licença na pasta; nenhum é buscado de CDN.
+
+## Versões
+
+| Versão | Como se usa | Particularidades |
+|---|---|---|
+| **Web** | Abrir https://inkdoshub.github.io/ no Safari, Chrome, Edge ou Firefox | Sempre a versão mais nova. Os arquivos ficam no armazenamento do navegador (IndexedDB/OPFS); apagar os dados do site apaga tudo. O Safari pode limpar dados de sites pouco usados; o Modo Offline e a Tela de Início evitam isso. |
+| **Tela de Início (iPhone/iPad)** | Safari › Compartilhar › Adicionar à Tela de Início | Abre em tela cheia como app (`manifest.webmanifest`), com service worker: o Modo Offline funciona e a cópia atualiza pelo aviso "Atualizar". |
+| **XeOS (contêiner no Dock do iOS)** | Adicionar o Hub como Web App no XeOS | O XeOS usa WKWebView sem service worker, então o Modo Offline some do ☰ e o site é sempre carregado da internet. Não aceita `confirm()`/`alert()` nem downloads dentro de iframes (o Hub age direto, sem pop-ups, e desvia downloads para a página principal). Abrir arquivo pelo XeOS sempre passa pela tela inicial, que entrega o arquivo ao app certo. Sem compartilhar tela: o Gravador grava só o microfone. |
+| **Windows (instalado)** | `InkDOSHub-Setup.exe` ou o `.zip` portátil da [release hub-windows](https://github.com/InkDOSHub/inkdoshub.github.io/releases/tag/hub-windows) | Electron enxuto (`windows/hub/`) com os **mesmos apps da web**, sem substitutos. Os apps guardados ficam em `%LOCALAPPDATA%\InkDOS Hub\site` e cada arquivo é conferido pelo SHA-256 do manifesto antes de ser servido; o resto vem do site, também conferido. Rede liberada só para o site e o pareamento do PeerJS; sem telemetria. O Gravador captura a tela e o som do PC (ou de um programa só). O `.exe` ainda não é assinado, por isso o SmartScreen pode avisar ([ASSINATURA.md](ASSINATURA.md)). |
+| **Ajudantes de Windows** | Webcam e Transferir, em [windows/](windows/) | Programas pequenos opcionais: receptor nativo da Webcam (GStreamer) e o Transferir pela rede local. Também sem assinatura. |
 
 ## Idiomas
 
@@ -121,4 +139,4 @@ O kernel vem de `torvalds/linux` na tag `v6.6`, sem modificações. O Alpine vem
 
 ## Assinatura de código
 
-Os programas para Windows são assinados com certificado gratuito da SignPath Foundation (quando aprovado). Política: [ASSINATURA.md](ASSINATURA.md).
+Os programas para Windows ainda não são assinados (a SignPath Foundation recusou o pedido em 2026-10-29; dá para pedir de novo mais tarde). Até lá, confira o SHA-256 publicado na release. Política: [ASSINATURA.md](ASSINATURA.md).
