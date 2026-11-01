@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=7">
 <link rel="icon" type="image/png" sizes="192x192" href="../../assets/inkdoshub-icone-192.png?v=7">
@@ -46,7 +47,7 @@
   <button class="ink-btn" id="blista">List</button>
 </header>
 <main class="ink-main">
-  <div class="md-vazio"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="m17 10 5-3v10l-5-3"/></svg><h2>No video open</h2><p>Open a video file to watch it here.</p><button class="ink-btn" type="button" onclick="document.getElementById('abrir').click()">Open videos</button></div>
+  <div class="md-vazio"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="m17 10 5-3v10l-5-3"/></svg><h2>No video open</h2><p>Open a video file to watch it here.</p><button class="ink-btn" type="button" data-abrir>Open videos</button></div>
   <div class="md-wrap">
     <section class="md-stage">
       <div class="tela">
@@ -76,7 +77,7 @@
   <div class="barra" id="p-barra"><span></span></div>
   <div class="botoes" id="p-botoes"></div>
 </div></div>
-<script src="../../assets/midia.js?v=3"></script>
+<script src="../../assets/midia.js?v=4"></script>
 <script src="../../assets/icones.js?v=2"></script>
 <script src="app.js?v=12"></script>
 </body>
