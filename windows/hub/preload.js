@@ -1,6 +1,21 @@
 // Minimal bridge between the site home screen and the Windows app (isolated window, no Node in the page).
 // offline.js uses window.inkHubNativo to store apps on disk instead of the browser cache.
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
+
+// Print: window.print() in Electron opens the bare Windows dialog with no preview. Here it opens the
+// preview window instead (see hub:imprimir); beforeprint/afterprint still fire so apps clean up.
+contextBridge.exposeInMainWorld('inkHubImprimir', () => ipcRenderer.invoke('hub:imprimir'));
+function trocarImprimir() {
+  let ocupado = false;
+  window.print = function () {
+    if (ocupado) return;
+    ocupado = true;
+    window.dispatchEvent(new Event('beforeprint'));
+    setTimeout(() => window.inkHubImprimir().catch(() => {}).finally(() => { ocupado = false; window.dispatchEvent(new Event('afterprint')); }), 50);
+  };
+}
+if (contextBridge.executeInMainWorld) contextBridge.executeInMainWorld({ func: trocarImprimir });
+else webFrame.executeJavaScript('(' + trocarImprimir.toString() + ')()');
 
 contextBridge.exposeInMainWorld('inkHubNativo', {
   versao: () => ipcRenderer.invoke('hub:versao'),

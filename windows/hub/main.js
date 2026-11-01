@@ -594,6 +594,19 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('hub:audio-parar', e => { const p = capturas.get(e.sender.id); if (p) p.kill(); return true; });
   ipcMain.handle('hub:versao', () => app.getVersion());
+  // Print: Electron has no print preview of its own. The page goes to PDF (with its @page size) and
+  // opens in a preview window with the built-in PDF viewer, where it can be printed or saved.
+  ipcMain.handle('hub:imprimir', async e => {
+    const dados = await e.sender.printToPDF({ printBackground: true, preferCSSPageSize: true });
+    const arq = path.join(app.getPath('temp'), 'InkDOS Hub print ' + Date.now() + '.pdf');
+    await fs.promises.writeFile(arq, dados);
+    const dono = BrowserWindow.fromWebContents(e.sender);
+    const w = new BrowserWindow({ width: 900, height: 980, icon: ICONE, autoHideMenuBar: true, title: 'Print preview', parent: dono || undefined, backgroundColor: '#525659', webPreferences: { sandbox: true, contextIsolation: true, plugins: true } });
+    w.on('page-title-updated', ev => ev.preventDefault());
+    w.on('closed', () => fs.promises.unlink(arq).catch(() => {}));
+    await w.loadFile(arq);
+    return true;
+  });
   ipcMain.handle('hub:reiniciar', () => { if (instalarAtualizacao(true)) app.quit(); });
   // Offline "Update the Windows app" button: checks, downloads (with %), verifies and reinstalls right away
   ipcMain.handle('hub:atualizar-app', async e => {
