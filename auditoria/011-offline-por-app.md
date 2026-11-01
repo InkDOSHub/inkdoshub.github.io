@@ -1,30 +1,30 @@
-# 011 · Modo Offline por app (2026-10-30)
+# 011 · Offline mode per app (2026-10-30)
 
-Pedido do Paulo: guardar tudo de uma vez (cerca de 700 MB) assusta e pesa. Agora a pessoa escolhe app por app.
+Paulo's request: storing everything at once (about 700 MB) is scary and heavy. Now people pick app by app.
 
-## Como ficou
-- **"Offline" no ☰** abre um painel na página, sem pop-up, com um item por app, o tamanho e um check verde.
-  Só há dois estados. Tocar num item não marcado baixa aquele app e mostra a porcentagem. Tocar num item
-  marcado mostra, na própria página, "Remover … deste aparelho? (tamanho)" com Cancelar e Remover.
-- **Base sempre guardada:** a tela inicial e os apps leves (menos de 1 MB cada: Fotos, Música, Gravador,
-  Transferir, Webcam) vão junto com o primeiro app escolhido. Ao todo, 0,7 MB.
-- **"Atualizar"**, no topo do painel, baixa só os arquivos que mudaram nos itens guardados. O aviso
-  "Atualização disponível · Atualizar" da tela inicial faz o mesmo.
-- **Espaço:** o painel mostra quanto o navegador usa e quanto ainda está livre (`navigator.storage.estimate`).
-- **Oferta depois do uso:** o `sw-portal.js` anota a última página aberta (`__uso__` no cache). Ao voltar à
-  tela inicial, se aquele app não está guardado, aparece um cartão: "Guardar … neste aparelho? Ocupa X. Sem
-  guardar, ele é baixado de novo sempre que o navegador limpar o cache, e não abre sem internet." As opções são
-  "Agora não", que fica lembrado para aquele app, e "Guardar".
-- Quem já tinha a cópia inteira continua com todos os itens marcados, porque o formato da marca é o mesmo.
+## Result
+- **"Offline" in the ☰ menu** opens an in-page panel, no pop-up, with one item per app, its size and a green check.
+  There are only two states. Tapping an unchecked item downloads that app and shows the percentage. Tapping a checked
+  item shows, on the page, "Remove … from this device? (size)" with Cancel and Remove.
+- **Base always stored:** the home screen and the light apps (under 1 MB each: Photos, Music, Recorder,
+  Transfer, Webcam) come along with the first chosen app. 0.7 MB in total.
+- **"Update"**, at the top of the panel, downloads only the changed files of the stored items. The home screen
+  "Update available · Update" notice does the same.
+- **Space:** the panel shows how much the browser uses and how much is still free (`navigator.storage.estimate`).
+- **Offer after use:** `sw-portal.js` records the last page opened (`__uso__` in the cache). Back on the
+  home screen, if that app is not stored, a card appears: "Keep … on this device? Takes X. Without
+  storing it, it is downloaded again whenever the browser clears the cache, and does not open without internet." The options are
+  "Not now", remembered for that app, and "Keep".
+- Anyone who already had the full copy keeps every item checked, because the marker format is the same.
 
-## Arquivos
-`inicio/offline.js` (reescrito, `?v=2`), `sw-portal.js` (anota o uso), `assets/home.css` (`?v=19`), `index.html`
-(texto do "i"), 19 textos novos nos 7 `idiomas/*.json`, `inicio/manifesto.json` (regenerado).
+## Files
+`inicio/offline.js` (rewritten, `?v=2`), `sw-portal.js` (records use), `assets/home.css` (`?v=19`), `index.html`
+("i" text), 19 new texts in the 7 `idiomas/*.json`, `inicio/manifesto.json` (regenerated).
 
-## Teste (Playwright)
-1. O painel lista os 7 apps pesados com o tamanho de cada um.
-2. Tocar em Quadro mostra o check verde. Com a rede cortada, o Quadro abriu da cópia (HTTP 200, desenho na tela).
-3. Tocar de novo pede a confirmação na página. Confirmando, o cache fica sem os arquivos e o check some.
-4. "Atualizar" termina com "Up to date".
-5. Depois de abrir o Quadro sem guardá-lo, a tela inicial ofereceu "Keep Whiteboard on this device?".
-Nenhum erro de JS.
+## Test (Playwright)
+1. The panel lists the 7 heavy apps with their sizes.
+2. Tapping Whiteboard shows the green check. With the network cut, the Whiteboard opened from the copy (HTTP 200, drawing on screen).
+3. Tapping again asks for confirmation on the page. Confirming leaves the cache without the files and the check disappears.
+4. "Update" ends with "Up to date".
+5. After opening the Whiteboard without storing it, the home screen offered "Keep Whiteboard on this device?".
+No JS errors.

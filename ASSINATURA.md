@@ -1,8 +1,8 @@
-# Code signing policy / Política de assinatura de código
+# Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/) (when approved; the Windows programs are currently unsigned).
 
-- **Projeto:** InkDOS Hub (MIT, este repositório). Só são assinados programas compilados a partir deste repositório pelo GitHub Actions (`windows/`).
-- **Papéis:** autores e aprovadores: [vfydr2m9wk-ops](https://github.com/vfydr2m9wk-ops) (mantenedor). Revisores: mantenedor. Cada versão assinada é aprovada manualmente pelo mantenedor.
-- **Privacidade:** ver https://inkdoshub.github.io/windows/#privacy. os programas não enviam dados a ninguém sem ação do usuário. Webcam e Transferir só conectam aos aparelhos que o próprio usuário pareia. Ferramentas opcionais são baixadas apenas da fonte oficial de cada projeto, quando o usuário pede.
-- **Auditoria:** o histórico de revisões de código fica em [`auditoria/`](auditoria/README.md).
+- **Project:** InkDOS Hub (MIT, this repository). Only programs built from this repository by GitHub Actions (`windows/`) are signed.
+- **Roles:** authors and approvers: [vfydr2m9wk-ops](https://github.com/vfydr2m9wk-ops) (maintainer). Reviewers: maintainer. Each signed release is approved manually by the maintainer.
+- **Privacy:** see https://inkdoshub.github.io/windows/#privacy. The programs send no data to anyone without user action. Webcam and Transfer only connect to devices the user pairs. Optional tools are downloaded only from each project's official source, when the user asks.
+- **Audit:** the code review history is in [`auditoria/`](auditoria/README.md).

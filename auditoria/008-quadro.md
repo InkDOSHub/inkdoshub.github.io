@@ -1,27 +1,27 @@
-# 008 · Quadro (2026-10-29)
+# 008 · Whiteboard (2026-10-29)
 
-**Lido:** `apps/quadro/src/main.jsx`, `index.html` e `freeform.css` (código próprio, 81 linhas), `UPSTREAM-SOURCE.txt` e uma busca de
-endereços externos no pacote do Excalidraw 0.18.1 (`assets/`, de terceiros).
+**Read:** `apps/quadro/src/main.jsx`, `index.html` and `freeform.css` (own code, 81 lines), `UPSTREAM-SOURCE.txt` and a search for
+external addresses in the Excalidraw 0.18.1 bundle (`assets/`, third-party).
 
-## Mudanças feitas
+## Changes made
 
-1. **Privacidade: o Quadro contatava um CDN de fora.** Ao abrir, o Excalidraw pedia fontes a `https://esm.sh/...` além das
-   cópias locais em `fonts/`. Ele põe o CDN como alternativa em cada fonte, e o Chromium tentava baixar de lá. Isso contrariava o
-   comentário "Fontes servidas daqui, nunca de um CDN" e o `SECURITY.md`. Agora o `index.html` tem uma CSP como a dos apps do InkDOS:
-   scripts só do site (o script embutido vai por hash), `connect-src` e `font-src` só do site, `data:` e `blob:`, `object-src 'none'`,
-   `base-uri 'none'` e `form-action 'none'`. O `frame-src https:` continua aberto porque a pessoa pode incorporar um vídeo (YouTube etc.) no quadro.
-   **Teste:** num Chromium sem tela, o Quadro abriu, a fonte local carregou (200), um retângulo desenhado foi salvo e o CDN foi bloqueado.
+1. **Privacy: the Whiteboard contacted an outside CDN.** On open, Excalidraw requested fonts from `https://esm.sh/...` besides the
+   local copies in `fonts/`. It sets the CDN as a fallback for each font, and Chromium tried to download from there. This contradicted the
+   comment "Fonts served from here, never from a CDN" and `SECURITY.md`. Now `index.html` has a CSP like the InkDOS apps:
+   scripts only from the site (the inline script by hash), `connect-src` and `font-src` only from the site, `data:` and `blob:`, `object-src 'none'`,
+   `base-uri 'none'` and `form-action 'none'`. `frame-src https:` stays open because people can embed a video (YouTube etc.) in the board.
+   **Test:** in a headless Chromium, the Whiteboard opened, the local font loaded (200), a drawn rectangle was saved and the CDN was blocked.
 
-## Achados sem mudança
+## Findings without change
 
-- **Risco de perder desenho (recomendo corrigir):** o desenho é salvo no `localStorage`, incluindo as imagens coladas, em base64.
-  O `localStorage` tem cerca de 5 MB; passou disso, a gravação falha em silêncio (`catch {}`) e o que foi desenhado depois não é salvo,
-  sem aviso. Corrigir pede trocar para IndexedDB em `src/main.jsx` e **recompilar o Quadro** (`tools/build_apps.sh`, que baixa o
-  Excalidraw e gera de novo os 184 arquivos de `assets/`). Isso é caro, por isso não foi feito sem o ok do Paulo.
-- O menu usa só itens padrão do Excalidraw. O link compartilhável (que enviaria o desenho aos servidores do Excalidraw) e a colaboração
-  ao vivo não aparecem, porque o app não passa as funções que os ligam. Os endereços deles existem no pacote, mas não são usados.
-- "Procurar bibliotecas" abre `libraries.excalidraw.com` só quando a pessoa toca.
+- **Risk of losing drawings (recommended fix):** the drawing is saved in `localStorage`, including pasted images, as base64.
+  `localStorage` holds about 5 MB; past that, saving fails silently (`catch {}`) and what is drawn afterwards is not saved,
+  with no warning. Fixing it means switching to IndexedDB in `src/main.jsx` and **rebuilding the Whiteboard** (`tools/build_apps.sh`, which downloads
+  Excalidraw and regenerates the 184 files in `assets/`). That is costly, so it was not done without Paulo's ok. (Done later, see 010.)
+- The menu only uses standard Excalidraw items. The shareable link (which would send the drawing to Excalidraw's servers) and live collaboration
+  do not appear, because the app does not pass the functions that enable them. Their addresses exist in the bundle but are unused.
+- "Browse libraries" opens `libraries.excalidraw.com` only when the person taps it.
 
 ## Commit
 
-Ver `git log -- auditoria/008-quadro.md`.
+See `git log -- auditoria/008-quadro.md`.

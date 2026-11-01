@@ -1,36 +1,36 @@
-# 004 · Transferir Windows (2026-10-29)
+# 004 · Transfer for Windows (2026-10-29)
 
-**Lido:** `windows/transferir/Program.cs` (servidor HTTP local, Wi-Fi direto), `web/pc.html` (painel do PC),
-`web/celular.html` (página do celular). `web/qrcode.js` é de terceiros (é a mesma biblioteca da Webcam, embutida no .exe).
+**Read:** `windows/transferir/Program.cs` (local HTTP server, Wi-Fi Direct), `web/pc.html` (PC panel),
+`web/celular.html` (phone page). `web/qrcode.js` is third-party (the same library as the Webcam, embedded in the .exe).
 
-## Mudanças feitas
+## Changes made
 
-1. **Escape de HTML mais seguro (`pc.html`, `celular.html`):** o `esc()` antigo (via `div.innerHTML`) não escapava
-   aspas, e o nome do arquivo entra num atributo (`download="..."`). No Windows um nome não pode ter `"`, então
-   não havia falha explorável, mas a proteção agora não depende disso.
-2. **Painel do PC:** os números do diagnóstico vêm do celular. Agora são convertidos para número antes de usar,
-   então um valor inválido não quebra o painel nem divide por zero.
-3. **Servidor:** cada conexão tinha uma thread esperando o cabeçalho sem prazo. Um aparelho da rede podia abrir muitas
-   conexões e não mandar nada. Agora o cabeçalho tem 15 s para chegar; depois disso a leitura volta a ser sem prazo (envios longos não são afetados).
+1. **Safer HTML escaping (`pc.html`, `celular.html`):** the old `esc()` (via `div.innerHTML`) did not escape
+   quotes, and the file name goes into an attribute (`download="..."`). On Windows a name cannot contain `"`, so
+   there was no exploitable flaw, but the protection no longer depends on that.
+2. **PC panel:** the diagnostic numbers come from the phone. They are now converted to numbers before use,
+   so an invalid value neither breaks the panel nor divides by zero.
+3. **Server:** each connection had a thread waiting for the header with no timeout. A device on the network could open many
+   connections and send nothing. Now the header has 15 s to arrive; after that, reads have no timeout again (long uploads are not affected).
 
-## Segurança conferida (sem mudança)
+## Security checked (no change)
 
-- O celular só acessa com a chave do QR (8 caracteres de gerador criptográfico, comparação em tempo constante).
-- O painel do PC (`localhost`) exige um token de 24 caracteres, para que sites abertos no navegador do PC não usem as rotas.
-- O cabeçalho `Host` precisa ser um IP ou `localhost`, o que bloqueia DNS rebinding.
-- O nome dos arquivos recebidos é limpo (`Limpar`: sem pastas, sem caracteres proibidos) e nunca sobrescreve um arquivo
-  (cria "nome (2)"). Há conferência de espaço livre, mantendo 1 GB de folga.
-- O celular só baixa arquivos que a pessoa escolheu no PC (pelo id da lista), nunca por caminho.
-- O Wi-Fi direto usa uma senha aleatória de 10 caracteres e não pede administrador.
-- Nada sai da rede local; não há servidor externo.
+- The phone only gets in with the QR key (8 characters from a cryptographic generator, constant-time comparison).
+- The PC panel (`localhost`) requires a 24-character token, so sites open in the PC browser cannot use the routes.
+- The `Host` header must be an IP or `localhost`, which blocks DNS rebinding.
+- Received file names are cleaned (`Limpar`: no folders, no forbidden characters) and never overwrite a file
+  (creates "name (2)"). Free space is checked, keeping 1 GB spare.
+- The phone only downloads files the person chose on the PC (by list id), never by path.
+- Wi-Fi Direct uses a random 10-character password and does not need administrator.
+- Nothing leaves the local network; there is no external server.
 
-## Achados sem mudança
+## Findings without change
 
-- A conexão é HTTP sem TLS: na rede do próprio Wi-Fi direto (com senha) o risco é baixo; pelo roteador, outro aparelho da mesma rede poderia ver o tráfego. Para TLS seria preciso um certificado local, o que é complexo para um app de teste.
-- `diagCelular` (JSON do celular) entra cru no JSON do estado depois de um teste simples (`{...}` e sem `<`). Só quem tem a chave consegue mandar. Aceitável.
-- O comentário do topo ainda diz "protótipo" e descreve o modo pelo roteador, que o painel ainda aceita.
-- O `.exe` continua sem assinatura digital (adiado).
+- The connection is HTTP without TLS: on the password-protected Wi-Fi Direct network the risk is low; through the router, another device on the same network could see the traffic. TLS would need a local certificate, which is complex for a test app.
+- `diagCelular` (phone JSON) goes raw into the state JSON after a simple check (`{...}` and no `<`). Only someone with the key can send it. Acceptable.
+- The top comment still says "prototype" and describes the router mode, which the panel still accepts.
+- The `.exe` is still unsigned (postponed).
 
 ## Commit
 
-Ver `git log -- auditoria/004-transferir-windows.md`. O build roda sozinho na action `transferir-windows`.
+See `git log -- auditoria/004-transferir-windows.md`. The build runs on the `transferir-windows` action.
