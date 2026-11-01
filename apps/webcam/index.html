@@ -71,15 +71,15 @@
   #iniciar.parar{background:#da3633;border-color:#da3633}
   #hestado{margin:0;font-size:14px;color:var(--text)}
 
-  /* Modo OBS: só a imagem, sem barra */
+  /* OBS mode: only the image, no bar */
   body.obs .ink-bar{display:none}
   body.obs{background:#000}
-  /* Baixar o app e o OBS são coisas do PC: no celular e no iPad (Safari ou XeOS) ficam escondidos */
+  /* Downloading the app and OBS are PC things: on the phone and iPad (Safari or XeOS) they are hidden */
   html.celular .so-pc{display:none!important}
   body.obs .flutua{display:none}
-  /* No app WebView, os controles de diagnóstico continuam acessíveis. */
+  /* In the app WebView, the diagnostic controls stay accessible. */
   body.app-webcam .flutua{display:flex}
-  /* Receptor nativo: a imagem vai direto para a câmera, então a janela mostra só o cartão */
+  /* Native receiver: the image goes straight to the camera, so the window shows only the card */
   body.nativo #guest{background:var(--bg)}
   body.nativo #vguest,body.nativo .flutua{display:none}
   body.nativo #parear.ligado #qr,body.nativo #parear.ligado .nota:first-of-type{display:none}

@@ -1,12 +1,12 @@
-// Quadro branco do InkDOS Hub: o Excalidraw (MIT) abaixo da barra comum, com o
-// desenho guardado neste navegador. Abrir/Salvar/Exportar vêm do próprio Excalidraw.
+// InkDOS Hub whiteboard: Excalidraw (MIT) below the common bar, with the
+// drawing stored in this browser. Open/Save/Export come from Excalidraw itself.
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
 import "../node_modules/@excalidraw/excalidraw/dist/prod/index.css";
 
-// O desenho fica no IndexedDB (sem o limite de ~5 MB do localStorage). Um desenho antigo do localStorage
-// é trazido na primeira abertura. Se a gravação falhar, um aviso aparece no canto da tela.
+// The drawing lives in IndexedDB (no ~5 MB localStorage limit). An old drawing in localStorage
+// is brought over on first open. If saving fails, a notice appears in the corner of the screen.
 const KEY = "inkdoshub-quadro";
 function banco() {
   return new Promise((ok, falha) => {

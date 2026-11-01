@@ -1,6 +1,6 @@
-name: App Webcam para Windows
-# Compila windows/webcam/ (o app) e o softcam (a câmera virtual) e publica o ZIP na release
-# "webcam-windows", que o app Webcam do site oferece para baixar.
+name: Webcam app for Windows
+# Builds windows/webcam/ (the app) and softcam (the virtual camera) and publishes the ZIP to the
+# "webcam-windows" release, which the site's Webcam app offers for download.
 on:
   push:
     branches: [main]
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      - name: softcam (versão fixada, com o nome e o CLSID do InkDOS Hub)
+      - name: softcam (pinned version, with the InkDOS Hub name and CLSID)
         shell: pwsh
         run: |
           git clone -q https://github.com/tshino/softcam softcam
@@ -29,12 +29,12 @@ jobs:
           $c = Get-Content $f -Raw
           $c = $c.Replace('L"DirectShow Softcam"', 'L"InkDOS Hub Webcam"')
           $c = $c.Replace('0xaef3b972, 0x5fa5, 0x4647, 0x95, 0x71, 0x35, 0x8e, 0xb4, 0x72, 0xbc, 0x9e', '0x4e1c6b1a, 0x2b7e, 0x4f0a, 0x9c, 0x55, 0x6a, 0x1d, 0x3b, 0x8e, 0x7f, 0x21')
-          if (-not $c.Contains('L"InkDOS Hub Webcam"') -or -not $c.Contains('0x4e1c6b1a')) { throw "o patch do softcam.cpp não aplicou" }
+          if (-not $c.Contains('L"InkDOS Hub Webcam"') -or -not $c.Contains('0x4e1c6b1a')) { throw "the softcam.cpp patch did not apply" }
           Set-Content $f $c -NoNewline
           msbuild softcam/softcam.sln /t:softcam /p:Configuration=Release /p:Platform=x64 /m /v:minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: GStreamer (receptor nativo, só os plugins usados)
+      - name: GStreamer (native receiver, only the plugins used)
         shell: pwsh
         run: |
           $exe = "gst.exe"
@@ -54,7 +54,7 @@ jobs:
           New-Item -ItemType Directory -Force $d | Out-Null
           Copy-Item "out/InkDOS Hub Webcam.exe","out/InkDOS Hub Webcam.exe.config" $d
           $dll = Get-ChildItem softcam -Recurse -Filter softcam.dll | Where-Object { $_.FullName -match '\\x64\\Release\\' } | Select-Object -First 1
-          if (-not $dll) { throw "softcam.dll não foi gerada" }
+          if (-not $dll) { throw "softcam.dll was not built" }
           Copy-Item $dll.FullName $d
           Copy-Item windows/webcam/LEIA-ME.txt $d
           Copy-Item softcam/LICENSE "$d/softcam-LICENSE.txt"
@@ -69,7 +69,7 @@ jobs:
           name: InkDOSHub-Webcam-Windows
           path: InkDOSHub-Webcam-Windows.zip
 
-      - name: Publicar na release webcam-windows
+      - name: Publish to the release webcam-windows
         if: github.ref == 'refs/heads/main'
         shell: bash
         env:

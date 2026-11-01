@@ -1,4 +1,4 @@
-// Faixa no mesmo visual do Documents, Planilhas e Apresentações: cada grupo com o nome embaixo.
+// Ribbon with the same look as Documents, Spreadsheets and Presentations: each group with its name below.
 (function () {
   'use strict';
   const NOMES = { pdfHistoryGroup: 'Edit', pdfAnnotationTools: 'Annotate', pdfTextProperties: 'Text', pdfPenProperties: 'Pen', pdfNavigationGroup: 'Pages', pdfViewGroup: 'Zoom', pdfUtilityGroup: 'Document' };

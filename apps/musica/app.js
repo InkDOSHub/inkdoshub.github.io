@@ -1,6 +1,6 @@
-// Player de música do InkDOS Hub: toca com o <audio> nativo do Safari.
-// Os ajustes (equalizador, volume extra, balanço) só ligam o Web Audio quando
-// usados, para o player nativo continuar simples e leve.
+// InkDOS Hub music player: plays with Safari's native <audio>.
+// Adjustments (equalizer, volume boost, balance) only turn on Web Audio when
+// used, so the native player stays simple and light.
 const $ = (id) => document.getElementById(id);
 const t = InkIdioma.t;
 const audio = $("audio"), lista = $("lista");
@@ -133,7 +133,7 @@ if ("mediaSession" in navigator) {
   navigator.mediaSession.setActionHandler("previoustrack", anterior);
 }
 
-// ---- Ajustes de áudio (Web Audio) ----
+// ---- Audio adjustments (Web Audio) ----
 let ctx = null, filtros = [], ganho = null, pan = null;
 function ligarAudio() {
   if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
@@ -193,7 +193,7 @@ $("bajustes").onclick = () => {
   const ab = $("ajustes").classList.toggle("md-hide");
   $("bajustes").classList.toggle("on", !ab);
 };
-// O Web Audio só pode começar depois de um toque; se já houver ajustes salvos,
+// Web Audio can only start after a tap; if adjustments are already saved,
 // ele liga no primeiro "tocar".
 audio.addEventListener("play", () => { if (precisaWebAudio()) ligarAudio(); });
 mostrarAjustes();

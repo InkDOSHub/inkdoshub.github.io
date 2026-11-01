@@ -1,5 +1,5 @@
-// Régua como a do Word: acompanha a página na tela (posição, zoom e rolagem lateral),
-// área de texto em branco e margens em cinza, marcas a cada meio centímetro.
+// Word-like ruler: follows the page on screen (position, zoom and horizontal scroll),
+// text area in white and margins in gray, marks every half centimeter.
 (function () {
   'use strict';
   const regua = document.getElementById('ruler');

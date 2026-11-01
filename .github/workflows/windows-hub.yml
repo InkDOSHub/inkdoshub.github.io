@@ -1,6 +1,6 @@
-name: InkDOS Hub para Windows
-# Monta o app (Electron oficial enxuto + windows/hub) e o instalador, e publica na release "hub-windows" com o SHA-256.
-# Toda semana também, para pegar a versão nova do Electron (correções de segurança do Chromium).
+name: InkDOS Hub for Windows
+# Builds the app (trimmed official Electron + windows/hub) and the installer, and publishes them to the "hub-windows" release with the SHA-256.
+# Also weekly, to pick up new Electron versions (Chromium security fixes).
 on:
   push:
     branches: [main]
@@ -21,12 +21,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Montar (Electron enxuto + app)
+      - name: Build (trimmed Electron + app)
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: ./windows/hub/montar.ps1 -Saida saida -Versao "0.3.${{ github.run_number }}"
-      - name: Instalador e versão portátil
+      - name: Installer and portable version
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -41,7 +41,7 @@ jobs:
           path: |
             saida/InkDOSHub-Setup.exe
             saida/InkDOSHub-Windows-portatil.zip
-      - name: Publicar na release hub-windows
+      - name: Publish to the release hub-windows
         if: github.ref == 'refs/heads/main'
         shell: bash
         env:
@@ -52,13 +52,13 @@ jobs:
           sha256sum InkDOSHub-Setup.exe > InkDOSHub-Setup.exe.sha256
           sha256sum InkDOSHub-Windows-portatil.zip > InkDOSHub-Windows-portatil.zip.sha256
           cat *.sha256
-          # o app instalado lê isto para se atualizar sozinho (baixa o instalador e confere o SHA-256)
+          # the installed app reads this to update itself (downloads the installer and checks the SHA-256)
           printf '{"versao":"%s","arquivo":"InkDOSHub-Setup.exe","sha256":"%s"}\n' "$HUB_VERSAO" "$(cut -d' ' -f1 InkDOSHub-Setup.exe.sha256)" > versao.json
           cat versao.json
           gh release upload hub-windows InkDOSHub-Setup.exe InkDOSHub-Setup.exe.sha256 InkDOSHub-Windows-portatil.zip InkDOSHub-Windows-portatil.zip.sha256 --clobber
-          # versao.json por último: só aponta para o instalador novo depois que ele já está no ar
+          # versao.json last: it only points to the new installer once that is already online
           gh release upload hub-windows versao.json --clobber
-          # o lançador antigo (WinForms) sai da release
+          # the old launcher (WinForms) leaves the release
           gh release delete-asset hub-windows InkDOSHub.exe -y 2>/dev/null || true
           gh release delete-asset hub-windows InkDOSHub.exe.sha256 -y 2>/dev/null || true
           gh release edit hub-windows --notes "InkDOS Hub for Windows 10/11 (64-bit): the same apps as the website in their own windows, saved on the PC when you choose (each file checked by SHA-256), no telemetry. Version $HUB_VERSAO, Electron $ELECTRON_VERSAO (official build, trimmed). Install: InkDOSHub-Setup.exe (no admin). Source: windows/hub/ (MIT)."

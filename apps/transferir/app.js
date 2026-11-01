@@ -1,13 +1,13 @@
-/* Transferir pelo roteador, no navegador: WebRTC (canal de dados) entre os dois aparelhos.
-   O pareamento usa o servidor público do PeerJS; os arquivos vão direto de um aparelho ao outro. */
+/* Transfer through the router, in the browser: WebRTC (data channel) between the two devices.
+   Pairing uses the public PeerJS server; files go directly from one device to the other. */
 (function () {
   var t = window.InkIdioma ? InkIdioma.t : function (s, p) {
     return p ? s.replace(/\{(\w+)\}/g, function (m, k) { return k in p ? p[k] : m; }) : s;
   };
   var $ = function (id) { return document.getElementById(id); };
   var PREFIXO = "inkdoshub-transferir-";
-  var VIAS = 4;                  // conexões extras só para dados, em paralelo (um canal só fica lento no Safari)
-  var LIMITE = 4 * 1048576;      // fila máxima em cada via antes de esperar
+  var VIAS = 4;                  // extra data-only connections, in parallel (a single channel is slow in Safari)
+  var LIMITE = 4 * 1048576;      // maximum queue per lane before waiting
   var peer = null, conn = null, vias = [], destino = null;
 
   function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + " GB" : (b / 1048576).toFixed(1) + " MB"; }
@@ -33,10 +33,10 @@
     peer = new Peer(PREFIXO + codigo, { debug: 0 });
     peer.on("open", function () { estado(t("Waiting for the other device…")); });
     peer.on("connection", function (c) {
-      // canais extras só do mesmo aparelho já aceito
+      // extra channels only from the same already accepted device
       if (c.metadata && c.metadata.via) { if (conn && c.peer === conn.peer) via(c); else c.close(); return; }
       if (conn) { c.close(); return; }
-      // confirmação na própria página (o XeOS bloqueia confirm): quem acertar o código não entra sem o dono aceitar
+      // confirmation on the page itself (XeOS blocks confirm): someone who guesses the code cannot join without the owner accepting
       pedirAceite(c);
     });
     peer.on("error", function (e) { estado(t("Error: {msg}", { msg: e.type || e.message }), true); });
@@ -80,8 +80,8 @@
   var pedido = new URLSearchParams(location.search).get("c");
   if (pedido) entrar(pedido);
 
-  // ---------- conexão ----------
-  var bytes = 0;                  // contador para a velocidade ao vivo (envio + recebimento)
+  // ---------- connection ----------
+  var bytes = 0;                  // counter for live speed (send + receive)
   function ligar(c) {
     conn = c;
     var aberto = function () {
@@ -105,7 +105,7 @@
     c.on("close", function () { vias = vias.filter(function (x) { return x !== c; }); });
   }
   function canais() { return vias.length ? vias : [conn]; }
-  // tamanho de cada pedaço: o maior que o outro lado aceita, até 256 KB (8 bytes de cabeçalho: id e número)
+  // size of each chunk: the largest the other side accepts, up to 256 KB (8-byte header: id and number)
   function tamPedaco() {
     var pc = canais()[0].peerConnection, max = pc && pc.sctp && pc.sctp.maxMessageSize;
     return Math.min(262144, max && isFinite(max) ? max : 65536) - 8;
@@ -193,7 +193,7 @@
     rx = null; controles();
   }
 
-  // ---------- diagnóstico ----------
+  // ---------- diagnostics ----------
   var TESTE = 256 * 1048576, teste = null, espera = {}, diagRes = {}, diagRodando = false;
   function nota(v) { var m = v / 1048576; return m >= 25 ? t("Excellent") : m >= 10 ? t("Good") : m >= 3 ? t("Fair") : t("Weak"); }
   function mostrarDiag() {
@@ -225,7 +225,7 @@
     teste = null;
     conn.send(JSON.stringify({ t: "teste-ok", v: v }));
   }
-  // manda dados de teste por até 5 s; quem recebe mede a velocidade (sem contar o começo, que é mais lento)
+  // sends test data for up to 5 s; the receiver measures the speed (not counting the start, which is slower)
   async function enviarTeste() {
     var lixo = new Uint8Array(262144 * 16), id = novoId();
     for (var i = 0; i < lixo.length; i += 65536) crypto.getRandomValues(lixo.subarray(i, i + 65536));

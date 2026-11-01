@@ -1,7 +1,7 @@
 #!/bin/sh
-# Recompila terminal/images/inkdoshub-bzImage.bin (rode a partir de tools/linux/): Linux 6.6 (i386) com o Alpine
+# Rebuilds terminal/images/inkdoshub-bzImage.bin (run from tools/linux/): Linux 6.6 (i386) with Alpine
 # Linux 3.22 embutido como initramfs.
-# Precisa de uma máquina Linux (ou runner de CI) com:
+# Needs a Linux machine (or CI runner) with:
 #   gcc make flex bison bc cpio libelf-dev git
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)

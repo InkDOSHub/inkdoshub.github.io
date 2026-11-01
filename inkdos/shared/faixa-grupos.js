@@ -1,5 +1,5 @@
-// Faixa no visual do Office: junta os botões entre os separadores em grupos com o nome embaixo.
-// Os separadores ficam onde estão (alguns apps os usam como âncora). Nomes: data-grupos="idDoPrimeiro:Nome;...".
+// Office-style ribbon: groups the buttons between separators with the name below.
+// Separators stay where they are (some apps use them as anchors). Names: data-grupos="firstId:Name;...".
 (function () {
   'use strict';
   const eu = document.currentScript;

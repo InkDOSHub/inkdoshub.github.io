@@ -1,9 +1,9 @@
-"""Copia só a parte do GStreamer que o receptor nativo usa (usado pelo workflow webcam-windows).
+"""Copies only the part of GStreamer the native receiver uses (used by the webcam-windows workflow).
 
 Uso: python gst_minimo.py <raiz do GStreamer instalado> <destino>
 
-Leva os plugins da lista e, de bin/, só as DLLs de que eles (e o app) dependem, seguindo as
-importações de cada DLL. A estrutura fica igual à do GStreamer (bin/ e lib/gstreamer-1.0/).
+Takes the listed plugins and, from bin/, only the DLLs they (and the app) depend on, following the
+imports of each DLL. The structure stays the same as GStreamer's (bin/ and lib/gstreamer-1.0/).
 """
 import os
 import shutil
@@ -16,7 +16,7 @@ PLUGINS = [
     "gstrtpmanager", "gstrtp", "gstvideoparsersbad", "gstd3d11", "gstmediafoundation",
     "gstvideoconvertscale",
 ]
-# bibliotecas que o app chama direto (Nativo.cs)
+# libraries the app calls directly (Nativo.cs)
 DIRETAS = ["gstreamer-1.0-0.dll", "gstapp-1.0-0.dll", "gstsdp-1.0-0.dll", "gstwebrtc-1.0-0.dll",
            "gobject-2.0-0.dll", "glib-2.0-0.dll"]
 
@@ -25,7 +25,7 @@ def achar_raiz(r):
     for base, _, arquivos in os.walk(r):
         if "gstreamer-1.0-0.dll" in arquivos and os.path.basename(base).lower() == "bin":
             return os.path.dirname(base)
-    sys.exit("gstreamer-1.0-0.dll não encontrada em " + r)
+    sys.exit("gstreamer-1.0-0.dll not found in " + r)
 
 
 def importacoes(caminho):
@@ -75,7 +75,7 @@ def main():
     for base, _, arquivos in os.walk(destino):
         for a in arquivos:
             total += os.path.getsize(os.path.join(base, a))
-    print("GStreamer mínimo: %d DLLs em bin, %d plugins, %.1f MB" % (len(vistos), len(PLUGINS), total / 1e6))
+    print("Minimal GStreamer: %d DLLs in bin, %d plugins, %.1f MB" % (len(vistos), len(PLUGINS), total / 1e6))
 
 
 if __name__ == "__main__":

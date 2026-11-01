@@ -1,7 +1,7 @@
-; Instalador do InkDOS Hub para Windows (Inno Setup 6). Sem administrador: instala só para a pessoa,
-; em %LOCALAPPDATA%\Programs\InkDOS Hub, com atalho no Iniciar (e na Área de Trabalho, se quiser).
-; Os apps não vêm aqui: ficam no "Offline" do ☰, baixados do site e conferidos pelo SHA-256.
-; Compilar: ISCC /DOrigem=<pasta montada> /DVersao=<x.y.z> /O<saída> instalador.iss
+; InkDOS Hub installer for Windows (Inno Setup 6). No administrator: installs only for the person,
+; in %LOCALAPPDATA%\Programs\InkDOS Hub, with a Start menu shortcut (and on the Desktop, if wanted).
+; Apps are not included: they live in ☰ › "Offline", downloaded from the site and checked by SHA-256.
+; Build: ISCC /DOrigem=<built folder> /DVersao=<x.y.z> /O<output> instalador.iss
 #ifndef Origem
   #define Origem "..\..\saida\InkDOS Hub"
 #endif
@@ -45,7 +45,7 @@ Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [InstallDelete]
-; versão nova do motor: tira os arquivos da anterior (os apps guardados ficam em %LOCALAPPDATA%\InkDOS Hub)
+; new engine version: removes the previous files (stored apps live in %LOCALAPPDATA%\InkDOS Hub)
 Type: filesandordirs; Name: "{app}\locales"
 Type: filesandordirs; Name: "{app}\resources"
 
@@ -53,15 +53,15 @@ Type: filesandordirs; Name: "{app}\resources"
 Source: "{#Origem}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 
 [Registry]
-; "Abrir com" e Aplicativos padrão: o Hub aparece como opção para estes tipos (só para esta pessoa, sem administrador).
-; Cada tipo tem o ícone do app que o abre (tipos\*.ico). O Windows não deixa um app virar padrão sozinho:
-; a pessoa escolhe em Abrir com › Sempre, ou em Configurações › Aplicativos padrão.
+; "Open with" and Default apps: the Hub shows up as an option for these types (only for this person, no administrator).
+; Each type has the icon of the app that opens it (tipos\*.ico). Windows does not let an app become the default by itself:
+; the person chooses in Open with › Always, or in Settings › Default apps.
 Root: HKCU; Subkey: "Software\Classes\Applications\InkDOS Hub.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "InkDOS Hub"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\Applications\InkDOS Hub.exe\shell\open\command"; ValueType: string; ValueData: """{app}\InkDOS Hub.exe"" ""%1"""
 Root: HKCU; Subkey: "Software\InkDOS Hub\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "InkDOS Hub"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\InkDOS Hub\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "InkDOS Hub: PDF, documents, spreadsheets, presentations, text, EPUB, photos, video and music."
 Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "InkDOS Hub"; ValueData: "Software\InkDOS Hub\Capabilities"; Flags: uninsdeletevalue
-; versões anteriores usavam um tipo só, com o ícone do Hub
+; earlier versions used a single type, with the Hub icon
 Root: HKCU; Subkey: "Software\Classes\InkDOSHub.Arquivo"; Flags: deletekey uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\InkDOSHub.pdf"; ValueType: string; ValueData: "PDF (InkDOS Hub)"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\InkDOSHub.pdf\DefaultIcon"; ValueType: string; ValueData: "{app}\tipos\pdf.ico"
@@ -253,7 +253,7 @@ Name: "{userdesktop}\InkDOS Hub"; Filename: "{app}\InkDOS Hub.exe"; Tasks: deskt
 
 [Run]
 Filename: "{app}\InkDOS Hub.exe"; Description: "{cm:LaunchProgram,InkDOS Hub}"; Flags: nowait postinstall skipifsilent
-; atualização feita pelo próprio app (instalação silenciosa): abre de novo se a pessoa pediu "Reiniciar"
+; update made by the app itself (silent install): opens again if the person asked to "Restart"
 Filename: "{app}\InkDOS Hub.exe"; Flags: nowait; Check: Relancar
 
 [Code]

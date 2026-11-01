@@ -1,12 +1,12 @@
-/* Tela inicial do InkDOS Hub: cada cartão abre a ferramenta na própria aba, carregada só quando é
-   pedida. Tocar de novo num app já aberto volta para a aba dele (assets/gerenciador-app.js).
-   Cada app cuida da própria memória. */
+/* InkDOS Hub home screen: each card opens the tool in its own tab, loaded only when
+   requested. Tapping an already open app again returns to its tab (assets/gerenciador-app.js).
+   Each app manages its own memory. */
 (function () {
   "use strict";
   var P = window.InkPaginas;
   var $ = function (id) { return document.getElementById(id); };
 
-  // Cartões
+  // Cards
   Array.prototype.forEach.call(document.querySelectorAll("[data-app]"), function (c) {
     c.addEventListener("click", function (e) {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -15,7 +15,7 @@
     });
   });
 
-  // Busca: filtra os apps pelo nome, como no Launchpad
+  // Search: filters apps by name, like Launchpad
   var busca = $("busca");
   if (busca) busca.addEventListener("input", function () {
     var q = busca.value.trim().toLowerCase();
@@ -24,7 +24,7 @@
     });
   });
 
-  // Menu: fecha ao tocar fora; "Customize" fecha o menu e mostra "Done" ao lado da busca
+  // Menu: closes when tapping outside; "Customize" closes the menu and shows "Done" next to the search
   var menu = $("menu-inicio"), pronto = $("btn-pronto"), editar = $("btn-editar");
   document.addEventListener("click", function (e) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
   editar.addEventListener("click", function () {
@@ -33,7 +33,7 @@
   });
   pronto.addEventListener("click", function () { editar.click(); });
 
-  // Tema: troca aqui; as outras abas abertas acompanham pelo evento "storage"
+  // Theme: switches here; other open tabs follow through the "storage" event
   $("tema").addEventListener("click", function () {
     var n = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     try { localStorage.setItem("inkdoshub-tema", n); } catch (_) {}
@@ -41,13 +41,13 @@
     document.documentElement.style.colorScheme = n;
   });
 
-  // Idioma: o botão abre o aviso de pacotes (assets/idioma.js) e mostra o idioma atual
+  // Language: the button opens the packs notice (assets/idioma.js) and shows the current language
   if (window.InkIdioma) {
     $("idioma-texto").textContent = InkIdioma.nome();
     setTimeout(InkIdioma.conferirAtualizacao, 3000);
   }
 
-  // endereços antigos (#terminal), da versão em que os apps abriam dentro desta página
+  // old addresses (#terminal), from the version where apps opened inside this page
   var pedido = location.hash.slice(1), cartao = pedido && document.querySelector('[data-app="' + pedido.replace(/[^a-z]/g, "") + '"]');
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   try { localStorage.removeItem("inkdoshub-inicio"); localStorage.removeItem("inkdoshub-paginas"); } catch (_) {}

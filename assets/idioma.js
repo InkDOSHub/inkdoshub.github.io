@@ -1,20 +1,20 @@
 /* Idioma do InkDOS Hub.
 
-   Só o inglês vem no site. Cada outro idioma é um pacote opcional, baixado quando a pessoa escolhe:
-   a tradução da tela inicial e dos apps (idiomas/<código>.json), mais os arquivos de idioma dos
-   apps do Quadro e do InkDOS. Fica um pacote por vez: escolher outro apaga
+   Only English ships with the site. Each other language is an optional pack, downloaded when the person picks it:
+   the home screen and app translation (idiomas/<code>.json), plus the language files of the
+   Whiteboard and InkDOS apps. One pack at a time: picking another deletes
    o anterior do aparelho.
 
-   - Os textos da casca ficam em localStorage "inkdoshub-idioma-textos" (só o idioma escolhido),
-     para a página já abrir traduzida.
-   - Os arquivos do pacote ficam no cache "inkdoshub-idioma"; o service worker (sw-portal.js)
-     serve esse cache quando não há rede.
-   - A lista de arquivos e tamanhos de cada pacote vem de inicio/manifesto.json (chave "idiomas"),
+   - Shell texts live in localStorage "inkdoshub-idioma-textos" (only the chosen language),
+     so the page opens already translated.
+   - Pack files live in the "inkdoshub-idioma" cache; the service worker (sw-portal.js)
+     serves that cache when there is no network.
+   - The file list and sizes of each pack come from inicio/manifesto.json ("idiomas" key),
      gerada por tools/portal_manifesto.py.
 
-   Nas páginas: <body data-idioma> traduz o texto fixo do HTML (e os atributos title, aria-label,
+   In pages: <body data-idioma> translates the fixed HTML text (and the title, aria-label,
    placeholder e alt). Textos montados no JavaScript usam InkIdioma.t("English text {x}", {x: 1}).
-   Elementos com data-idioma-nao (nomes de arquivos, conteúdo da pessoa) nunca são traduzidos. */
+   Elements with data-idioma-nao (file names, the person's content) are never translated. */
 (function () {
   "use strict";
   if (window.InkIdioma) return;
@@ -35,7 +35,7 @@
     { codigo: "ja", nome: "日本語" },
     { codigo: "ru", nome: "Русский" },
   ];
-  // o mesmo idioma no nome que cada ferramenta usa
+  // the same language under the name each tool uses
   var EXCALIDRAW = { en: "en", "pt-BR": "pt-BR", es: "es-ES", de: "de-DE", fr: "fr-FR", "zh-CN": "zh-CN", ja: "ja-JP", ru: "ru-RU" };
 
   function ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
@@ -61,7 +61,7 @@
     return v;
   }
 
-  /* Texto fixo das páginas: guarda o original em inglês para poder trocar de idioma de novo. */
+  /* Fixed page text: keeps the English original so the language can be switched again. */
   var ATRIBUTOS = ["title", "aria-label", "placeholder", "alt"];
   var originais = new WeakMap();
   var PULAR = "script,style,textarea,[data-idioma-nao]";
@@ -103,7 +103,7 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { aplicar(); });
   else aplicar();
 
-  // outra aba trocou o idioma: o texto fixo acompanha; o resto muda quando a página for aberta de novo
+  // another tab changed the language: fixed text follows; the rest changes when the page is opened again
   window.addEventListener("storage", function (e) {
     if (e.key !== CHAVE && e.key !== CHAVE_TEXTOS) return;
     carregar();
@@ -126,7 +126,7 @@
     return (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString(atual) + " MB";
   }
 
-  /* Baixa o pacote inteiro para o cache novo e só então apaga o anterior. */
+  /* Downloads the whole pack into the new cache and only then deletes the previous one. */
   function baixar(codigo, pacotes, progresso) {
     var p = pacotes[codigo];
     if (!p) return Promise.reject(new Error("no package"));
@@ -151,7 +151,7 @@
       return Promise.all([proximo(), proximo(), proximo(), proximo()]);
     }).then(function () {
       if (!textosNovos || !textosNovos.textos) throw new Error("texts");
-      // troca: o pacote novo passa a ser o único
+      // switch: the new pack becomes the only one
       return caches.delete(CACHE).then(function () { return caches.open(CACHE); }).then(function (destino) {
         return caches.open(temp).then(function (origem) {
           return origem.keys().then(function (ks) {
@@ -174,7 +174,7 @@
     return ("caches" in window ? caches.delete(CACHE) : Promise.resolve()).then(fim, fim);
   }
 
-  /* A cópia dos apps do InkDOS (inkdos/) guarda o idioma nas chaves dela; aqui elas seguem o pacote. */
+  /* The InkDOS apps copy (inkdos/) keeps the language in its own keys; here they follow the pack. */
   function sincronizarInkdos(codigo) {
     try {
       var agora = String(Date.now());
@@ -186,7 +186,7 @@
     } catch (_) {}
   }
 
-  /* Com rede, confere se o pacote guardado mudou no site e baixa a versão nova (tela inicial). */
+  /* With network, checks whether the stored pack changed on the site and downloads the new version (home screen). */
   function conferirAtualizacao() {
     if (atual === "en" || !info || !navigator.onLine || !("caches" in window)) return;
     manifesto().then(function (ps) {
@@ -195,9 +195,9 @@
     }).catch(function () {});
   }
 
-  /* ---------- aviso (o mesmo em todas as páginas) ---------- */
+  /* ---------- notice (the same on every page) ---------- */
 
-  // o que cada pacote traduz e o que continua em inglês (igual para todos os idiomas)
+  // what each pack translates and what stays in English (same for every language)
   function traduz() {
     return [t("Home screen"), t("Documents, Spreadsheets, Presentations, PDF, Plain text and EPUB reader"),
       t("Photos"), t("Video"), t("Music"), t("Whiteboard"), t("The top bar of Code, Linux terminal and Wine")];
@@ -317,7 +317,7 @@
     if (escolhido !== atual) detalhe(); else lista();
   }
 
-  /* Botão de idioma: qualquer elemento com data-idioma-botao abre o aviso. */
+  /* Language button: any element with data-idioma-botao opens the notice. */
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-idioma-botao]");
     if (!b) return;

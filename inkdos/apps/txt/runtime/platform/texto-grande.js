@@ -1,9 +1,9 @@
-// Texto grande sem gastar memória à toa.
-// O <textarea> do Chromium desenha o texto inteiro: um .txt de 20 MB custava ~650 MB (medido no Edge, WebView2,
-// Brave e Electron). Acima de LIMITE caracteres o campo guarda só uma janela do documento (JANELA caracteres, em
-// linhas inteiras) e troca a janela sozinho quando a rolagem chega perto das pontas, sem pular a posição.
-// value, selectionStart/End, setSelectionRange, setRangeText e select() continuam valendo para o documento
-// inteiro, então o resto do app não muda. Abaixo do LIMITE nada disso entra em ação.
+// Large text without wasting memory.
+// Chromium's <textarea> draws the whole text: a 20 MB .txt cost ~650 MB (measured in Edge, WebView2,
+// Brave and Electron). Above LIMITE characters the field keeps only a window of the document (JANELA characters, in
+// whole lines) and moves the window by itself when scrolling nears the ends, without jumping position.
+// value, selectionStart/End, setSelectionRange, setRangeText and select() still apply to the whole
+// document, so the rest of the app does not change. Below LIMITE none of this kicks in.
 (function () {
   'use strict';
   const ta = document.getElementById('editor');
@@ -19,7 +19,7 @@
 
   const inteiro = () => (ativo ? pre + nget() + pos : nget());
   const lim = (v, a, b) => Math.max(a, Math.min(b, v));
-  // início da linha que contém i (se a linha for enorme, corta em i mesmo)
+  // start of the line containing i (if the line is huge, cut at i itself)
   function corte(t, i) {
     if (i <= 0) return 0;
     if (i >= t.length) return t.length;
@@ -27,7 +27,7 @@
     return j >= 0 && i - (j + 1) < PASSO / 2 ? j + 1 : i;
   }
 
-  // altura que um trecho ocupa no campo: um textarea escondido com a mesma largura e fonte
+  // height a chunk takes in the field: a hidden textarea with the same width and font
   let espelho = null;
   const COPIAR = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'wordSpacing', 'lineHeight', 'tabSize',
     'whiteSpace', 'overflowWrap', 'wordBreak', 'paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth', 'boxSizing', 'textIndent'];
@@ -58,7 +58,7 @@
     P.setSelectionRange.call(ta, lim(a - pre.length, 0, n), lim(b - pre.length, 0, n));
   }
 
-  // põe na tela a janela [ini, fim) do documento
+  // puts the window [ini, fim) of the document on screen
   function janela(t, ini, fim) {
     if (ini < PASSO / 2) ini = 0;
     if (t.length - fim < PASSO / 2) fim = t.length;
@@ -145,7 +145,7 @@
     if (!ativo || arguments.length < 3) return P.setRangeText.apply(ta, arguments);
     if (a < pre.length || b > pre.length + nget().length) janelaEm(a);
     if (a >= pre.length && b <= pre.length + nget().length) return P.setRangeText.call(ta, texto, a - pre.length, b - pre.length, modo);
-    // trecho maior que a janela: troca no documento inteiro
+    // chunk larger than the window: replace in the whole document
     const t = inteiro(), [sa, sb] = selecao();
     ta.value = t.slice(0, a) + texto + t.slice(b);
     const fim = a + texto.length;
@@ -154,7 +154,7 @@
     else if (modo === 'start') ta.setSelectionRange(a, a);
     else ta.setSelectionRange(sa, sb);
   };
-  // "Selecionar tudo" com texto grande: marca a janela e lembra que é o documento inteiro (copiar, recortar, apagar e digitar valem para tudo)
+  // "Select all" with large text: selects the window and remembers it is the whole document (copy, cut, delete and typing apply to all)
   ta.select = function () {
     P.select.call(ta);
     tudo = ativo && (!!pre || !!pos);

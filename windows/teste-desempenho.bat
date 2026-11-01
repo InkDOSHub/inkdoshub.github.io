@@ -1,7 +1,7 @@
 @echo off
 rem InkDOS Hub: teste de desempenho no Windows (Edge, WebView2, Brave e Electron).
-rem Abre os mesmos apps do Hub em cada motor, mede memoria e CPU e grava um relatorio na Area de Trabalho.
-rem O codigo depois da marca PS (mais abaixo) e PowerShell; este .bat so o executa.
+rem Opens the same Hub apps in each engine, measures memory and CPU and writes a report on the Desktop.
+rem The code after the PS marker (below) is PowerShell; this .bat only runs it.
 title InkDOS Hub - teste de desempenho
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$t = Get-Content -LiteralPath '%~f0' -Raw -Encoding UTF8; iex ($t.Substring($t.IndexOf('#PS' + '#') + 4))"
 echo.
@@ -13,7 +13,7 @@ $ProgressPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Windows.Forms
 
 $site = 'https://inkdoshub.github.io/'
-# os mesmos apps em todos os motores: tela inicial + 7 apps abertos juntos
+# the same apps in every engine: home screen + 7 apps open together
 $apps = @(
   'inkdos/apps/pdf/index.html?suite=1',
   'inkdos/apps/documents/index.html?suite=1',
@@ -34,7 +34,7 @@ $resultados = @()
 
 function Diga($s) { Write-Host ((Get-Date).ToString('HH:mm:ss') + '  ' + $s) }
 
-# processos do motor em teste: os que tem a pasta de perfil exclusiva do teste e todos os filhos deles
+# processes of the engine under test: those with the test's exclusive profile folder and all their children
 function Processos($exe, $marca) {
   $todos = @(Get-CimInstance Win32_Process -Filter ("Name='" + $exe + "'") -ErrorAction SilentlyContinue)
   if ($marca) {
@@ -49,7 +49,7 @@ function Processos($exe, $marca) {
   @($todos | ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue } | Where-Object { $_ })
 }
 
-# mede por $seg segundos: memoria privada e de trabalho (soma dos processos) e CPU media
+# measures for $seg seconds: private and working memory (sum of the processes) and average CPU
 function Medir($exe, $marca, $seg, $bombear) {
   $priv = @(); $ws = @(); $cpu = @(); $n = 0
   $antes = @{}
@@ -92,7 +92,7 @@ function Fechar($exe, $marca) {
   Start-Sleep -Seconds 3
 }
 
-# ---------- navegadores (Edge e Brave): perfil novo e vazio, so para o teste ----------
+# ---------- browsers (Edge and Brave): new empty profile, only for the test ----------
 function TestarNavegador($nome, $caminho) {
   $exe = Split-Path $caminho -Leaf
   $perfil = Join-Path $tmp ('perfil-' + $nome)
@@ -119,7 +119,7 @@ Write-Host ''
 
 try { if ($edge) { TestarNavegador 'Edge' $edge } else { Diga 'Edge nao encontrado; pulando.' } } catch { Diga ('Edge falhou: ' + $_) }
 
-# ---------- WebView2: um app com o motor do Edge embutido, como o .exe do Hub seria ----------
+# ---------- WebView2: an app with the embedded Edge engine, as the Hub .exe would be ----------
 try {
   Diga 'WebView2: baixando o componente oficial (NuGet, Microsoft)'
   $wv = Join-Path $tmp 'webview2'
@@ -165,7 +165,7 @@ try {
 
 try { if ($brave) { TestarNavegador 'Brave' $brave } else { Diga 'Brave nao esta instalado; pulando.' } } catch { Diga ('Brave falhou: ' + $_) }
 
-# ---------- Electron: o motor que iria dentro do .exe do Hub ----------
+# ---------- Electron: the engine that would ship inside the Hub .exe ----------
 try {
   $el = Join-Path $tmp 'electron'
   if (-not (Test-Path (Join-Path $el 'electron.exe'))) {
@@ -221,8 +221,8 @@ $linhas = @(
   'PC: ' + $pc.Name.Trim() + ' | ' + $nucleos + ' nucleos | ' + $ram + ' GB | ' + $so,
   'Apps abertos no cenario 2: ' + ($apps -join ', '),
   '',
-  'Memoria privada = media da soma dos processos do motor (o que ele ocupa de fato).',
-  'CPU = media no periodo, em % do processador inteiro.',
+  'Private memory = average of the sum of the engine processes (what it actually takes).',
+  'CPU = average over the period, in % of the whole processor.',
   ''
 )
 $linhas += ($resultados | Format-Table -AutoSize | Out-String -Width 200)

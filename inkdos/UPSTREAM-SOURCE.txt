@@ -1,21 +1,21 @@
-Cópia dos apps do InkDOS dentro do InkDOS Hub
+Copy of the InkDOS apps inside InkDOS Hub
 
-- Origem: https://github.com/vfydr2m9wk-ops/InkDOS, commit 70317a8 (2026-10-17), pastas apps/,
-  shared/, assets/icons/, licenses/, LICENSE e VERSION.json, sem mudanças.
-- Feita a pedido do Paulo (2026-10-17) para os apps do InkDOS abrirem pela tela inicial do
-  InkDOS Hub, cada um na própria página.
-- Não foi copiado: service-worker.js do InkDOS (a cópia offline daqui é a do InkDOS Hub) nem a
-  tela inicial do InkDOS (inkdos/index.html só volta para a tela inicial do InkDOS Hub).
-- Os arquivos guardados por esta cópia ficam no site do InkDOS Hub, separados dos do InkDOS
+- Origin: https://github.com/vfydr2m9wk-ops/InkDOS, commit 70317a8 (2026-10-17), folders apps/,
+  shared/, assets/icons/, licenses/, LICENSE and VERSION.json, unmodified.
+- Made (2026-10-17) so the InkDOS apps open from the
+  InkDOS Hub home screen, each in its own page.
+- Not copied: the InkDOS service-worker.js (the offline copy here is InkDOS Hub's) nor the
+  InkDOS home screen (inkdos/index.html only returns to the InkDOS Hub home screen).
+- Files stored by this copy live on the InkDOS Hub site, separate from those of InkDOS
   aberto em https://vfydr2m9wk-ops.github.io/InkDOS/.
-- O repositório do InkDOS foi apagado em 2026-10-29: esta cópia agora é mantida aqui.
-- Mudanças (feitas pelo antigo tools/adaptar_inkdos.py, que está no histórico do git, e depois à mão):
-  - index.html de cada app carrega ../../../assets/gerenciador-app.js (abre os apps em abas nomeadas);
-  - "Editar com ArtCraft" abre os editores ArtCraft (apps/*craft/) numa página nova
-    (runtime/platform/file-launch.js de cada app).
-  - documentos, planilhas e apresentações: os visualizadores abrem /visualizadores/ deste site;
-  - PDF: sem o botão "Editar PDF" e sem as senhas do BentoPDF (ficam no app Editar PDF);
-  - 2026-10-29 (auditoria/006): saíram o handoff.html + assets/handoff.js e o ui/edit-pdf-button.js do PDF (as
-    ferramentas de PDF ficam no app Editar PDF), o código do editor do site antigo em runtime/platform/file-launch.js
-    (agora igual nos 6 apps), o registro do service-worker.js do InkDOS (shared/ui-density.js) e os fontes soltos do
-    Texto (apps/txt/): a página servida é o index.html, que já traz tudo embutido.
+- The InkDOS repository was deleted on 2026-10-29: this copy is now maintained here.
+- Changes (made by the old tools/adaptar_inkdos.py, which is in the git history, and then by hand):
+  - each app's index.html loads ../../../assets/gerenciador-app.js (opens apps in named tabs);
+  - "Edit with ArtCraft" opens the ArtCraft editors (apps/*craft/) in a new page
+    (runtime/platform/file-launch.js of each app).
+  - documents, spreadsheets and presentations: the viewers open /visualizadores/ of this site;
+  - PDF: without the "Edit PDF" button and the BentoPDF passwords (they live in the Edit PDF app);
+  - 2026-10-29 (auditoria/006): removed handoff.html + assets/handoff.js and the PDF ui/edit-pdf-button.js (the
+    PDF tools live in the Edit PDF app), the old site's editor code in runtime/platform/file-launch.js
+    (now identical in the 6 apps), the InkDOS service-worker.js registration (shared/ui-density.js) and the loose sources of
+    Text (apps/txt/): the served page is index.html, which already embeds everything.

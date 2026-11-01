@@ -1,10 +1,10 @@
-// InkDOS Hub Webcam para Windows: a câmera do iPhone como webcam do Windows, sem o OBS e sem navegador.
+// InkDOS Hub Webcam for Windows: the iPhone camera as a Windows webcam, without OBS and without a browser.
 //
-// O iPhone abre a página Host do app Webcam (https://inkdoshub.github.io/apps/webcam/?host=<código>) no Safari.
-// Este programa faz o papel da página Guest, todo nativo: mostra o QR e o código, conversa com o servidor do
-// PeerJS e recebe o vídeo com o GStreamer (Nativo.cs). Cada quadro vai para uma câmera virtual do Windows
-// (softcam, DirectShow), que o Zoom, o Teams, o Meet e os outros apps enxergam como "InkDOS Hub Webcam".
-// Não usa o WebView2 nem o Edge.
+// The iPhone opens the Webcam app Host page (https://inkdoshub.github.io/apps/webcam/?host=<code>) in Safari.
+// This program plays the role of the Guest page, fully native: shows the QR code and the code, talks to the
+// PeerJS server and receives the video with GStreamer (Nativo.cs). Each frame goes to a Windows virtual camera
+// (softcam, DirectShow), which Zoom, Teams, Meet and other apps see as "InkDOS Hub Webcam".
+// Uses neither WebView2 nor Edge.
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -22,9 +22,9 @@ namespace InkDOSHubWebcam
 {
     static class Program
     {
-        // Mantém apenas uma instância da câmera virtual por sessão do Windows.
+        // Keeps only one virtual camera instance per Windows session.
         static Mutex instancia;
-        public const string Clsid = "{4E1C6B1A-2B7E-4F0A-9C55-6A1D3B8E7F21}"; // o mesmo de softcam.cpp (patch do workflow)
+        public const string Clsid = "{4E1C6B1A-2B7E-4F0A-9C55-6A1D3B8E7F21}"; // the same as softcam.cpp (workflow patch)
         public static readonly string Pasta = AppDomain.CurrentDomain.BaseDirectory;
         public static readonly string Dll = Path.Combine(Pasta, "softcam.dll");
         public static readonly string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InkDOS Hub Webcam", "startup.log");
@@ -93,7 +93,7 @@ namespace InkDOSHubWebcam
         }
     }
 
-    /* softcam.dll: registro da câmera (uma vez, como administrador) e envio dos quadros. */
+    /* softcam.dll: camera registration (once, as administrator) and frame sending. */
     static class Softcam
     {
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr LoadLibrary(string path);
@@ -137,7 +137,7 @@ namespace InkDOSHubWebcam
 
     class Janela : Form
     {
-        // o iPhone abre esta página (Host) e liga para "inkdoshub-webcam-<código>"
+        // the iPhone opens this page (Host) and calls "inkdoshub-webcam-<code>"
         const string Host = "https://inkdoshub.github.io/apps/webcam/?host=";
         const string Letras = "abcdefghjkmnpqrstuvwxyz23456789";
         static readonly bool Pt = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "pt";
@@ -145,8 +145,8 @@ namespace InkDOSHubWebcam
 
         static readonly Qualidade[] Qualidades =
         {
-            // a primeira é a padrão; as outras só aparecem com "Outras resoluções"
-            // (bitrate médio = o que o iPhone manda em cada modo)
+            // the first is the default; the others only show with "Custom resolutions"
+            // (average bitrate = what the iPhone sends in each mode)
             new Qualidade(Tx("1080p 30 fps · ~8 Mbps · leve (recomendada)", "1080p 30 fps · ~8 Mbps · light (recommended)"), 1920, 1080, 30),
             new Qualidade(Tx("720p 30 fps · ~4 Mbps · a mais leve", "720p 30 fps · ~4 Mbps · lightest"), 1280, 720, 30),
             new Qualidade(Tx("720p 60 fps · ~6 Mbps · leve", "720p 60 fps · ~6 Mbps · light"), 1280, 720, 60),
@@ -155,7 +155,7 @@ namespace InkDOSHubWebcam
             new Qualidade(Tx("4K 60 fps · ~40 Mbps · extrema", "4K 60 fps · ~40 Mbps · extreme"), 3840, 2160, 60),
         };
 
-        // cores da tela inicial do InkDOS Hub (assets/home.css), claro e escuro conforme o Windows
+        // InkDOS Hub home screen colors (assets/home.css), light and dark following Windows
         static readonly bool Escuro = LerEscuro();
         static bool LerEscuro()
         {
@@ -193,7 +193,7 @@ namespace InkDOSHubWebcam
             Font = new Font("Segoe UI", 10f);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
 
-            // barra de cima: qualidade da câmera virtual
+            // top bar: virtual camera quality
             var barra = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 46, Padding = new Padding(10, 10, 10, 0), BackColor = CorCartao, WrapContents = false };
             qualidade.DropDownStyle = ComboBoxStyle.DropDownList;
             qualidade.Width = 300;
@@ -207,7 +207,7 @@ namespace InkDOSHubWebcam
             barra.Controls.Add(personalizadas);
             barra.Controls.Add(taxa);
 
-            // cartão do pareamento: QR, código e estado (o que antes era a página no WebView2)
+            // pairing card: QR code, code and status (what used to be the page in WebView2)
             cartao.BackColor = CorCartao;
             qr.SizeMode = PictureBoxSizeMode.Zoom; qr.BackColor = Color.White;
             aviso.Text = Tx("Aponte a Câmera do iPhone para o QR code. Ou abra a Webcam do InkDOS Hub no iPhone, toque em Host e digite o código.",
@@ -291,7 +291,7 @@ namespace InkDOSHubWebcam
             return s.ToString();
         }
 
-        /* Mostra o QR deste código e liga o receptor nativo (Nativo.cs) com ele. */
+        /* Shows the QR code for this code and starts the native receiver (Nativo.cs) with it. */
         void Codigo(string c)
         {
             codigo = c;
@@ -331,7 +331,7 @@ namespace InkDOSHubWebcam
             Arrumar();
         }
 
-        // os avisos do receptor vêm em inglês; em português, traduz os conhecidos
+        // receiver notices come in English; in Portuguese, translate the known ones
         static string Traduzir(string s)
         {
             if (!Pt) return s;
@@ -347,7 +347,7 @@ namespace InkDOSHubWebcam
             }
         }
 
-        /* Cria a câmera virtual no tamanho escolhido. */
+        /* Creates the virtual camera at the chosen size. */
         void AbrirCamera(int tentativa = 0)
         {
             var q = (Qualidade)qualidade.SelectedItem;
@@ -360,7 +360,7 @@ namespace InkDOSHubWebcam
                     Softcam.scDeleteCamera(camera);
                     camera = IntPtr.Zero;
                 }
-                // framerate 0: cada quadro vai na hora (com fps fixo o scSendFrame "dorme" e soma atraso)
+                // framerate 0: each frame goes right away (with a fixed fps scSendFrame "sleeps" and adds delay)
                 if (camera == IntPtr.Zero) camera = Softcam.scCreateCamera(q.W, q.H, 0);
                 if (camera != IntPtr.Zero) { bgr = new byte[q.W * q.H * 3]; atual = q; }
             }
@@ -383,7 +383,7 @@ namespace InkDOSHubWebcam
         }
 
         bool preenchendo;
-        /* Só a padrão (1080p 30) ou a lista completa, conforme "Outras resoluções". */
+        /* Only the default (1080p 30) or the full list, depending on "Custom resolutions". */
         void PreencherLista(Qualidade escolhida)
         {
             preenchendo = true;
@@ -409,7 +409,7 @@ namespace InkDOSHubWebcam
 
         long nativoJanela = Stopwatch.GetTimestamp(), nativoQuadros;
         double nativoConversao;
-        /* Quadro BGRA do GStreamer (thread do receptor) para a câmera virtual. */
+        /* BGRA frame from GStreamer (receiver thread) to the virtual camera. */
         void EntregarNativo(IntPtr bgra, int sw, int sh)
         {
             var r = receptor;
@@ -443,7 +443,7 @@ namespace InkDOSHubWebcam
             }
         }
 
-        /* 4 bytes por pixel (BGRX ou RGBA) para os 3 bytes BGR que o softcam pede, em faixas paralelas. */
+        /* 4 bytes per pixel (BGRX or RGBA) to the 3 BGR bytes softcam wants, in parallel strips. */
         static void Converter(IntPtr origem, IntPtr destino, int n, bool bgrx)
         {
             int faixas = Math.Max(1, Math.Min(Environment.ProcessorCount, 8));
@@ -463,15 +463,15 @@ namespace InkDOSHubWebcam
             });
         }
 
-        /* BGRX cru (sw×sh) para BGR no tamanho da câmera: gira (0/90/180/270, sentido horário), preenche
-           16:9 cortando as bordas ou mostra inteira com faixas pretas, por vizinho mais próximo, em faixas
-           paralelas. Substitui o canvas da página, que custava ~130 ms por quadro a 4K. */
+        /* Raw BGRX (sw×sh) to BGR at the camera size: rotates (0/90/180/270, clockwise), fills
+           16:9 by cropping the edges or shows it whole with black bars, nearest neighbor, in parallel
+           strips. Replaces the page canvas, which cost ~130 ms per frame at 4K. */
         static void Transformar(IntPtr origem, int sw, int sh, int giro, bool inteira, IntPtr destino, int W, int H)
         {
             bool deitado = giro == 90 || giro == 270;
-            int rw = deitado ? sh : sw, rh = deitado ? sw : sh;   // tamanho depois do giro
+            int rw = deitado ? sh : sw, rh = deitado ? sw : sh;   // size after rotation
             double esc = inteira ? Math.Min((double)W / rw, (double)H / rh) : Math.Max((double)W / rw, (double)H / rh);
-            // coordenada na imagem girada para cada coluna x e linha y da câmera (-1 = fora: preto)
+            // coordinate in the rotated image for each camera column x and row y (-1 = outside: black)
             int[] us = new int[W], vs = new int[H];
             for (int x = 0; x < W; x++) { int u = (int)Math.Floor((x + 0.5 - W / 2.0) / esc + rw / 2.0); us[x] = u >= 0 && u < rw ? u : -1; }
             for (int y = 0; y < H; y++) { int v = (int)Math.Floor((y + 0.5 - H / 2.0) / esc + rh / 2.0); vs[y] = v >= 0 && v < rh ? v : -1; }
@@ -492,7 +492,7 @@ namespace InkDOSHubWebcam
                             int u = us[x];
                             if (u < 0 || v < 0) { dst[0] = 0; dst[1] = 0; dst[2] = 0; continue; }
                             int sx, sy;
-                            // ponto (u,v) da imagem girada -> ponto da imagem crua
+                            // point (u,v) of the rotated image -> point of the raw image
                             if (giro == 0) { sx = u; sy = v; }
                             else if (giro == 90) { sx = v; sy = sh - 1 - u; }
                             else if (giro == 180) { sx = sw - 1 - u; sy = sh - 1 - v; }

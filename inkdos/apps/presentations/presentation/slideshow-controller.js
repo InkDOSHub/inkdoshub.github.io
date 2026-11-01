@@ -117,7 +117,7 @@ function create({session,overlay,host,counter,renderSlide}={}){
  }
  function clearPrint(){if(!printSheet)return;printSheet.remove();printSheet=null;document.documentElement.classList.remove('ppt-printing')}
  global.addEventListener?.('beforeprint',preparePrint);global.addEventListener?.('afterprint',clearPrint);
- // No iPad o navegador já mostra o próprio X na tela cheia; o nosso só aparece quando ele não existe.
+ // On iPad the browser already shows its own X in full screen; ours only appears when it does not exist.
  function syncExit(){const exit=overlay.querySelector('[data-present-exit]');if(exit)exit.hidden=!!(document.fullscreenElement||document.webkitFullscreenElement)&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1}
  function open(fromStart=false){if(!session.active)return false;index=fromStart?0:session.currentIndex;active=true;overlay.hidden=false;document.body.dataset.presenting='true';render();overlay.focus();try{Promise.resolve(overlay.requestFullscreen?.()).then(syncExit,()=>{})}catch(_){}return true}
  function close(){active=false;overlay.hidden=true;delete document.body.dataset.presenting;if(document.fullscreenElement)document.exitFullscreen?.().catch?.(()=>{})}

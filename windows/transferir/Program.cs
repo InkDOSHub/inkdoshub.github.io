@@ -1,13 +1,13 @@
-// InkDOS Hub Transferir (protótipo).
+// InkDOS Hub Transfer (prototype).
 //
-// Transferência rápida celular <-> PC sem internet, sem servidor e sem admin.
-// Este app faz só o Wi-Fi direto (o painel inicia a rede sozinho); "pelo roteador" fica na página do Hub.
-// O servidor ainda aceita as duas formas:
-//  - Wi-Fi direto: o PC cria uma rede Wi-Fi própria (Wi-Fi Direct no modo "legado", API do Windows
-//    que não pede admin). O celular entra nela como numa Wi-Fi comum.
-//  - Pelo roteador: usa a rede que o PC já tem (cabo ou Wi-Fi); o celular precisa estar na mesma rede.
-// Nos dois casos o celular abre no navegador a página servida por este programa (http://IP:porta/).
-// O painel do PC abre no navegador do próprio PC (http://localhost:porta/pc).
+// Fast phone <-> PC transfer without internet, without a server and without admin.
+// This app does only Wi-Fi Direct (the panel starts the network by itself); "through the router" lives in the Hub page.
+// The server still accepts both ways:
+//  - Wi-Fi Direct: the PC creates its own Wi-Fi network (Wi-Fi Direct in "legacy" mode, a Windows API
+//    that does not need admin). The phone joins it like a regular Wi-Fi.
+//  - Through the router: uses the network the PC already has (cable or Wi-Fi); the phone must be on the same network.
+// In both cases the phone opens in the browser the page served by this program (http://IP:port/).
+// The PC panel opens in the PC's own browser (http://localhost:port/pc).
 
 using System;
 using System.Collections.Generic;
@@ -69,7 +69,7 @@ namespace InkDOSHubTransferir
                 try
                 {
                     srv.Iniciar();
-                    info.Text = "Funcionando. O painel abre no navegador do PC.\nMantenha esta janela aberta durante a transferência.\nRecebidos: " + srv.Pasta;
+                    info.Text = "Running. The panel opens in the PC browser.\nKeep this window open during the transfer.\nReceived: " + srv.Pasta;
                     srv.AbrirPainel();
                 }
                 catch (Exception e) { info.Text = "Erro ao iniciar: " + e.Message; }
@@ -112,9 +112,9 @@ namespace InkDOSHubTransferir
         WiFiDirectAdvertisementPublisher pub;
         WiFiDirectConnectionListener ouvinte;
         string ssid = "", senha = "", statusDireto = "";
-        // chave que vai no QR: sem ela, outro aparelho da mesma rede não acessa nada
+        // key that goes in the QR code: without it, another device on the same network cannot access anything
         readonly string chave = Aleatorio("abcdefghjkmnpqrstuvwxyz23456789", 8);
-        // token do painel do PC: sem ele, sites abertos no navegador do PC não usam as rotas locais
+        // PC panel token: without it, sites open in the PC browser cannot use the local routes
         readonly string tokPc = Aleatorio("abcdefghjkmnpqrstuvwxyz23456789", 24);
 
         public Servidor(Form ui) { this.ui = ui; }
@@ -145,7 +145,7 @@ namespace InkDOSHubTransferir
 
         // ---------- Wi-Fi direto ----------
 
-        // gerador criptográfico (Random comum é previsível)
+        // cryptographic generator (plain Random is predictable)
         static string Aleatorio(string alfabeto, int n)
         {
             var sb = new StringBuilder();
@@ -167,7 +167,7 @@ namespace InkDOSHubTransferir
             return d == 0;
         }
 
-        // contra DNS rebinding: só aceita Host que seja um IP ou localhost
+        // against DNS rebinding: only accepts a Host that is an IP or localhost
         static bool HostOk(Dictionary<string, string> cab)
         {
             string h;
@@ -197,7 +197,7 @@ namespace InkDOSHubTransferir
                 {
                     statusDireto = a.Status.ToString() + (a.Error != WiFiDirectError.Success ? " (" + a.Error + ")" : "");
                 };
-                // aparelhos com Wi-Fi Direct de verdade também podem pedir conexão; aceita sem fazer nada
+                // devices with real Wi-Fi Direct may also request a connection; accept without doing anything
                 ouvinte = new WiFiDirectConnectionListener();
                 ouvinte.ConnectionRequested += (s, a) => { };
                 pub.Start();
@@ -241,7 +241,7 @@ namespace InkDOSHubTransferir
                 if (!local) { celularVisto = DateTime.UtcNow; celularIp = remoto.ToString(); }
 
                 string metodo, alvo; Dictionary<string, string> cab; byte[] sobra;
-                // conexão que não manda o cabeçalho em 15 s é fechada (não prende uma thread para sempre)
+                // a connection that does not send the header within 15 s is closed (does not hold a thread forever)
                 s.ReadTimeout = 15000;
                 if (!LerCabecalho(s, out metodo, out alvo, out cab, out sobra)) return;
                 s.ReadTimeout = Timeout.Infinite;
@@ -264,16 +264,16 @@ namespace InkDOSHubTransferir
                 if (!HostOk(cab)) { Texto(s, 403, "host recusado"); return; }
                 if (local)
                 {
-                    // o PC também precisa do token: sem isso qualquer site no navegador chamaria estas rotas
+                    // the PC also needs the token: without it any site in the browser could call these routes
                     if (caminho != "/qrcode.js" && (!q.TryGetValue("t", out k) || !Igual(k, tokPc)))
                     {
-                        Texto(s, 403, "Abra o painel pelo ícone do InkDOS Hub Transferir.");
+                        Texto(s, 403, "Open the panel from the InkDOS Hub Transfer icon.");
                         return;
                     }
                 }
                 else if (caminho != "/qrcode.js" && (!q.TryGetValue("k", out k) || !Igual(k, chave)))
                 {
-                    Texto(s, 403, "Abra pelo QR code mostrado no PC.");
+                    Texto(s, 403, "Open it from the QR code shown on the PC.");
                     return;
                 }
 
@@ -306,7 +306,7 @@ namespace InkDOSHubTransferir
             finally { try { c.Close(); } catch { } }
         }
 
-        // rotas só do painel do PC (localhost)
+        // routes only for the PC panel (localhost)
         void Painel(NetworkStream s, string caminho, Dictionary<string, string> q)
         {
             switch (caminho)
@@ -321,7 +321,7 @@ namespace InkDOSHubTransferir
                 case "/escolher":
                     ui.Invoke((Action)delegate
                     {
-                        using (var d = new OpenFileDialog { Multiselect = true, Title = "Arquivos para o celular" })
+                        using (var d = new OpenFileDialog { Multiselect = true, Title = "Files for the phone" })
                         {
                             if (d.ShowDialog(ui) != DialogResult.OK) return;
                             lock (trava)
@@ -362,11 +362,11 @@ namespace InkDOSHubTransferir
             string nome; q.TryGetValue("nome", out nome);
             nome = Limpar(nome);
             string destino = Path.Combine(Pasta, nome);
-            // limite: tamanho declarado e espaço livre (deixa 1 GB sobrando no disco)
+            // limit: declared size and free space (leaves 1 GB spare on the disk)
             try
             {
                 long livre = new DriveInfo(Path.GetPathRoot(Pasta)).AvailableFreeSpace;
-                if (tam < 0 || tam > livre - (1L << 30)) { Texto(s, 507, "sem espaco no PC"); return; }
+                if (tam < 0 || tam > livre - (1L << 30)) { Texto(s, 507, "not enough space on the PC"); return; }
             }
             catch { }
             for (int i = 2; File.Exists(destino); i++)
@@ -422,7 +422,7 @@ namespace InkDOSHubTransferir
             int mb; if (!int.TryParse(smb, out mb)) mb = 30;
             mb = Math.Max(1, Math.Min(mb, 500));
             long total = (long)mb * BUF;
-            var t = NovaTransf("Diagnóstico: PC → celular", "teste", total);
+            var t = NovaTransf("Diagnostics: PC → phone", "teste", total);
             Cabecalho(s, 200, "application/octet-stream", total, "");
             try
             {
@@ -434,7 +434,7 @@ namespace InkDOSHubTransferir
 
         void TesteSubida(NetworkStream s, Corpo corpo, long tam)
         {
-            var t = NovaTransf("Diagnóstico: celular → PC", "teste", tam);
+            var t = NovaTransf("Diagnostics: phone → PC", "teste", tam);
             var b = new byte[BUF]; int n;
             while (t.Feito < tam && (n = corpo.Read(b, 0, b.Length)) > 0) t.Feito += n;
             t.Fim = DateTime.UtcNow;
@@ -511,7 +511,7 @@ namespace InkDOSHubTransferir
                 ",\"ips\":[" + string.Join(",", ips) + "],\"transfs\":[" + string.Join(",", ts) + "]}";
         }
 
-        // dados da placa Wi-Fi do PC (sinal, padrão, canal, taxa); netsh não pede admin
+        // PC Wi-Fi adapter data (signal, standard, channel, rate); netsh does not need admin
         string JsonWifi()
         {
             var linhas = new List<string>();
@@ -613,7 +613,7 @@ namespace InkDOSHubTransferir
         }
     }
 
-    // corpo da requisição: o que sobrou do cabeçalho + o resto do socket, até Content-Length
+    // request body: what was left from the header + the rest of the socket, up to Content-Length
     class Corpo
     {
         readonly NetworkStream s; readonly byte[] sobra; int pos; long resta;

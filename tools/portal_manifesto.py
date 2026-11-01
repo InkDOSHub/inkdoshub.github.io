@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Gera inicio/manifesto.json: a lista de arquivos que o botão "Offline" da tela inicial guarda neste aparelho,
-e (chave "idiomas") os arquivos de cada pacote de idioma (assets/idioma.js).
+"""Builds inicio/manifesto.json: the list of files the home screen "Offline" button stores on this device,
+and ("idiomas" key) the files of each language pack (assets/idioma.js).
 
-Só o inglês entra na cópia offline. Os arquivos dos outros idiomas (traduções da casca,
-do Quadro e dos apps do InkDOS) vão para o pacote do idioma, baixado só quando a pessoa
-escolhe. Idiomas que o InkDOS Hub não oferece ficam fora dos dois.
+Only English goes into the offline copy. The files of the other languages (shell translations,
+Whiteboard and InkDOS apps) go into the language pack, downloaded only when the person
+picks it. Languages InkDOS Hub does not offer stay out of both.
 
-Cada grupo (tela inicial, terminal, cada app) pode ser baixado junto. Cada arquivo é [caminho, bytes,
-número curto (16 primeiros dígitos do SHA-256, para saber o que mudou), SHA-256 inteiro (o app do Windows
-confere cada arquivo baixado contra ele)]. Rode na raiz do repositório depois de mudar qualquer arquivo:
+Each group (home screen, terminal, each app) can be downloaded together. Each file is [path, bytes,
+short number (first 16 digits of the SHA-256, to know what changed), full SHA-256 (the Windows app
+checks each downloaded file against it)]. Run at the repository root after changing any file:
     python3 tools/portal_manifesto.py
 """
 import hashlib, json, os, re, sys
@@ -28,17 +28,17 @@ GRUPOS = [
     ("inkdos", "Documents (InkDOS)", ["inkdos"]),
     ("artcraft", "ArtCraft editors", ["artcraft", "apps/wordcraft", "apps/gridcraft", "apps/deckcraft"]),
     ("visualizadores", "Edit PDF (BentoPDF) and viewers", ["apps/editar-pdf", "visualizadores"]),
-    # motores pesados do Editar PDF: o básico offline fica abaixo de 100 MB, o resto é o "pacote completo"
+    # heavy Edit PDF engines: the basic offline set stays under 100 MB, the rest is the "full package"
     ("pdf-completo", "Edit PDF: full pack (Office, OCR, compress)", [
         "visualizadores/bentopdf/libreoffice-wasm", "visualizadores/bentopdf/wasm/pymupdf",
         "visualizadores/bentopdf/wasm/ocr", "visualizadores/bentopdf/wasm/gs"]),
 ]
-# um caminho listado em outro grupo sai do grupo da pasta-mãe
+# a path listed in another group leaves the parent folder's group
 DONO = {c: g for g, _, cs in GRUPOS for c in cs}
 FORA = {"inicio/manifesto.json"}
 FORA_EXT = (".md", ".txt", ".map")
 
-# pacotes de idioma: o nome que cada ferramenta usa -> código do InkDOS Hub
+# language packs: the name each tool uses -> InkDOS Hub code
 PACOTES = ["pt-BR", "es", "de", "fr", "zh-CN", "ja", "ru"]
 EXCALIDRAW = {"en": "en", "pt-BR": "pt-BR", "es-ES": "es", "de-DE": "de", "fr-FR": "fr", "zh-CN": "zh-CN", "ja-JP": "ja", "ru-RU": "ru"}
 REGRAS = [
@@ -48,7 +48,7 @@ REGRAS = [
 ]
 
 def idioma_de(rel):
-    """None: não é arquivo de idioma; "en": fica no site e na cópia offline; outro código: vai para o pacote."""
+    """None: not a language file; "en": stays on the site and in the offline copy; other code: goes into the pack."""
     for r, f in REGRAS:
         m = r.match(rel)
         if m:
@@ -66,7 +66,7 @@ def arquivos(caminho):
             rel = os.path.relpath(os.path.join(d, n), RAIZ).replace(os.sep, "/")
             if rel in FORA or n.startswith(".") or n.endswith(FORA_EXT):
                 continue
-            # x.br / x.gz ao lado de x: cópia para servidores que mandam comprimido (o Pages não), nunca carregada
+            # x.br / x.gz next to x: copy for servers that send compressed files (Pages does not), never loaded
             if n.endswith((".br", ".gz")) and os.path.isfile(os.path.join(d, n[:-3])):
                 continue
             if any(rel.startswith(c + "/") and DONO[c] != DONO.get(caminho) and len(c) > len(caminho) for c in DONO):
@@ -107,7 +107,7 @@ def main():
         print(f'{g["id"]:10} {len(g["arquivos"]):5} arquivos {g["bytes"]/1e6:8.1f} MB')
     for c, p in saida["idiomas"].items():
         print(f'idioma {c:6} {len(p["arquivos"]):5} arquivos {p["bytes"]/1e6:8.2f} MB')
-    print("versão", saida["versao"])
+    print("version", saida["versao"])
 
 if __name__ == "__main__":
     sys.exit(main())

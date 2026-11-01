@@ -1,9 +1,9 @@
 @echo off
-rem InkDOS Hub: teste com arquivos reais (simples, medio e complexo) em cada motor (Edge, WebView2, Brave e Electron).
-rem Baixa os arquivos da release "arquivos-teste" para Downloads\InkDOSHub-arquivos-teste, abre cada um no app dele
-rem e mede o tempo para abrir, a memoria, a CPU e o tempo para fechar. Relatorio na Area de Trabalho.
-rem O codigo depois da marca PS (mais abaixo) e PowerShell; este .bat so o executa.
-title InkDOS Hub - teste com arquivos
+rem InkDOS Hub: test with real files (simple, medium and complex) in each engine (Edge, WebView2, Brave and Electron).
+rem Downloads the files from the "arquivos-teste" release to Downloads\InkDOSHub-arquivos-teste, opens each one in its app
+rem and measures the time to open, memory, CPU and the time to close. Report on the Desktop.
+rem The code after the PS marker (below) is PowerShell; this .bat only runs it.
+title InkDOS Hub - file test
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$t = Get-Content -LiteralPath '%~f0' -Raw -Encoding UTF8; iex ($t.Substring($t.IndexOf('#PS' + '#') + 4))"
 echo.
 pause
@@ -16,7 +16,7 @@ Add-Type -AssemblyName System.Windows.Forms
 
 $site = 'https://inkdoshub.github.io/'
 $release = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/arquivos-teste/'
-# app de cada tipo de arquivo (o mesmo endereco da versao web)
+# app for each file type (the same address as the web version)
 $apps = [ordered]@{
   pdf  = 'inkdos/apps/pdf/index.html?suite=1'
   docx = 'inkdos/apps/documents/index.html?suite=1'
@@ -40,7 +40,7 @@ $pasta = Join-Path ([Environment]::GetFolderPath('Desktop')) 'InkDOSHub-teste'
 $tmp = Join-Path $env:TEMP 'InkDOSHub-teste'
 New-Item -ItemType Directory -Force -Path $baixar, $pasta, $tmp | Out-Null
 $nucleos = [Environment]::ProcessorCount
-# tudo o que aparece na janela tambem vai para um arquivo, para nao se perder se ela fechar
+# everything shown in the window also goes to a file, so it is not lost if the window closes
 try { Start-Transcript -Path (Join-Path $pasta 'log-arquivos.txt') -Force | Out-Null } catch {}
 $resultados = @()
 $primeira = @()
@@ -54,9 +54,9 @@ function Esperar($seg) {
 
 function Baixar($url, $destino) { Invoke-WebRequest $url -OutFile $destino -UseBasicParsing }
 
-# ---------- 1. arquivos de teste em Downloads (so baixa o que falta ou mudou; confere o SHA-256) ----------
+# ---------- 1. test files in Downloads (only downloads what is missing or changed; checks the SHA-256) ----------
 Write-Host ''
-Write-Host 'InkDOS Hub: teste com arquivos reais'
+Write-Host 'InkDOS Hub: test with real files'
 Write-Host ('Arquivos em: ' + $baixar)
 Write-Host ''
 $listaTxt = Join-Path $baixar 'lista.txt'
@@ -83,7 +83,7 @@ $arquivos = @($arquivos | Sort-Object @{ e = { [array]::IndexOf(@($apps.Keys), $
 Diga ('' + $arquivos.Count + ' arquivos prontos e conferidos')
 
 Write-Host ''
-Write-Host 'Motores: Enter = todos (Edge, WebView2, Brave, Electron). Ou digite so os que quer, ex.: webview2 electron'
+Write-Host 'Engines: Enter = all (Edge, WebView2, Brave, Electron). Or type only the ones you want, e.g.: webview2 electron'
 $escolha = (Read-Host 'Motores').ToLower()
 function Quero($m) { (-not $escolha.Trim()) -or $escolha.Contains($m.ToLower()) }
 Write-Host 'Nao use o PC durante o teste (uns 10 minutos por motor). As janelas abrem e fecham sozinhas.'
@@ -113,7 +113,7 @@ function CpuEntre($antes, $ps, $seg) {
 }
 function Fechar($exe, $marca) { Processos $exe $marca | ForEach-Object { try { $_.Kill() } catch {} }; Start-Sleep -Seconds 3 }
 
-# ---------- DevTools (CDP): o mesmo protocolo nos 4 motores, para entregar o arquivo ao app ----------
+# ---------- DevTools (CDP): the same protocol in the 4 engines, to hand the file to the app ----------
 function Aguardar($tarefa, $seg) {
   $fim = (Get-Date).AddSeconds($seg)
   while (-not $tarefa.IsCompleted) {
@@ -156,18 +156,18 @@ function Js($ws, $expr, $seg = 120) {
   if ($r.exceptionDetails) { throw ('JS: ' + $r.exceptionDetails.text + ' ' + $r.exceptionDetails.exception.description) }
   $r.result.value
 }
-# o campo de arquivo do app que aceita este tipo
+# the app file field that accepts this type
 function Achar($ext) {
   $m = ''; if ($mime.ContainsKey($ext)) { $m = $mime[$ext] }
   "(function(x,m){for(const i of document.querySelectorAll('input[type=file]')){const a=(i.accept||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);if(!a.length||a.some(t=>t==='.'+x||t===m||(m&&t.endsWith('/*')&&m.startsWith(t.slice(0,-1)))))return i}return null})('$ext','$m')"
 }
-# espera a pagina sossegar: 1,5 s sem mudar a tela e sem tarefa longa (maximo 60 s)
+# waits for the page to settle: 1.5 s without screen changes or long tasks (max 60 s)
 $sossegar = "new Promise(r=>{let u=performance.now();const t0=u;const mo=new MutationObserver(()=>{u=performance.now()});mo.observe(document,{subtree:true,childList:true,characterData:true});let po=null;try{po=new PerformanceObserver(l=>{for(const e of l.getEntries())u=Math.max(u,e.startTime+e.duration)});po.observe({entryTypes:['longtask']})}catch(e){}const iv=setInterval(()=>{const n=performance.now();if(n-u>1500||n-t0>60000){clearInterval(iv);mo.disconnect();if(po)po.disconnect();r(true)}},100)})"
-# marca o instante em que o arquivo e entregue e passa a anotar a ultima atividade da pagina
+# marks the moment the file is handed over and starts recording the page's last activity
 $marcar = "(()=>{window.__inkT0=performance.now();window.__inkUlt=window.__inkT0;new MutationObserver(()=>{window.__inkUlt=performance.now()}).observe(document,{subtree:true,childList:true,characterData:true});try{new PerformanceObserver(l=>{for(const e of l.getEntries())window.__inkUlt=Math.max(window.__inkUlt,e.startTime+e.duration)}).observe({entryTypes:['longtask']})}catch(e){}return true})()"
 $estado = '[performance.now()-window.__inkUlt, window.__inkUlt-window.__inkT0, performance.now()-window.__inkT0]'
 
-# ---------- janelas: abrir e fechar um app em cada motor ----------
+# ---------- windows: open and close an app in each engine ----------
 function Alvo($m, $url, $seg = 30) {
   $base = $url.Split('?')[0]
   $fim = (Get-Date).AddSeconds($seg)
@@ -238,7 +238,7 @@ function TestarArquivo($m, $a) {
     Js $ws $marcar | Out-Null
     Cdp $ws 'DOM.getDocument' @{ depth = 0 } | Out-Null
     $o = Cdp $ws 'Runtime.evaluate' @{ expression = $achar; returnByValue = $false }
-    if (-not $o.result.objectId) { throw 'o app nao tem campo para este arquivo' }
+    if (-not $o.result.objectId) { throw 'the app has no field for this file' }
     $tA = Get-Date
     Cdp $ws 'DOM.setFileInputFiles' @{ files = @($a.Caminho); objectId = $o.result.objectId } | Out-Null
     do {
@@ -254,18 +254,18 @@ function TestarArquivo($m, $a) {
     $picoMB = [Math]::Round(($pico - $memAntes) / 1MB)
   } catch { $obs = 'falhou: ' + $_.Exception.Message }
   finally { if ($ws) { try { $ws.Dispose() } catch {} }; if ($j) { FecharJanela $m $j } }
-  # fechar: tempo ate os processos do app sumirem (volta ao numero de antes; maximo 15 s)
+  # close: time until the app processes are gone (back to the previous count; max 15 s)
   $tf = Get-Date
   do { Esperar 0.25; $n = (Processos $m.Exe $m.Marca).Count } while ($n -gt $nAntes -and ((Get-Date) - $tf).TotalSeconds -lt 15)
   $tFechar = [Math]::Round(((Get-Date) - $tf).TotalSeconds, 1)
   $r = [pscustomobject]@{ Motor = $m.Nome; App = $nomeApp[$a.Ext]; Nivel = $a.Nivel; Arquivo = $a.Nome; MB = $a.MB; AbrirAppS = $tApp; AbrirArquivoS = $tArq; MemoriaMB = $memMB; PicoMB = $picoMB; CPU = $cpu; FecharS = $tFechar; Obs = $obs }
   $script:resultados += $r
-  Diga ('   ' + $r.App + ' ' + $r.Nivel + ': arquivo em ' + $r.AbrirArquivoS + ' s, +' + $r.MemoriaMB + ' MB (pico +' + $r.PicoMB + '), CPU ' + $r.CPU + ' %, fechou em ' + $r.FecharS + ' s ' + $r.Obs)
+  Diga ('   ' + $r.App + ' ' + $r.Nivel + ': file in ' + $r.AbrirArquivoS + ' s, +' + $r.MemoriaMB + ' MB (peak +' + $r.PicoMB + '), CPU ' + $r.CPU + ' %, closed in ' + $r.FecharS + ' s ' + $r.Obs)
 }
 
 function TestarTudo($m) {
-  # 1a abertura de cada app: o motor ainda baixa o app do site (perfil novo). Fica anotada a parte e nao entra na media.
-  Diga ($m.Nome + ': primeira abertura de cada app (baixando do site)')
+  # 1st open of each app: the engine still downloads the app from the site (new profile). Recorded separately, not in the average.
+  Diga ($m.Nome + ': first open of each app (downloading from the site)')
   foreach ($e in $apps.Keys) {
     $t0 = Get-Date; $j = $null; $ws = $null; $tp = $null
     try {
@@ -286,7 +286,7 @@ function EsperarCdp($cdp, $seg = 60) {
   throw 'o motor nao respondeu'
 }
 
-# ---------- Edge e Brave: perfil novo e vazio, so para o teste ----------
+# ---------- Edge and Brave: new empty profile, only for the test ----------
 function TestarNavegador($nome, $caminho) {
   $exe = Split-Path $caminho -Leaf
   $perfil = Join-Path $tmp ('perfil-' + $nome)
@@ -304,7 +304,7 @@ $brave = @("$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe"
 
 if (Quero 'edge') { try { if ($edge) { TestarNavegador 'Edge' $edge } else { Diga 'Edge nao encontrado; pulando.' } } catch { Diga ('Edge falhou: ' + $_) } }
 
-# ---------- WebView2: o motor do Edge embutido num app, como o .exe do Hub seria ----------
+# ---------- WebView2: the Edge engine embedded in an app, as the Hub .exe would be ----------
 if (Quero 'webview2') {
   try {
     $wv = Join-Path $tmp 'webview2'
@@ -333,7 +333,7 @@ if (Quero 'webview2') {
       $w.CoreWebView2.Navigate($url)
       $f
     }
-    # uma janela vazia fica aberta o tempo todo, como a tela do Hub
+    # an empty window stays open the whole time, like the Hub screen
     $fundo = JanelaWebView 'about:blank'
     $m = [pscustomobject]@{ Nome = 'WebView2'; Tipo = 'webview2'; Exe = 'msedgewebview2.exe'; Marca = $dados; Cdp = 'http://127.0.0.1:9223' }
     EsperarCdp $m.Cdp
@@ -346,12 +346,12 @@ if (Quero 'webview2') {
 
 if (Quero 'brave') { try { if ($brave) { TestarNavegador 'Brave' $brave } else { Diga 'Brave nao esta instalado; pulando.' } } catch { Diga ('Brave falhou: ' + $_) } }
 
-# ---------- Electron: o motor que iria dentro do .exe do Hub ----------
+# ---------- Electron: the engine that would ship inside the Hub .exe ----------
 if (Quero 'electron') {
   try {
     $el = Join-Path $tmp 'electron'
     if (-not (Test-Path (Join-Path $el 'electron.exe'))) {
-      # a versao estavel mais nova que ja tem o pacote do Windows publicado
+      # the newest stable version that already has the Windows package published
       $rels = Invoke-RestMethod 'https://api.github.com/repos/electron/electron/releases?per_page=20' -Headers @{ 'User-Agent' = 'InkDOSHub-teste' }
       $url = $null
       foreach ($r in $rels) {
@@ -430,18 +430,18 @@ $resumo = $resultados | Where-Object { $_.AbrirArquivoS -ne $null } | Group-Obje
   }
 }
 $linhas = @(
-  'InkDOS Hub - teste com arquivos - ' + (Get-Date).ToString('yyyy-MM-dd HH:mm'),
+  'InkDOS Hub - file test - ' + (Get-Date).ToString('yyyy-MM-dd HH:mm'),
   'PC: ' + $pc.Name.Trim() + ' | ' + $nucleos + ' nucleos | ' + $ram + ' GB | ' + $so,
   'Arquivos: ' + $baixar,
   '',
-  'AbrirAppS = tempo para o app ficar pronto (ja em cache). AbrirArquivoS = da entrega do arquivo ate a tela parar de mudar.',
-  'MemoriaMB e PicoMB = memoria privada do motor a mais do que antes de abrir o app. CPU = media enquanto abria o arquivo.',
-  'FecharS = tempo para os processos do app sumirem depois de fechar a janela.',
+  'AbrirAppS = time for the app to be ready (already cached). AbrirArquivoS = from handing over the file until the screen stops changing.',
+  'MemoriaMB and PicoMB = engine private memory above the level before opening the app. CPU = average while opening the file.',
+  'FecharS = time for the app processes to disappear after closing the window.',
   '',
   'RESUMO (media por motor e nivel)'
 )
 $linhas += ($resumo | Format-Table -AutoSize | Out-String -Width 200)
-$linhas += 'PRIMEIRA ABERTURA DE CADA APP (o motor ainda baixa o app do site; nao entra nas medias)'
+$linhas += 'FIRST OPEN OF EACH APP (the engine still downloads the app from the site; not in the averages)'
 $linhas += ($primeira | Format-Table -AutoSize | Out-String -Width 200)
 $linhas += 'DETALHE'
 $linhas += ($resultados | Format-Table Motor, App, Nivel, MB, AbrirAppS, AbrirArquivoS, MemoriaMB, PicoMB, CPU, FecharS, Obs -AutoSize | Out-String -Width 250)

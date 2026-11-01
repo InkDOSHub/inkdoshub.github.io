@@ -12,7 +12,7 @@ const setStatus = (s) => { statusEl.textContent = s; };
 
 // ---------- Terminal (xterm.js) ----------
 const term = new Terminal({
-  // Visual do Terminal da Apple (perfil "Basic"): SF Mono/Menlo, cursor em bloco cinza, cores ANSI do Terminal.app
+  // Apple Terminal look ("Basic" profile): SF Mono/Menlo, gray block cursor, Terminal.app ANSI colors
   cursorBlink: false,
   cursorStyle: "block",
   fontFamily: '"SF Mono", Menlo, ui-monospace, monospace',
@@ -35,7 +35,7 @@ term.focus();
 document.getElementById("term").addEventListener("click", () => term.focus());
 
 // ---------- Saved state (IndexedDB) ----------
-// KEY muda quando a máquina muda (kernel/dispositivos), porque um estado antigo não serve mais.
+// KEY changes when the machine changes (kernel/devices), because an old state no longer works.
 const DB = "inkdoshub", STORE = "state", KEY = "vm-v4";
 function idb() {
   return new Promise((ok, fail) => {
@@ -58,11 +58,11 @@ const loadState = () => idbOp("readonly", (s) => s.get(KEY)).catch(() => undefin
 const saveStateDb = (buf) => idbOp("readwrite", (s) => s.put(buf, KEY));
 const clearStateDb = () => idbOp("readwrite", (s) => s.delete(KEY));
 
-// ---------- Memória ----------
-// "normal": 256 MB, como antes, e a sessão pode ser salva.
-// "limitada": 640 MB de RAM para o Linux (a aba fica perto de 1 GB), mais zram (memória comprimida) e um disco
-// de swap de 1 GB no armazenamento do site (OPFS), para onde o Linux manda o que
-// está pouco usado. Nesse modo a sessão não é salva, porque o swap é refeito a cada boot.
+// ---------- Memory ----------
+// "normal": 256 MB, as before, and the session can be saved.
+// "limitada": 640 MB of RAM for Linux (the tab stays near 1 GB), plus zram (compressed memory) and a 1 GB
+// swap disk in the site storage (OPFS), where Linux sends what
+// is rarely used. In this mode the session is not saved, because swap is rebuilt on every boot.
 let savedMem;
 try { savedMem = localStorage.getItem("inkdoshub-memoria"); } catch {}
 const MEM = params.get("memoria") || savedMem || "normal";
@@ -104,18 +104,18 @@ function abrirSwap() {
 const saved = params.has("fresh") || LIMITADA ? undefined : await loadState();
 let swap = null;
 if (LIMITADA) {
-  try { swap = await abrirSwap(); } catch (err) { console.warn("swap no armazenamento indisponível:", err); }
+  try { swap = await abrirSwap(); } catch (err) { console.warn("storage swap unavailable:", err); }
 }
-// Rede: como os outros emuladores de Linux no navegador, o Linux sai para a
-// internet por um servidor de rede público (o mesmo que o copy.sh/v86 oferece).
-//   "wisp"  -> wisps://wisp.mercurywork.shop/v86/ (padrão, TCP completo, http e https)
+// Network: like other in-browser Linux emulators, Linux reaches the
+// internet through a public network server (the same one copy.sh/v86 offers).
+//   "wisp"  -> wisps://wisp.mercurywork.shop/v86/ (default, full TCP, http and https)
 //   "relay" -> wss://relay.widgetry.org/ (ethernet completa)
-//   "off"   -> sem rede
-// Também aceita uma URL wss://, wisp:// ou wisps:// de outro servidor.
+//   "off"   -> no network
+// Only the known names are accepted (see below).
 const REDES = { wisp: "wisps://wisp.mercurywork.shop/v86/", relay: "wss://relay.widgetry.org/", off: undefined };
 let savedRede;
 try { savedRede = localStorage.getItem("inkdoshub-rede2"); } catch {}
-// Só os nomes conhecidos: um link com ?rede=<endereço> não pode mandar o tráfego do Linux para outro servidor.
+// Only known names: a link with ?rede=<address> cannot send Linux traffic to another server.
 const REDE = [params.get("rede"), savedRede].find((r) => Object.hasOwn(REDES, r)) || "wisp";
 const relayUrl = REDES[REDE];
 const config = {
@@ -165,8 +165,8 @@ let ctrl = false;
 const ctrlBtn = document.getElementById("key-ctrl");
 const setCtrl = (v) => { ctrl = v; ctrlBtn.classList.toggle("on", v); };
 
-// A porta serial do v86 tem uma fila pequena: um texto colado grande perde letras se for de uma vez.
-// Então tudo passa por uma fila que manda 256 caracteres a cada 15 ms.
+// The v86 serial port has a small queue: a large pasted text loses letters if sent at once.
+// So everything goes through a queue that sends 256 characters every 15 ms.
 let fila = "";
 let enviando = false;
 function send(data) {
@@ -181,7 +181,7 @@ function send(data) {
   })();
 }
 
-// Colar: o xterm.js troca \n por Enter e usa o "bracketed paste" quando o shell pede.
+// Paste: xterm.js turns \n into Enter and uses "bracketed paste" when the shell asks.
 function colar(texto) {
   if (!texto) return;
   setCtrl(false);
@@ -190,16 +190,16 @@ function colar(texto) {
 }
 document.getElementById("key-colar").addEventListener("click", async () => {
   try {
-    // No Safari aparece a bolha "Colar" para confirmar; é o jeito do iOS liberar a área de transferência.
+    // In Safari the "Paste" bubble appears to confirm; it is how iOS releases the clipboard.
     colar(await navigator.clipboard.readText());
   } catch (_) {
     const colado = prompt(t("The browser did not allow reading the clipboard. Paste the text here:"));
     colar(colado);
   }
 });
-// Colar pelo menu do toque longo ou pelo Cmd+V em qualquer lugar do terminal.
+// Paste from the long-press menu or Cmd+V anywhere in the terminal.
 document.getElementById("term").addEventListener("paste", (e) => {
-  if (e.defaultPrevented) return; // o xterm.js já tratou
+  if (e.defaultPrevented) return; // xterm.js already handled it
   const txt = e.clipboardData && e.clipboardData.getData("text/plain");
   if (txt) { e.preventDefault(); colar(txt); }
 });
@@ -285,7 +285,7 @@ function listFiles(dir) {
   for (const name of fs.read_dir(dir) || []) {
     const path = (dir === "/" ? "" : dir) + "/" + name;
     const p = fs.SearchPath(path);
-    if (p.id === -1 || path === "/.inkdoshub") continue; // pasta do botão Sessão
+    if (p.id === -1 || path === "/.inkdoshub") continue; // Session button folder
     if (fs.IsDirectory(p.id)) out.push(...listFiles(path));
     else out.push(path);
   }
@@ -323,7 +323,7 @@ document.getElementById("btn-download").addEventListener("click", () => {
 document.getElementById("download-close").addEventListener("click", () => dialog.close());
 
 // ---------- Escolha da rede ----------
-// Um botão (o XeOS redesenha os <select>): cada toque passa para a próxima opção e liga de novo.
+// One button (XeOS redraws <select>s): each tap moves to the next option and boots again.
 const redeBtn = document.getElementById("rede");
 const NOMES = { wisp: t("Network: {name}", { name: "wisp" }), relay: t("Network: {name}", { name: "relay" }), off: t("No network") };
 redeBtn.textContent = NOMES[REDE];
@@ -336,7 +336,7 @@ redeBtn.addEventListener("click", () => {
   location.search = q.toString();
 });
 
-// ---------- Escolha da memória ----------
+// ---------- Memory choice ----------
 const memBtn = document.getElementById("memoria");
 memBtn.textContent = t("Memory: {size}", { size: LIMITADA ? "640 MB + swap" : "256 MB" });
 memBtn.addEventListener("click", () => {
@@ -347,10 +347,10 @@ memBtn.addEventListener("click", () => {
 });
 if (LIMITADA) document.getElementById("btn-save").title = t("The session is not saved in this mode (swap is rebuilt on every boot)");
 
-// ---------- Sessão em arquivo (assets/sessao.js) ----------
-// O Linux roda /usr/local/sbin/inksessao (tools/linux/), que conversa pela pasta /mnt/ipad/.inkdoshub:
-// a página escreve "pedido" (salvar ou restaurar) e lê "estado" ("trabalhando ...", "ok ...",
-// "aviso ..." ou "erro ..."). A receita é um .tar.gz com a lista de pacotes do apk, /root, /home e /usr/local.
+// ---------- Session file (assets/sessao.js) ----------
+// Linux runs /usr/local/sbin/inksessao (tools/linux/), which talks through the /mnt/ipad/.inkdoshub folder:
+// the page writes "pedido" (save or restore) and reads "estado" ("trabalhando ...", "ok ...",
+// "aviso ..." or "erro ..."). The recipe is a .tar.gz with the apk package list, /root, /home and /usr/local.
 const SESSAO = "/.inkdoshub";
 const fs9 = () => emulator.fs9p;
 function pastaSessao() {
@@ -364,14 +364,14 @@ async function gravar9p(caminho, dados) {
 }
 async function ler9p(caminho) {
   if (fs9().SearchPath(caminho).id === -1) return null;
-  // arquivo vazio ou apagado pelo Linux no meio da leitura
+  // file empty or deleted by Linux in the middle of the read
   return emulator.read_file(caminho).catch(() => null);
 }
 const texto9p = async (c) => { const b = await ler9p(c); return b ? new TextDecoder().decode(b).trim() : null; };
 const espera = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
-// Um Linux restaurado de um "Salvar" antigo (antes desta função) não tem o inksessao rodando.
-// Nesse caso a página manda o mesmo programa pela pasta e digita o comando que o liga.
+// A Linux restored from an old "Save" (before this feature) does not have inksessao running.
+// In that case the page sends the same program through the folder and types the command that starts it.
 async function pedirAoLinux(pedido, aviso) {
   await gravar9p(SESSAO + "/estado", new TextEncoder().encode("esperando"));
   await gravar9p(SESSAO + "/pedido", new TextEncoder().encode(pedido));
@@ -431,7 +431,7 @@ document.getElementById("sessao-abrir").addEventListener("click", async () => {
     else if (e.startsWith("aviso")) aviso.fim(t("Your files were restored, but the packages could not be installed (no internet?). The list was saved to {file}. With the network on, run: {command}", { file: "~/session-packages.txt", command: "apk add $(cat ~/session-packages.txt)" }), true);
     else throw new Error(e.replace(/^erro ?/, ""));
   } catch (err) {
-    console.error("sessão:", err);
+    console.error("session:", err);
     aviso.fim(t("Could not open the session: {error}", { error: err && err.message || err }), true);
   }
   term.focus();

@@ -1,14 +1,14 @@
-// Exporta o trecho escolhido com o ffmpeg.wasm (versão de uma thread só, sem modo isolado).
-// Pedido: {arquivo: File, ini, fim (segundos), som (bool), soSom (bool: só o áudio, em .m4a), altura (0 = original)}.
+// Exports the chosen segment with ffmpeg.wasm (single-thread build, no isolated mode).
+// Request: {arquivo: File, ini, fim (seconds), som (bool), soSom (bool: audio only, as .m4a), altura (0 = original)}.
 // Resposta: {tipo: "progresso", parte} ... {tipo: "pronto", blob} ou {tipo: "erro", texto, codigo}.
-// O texto do erro é técnico (em inglês); codigo "vazio" = o ffmpeg não gerou nada (a página traduz).
+// The error text is technical (English); codigo "vazio" = ffmpeg produced nothing (the page translates it).
 import createFFmpegCore from "./ffmpeg-core/ffmpeg-core.js";
 
 let core = null, duracao = 1;
 async function carregar() {
   if (core) return core;
   core = await createFFmpegCore({
-    // como o @ffmpeg/ffmpeg 0.12 faz: o endereço do .wasm vai depois do "#", em base64
+    // like @ffmpeg/ffmpeg 0.12 does: the .wasm address goes after the "#", in base64
     mainScriptUrlOrBlob: new URL("./ffmpeg-core/ffmpeg-core.js", import.meta.url).href + "#" +
       btoa(JSON.stringify({ wasmURL: new URL("./ffmpeg-core/ffmpeg-core.wasm", import.meta.url).href })),
   });
@@ -27,11 +27,11 @@ onmessage = async ({ data }) => {
     const c = await carregar();
     duracao = Math.max(0.1, fim - ini);
     try { c.FS.mkdir("/in"); } catch (_) {}
-    // o vídeo é lido direto do arquivo (WORKERFS), sem uma cópia inteira na memória
+    // the video is read straight from the file (WORKERFS), without a full copy in memory
     c.FS.mount(c.FS.filesystems.WORKERFS, { files: [arquivo] }, "/in");
     const ext = (/\.[a-z0-9]+$/i.exec(arquivo.name) || [".mp4"])[0].toLowerCase();
     if (soSom) {
-      // só o som: copia o AAC como está (rápido, sem perda); se não der (outro formato), converte para AAC
+      // sound only: copies the AAC as is (fast, lossless); if not possible (other format), converts to AAC
       const base = ["-hide_banner", "-ss", f3(ini), "-i", "/in/" + arquivo.name, "-t", f3(duracao), "-vn", "-sn", "-dn", "-map", "0:a:0"];
       const saidaArgs = ["-map_metadata", "0", "-movflags", "+faststart", "-y", "/saida.m4a"];
       let dados = new Uint8Array(0);
@@ -51,12 +51,12 @@ onmessage = async ({ data }) => {
     const saida = "/saida" + (!altura && [".mov", ".m4v", ".webm", ".mkv"].includes(ext) ? ext : ".mp4");
     const args = ["-hide_banner", "-ss", f3(ini), "-i", "/in/" + arquivo.name, "-t", f3(duracao)];
     if (altura) {
-      // altura é o lado menor (vídeos em pé também); nunca aumenta
+      // height is the shorter side (portrait videos too); never upscales
       const s = `scale='if(gte(iw,ih),-2,min(${altura},iw))':'if(gte(iw,ih),min(${altura},ih),-2)'`;
       args.push("-vf", s, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p");
       if (som) args.push("-c:a", "aac", "-b:a", "128k"); else args.push("-an");
     } else {
-      // qualidade original: só corta, sem converter (rápido). O começo cai no quadro-chave anterior.
+      // original quality: only trims, no conversion (fast). The start falls on the previous keyframe.
       args.push("-c", "copy", "-avoid_negative_ts", "make_zero");
       if (!som) args.push("-an");
     }

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -46,12 +46,12 @@
 <body>
 <main>
   <h1>InkDOS Hub Transferir</h1>
-  <div class="muted">Transferência direta entre o celular e este PC, sem internet. <span id="cel"></span></div>
+  <div class="muted">Direct transfer between the phone and this PC, without internet. <span id="cel"></span></div>
 
   <div class="card">
     <h2>📶 Wi-Fi direto</h2>
-    <div class="muted">O PC cria uma rede Wi-Fi só para o celular. O arquivo vai direto, num salto só pelo ar, sem internet e sem roteador. Funciona com iPhone e Android, sem instalar nada no celular.</div>
-    <div class="muted" style="margin-top:6px">Precisa de PC com placa Wi-Fi. Enquanto estiver conectado, o celular sai da Wi-Fi atual (os dados móveis continuam). Para transferir pela rede do local, sem este app, use a página Transferir do InkDOS Hub no navegador.</div>
+    <div class="muted">The PC creates a Wi-Fi network just for the phone. The file goes directly, in a single hop over the air, without internet or a router. Works with iPhone and Android, with nothing to install on the phone.</div>
+    <div class="muted" style="margin-top:6px">Needs a PC with a Wi-Fi adapter. While connected, the phone leaves its current Wi-Fi (mobile data keeps working). To transfer over the local network without this app, use the InkDOS Hub Transfer page in the browser.</div>
   </div>
 
   <div class="card" id="conexao" hidden>
@@ -63,30 +63,30 @@
 
   <div class="grade">
     <div class="card">
-      <h2>Velocidade agora</h2>
+      <h2>Speed now</h2>
       <div class="vel" id="vel">0,0 MB/s</div>
-      <div class="muted" id="velsub">Nenhuma transferência em andamento.</div>
+      <div class="muted" id="velsub">No transfer in progress.</div>
       <canvas id="graf" width="900" height="180"></canvas>
     </div>
     <div class="card">
-      <h2>Diagnóstico</h2>
-      <p class="muted" style="margin-top:0">Mede o sinal do Wi-Fi do PC, o atraso e a velocidade real com o celular nos dois sentidos.</p>
-      <button class="btn" id="bdiag">Rodar diagnóstico</button>
+      <h2>Diagnostics</h2>
+      <p class="muted" style="margin-top:0">Measures the PC Wi-Fi signal, the delay and the real speed with the phone, both ways.</p>
+      <button class="btn" id="bdiag">Run diagnostics</button>
       <div id="diag" style="margin-top:12px"></div>
     </div>
   </div>
 
   <div class="grade">
     <div class="card">
-      <h2>Enviar para o celular</h2>
-      <button class="btn sec" id="bescolher">Escolher arquivos para o celular</button>
-      <div class="muted" style="margin:8px 0">Eles aparecem na página do celular para baixar.</div>
+      <h2>Send to the phone</h2>
+      <button class="btn sec" id="bescolher">Choose files for the phone</button>
+      <div class="muted" style="margin:8px 0">They appear on the phone page to download.</div>
       <div id="ofertas"></div>
     </div>
     <div class="card">
-      <h2>Transferências</h2>
-      <div class="muted" style="margin-bottom:6px">Recebidos vão para <a href="#" id="bpasta"><span id="pasta"></span></a></div>
-      <div id="transfs" class="muted">Nada ainda.</div>
+      <h2>Transfers</h2>
+      <div class="muted" style="margin-bottom:6px">Received files go to <a href="#" id="bpasta"><span id="pasta"></span></a></div>
+      <div id="transfs" class="muted">Nothing yet.</div>
     </div>
   </div>
 </main>
@@ -131,20 +131,20 @@ function desenhar(){
   if (est.modo == "direto") {
     var st = est.statusDireto || "", ok = st.indexOf("Started") == 0, erro = /Erro|Aborted|\(/.test(st);
     $("passos").innerHTML = "<p>Rede: <code>" + esc(est.ssid) + "</code> &nbsp; Senha: <code>" + esc(est.senha) + "</code> &nbsp; " +
-      (ok ? '<b class="ok">● Rede ativa</b>' : erro ? '<b class="erro">● Não foi possível criar a rede (' + esc(st) + ")</b>" : '<b class="aviso">● ' + esc(st || "Criando…") + "</b>") + "</p>";
-    $("dica").innerHTML = erro ? "Este PC pode não ter placa Wi-Fi compatível ou pode estar bloqueado. <a href=# onclick=\"iniciarDireto();return false\">Tentar de novo</a> ou use a página Transferir do InkDOS Hub, pelo roteador." :
-      "Se o celular entrar na rede mas a página não abrir, o firewall do PC está bloqueando (sem admin não dá para liberar). Nesse caso, use a página Transferir do InkDOS Hub, pelo roteador.";
+      (ok ? '<b class="ok">● Network active</b>' : erro ? '<b class="erro">● Could not create the network (' + esc(st) + ")</b>" : '<b class="aviso">● ' + esc(st || "Creating…") + "</b>") + "</p>";
+    $("dica").innerHTML = erro ? "This PC may not have a compatible Wi-Fi adapter or it may be blocked. <a href=# onclick=\"iniciarDireto();return false\">Try again</a> or use the InkDOS Hub Transfer page, through the router." :
+      "If the phone joins the network but the page does not open, the PC firewall is blocking it (it cannot be allowed without admin). In that case, use the InkDOS Hub Transfer page, through the router.";
     if (qrFeito != chave) {
       $("qrs").innerHTML =
-        '<div class="qr">' + qrSvg("WIFI:T:WPA;S:" + est.ssid + ";P:" + est.senha + ";;") + "<b>A. Entre na rede</b><span class=muted>Aponte a câmera do celular</span></div>" +
-        '<div class="qr">' + qrSvg(url) + "<b>B. Abra a página</b><span class=muted>Depois de conectado à rede</span></div>";
+        '<div class="qr">' + qrSvg("WIFI:T:WPA;S:" + est.ssid + ";P:" + est.senha + ";;") + "<b>A. Join the network</b><span class=muted>Point the phone camera</span></div>" +
+        '<div class="qr">' + qrSvg(url) + "<b>B. Open the page</b><span class=muted>After joining the network</span></div>";
       qrFeito = chave;
     }
   } else {
     var outros = est.ips.filter(function(i){ return !i.direto; }).map(function(i){ return i.ip + " (" + i.nome + ")"; }).join(", ");
-    $("passos").innerHTML = "<p>Deixe o celular na Wi-Fi do mesmo local e aponte a câmera para o QR.</p>";
-    $("dica").innerHTML = "Endereço: <code>" + esc(url) + "</code><br>Outros endereços deste PC: " + esc(outros) +
-      "<br>Se não abrir, a rede pode estar isolando os aparelhos ou o firewall bloqueando. Tente <b>Wi-Fi direto</b>.";
+    $("passos").innerHTML = "<p>Keep the phone on the same local Wi-Fi and point the camera at the QR code.</p>";
+    $("dica").innerHTML = "Address: <code>" + esc(url) + "</code><br>Other addresses of this PC: " + esc(outros) +
+      "<br>If it does not open, the network may be isolating devices or the firewall blocking. Try <b>Wi-Fi Direct</b>.";
     if (qrFeito != chave) { $("qrs").innerHTML = '<div class="qr">' + qrSvg(url) + "<b>Abra no celular</b></div>"; qrFeito = chave; }
   }
 }
@@ -170,15 +170,15 @@ function transfs(){
   $("vel").textContent = vel(est.vel);
   $("velsub").textContent = ativas.length ? ativas.map(function(t){
     return (t.dir == "recebendo" ? "⬇ " : t.dir == "enviando" ? "⬆ " : "⏱ ") + t.nome + (t.total ? " · falta " + segs((t.total - t.feito) / Math.max(t.vel, 1)) : "");
-  }).join(" · ") : "Nenhuma transferência em andamento.";
+  }).join(" · ") : "No transfer in progress.";
   $("transfs").innerHTML = l.length ? l.map(function(t){
     var p = t.total ? t.feito / t.total * 100 : 0;
     var lado = t.dir == "recebendo" ? "Celular → PC" : t.dir == "enviando" ? "PC → celular" : "Teste";
-    var fim = t.erro ? '<span class="erro">falhou</span>' : t.fim ? '<span class="ok">✓ média ' + vel(t.media) + "</span>" : "<b>" + vel(t.vel) + "</b>";
+    var fim = t.erro ? '<span class="erro">failed</span>' : t.fim ? '<span class="ok">✓ average ' + vel(t.media) + "</span>" : "<b>" + vel(t.vel) + "</b>";
     return '<div class="item"><div class="linha"><span>' + esc(t.nome) + '</span>' + fim + '</div>' +
       (t.fim ? "" : '<div class="barra"><i style="width:' + p + '%"></i></div>') +
       '<div class="linha muted"><span>' + lado + "</span><span>" + tam(t.feito) + (t.total ? " de " + tam(t.total) : "") + "</span></div></div>";
-  }).join("") : "Nada ainda.";
+  }).join("") : "Nothing yet.";
 }
 function segs(s){ s = Math.round(s); return s >= 60 ? Math.floor(s/60) + " min " + (s%60) + " s" : s + " s"; }
 
@@ -200,7 +200,7 @@ function ciclo(){
 setInterval(ciclo, 500); ciclo();
 get("/arquivos").then(ofertas);
 
-// ---------- diagnóstico ----------
+// ---------- diagnostics ----------
 var wifi = null, diagEsperando = false, diagAntes = 0;
 $("bdiag").onclick = function(){
   diagEsperando = true; diagAntes = est && est.diagCelular ? est.diagCelular.quando : 0;
@@ -213,9 +213,9 @@ function mostrarDiagCelular(){
   if (!wifi && !diagEsperando) return;
   var h = "";
   if (wifi) {
-    var sinalTxt = est && est.modo == "direto" ? "Placa Wi-Fi do PC" : "Sinal do Wi-Fi do PC";
+    var sinalTxt = est && est.modo == "direto" ? "PC Wi-Fi adapter" : "PC Wi-Fi signal";
     if (wifi.sinal) h += '<div class="linha"><span>' + sinalTxt + '</span><span class="sinal">' + esc(wifi.sinal) + "</span></div>";
-    else h += '<p class="muted">Sem dados de Wi-Fi neste PC' + (est && est.modo == "roteador" ? " (ligado por cabo: ótimo, o PC não divide o ar com o celular)." : ".") + "</p>";
+    else h += '<p class="muted">No Wi-Fi data on this PC' + (est && est.modo == "roteador" ? " (connected by cable: great, the PC does not share the air with the phone)." : ".") + "</p>";
     var util = wifi.linhas.filter(function(l){ return /radio|rádio|canal|channel|band|faixa|rate|taxa|ssid|state|estado|auth/i.test(l[0]); });
     if (util.length) h += "<details><summary class=muted>Detalhes da placa</summary><table>" + util.map(function(l){ return "<tr><td>" + esc(l[0]) + "</td><td>" + esc(l[1]) + "</td></tr>"; }).join("") + "</table></details>";
   }
@@ -224,13 +224,13 @@ function mostrarDiagCelular(){
     if (d.quando != diagAntes) diagEsperando = false;
     h += "<table style='margin-top:8px'>" +
       "<tr><td>Atraso (ping)</td><td>" + (+d.ping || 0).toFixed(0) + " ms</td></tr>" +
-      "<tr><td>Variação do atraso</td><td>" + (+d.jitter || 0).toFixed(0) + " ms</td></tr>" +
+      "<tr><td>Delay variation</td><td>" + (+d.jitter || 0).toFixed(0) + " ms</td></tr>" +
       "<tr><td>PC → celular</td><td>" + vel(+d.desce || 0) + "</td></tr>" +
       "<tr><td>Celular → PC</td><td>" + vel(+d.sobe || 0) + "</td></tr>" +
       "<tr><td>Qualidade</td><td>" + esc(d.nota) + "</td></tr></table>" +
       "<p class=muted>1 GB levaria uns " + segs(1073741824 / Math.max(1, Math.min(+d.desce || 0, +d.sobe || 0))) + ".</p>";
   } else if (diagEsperando) {
-    h += '<p class="muted">' + (est && est.celular ? "Medindo com o celular… (deixe a página aberta nele)" : "Conecte o celular, abra a página nele e clique em Rodar diagnóstico de novo.") + "</p>";
+    h += '<p class="muted">' + (est && est.celular ? "Measuring with the phone… (keep the page open on it)" : "Connect the phone, open the page on it and click Run diagnostics again.") + "</p>";
   }
   if ($("diag")._h != h) { $("diag").innerHTML = h; $("diag")._h = h; }
 }

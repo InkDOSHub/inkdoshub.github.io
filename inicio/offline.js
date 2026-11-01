@@ -1,23 +1,23 @@
-/* Modo Offline da tela inicial: escolher app por app o que fica guardado neste aparelho.
+/* Home screen Offline mode: choose app by app what stays stored on this device.
 
-   - "Offline" no ☰ abre um painel na página (sem pop-up) com cada app, o tamanho e um check verde.
-     Tocar num item não marcado baixa aquele app; tocar num marcado pergunta, na própria página, se pode apagar.
-   - A tela inicial e os apps leves (menos de 1 MB cada) ficam sempre guardados junto com o primeiro app.
-   - "Atualizar" baixa só o que mudou nos itens guardados. Com versão nova, a tela inicial avisa embaixo.
-   - Depois de usar um app pesado que não está guardado, a tela inicial oferece guardá-lo, com o tamanho.
-   Os arquivos ficam no cache "inkdoshub-offline" (lista em inicio/manifesto.json, grupos de
-   tools/portal_manifesto.py); a marca __offline__/manifesto.json guarda a versão e os grupos escolhidos.
-   O sw-portal.js abre da cópia o que estiver guardado e o resto do site. */
+   - "Offline" in ☰ opens an in-page panel (no pop-up) with each app, its size and a green check.
+     Tapping an unchecked item downloads that app; tapping a checked one asks, on the page, whether it can be deleted.
+   - The home screen and the light apps (under 1 MB each) are always stored along with the first app.
+   - "Update" downloads only what changed in the stored items. With a new version, the home screen shows a notice at the bottom.
+   - After using a heavy app that is not stored, the home screen offers to store it, with its size.
+   Files live in the "inkdoshub-offline" cache (list in inicio/manifesto.json, groups from
+   tools/portal_manifesto.py); the __offline__/manifesto.json marker keeps the version and the chosen groups.
+   sw-portal.js opens what is stored from the copy, and the rest from the site. */
 (function () {
   "use strict";
   var CACHE = "inkdoshub-offline";
   var BASE = new URL("./", location.href);
   var MARCA = new URL("__offline__/manifesto.json", BASE).href;
   var USO = new URL("__uso__", BASE).href;
-  var LEVE = 1e6; // grupos menores que isto vão sempre junto com a tela inicial
+  var LEVE = 1e6; // groups smaller than this always go along with the home screen
   var t = function (s, p) { return window.InkIdioma ? InkIdioma.t(s, p) : s.replace(/\{(\w+)\}/g, function (m, k) { return p && k in p ? p[k] : m; }); };
   var btn = document.getElementById("btn-offline");
-  // No app do Windows (windows/hub) os apps ficam no disco do PC, conferidos pelo SHA-256: inkHubNativo faz o trabalho.
+  // In the Windows app (windows/hub) apps live on the PC disk, checked by SHA-256: inkHubNativo does the work.
   var N = window.inkHubNativo || null;
   if (!btn || (!N && (!("caches" in window) || !("serviceWorker" in navigator)))) { if (btn) btn.closest(".menu-offline").hidden = true; return; }
   var info = btn.querySelector("small");
@@ -36,7 +36,7 @@
   }
   function guardados(m) { var s = {}; if (m) m.grupos.forEach(function (g) { s[g.id] = 1; }); return s; }
 
-  /* Deixa no cache exatamente os grupos de "ids" (mais a base), na versão do site. Baixa só o que mudou. */
+  /* Leaves exactly the "ids" groups (plus the base) in the cache, at the site version. Downloads only what changed. */
   var ocupado = false;
   function sincronizar(ids, progresso) {
     if (ocupado) return Promise.reject(new Error("ocupado"));
@@ -55,7 +55,7 @@
       function proximo() {
         if (i >= fila.length) return Promise.resolve();
         var a = fila[i++];
-        // "?inkoff=" + número do arquivo: endereço novo a cada versão, então o CDN do GitHub não entrega a antiga
+        // "?inkoff=" + file number: a new address for each version, so the GitHub CDN does not serve the old one
         return fetch(chave(a[0]) + "?inkoff=" + a[2], { cache: "reload" }).then(function (r) {
           if (!r.ok) throw new Error(a[0]);
           return c.put(chave(a[0]), r);
@@ -94,11 +94,11 @@
     caixa.appendChild(el("p", "off-ajuda", t("Save apps on this device to use them without internet. Tap an item to save it; tap it again to remove it.")));
     var atualizar = el("button", "off-atualizar", t("Update")); atualizar.type = "button";
     caixa.appendChild(atualizar);
-    // linha de status: diz o que está acontecendo depois de cada toque
+    // status line: says what is happening after each tap
     var status = el("p", "off-status", ""); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
     caixa.appendChild(status);
     var dizer = function (txt, tipo) { status.textContent = txt; status.className = "off-status" + (tipo ? " " + tipo : ""); };
-    // app do Windows: botão para atualizar o próprio app (a carcaça), além dos apps guardados
+    // Windows app: button to update the app itself (the shell), besides the stored apps
     if (N && N.atualizarApp) {
       var app = el("button", "off-atualizar off-app", t("Update the Windows app")); app.type = "button";
       caixa.appendChild(app);
@@ -159,7 +159,7 @@
                 function () { lista.classList.remove("off-travada"); item.classList.remove("off-baixando"); tam.textContent = mb(g.bytes); dizer(t("Failed, try again"), "erro"); }).then(contar);
               return;
             }
-            // confirmar na própria página (o XeOS bloqueia pop-ups)
+            // confirm on the page itself (XeOS blocks pop-ups)
             var conf = el("div", "off-conf");
             conf.appendChild(el("span", null, t("Remove {name} from this device? ({size})", { name: t(g.nome), size: mb(g.bytes) })));
             var nao = el("button", "off-nao", t("Cancel")); nao.type = "button";
@@ -195,7 +195,7 @@
   function marcarBotao() { estado().then(function (m) { btn.setAttribute("aria-pressed", m ? "true" : "false"); }); }
   btn.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); abrirPainel(); });
 
-  /* ---------- aviso de versão nova ---------- */
+  /* ---------- new version notice ---------- */
   var aviso = null;
   estado().then(function (m) {
     btn.setAttribute("aria-pressed", m ? "true" : "false");
@@ -214,9 +214,9 @@
     }).catch(function () {});
   });
 
-  /* ---------- depois de usar um app pesado não guardado: oferecer guardar ---------- */
+  /* ---------- after using a heavy app that is not stored: offer to store it ---------- */
   var RECUSOU = "inkdoshub-offline-recusou";
-  // "?guardar=<grupo>&volta=<página>": um app pede para guardar um grupo (ex.: Editar PDF › Ampliar)
+  // "?guardar=<group>&volta=<page>": an app asks to store a group (e.g. Edit PDF › Expand)
   var pede = new URLSearchParams(location.search), PEDIDO = pede.get("guardar"), VOLTA = pede.get("volta");
   (PEDIDO ? Promise.resolve(null) : caches.open(CACHE).then(function (c) {
     return c.match(USO).then(function (r) { if (!r) return null; c.delete(USO); return r.text(); });

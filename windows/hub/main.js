@@ -1,13 +1,13 @@
-// InkDOS Hub para Windows: o mesmo site (https://inkdoshub.github.io/), com os mesmos apps, numa janela própria.
+// InkDOS Hub for Windows: the same site (https://inkdoshub.github.io/), with the same apps, in its own window.
 //
-// - O instalador traz só esta carcaça. A tela inicial e os apps vêm do site e ficam guardados no disco
-//   (%LOCALAPPDATA%\InkDOS Hub\site) quando a pessoa marca o check verde no "Offline" do ☰.
-//   Cada arquivo baixado é conferido pelo SHA-256 da lista do site (inicio/manifesto.json); se não conferir, não entra.
-// - Os pedidos para inkdoshub.github.io passam por aqui: o que está guardado abre do disco (funciona sem internet),
-//   o resto vem do site, também conferido. Atualizar = o mesmo "Atualização disponível" da tela inicial.
-// - Sem telemetria: o Chromium não fala com o Google nem com a Microsoft (serviços de fundo desligados) e a rede
-//   só alcança os endereços de LIVRES; todo o resto é bloqueado.
-// - Cada app abre numa janela própria (processo próprio); várias ao mesmo tempo.
+// - The installer ships only this shell. The home screen and the apps come from the site and are stored on disk
+//   (%LOCALAPPDATA%\InkDOS Hub\site) when the person ticks the green check in ☰ › "Offline".
+//   Each downloaded file is checked against the SHA-256 in the site list (inicio/manifesto.json); if it does not match, it is not used.
+// - Requests to inkdoshub.github.io go through here: what is stored opens from disk (works offline),
+//   the rest comes from the site, also checked. Update = the same "Update available" as the home screen.
+// - No telemetry: Chromium does not talk to Google or Microsoft (background services off) and the network
+//   only reaches the LIVRES addresses; everything else is blocked.
+// - Each app opens in its own window (own process); several at the same time.
 'use strict';
 const { app, BrowserWindow, protocol, net, session, shell, ipcMain, Menu, dialog, desktopCapturer } = require('electron');
 const path = require('path');
@@ -17,13 +17,13 @@ const crypto = require('crypto');
 
 const HOST = 'inkdoshub.github.io';
 const SITE = 'https://' + HOST + '/';
-// só para testar: buscar os arquivos de outro endereço (ex.: http://127.0.0.1:8765/), mantendo o endereço do site nas janelas
+// testing only: fetch the files from another address (e.g. http://127.0.0.1:8765/), keeping the site address in the windows
 const ORIGEM = process.env.INKHUB_ORIGEM || SITE;
-// únicos destinos de rede: o site e o servidor de conexão do Transferir e da Webcam (PeerJS)
+// the only network destinations: the site and the Transfer and Webcam connection server (PeerJS)
 const LIVRES = new Set([HOST, '0.peerjs.com']);
-const LEVE = 1e6; // grupos menores que isto ficam sempre guardados com a tela inicial (igual ao site)
+const LEVE = 1e6; // groups smaller than this are always stored with the home screen (same as the site)
 
-// ---------- leve e privado: desliga os serviços de fundo do Chromium ----------
+// ---------- light and private: turns off Chromium background services ----------
 for (const s of ['disable-background-networking', 'disable-component-update', 'disable-domain-reliability', 'disable-breakpad',
   'no-pings', 'disable-sync', 'disable-default-apps', 'no-default-browser-check', 'no-first-run']) app.commandLine.appendSwitch(s);
 app.commandLine.appendSwitch('disable-features', [
@@ -50,7 +50,7 @@ app.on('second-instance', (_e, argv) => {
 
 // ---------- estado guardado ----------
 let estado = null;   // { versao, grupos: [ids], arquivos: { caminho: h16 } }
-let lista = null;    // manifesto do site em memória + mapa caminho -> [bytes, h16, sha]
+let lista = null;    // site manifest in memory + map path -> [bytes, h16, sha]
 function lerJson(f) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) { return null; } }
 function mapa(m) {
   const r = new Map();
@@ -76,12 +76,12 @@ async function manifestoDoSite() {
 }
 const sha256 = b => crypto.createHash('sha256').update(b).digest('hex');
 
-// baixa um arquivo do site e confere o SHA-256 (o "?inkoff=" garante a versão nova, sem cópia velha do CDN)
+// downloads a file from the site and checks the SHA-256 ("?inkoff=" ensures the new version, no stale CDN copy)
 async function baixarConferido(a) {
   const r = await net.fetch(ORIGEM + encodeURI(a[0]) + '?inkoff=' + a[2], { bypassCustomProtocolHandlers: true});
   if (!r.ok) throw new Error(a[0] + ': ' + r.status);
   const b = Buffer.from(await r.arrayBuffer());
-  if (a[3] && sha256(b) !== a[3]) throw new Error(a[0] + ': SHA-256 não confere');
+  if (a[3] && sha256(b) !== a[3]) throw new Error(a[0] + ': SHA-256 mismatch');
   return b;
 }
 
@@ -90,7 +90,7 @@ function seguro(rel) {
   return f.startsWith(PASTA + path.sep) ? f : null;
 }
 
-// ---------- guardar no disco: os grupos escolhidos (mais a tela inicial e os apps leves) ----------
+// ---------- store on disk: the chosen groups (plus the home screen and the light apps) ----------
 let ocupado = false;
 async function sincronizar(ids, progresso) {
   if (ocupado) throw new Error('ocupado');
@@ -117,7 +117,7 @@ async function sincronizar(ids, progresso) {
       }
     };
     await Promise.all([proximo(), proximo(), proximo(), proximo(), proximo(), proximo()]);
-    // apaga o que não faz mais parte
+    // deletes what is no longer part of it
     for (const rel of Object.keys(antes)) if (!(rel in todos)) { const f = seguro(rel); if (f) await fsp.rm(f, { force: true }); }
     estado = { versao: m.versao, grupos: grupos.map(g => g.id), arquivos: todos };
     await gravar(ESTADO, JSON.stringify(estado));
@@ -135,7 +135,7 @@ const TIPOS = {
 };
 const tipo = rel => TIPOS[(rel.split('.').pop() || '').toLowerCase()] || 'application/octet-stream';
 
-// ---------- os pedidos para o site ----------
+// ---------- requests to the site ----------
 async function responderSite(req) {
   const u = new URL(req.url);
   let rel = decodeURIComponent(u.pathname.slice(1));
@@ -143,23 +143,23 @@ async function responderSite(req) {
   const f = seguro(rel);
   if (!f) return new Response('', { status: 400 });
 
-  // a lista do site sempre vem fresca (é como a tela inicial descobre que há versão nova)
+  // the site list always comes fresh (this is how the home screen learns there is a new version)
   if (rel === 'inicio/manifesto.json') {
     try { await manifestoDoSite(); } catch (_) {}
     try { return new Response(await fsp.readFile(MANIFESTO), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } }); }
     catch (_) { return new Response('', { status: 503 }); }
   }
-  // guardado no disco: abre daqui, sem internet
+  // stored on disk: opens from here, without internet
   if (estado && estado.arquivos[rel] && req.method === 'GET') {
     try { return new Response(await fsp.readFile(f), { headers: { 'Content-Type': tipo(rel) } }); } catch (_) {}
   }
-  // não guardado: vem do site, conferido pelo SHA-256 quando está na lista
+  // not stored: comes from the site, checked by SHA-256 when it is in the list
   const a = lista && lista.mapa.get(rel);
   if (a && req.method === 'GET') {
     try {
       return new Response(await baixarConferido(a), { headers: { 'Content-Type': tipo(rel) } });
     } catch (e) {
-      // a lista pode ter mudado no site depois que o app abriu: busca de novo e tenta mais uma vez
+      // the list may have changed on the site after the app opened: fetch it again and retry once
       try {
         await manifestoDoSite();
         const b = lista.mapa.get(rel);
@@ -169,13 +169,13 @@ async function responderSite(req) {
       return semInternet(rel, e);
     }
   }
-  // fora da lista (pacotes de idioma, arquivos novos): direto do site
+  // outside the list (language packs, new files): straight from the site
   try {
     if (ORIGEM !== SITE) return await net.fetch(ORIGEM + rel + u.search, { bypassCustomProtocolHandlers: true });
     return await net.fetch(req, { bypassCustomProtocolHandlers: true });
   } catch (e) { return semInternet(rel, e); }
 }
-// página sem internet e app não guardado: explica em vez de mostrar um erro cru
+// page without internet and app not stored: explain instead of showing a raw error
 function semInternet(rel, e) {
   if (!/\.html?$/.test(rel)) return new Response('', { status: 503 });
   const html = '<!doctype html><meta charset="utf-8"><title>InkDOS Hub</title><body style="font:15px -apple-system,Segoe UI,sans-serif;display:grid;place-items:center;height:90vh;margin:0;color:#3a3a3c;background:#f2f2f7;text-align:center">' +
@@ -184,9 +184,9 @@ function semInternet(rel, e) {
   return new Response(html, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
-// ---------- Webcam: no Windows abre o app nativo (câmera virtual), não a página do iPhone ----------
-// Baixa o InkDOSHub-Webcam-Windows.zip da release webcam-windows, confere o SHA-256 publicado, extrai em
-// %LOCALAPPDATA%\InkDOS Hub\webcam e abre. Nas vezes seguintes só abre (e atualiza se a release mudou).
+// ---------- Webcam: on Windows opens the native app (virtual camera), not the iPhone page ----------
+// Downloads InkDOSHub-Webcam-Windows.zip from the webcam-windows release, checks the published SHA-256, extracts to
+// %LOCALAPPDATA%\InkDOS Hub\webcam and opens it. Next times it only opens (and updates if the release changed).
 const WEBCAM = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip';
 const ehWebcam = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/webcam/'); } catch (_) { return false; } };
 let webcamOcupada = false;
@@ -246,12 +246,12 @@ async function abrirWebcam() {
         ['-NoProfile', '-NonInteractive', '-Command', 'Expand-Archive -LiteralPath $env:INK_ZIP -DestinationPath $env:INK_DEST -Force'],
         { env: Object.assign({}, process.env, { INK_ZIP: arq, INK_DEST: novo }), windowsHide: true }, e => (e ? falha(e) : ok())));
       await fsp.rm(arq, { force: true });
-      if (!acharExe(novo)) throw new Error('pacote sem o app');
+      if (!acharExe(novo)) throw new Error('package without the app');
       try {
         await fsp.rm(pasta, { recursive: true, force: true });
         await fsp.rename(novo, pasta);
         await fsp.writeFile(marca, remoto);
-      } catch (_) { /* app aberto: fica a versão anterior desta vez */ await fsp.rm(novo, { recursive: true, force: true }); }
+      } catch (_) { /* app open: keep the previous version this time */ await fsp.rm(novo, { recursive: true, force: true }); }
       exe = acharExe(pasta);
     }
     if (!exe) throw new Error(pt ? 'sem internet para baixar o app da Webcam' : 'no internet to download the Webcam app');
@@ -263,9 +263,9 @@ async function abrirWebcam() {
   } finally { webcamOcupada = false; }
 }
 
-// ---------- Terminal: no Windows usa o Linux do próprio Windows (WSL), com potência quase nativa ----------
-// Com o WSL instalado, abre o Linux no Terminal do Windows. Sem ele, explica e instala (wsl --install: pede
-// administrador uma vez, baixa o Ubuntu oficial da Microsoft e pode pedir para reiniciar). O terminal do site fica de opção.
+// ---------- Terminal: on Windows uses Windows' own Linux (WSL), with near-native power ----------
+// With WSL installed, opens Linux in Windows Terminal. Without it, explains and installs (wsl --install: asks for
+// administrator once, downloads the official Ubuntu from Microsoft and may ask to restart). The site terminal remains an option.
 const ehTerminal = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/terminal/'); } catch (_) { return false; } };
 const cp = require('child_process');
 function distrosWsl() {
@@ -316,7 +316,7 @@ async function abrirTerminal() {
   }, terminalDoSite);
 }
 
-// janelinha com explicação e dois botões: instalar a versão nativa ou usar a do site
+// small window with an explanation and two buttons: install the native version or use the site one
 function janelaEscolha(T, aoInstalar, aoSite) {
   const bt = 'display:block;width:100%;margin:8px 0;padding:11px;border-radius:10px;font:inherit;font-weight:600;text-decoration:none;text-align:center;box-sizing:border-box';
   const html = '<!doctype html><meta charset="utf-8"><title>' + T.titulo + '</title><body style="font:14px -apple-system,Segoe UI,sans-serif;margin:0;padding:22px;background:#f2f2f7;color:#1c1c1e">' +
@@ -336,9 +336,9 @@ function janelaEscolha(T, aoInstalar, aoSite) {
   return w;
 }
 
-// ---------- Código: no Windows usa o VS Code nativo (bem mais leve e rápido que o da página) ----------
-// Com o VS Code instalado, abre ele. Sem ele, oferece instalar o oficial da Microsoft (instalador para a pessoa, sem
-// administrador; o SHA-256 vem da própria Microsoft e é conferido) já com a telemetria desligada. O Código do site fica de opção.
+// ---------- Code: on Windows uses native VS Code (much lighter and faster than the page) ----------
+// With VS Code installed, opens it. Without it, offers to install the official one from Microsoft (per-user installer, no
+// administrator; the SHA-256 comes from Microsoft itself and is checked) with telemetry already off. The site Code app remains an option.
 const ehCodigo = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/codigo/'); } catch (_) { return false; } };
 function acharVsCode() {
   const l = [path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Microsoft VS Code', 'Code.exe'),
@@ -348,11 +348,11 @@ function acharVsCode() {
 }
 function codigoDoSite() {
   const w = new BrowserWindow(opcoes(1200, 820));
-  w.versaoDoSite = true; // a pessoa escolheu a do site: não desviar para o nativo dentro desta janela
+  w.versaoDoSite = true; // the person chose the site version: do not redirect to native inside this window
   cuidar(w);
   w.loadURL(SITE + 'apps/codigo/');
 }
-// telemetria do VS Code desligada (só se a pessoa ainda não escolheu nada sobre isso)
+// VS Code telemetry off (only if the person has not chosen anything about it yet)
 function vsCodeSemTelemetria() {
   try {
     const f = path.join(process.env.APPDATA || '', 'Code', 'User', 'settings.json');
@@ -416,9 +416,9 @@ function abrirCodigo() {
   }, codigoDoSite);
 }
 
-// ---------- a própria carcaça se atualiza ----------
-// Lê versao.json da release hub-windows; se for mais nova, baixa o instalador em segundo plano, confere o SHA-256
-// e mostra na tela inicial "Nova versão do app · Reiniciar". Se a pessoa não tocar, instala ao fechar o Hub.
+// ---------- the shell updates itself ----------
+// Reads versao.json from the hub-windows release; if newer, downloads the installer in the background, checks the SHA-256
+// and shows "New app version · Restart" on the home screen. If the person does not tap, installs when the Hub closes.
 const VERSAO_URL = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/hub-windows/versao.json';
 let instaladorPronto = null;
 const maior = (a, b) => {
@@ -426,7 +426,7 @@ const maior = (a, b) => {
   for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
   return false;
 };
-// devolve 'atual' (já é a mais nova), 'pronto' (instalador baixado e conferido) ou 'erro'
+// returns 'atual' (already the newest), 'pronto' (installer downloaded and checked) or 'erro'
 let procurando = null;
 function procurarVersaoNova(progresso) {
   if (instaladorPronto) return Promise.resolve('pronto');
@@ -451,7 +451,7 @@ function procurarVersaoNova(progresso) {
         if (progresso && total) progresso(Math.min(99, Math.floor(feito * 100 / total)));
       }
       const b = Buffer.concat(partes);
-      if (sha256(b) !== v.sha256) return 'erro'; // não confere: tenta de novo na próxima vez
+      if (sha256(b) !== v.sha256) return 'erro'; // mismatch: try again next time
       const f = path.join(app.getPath('temp'), 'InkDOSHub-Setup-' + v.versao + '.exe');
       await fsp.writeFile(f, b);
       instaladorPronto = f;
@@ -494,8 +494,8 @@ const doSite = url => { try { return new URL(url).hostname === HOST; } catch (_)
 
 function cuidar(w) {
   w.once('ready-to-show', () => w.show());
-  // Documento com alteração não salva: o app pede para confirmar a saída (beforeunload). O Electron, sozinho,
-  // só cancela o fechamento sem avisar, e a janela parecia travada. Aqui o Windows pergunta.
+  // Document with unsaved changes: the app asks to confirm leaving (beforeunload). Electron alone
+  // just cancels the close silently, and the window looked frozen. Here Windows asks.
   w.webContents.on('will-prevent-unload', e => {
     const pt = /^pt/i.test(app.getLocale());
     const r = dialog.showMessageBoxSync(w, {
@@ -504,7 +504,7 @@ function cuidar(w) {
       message: pt ? 'Há alterações não salvas.' : 'There are unsaved changes.',
       detail: pt ? 'Se fechar agora, as alterações desde o último salvamento se perdem.' : 'If you close now, changes since the last save are lost.'
     });
-    if (r === 0) e.preventDefault(); // fecha mesmo assim
+    if (r === 0) e.preventDefault(); // close anyway
   });
   w.webContents.setWindowOpenHandler(({ url }) => {
     if (ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
@@ -519,7 +519,7 @@ function cuidar(w) {
     if (!w.versaoDoSite && (ehWebcam(url) || ehTerminal(url) || ehCodigo(url))) {
       e.preventDefault();
       if (ehWebcam(url)) abrirWebcam(); else if (ehTerminal(url)) abrirTerminal(); else abrirCodigo();
-      // a tela inicial abre uma janela vazia e depois manda o endereço: essa janela fecha
+      // the home screen opens an empty window and then sends the address: that window closes
       const atual = w.webContents.getURL();
       if (w !== principal() && (!atual || atual === 'about:blank')) w.close();
       return;
@@ -544,17 +544,17 @@ app.whenReady().then(async () => {
 
   const s = session.defaultSession;
   s.setSpellCheckerEnabled(false);
-  // só o site e o PeerJS; nada de telemetria, anúncios ou rastreio
+  // only the site and PeerJS; no telemetry, ads or tracking
   s.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (d, cb) => {
     let host = '';
     try { host = new URL(d.url).hostname; } catch (_) {}
     cb({ cancel: !(LIVRES.has(host) || host === 'localhost' || host === '127.0.0.1') });
   });
-  // câmera, microfone, tela cheia, área de transferência e notificações só para o site; localização nunca
+  // camera, microphone, full screen, clipboard and notifications only for the site; location never
   const PODE = new Set(['media', 'fullscreen', 'clipboard-read', 'clipboard-sanitized-write', 'notifications', 'fileSystem', 'display-capture', 'pointerLock', 'window-management']);
   s.setPermissionRequestHandler((wc, perm, cb, det) => cb(PODE.has(perm) && doSite(det.requestingUrl || wc.getURL())));
   s.setPermissionCheckHandler((wc, perm, origem) => PODE.has(perm) && doSite(origem || ''));
-  // gravador de áudio: sem isto o getDisplayMedia do Electron responde "Not supported"; entrega a tela principal + som do Windows (loopback)
+  // audio recorder: without this Electron's getDisplayMedia answers "Not supported"; provides the main screen + Windows sound (loopback)
   s.setDisplayMediaRequestHandler((req, cb) => {
     if (!doSite(req.securityOrigin || (req.frame && req.frame.url) || '')) return cb({});
     desktopCapturer.getSources({ types: ['screen'] }).then(f => cb(f[0] ? { video: f[0], audio: 'loopback' } : {})).catch(() => cb({}));
@@ -566,7 +566,7 @@ app.whenReady().then(async () => {
     return net.fetch(req, { bypassCustomProtocolHandlers: true });
   });
 
-  // Gravador: som de um programa só (WASAPI por processo, Windows 10 2004+). PCM 16 bits, 48 kHz, estéreo.
+  // Recorder: sound from a single program (per-process WASAPI, Windows 10 2004+). PCM 16-bit, 48 kHz, stereo.
   const audioExe = n => path.join(path.dirname(process.execPath), 'audio', n);
   const capturas = new Map();
   ipcMain.handle('hub:audio-apps', e => new Promise(ok => {
@@ -595,7 +595,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('hub:audio-parar', e => { const p = capturas.get(e.sender.id); if (p) p.kill(); return true; });
   ipcMain.handle('hub:versao', () => app.getVersion());
   ipcMain.handle('hub:reiniciar', () => { if (instalarAtualizacao(true)) app.quit(); });
-  // botão "Atualizar o app do Windows" do Offline: procura, baixa (com %), confere e reinstala na hora
+  // Offline "Update the Windows app" button: checks, downloads (with %), verifies and reinstalls right away
   ipcMain.handle('hub:atualizar-app', async e => {
     const r = await procurarVersaoNova(p => { if (!e.sender.isDestroyed()) e.sender.send('hub:progresso-app', p); });
     if (r === 'pronto') { setTimeout(() => { if (instalarAtualizacao(true)) app.quit(); }, 800); }
@@ -609,23 +609,23 @@ app.whenReady().then(async () => {
     try { const st = await fsp.statfs(PASTA); livre = st.bavail * st.bsize; } catch (_) {}
     return { usado, livre };
   });
-  // o "Atualizar" do Offline também procura versão nova do próprio app (o aviso aparece quando o instalador já baixou)
+  // Offline "Update" also checks for a new version of the app itself (the notice appears once the installer is downloaded)
   ipcMain.handle('hub:sincronizar', (e, ids) => { procurarVersaoNova(); return sincronizar(ids, p => { if (!e.sender.isDestroyed()) e.sender.send('hub:progresso', p); }); });
 
-  // aberto por um arquivo (Abrir com / app padrão): só o app daquele arquivo; senão, a tela inicial
+  // opened by a file (Open with / default app): only that file's app; otherwise, the home screen
   const arqs = arquivosDe(process.argv);
   if (arqs.length) arqs.forEach(abrirArquivo); else abrirInicio();
   setTimeout(procurarVersaoNova, 20000);
   setInterval(procurarVersaoNova, 6 * 3600e3);
 
-  // primeira vez (ou depois de limpar): guarda a tela inicial e os apps leves para abrir sem internet
+  // first time (or after clearing): stores the home screen and the light apps to open without internet
   if (!estado) sincronizar([]).catch(() => {});
 });
 
 function abrirInicio() {
   janelaPrincipal = new BrowserWindow(opcoes(1100, 760));
   cuidar(janelaPrincipal);
-  // sem internet na primeira vez: avisa na própria janela e tenta de novo sozinho
+  // no internet on first run: tells so in the window and retries by itself
   janelaPrincipal.webContents.on('did-fail-load', (_e, codigo, _d, url, principalFrame) => {
     if (!principalFrame || codigo === -3 || !doSite(url)) return;
     janelaPrincipal.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent('<body style="font:15px -apple-system,Segoe UI,sans-serif;display:grid;place-items:center;height:90vh;color:#444;background:#f2f2f7"><p>InkDOS Hub: sem internet para a primeira abertura. Tentando de novo… · No internet for the first start. Retrying…</p></body>'));
@@ -633,13 +633,13 @@ function abrirInicio() {
   });
   janelaPrincipal.loadURL(SITE);
 
-  // versão nova da carcaça: procura 20 s depois de abrir e a cada 6 horas; o aviso volta se a tela recarregar
+  // new shell version: checks 20 s after opening and every 6 hours; the notice comes back if the screen reloads
   janelaPrincipal.webContents.on('did-finish-load', mostrarAvisoApp);
 }
 
-// ---------- abrir um arquivo do PC no app certo (duplo clique, "Abrir com", app padrão) ----------
-// O app abre na janela dele e o arquivo entra pelo mesmo campo "Abrir" do app (DevTools Protocol, só local):
-// nada é enviado para fora, é como escolher o arquivo na tela.
+// ---------- open a PC file in the right app (double click, "Open with", default app) ----------
+// The app opens in its window and the file goes in through the app's own "Open" field (DevTools Protocol, local only):
+// nothing is sent out, it is like picking the file on screen.
 const APP_DO_TIPO = {};
 for (const [url, exts] of [
   ['inkdos/apps/pdf/index.html?suite=1', 'pdf'],
@@ -659,9 +659,9 @@ const extDe = f => path.extname(f).slice(1).toLowerCase();
 function arquivosDe(argv) {
   return (argv || []).slice(1).filter(a => a && !a.startsWith('-') && APP_DO_TIPO[extDe(a)] && fs.existsSync(a) && fs.statSync(a).isFile()).map(a => path.resolve(a));
 }
-// Word, Excel e PowerPoint seguem a escolha do ☰ da tela inicial ("InkDOS rápido" ou "ArtCraft completo",
-// localStorage inkdoshub-abrir-office). No ArtCraft o arquivo vai pelo IndexedDB "inkdos-tool-handoff",
-// como na tela inicial (inicio/lancador.js), e a página apps/<editor>/ o entrega ao editor.
+// Word, Excel and PowerPoint follow the home screen ☰ choice ("InkDOS fast" or "ArtCraft full",
+// localStorage inkdoshub-abrir-office). In ArtCraft the file goes through the "inkdos-tool-handoff" IndexedDB,
+// as on the home screen (inicio/lancador.js), and the apps/<editor>/ page hands it to the editor.
 const ARTCRAFT = {};
 for (const [ed, exts] of [['wordcraft', 'docx doc odt rtf'], ['gridcraft', 'xlsx xls ods csv tsv'], ['deckcraft', 'pptx ppt odp']])
   for (const x of exts.split(' ')) ARTCRAFT[x] = ed;
@@ -683,7 +683,7 @@ function abrirArquivo(f) {
       w.loadURL(SITE + 'apps/' + ed + '/?inkdos-handoff=' + encodeURIComponent(id));
     } catch (_) { if (!w.isDestroyed()) w.destroy(); abrirNoInkdos(f); }
   });
-  w.loadURL(SITE + 'idiomas/pt-BR.json'); // página leve do mesmo site, só para ler a escolha e guardar o arquivo
+  w.loadURL(SITE + 'idiomas/pt-BR.json'); // light page from the same site, only to read the choice and store the file
 }
 function abrirNoInkdos(f) {
   const ext = extDe(f), m = MIME[ext] || '';
@@ -696,7 +696,7 @@ function abrirNoInkdos(f) {
     if (feito || w.isDestroyed()) return;
     const d = w.webContents.debugger;
     try {
-      // espera o app ficar pronto (na primeira visita a página pode recarregar sozinha)
+      // waits for the app to be ready (on the first visit the page may reload by itself)
       for (let i = 0; i < 60 && !feito; i++) {
         const pronto = await w.webContents.executeJavaScript('document.readyState==="complete"&&!!' + achar).catch(() => false);
         if (pronto) break;
@@ -706,15 +706,15 @@ function abrirNoInkdos(f) {
       if (!d.isAttached()) d.attach('1.3');
       await d.sendCommand('DOM.getDocument', { depth: 0 });
       const o = await d.sendCommand('Runtime.evaluate', { expression: achar });
-      if (!o.result || !o.result.objectId) throw new Error('sem campo de arquivo');
+      if (!o.result || !o.result.objectId) throw new Error('no file field');
       await d.sendCommand('DOM.setFileInputFiles', { files: [f], objectId: o.result.objectId });
       feito = true;
     } catch (_) {
-      // página recarregou no meio: a próxima carga tenta de novo
+      // page reloaded midway: the next load retries
     } finally { try { if (d.isAttached()) d.detach(); } catch (_) {} }
   };
   w.webContents.on('did-finish-load', () => { setTimeout(tentar, 300); });
 }
 app.on('window-all-closed', () => app.quit());
-// atualização baixada e a pessoa não reiniciou: instala em silêncio ao fechar (abre já na versão nova da próxima vez)
+// update downloaded and the person did not restart: installs silently on close (opens on the new version next time)
 app.on('will-quit', () => { instalarAtualizacao(false); });

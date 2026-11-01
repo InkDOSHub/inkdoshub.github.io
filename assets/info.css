@@ -1,4 +1,4 @@
-/* Botão "i" que mostra a explicação ao tocar (usar <details class="i"><summary>i</summary><div class="pop">…</div></details> dentro de um bloco com position:relative). */
+/* "i" button that shows the explanation on tap (use <details class="i"><summary>i</summary><div class="pop">…</div></details> inside a block with position:relative). */
 details.i{position:absolute;top:12px;right:12px}
 details.i summary{list-style:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--muted);color:var(--muted);font:italic 600 13px/19px Georgia,serif;text-align:center;cursor:pointer;box-sizing:border-box}
 details.i summary::-webkit-details-marker{display:none}

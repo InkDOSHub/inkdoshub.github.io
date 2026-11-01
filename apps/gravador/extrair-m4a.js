@@ -1,14 +1,14 @@
-// Tira o som (AAC) de um vídeo MP4/MOV sem converter nada: lê só os pedaços de áudio do arquivo
-// e monta um .m4a com eles. Rápido e leve; o vídeo nunca é carregado inteiro na memória.
-// inkExtrairM4a(arquivo, aoAvancar(parte 0..1)) -> Promise<Blob audio/mp4>; rejeita se o formato não servir
-// (aí a página usa o ffmpeg).
+// Extracts the sound (AAC) from an MP4/MOV video without converting anything: reads only the audio chunks of the file
+// and builds an .m4a from them. Fast and light; the video is never fully loaded in memory.
+// inkExtrairM4a(file, onProgress(part 0..1)) -> Promise<Blob audio/mp4>; rejects if the format does not fit
+// (then the page uses ffmpeg).
 (function () {
   var CAIXAS = { moov: 1, trak: 1, mdia: 1, minf: 1, stbl: 1, edts: 1 };
   function u32(d, i) { return ((d[i] << 24) >>> 0) + (d[i + 1] << 16) + (d[i + 2] << 8) + d[i + 3]; }
   function tipo(d, i) { return String.fromCharCode(d[i], d[i + 1], d[i + 2], d[i + 3]); }
   function ler(arq, a, b) { return arq.slice(a, b).arrayBuffer().then(function (x) { return new Uint8Array(x); }); }
 
-  // caixas de um trecho já lido; as de contêiner viram árvore
+  // boxes of an already read chunk; container boxes become a tree
   function partir(d) {
     var r = [], i = 0;
     while (i + 8 <= d.length) {
@@ -36,7 +36,7 @@
   function montar(c) { return caixa(c.tipo, c.filhos ? juntar(c.filhos.map(montar)) : c.dados); }
 
   window.inkExtrairM4a = function (arq, aoAvancar) {
-    // 1. acha o moov no nível de cima (pode estar no fim do arquivo)
+    // 1. find the top-level moov (it may be at the end of the file)
     function procurar(pos) {
       if (pos + 8 > arq.size) return Promise.reject(new Error("sem moov"));
       return ler(arq, pos, pos + 16).then(function (h) {
@@ -62,7 +62,7 @@
       var stco = achar(stbl.filhos, "stco"), co64 = achar(stbl.filhos, "co64");
       if (!stsd || tipo(stsd.dados, 12) !== "mp4a" || !stsz || !stsc || !(stco || co64)) throw new Error("formato");
 
-      // 2. onde está cada pedaço (chunk) de áudio e quantos bytes tem
+      // 2. where each audio chunk is and how many bytes it has
       var z = stsz.dados, fixo = u32(z, 4), nAmostras = u32(z, 8);
       function tam(k) { return fixo || u32(z, 12 + 4 * k); }
       var o = (stco || co64).dados, nPed = u32(o, 4), ofs = [];
@@ -78,7 +78,7 @@
       }
       if (!pedacos.length) throw new Error("sem som");
 
-      // 3. novo moov: só o mvhd e a faixa de som, com um stco que aponta para o novo mdat
+      // 3. new moov: only mvhd and the sound track, with an stco pointing to the new mdat
       var novo = new Uint8Array(8 + 4 * pedacos.length);
       new DataView(novo.buffer).setUint32(4, pedacos.length);
       stbl.filhos = stbl.filhos.filter(function (c) { return c.tipo !== "co64" && c.tipo !== "stco"; });
@@ -90,7 +90,7 @@
       pedacos.forEach(function (q, j) { dv.setUint32(8 + 4 * j, base); base += q[1]; });
       var cabMdat = new Uint8Array(8); new DataView(cabMdat.buffer).setUint32(0, total + 8); cabMdat.set([109, 100, 97, 116], 4);
 
-      // 4. copia os pedaços de áudio, em lotes, para mostrar o andamento
+      // 4. copy the audio chunks, in batches, to show progress
       var partes = [ftyp, montar(moov), cabMdat], feito = 0, LOTE = 400;
       function lote(j) {
         if (j >= pedacos.length) return new Blob(partes, { type: "audio/mp4" });

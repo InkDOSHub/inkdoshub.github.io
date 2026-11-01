@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Lista os textos da interface do InkDOS Hub (em inglês) e confere os pacotes de idioma.
+"""Lists the InkDOS Hub interface texts (in English) and checks the language packs.
 
-O texto em inglês é a chave da tradução (assets/idioma.js). Ele vem de:
+The English text is the translation key (assets/idioma.js). It comes from:
 - HTML: o texto dentro de <body data-idioma> e os atributos title, aria-label, placeholder e alt
   (fora de script, style, textarea e [data-idioma-nao]), mais o <title>;
-- JavaScript: as chamadas t("...") e InkIdioma.t("...") com texto literal.
+- JavaScript: the t("...") and InkIdioma.t("...") calls with literal text.
 
-Uso, na raiz do repositório:
+Usage, at the repository root:
     python3 tools/idiomas_textos.py            # grava tools/idiomas-textos.json e confere idiomas/*.json
-    python3 tools/idiomas_textos.py --limpar   # também tira dos pacotes as chaves que não existem mais
-Sai com erro se faltar tradução em algum pacote.
+    python3 tools/idiomas_textos.py --limpar   # also removes keys that no longer exist from the packs
+Exits with an error if any pack is missing a translation.
 """
 import html.parser, json, os, re, sys
 
@@ -103,9 +103,9 @@ def textos():
             achados += [json.loads('"' + x + '"') for x in JS_T.findall(s)]
         for x in achados:
             if "\n" in x:
-                avisos.append(f"{rel}: texto com quebra de linha: {x[:60]!r}")
+                avisos.append(f"{rel}: text with a line break: {x[:60]!r}")
             if not re.search(r"[A-Za-z]", x):
-                continue  # só símbolos ou números
+                continue  # only symbols or numbers
             vistos.setdefault(x, rel)
     return vistos, avisos
 

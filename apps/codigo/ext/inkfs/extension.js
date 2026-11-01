@@ -1,7 +1,7 @@
-// Sistema de arquivos "inkfs" do editor de código do InkDOS Hub.
-// Os arquivos ficam na memória e são gravados no IndexedDB deste navegador,
-// então continuam lá na próxima visita. Para trocar arquivos com o iPad use
-// "Upload..." e "Download..." no menu do Explorer (botão direito / toque longo).
+// "inkfs" file system of the InkDOS Hub code editor.
+// Files live in memory and are written to this browser's IndexedDB,
+// so they are still there on the next visit. To exchange files with the iPad use
+// "Upload..." and "Download..." in the Explorer menu (right click / long press).
 const vscode = require("vscode");
 
 const DB = "inkdoshub-codigo", STORE = "files";
@@ -135,7 +135,7 @@ exports.activate = async function (context) {
   abrirRecebidos();
 };
 
-// Arquivos mandados pela tela inicial do InkDOS Hub (inicio/lancador.js): já estão na pasta, em
+// Files sent by the InkDOS Hub home screen (inicio/lancador.js): already in the folder, in
 // /Recebidos; o pedido diz quais abrir.
 function abrirRecebidos() {
   const r = indexedDB.open("inkdoshub-codigo-abrir", 1);
