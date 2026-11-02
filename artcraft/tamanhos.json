@@ -1,0 +1,14 @@
+{
+ "deckcraft": {
+  "wasm": "deckcraft-web-1736dda13a1b2e0f_bg.wasm",
+  "bytes": 32260126
+ },
+ "gridcraft": {
+  "wasm": "gridcraft-web-7d721fa0754b75b9_bg.wasm",
+  "bytes": 22895249
+ },
+ "wordcraft": {
+  "wasm": "wordcraft-web-a75a8b404d46b7ab_bg.wasm",
+  "bytes": 50434398
+ }
+}

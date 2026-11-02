@@ -1,0 +1,3 @@
+deckcraft v0.14.1
+gridcraft v0.15.0
+wordcraft v0.14.0
