@@ -1,0 +1,77 @@
+name: Build Boxedwine JIT
+# Builds the current Boxedwine (GPL-2, github.com/danoon2/Boxedwine) with its WASM JIT
+# (x86 code translated to WebAssembly, then compiled by the browser's own JIT).
+# Two builds: jit (single thread) and mtjit (multithread, needs cross-origin isolation).
+# Output goes to apps/wine/jit/ and apps/wine/mtjit/ together with the source commit.
+# Runs on demand, and weekly to follow upstream.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 5 * * 3"
+  push:
+    branches: [main]
+    paths: [.github/workflows/boxedwine.yml]
+permissions:
+  contents: write
+concurrency:
+  group: boxedwine
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check upstream commit
+        id: up
+        run: |
+          set -euo pipefail
+          c=$(git ls-remote https://github.com/danoon2/Boxedwine HEAD | cut -f1)
+          echo "commit=$c" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "schedule" ] && grep -qs "$c" apps/wine/jit/VERSION.txt; then
+            echo "skip=1" >> "$GITHUB_OUTPUT"; echo "already built: $c"
+          fi
+      - name: Install Emscripten 5.0.7
+        if: steps.up.outputs.skip != '1'
+        run: |
+          git clone -q --depth 1 https://github.com/emscripten-core/emsdk "$HOME/emsdk"
+          cd "$HOME/emsdk" && ./emsdk install 5.0.7 && ./emsdk activate 5.0.7
+      - name: Build
+        if: steps.up.outputs.skip != '1'
+        run: |
+          set -euo pipefail
+          git clone -q https://github.com/danoon2/Boxedwine "$RUNNER_TEMP/bw"
+          cd "$RUNNER_TEMP/bw" && git checkout -q ${{ steps.up.outputs.commit }}
+          source "$HOME/emsdk/emsdk_env.sh"
+          cd project/emscripten
+          make jit
+          make multiThreadedJit
+          ls -la Build/Jit Build/MultiThreadedJit
+      - name: Copy into the site
+        if: steps.up.outputs.skip != '1'
+        run: |
+          set -euo pipefail
+          src="$RUNNER_TEMP/bw/project/emscripten/Build"
+          for pair in "Jit jit" "MultiThreadedJit mtjit"; do
+            set -- $pair
+            test -f "$src/$1/boxedwine.wasm"
+            rm -rf "apps/wine/$2"; mkdir -p "apps/wine/$2"
+            cp "$src/$1"/boxedwine.html "$src/$1"/*.js "$src/$1"/*.wasm "$src/$1"/*.css "apps/wine/$2/"
+            printf 'Boxedwine %s\nhttps://github.com/danoon2/Boxedwine/tree/%s\nEmscripten 5.0.7, make %s\n' \
+              "${{ steps.up.outputs.commit }}" "${{ steps.up.outputs.commit }}" "$1" > "apps/wine/$2/VERSION.txt"
+          done
+          # Cloudflare assets are limited to 25 MB: bigger files are served through worker.js.
+          find apps/wine/jit apps/wine/mtjit -size +24M | while read -r f; do
+            grep -qxF "$f" .assetsignore || echo "$f" >> .assetsignore
+          done
+          du -sh apps/wine/jit apps/wine/mtjit
+      - name: Commit
+        if: steps.up.outputs.skip != '1'
+        run: |
+          git add -A apps/wine/jit apps/wine/mtjit .assetsignore
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Boxedwine JIT build ${{ steps.up.outputs.commit }}"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push && exit 0; sleep 5; done
+          exit 1
