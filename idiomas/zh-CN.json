@@ -153,6 +153,8 @@
 "No videos.": "没有视频。",
 "Normal": "标准",
 "OK": "好",
+"Fast version": "快速版",
+"Same Hub on an address that turns on multithreading (video export, Linux, PDF conversion). Settings and the offline copy are kept separately on each address.": "同一个 Hub,换到启用多线程的地址(视频导出、Linux、PDF 转换)。设置和离线副本在每个地址分别保存。",
 "Offline": "离线",
 "Offline ready": "可离线使用",
 "Only 32-bit (x86) programs work. Older programs work best.": "仅支持 32 位（x86）程序。较旧的程序效果最好。",
