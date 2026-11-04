@@ -19,6 +19,7 @@ export default {
     const up = await fetch(EXTERNOS[url.pathname] || ORIGEM + url.pathname + url.search, { cf: { cacheTtl: 3600, cacheEverything: true } });
     const h = new Headers(up.headers);
     for (const [k, v] of Object.entries(ISOLAR)) h.set(k, v);
+    if (EXTERNOS[url.pathname]) h.set("Access-Control-Allow-Origin", "*");
     return new Response(up.body, { status: up.status, statusText: up.statusText, headers: h });
   },
 };
