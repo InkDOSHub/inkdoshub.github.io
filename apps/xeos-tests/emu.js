@@ -48,6 +48,23 @@ function corpoBloco(encadeado) {
   else c = c.concat(corpo, LD(1), [0x0b]); // returns r1: nonzero = jump back to the block
   return c;
 }
+// Box64-style: guest registers live in WebAssembly locals (CPU registers) while the block runs;
+// they are loaded from guest state on entry and written back on exit
+function traduzLocal(ins) {
+  var op = ins[0], a = ins[1], b = ins[2], imm = ins[3], L = function (r) { return [0x20, r + 1]; }, S = [0x21, a + 1];
+  if (op === MOV) return L(b).concat(S);
+  if (op === XOR || op === ADD) return L(a).concat(L(b), [OPS[op]], S);
+  return L(a).concat(C(imm), [OPS[op]], S);
+}
+function corpoBlocoLocais() {
+  var c = [1, 4, 0x7f], r;
+  for (r = 0; r < 4; r++) c = c.concat(LD(r), [0x21, r + 1]);
+  c = c.concat([0x03, 0x40]);
+  PROG.slice(0, -1).forEach(function (i) { c = c.concat(traduzLocal(i)); });
+  c = c.concat([0x20, 2, 0x0d, 0, 0x0b]);
+  for (r = 0; r < 4; r++) c = c.concat(C(r * 4), [0x20, r + 1], ST);
+  return c.concat(C(0), [0x0b]);
+}
 // the same loop written directly (locals = registers): param 0 = r1 (count), locals 1 = r0, 2 = r2, 3 = r3
 function corpoDireto() {
   return [1, 3, 0x7f].concat(C(1), [0x21, 1], [0x03, 0x40],
@@ -60,13 +77,14 @@ function corpoDireto() {
 var MODS = null;
 function prepara() {
   if (MODS) return MODS;
-  MODS = { direto: new WebAssembly.Module(modulo([corpoDireto()], false)), enc: new WebAssembly.Module(modulo([corpoBloco(true)], true)), desp: new WebAssembly.Module(modulo([corpoBloco(false)], true)) };
+  MODS = { direto: new WebAssembly.Module(modulo([corpoDireto()], false)), enc: new WebAssembly.Module(modulo([corpoBloco(true)], true)), loc: new WebAssembly.Module(modulo([corpoBlocoLocais()], true)), desp: new WebAssembly.Module(modulo([corpoBloco(false)], true)) };
   return MODS;
 }
 function inst(mod) { var m = new WebAssembly.Memory({ initial: 1 }); return { f: new WebAssembly.Instance(mod, { e: { m: m } }).exports.f0, r: new Int32Array(m.buffer) }; }
 
 var MODOS = {
   direto: function (n) { return new WebAssembly.Instance(prepara().direto).exports.f0(n); },
+  locais: function (n) { var x = inst(prepara().loc); x.r[0] = 1; x.r[1] = n; x.r[2] = 0; x.f(0); return x.r[2]; },
   encadeado: function (n) { var x = inst(prepara().enc); x.r[0] = 1; x.r[1] = n; x.r[2] = 0; x.f(0); return x.r[2]; },
   despacho: function (n) { var x = inst(prepara().desp); x.r[0] = 1; x.r[1] = n; x.r[2] = 0; var f = x.f; while (f(0)) {} return x.r[2]; },
   interpretador: function (n) {
@@ -103,7 +121,7 @@ if (IS_WORKER) {
   var pausa = function () { return new Promise(function (ok) { setTimeout(ok, 30); }); };
   var nucleos = function (n, ms) {
     return Promise.all(Array.from({ length: n }, function () {
-      return new Promise(function (ok) { var w = new Worker("emu.js?v=1"); w.onmessage = function (e) { w.terminate(); ok(e.data); }; w.onerror = function () { w.terminate(); ok(0); }; w.postMessage({ ms: ms }); });
+      return new Promise(function (ok) { var w = new Worker("emu.js?v=2"); w.onmessage = function (e) { w.terminate(); ok(e.data); }; w.onerror = function () { w.terminate(); ok(0); }; w.postMessage({ ms: ms }); });
     })).then(function (v) { return v.reduce(function (a, b) { return a + b; }, 0) / ms / 1000; });
   };
   $("rodar").onclick = async function () {
@@ -113,15 +131,15 @@ if (IS_WORKER) {
     linha("isolated (SharedArrayBuffer)", String(self.crossOriginIsolated === true));
     linha("logical cores reported", String(navigator.hardwareConcurrency || "?"));
     var res = {};
-    for (var m of ["direto", "encadeado", "despacho", "interpretador"]) {
+    for (var m of ["direto", "locais", "encadeado", "despacho", "interpretador"]) {
       est(m + "…"); await pausa();
       try { mede(m, 150); res[m] = mede(m, 1500); } catch (e) { res[m] = { mips: 0, erro: String(e) }; }
     }
-    var nomes = { direto: "1. direct WebAssembly (ceiling)", encadeado: "2. dynarec, chained blocks", despacho: "3. dynarec, JS dispatch per block", interpretador: "4. interpreter (no JIT)" };
-    var ok = ["encadeado", "despacho", "interpretador"].every(function (m) { return MODOS[m](12345) === MODOS.direto(12345); });
+    var nomes = { direto: "1. direct WebAssembly (ceiling)", locais: "1b. dynarec, registers in locals (Box64-style)", encadeado: "2. dynarec, chained blocks", despacho: "3. dynarec, JS dispatch per block", interpretador: "4. interpreter (no JIT)" };
+    var ok = ["locais", "encadeado", "despacho", "interpretador"].every(function (m) { return MODOS[m](12345) === MODOS.direto(12345); });
     for (var k in nomes) linha(nomes[k], res[k].erro ? "error: " + res[k].erro : Math.round(res[k].mips) + " MIPS (" + (res[k].mips / res.direto.mips * 100).toFixed(0) + "% of direct)");
-    linha("same result in all 4", String(ok));
-    linha("JIT gain over interpreter", (res.encadeado.mips / res.interpretador.mips).toFixed(1) + "x");
+    linha("same result in all 5", String(ok));
+    linha("JIT gain over interpreter", (res.locais.mips / res.interpretador.mips).toFixed(1) + "x");
 
     est("translation speed…"); await pausa();
     try {
@@ -136,7 +154,7 @@ if (IS_WORKER) {
     for (var n of [1, 2, 4, 6, 8]) {
       est("emulated cores: " + n + "…"); await pausa();
       var v = await nucleos(n, 2000); if (n === 1) um = v;
-      linha("emulated cores: " + n + " workers", Math.round(v) + " MIPS total (" + (v / um).toFixed(2) + "x)");
+      linha("emulated cores (Box64-style): " + n + " workers", Math.round(v) + " MIPS total (" + (v / um).toFixed(2) + "x)");
     }
 
     est("guest RAM…"); await pausa();
