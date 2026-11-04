@@ -67,9 +67,9 @@ let savedMem;
 try { savedMem = localStorage.getItem("inkdoshub-memoria"); } catch {}
 const MEM = params.get("memoria") || savedMem || "normal";
 // ?ram=<MB> (pilot): bigger RAM, same rules as the limited mode (swap, no saved session)
-const RAM_MB = Math.min(Math.max(+params.get("ram") || 0, 0), 2048);
+const RAM_MB = Math.min(Math.max(+params.get("ram") || 0, 0), 2048) || (MEM === "maxima" ? 1536 : 0);
 const LIMITADA = MEM === "limitada" || RAM_MB > 0;
-const SWAP_BYTES = 1024 * 1024 * 1024;
+const SWAP_BYTES = (RAM_MB ? 2000 : 1024) * 1024 * 1024;
 
 function abrirSwap() {
   const w = new Worker("swap-worker.js?v=1");
@@ -342,9 +342,11 @@ redeBtn.addEventListener("click", () => {
 const memBtn = document.getElementById("memoria");
 memBtn.textContent = t("Memory: {size}", { size: RAM_MB ? RAM_MB + " MB + swap" : LIMITADA ? "640 MB + swap" : "256 MB" });
 memBtn.addEventListener("click", () => {
-  try { localStorage.setItem("inkdoshub-memoria", LIMITADA ? "normal" : "limitada"); } catch {}
+  // cycle: 256 MB -> 640 MB + swap -> 1.5 GB + 2 GB swap -> 256 MB
+  const next = RAM_MB ? "normal" : LIMITADA ? "maxima" : "limitada";
+  try { localStorage.setItem("inkdoshub-memoria", next); } catch {}
   const q = new URLSearchParams(location.search);
-  q.delete("memoria");
+  q.delete("memoria"); q.delete("ram");
   location.search = q.toString();
 });
 if (LIMITADA) document.getElementById("btn-save").title = t("The session is not saved in this mode (swap is rebuilt on every boot)");
