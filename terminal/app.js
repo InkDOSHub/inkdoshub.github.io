@@ -60,16 +60,16 @@ const clearStateDb = () => idbOp("readwrite", (s) => s.delete(KEY));
 
 // ---------- Memory ----------
 // "normal": 256 MB, as before, and the session can be saved.
-// "limitada": 640 MB of RAM for Linux (the tab stays near 1 GB), plus zram (compressed memory) and a 1 GB
+// "maxima": 1.5 GB of RAM for Linux, plus zram (compressed memory) and a 2 GB
 // swap disk in the site storage (OPFS), where Linux sends what
 // is rarely used. In this mode the session is not saved, because swap is rebuilt on every boot.
 let savedMem;
 try { savedMem = localStorage.getItem("inkdoshub-memoria"); } catch {}
 const MEM = params.get("memoria") || savedMem || "normal";
 // ?ram=<MB> (pilot): bigger RAM, same rules as the limited mode (swap, no saved session)
-const RAM_MB = Math.min(Math.max(+params.get("ram") || 0, 0), 2048) || (MEM === "maxima" ? 1536 : 0);
-const LIMITADA = MEM === "limitada" || RAM_MB > 0;
-const SWAP_BYTES = (RAM_MB ? 2000 : 1024) * 1024 * 1024;
+const RAM_MB = Math.min(Math.max(+params.get("ram") || 0, 0), 2048) || (MEM === "maxima" || MEM === "limitada" ? 1536 : 0);
+const LIMITADA = RAM_MB > 0;
+const SWAP_BYTES = 2000 * 1024 * 1024;
 
 function abrirSwap() {
   const w = new Worker("swap-worker.js?v=1");
@@ -122,7 +122,7 @@ const REDE = [params.get("rede"), savedRede].find((r) => Object.hasOwn(REDES, r)
 const relayUrl = REDES[REDE];
 const config = {
   wasm_path: "vendor/v86/v86.wasm",
-  memory_size: (RAM_MB || (LIMITADA ? 640 : 256)) * 1024 * 1024,
+  memory_size: (RAM_MB || 256) * 1024 * 1024,
   vga_memory_size: 2 * 1024 * 1024,
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
@@ -340,10 +340,10 @@ redeBtn.addEventListener("click", () => {
 
 // ---------- Memory choice ----------
 const memBtn = document.getElementById("memoria");
-memBtn.textContent = t("Memory: {size}", { size: RAM_MB ? RAM_MB + " MB + swap" : LIMITADA ? "640 MB + swap" : "256 MB" });
+memBtn.textContent = t("Memory: {size}", { size: RAM_MB ? (RAM_MB === 1536 ? "1.5 GB + 2 GB swap" : RAM_MB + " MB + swap") : "256 MB" });
 memBtn.addEventListener("click", () => {
-  // cycle: 256 MB -> 640 MB + swap -> 1.5 GB + 2 GB swap -> 256 MB
-  const next = RAM_MB ? "normal" : LIMITADA ? "maxima" : "limitada";
+  // two modes: 256 MB <-> 1.5 GB + 2 GB swap
+  const next = RAM_MB ? "normal" : "maxima";
   try { localStorage.setItem("inkdoshub-memoria", next); } catch {}
   const q = new URLSearchParams(location.search);
   q.delete("memoria"); q.delete("ram");
