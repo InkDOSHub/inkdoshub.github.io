@@ -13,6 +13,13 @@ var estado = function (t) { $("estado").textContent = t; };
 
 function iniciarMotor(params, automatico) {
   $("inicio").hidden = true;
+  // fixed Windows screen size; otherwise Boxedwine takes the browser window size and the picture gets stretched
+  Module.arguments.push("-resolution", "1024x768");
+  // Boxedwine opens its window at the screen size: report a 1024x768 screen so the picture keeps its shape
+  try {
+    ["width", "availWidth"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return 1024; } }); });
+    ["height", "availHeight"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return 768; } }); });
+  } catch (e) {}
   Config.locateRootBaseUrl = "fs/";
   Config.locateAppBaseUrl = "apps/";
   Config.locateOverlayBaseUrl = "apps/";
@@ -58,5 +65,24 @@ $("arquivo").onchange = async function () {
   });
 };
 
-// show "running" once the emulator draws
-Module.postRun.push(function () { estado(""); });
+// feedback: download progress, Wine messages in a Log, and a hint while Windows starts
+var linhasLog = [];
+function registra(t) {
+  linhasLog.push(String(t)); if (linhasLog.length > 300) linhasLog.shift();
+  $("log-txt").textContent = linhasLog.join("\n");
+}
+var printOrig = Module.print, errOrig = Module.printErr, statusOrig = Module.setStatus;
+Module.print = function (t) { registra(t); printOrig.apply(this, arguments); };
+Module.printErr = function (t) { registra(t); errOrig.apply(this, arguments); };
+Module.setStatus = function (t) {
+  statusOrig.apply(this, arguments);
+  if (t) estado(/\((\d+)\/(\d+)\)/.test(t) ? t.replace(/\((\d+)\/(\d+)\)/, function (_, a, b) { return Math.round(a / b * 100) + "%"; }) : t);
+};
+var inicioWin = 0;
+var esperaWin = setInterval(function () {
+  if (!isRunning) return;
+  if (!inicioWin) { inicioWin = Date.now(); $("log").hidden = false; }
+  var s = Math.round((Date.now() - inicioWin) / 1000);
+  estado(s < 90 ? "Windows is starting… " + s + " s (the first start can take 1–2 min; the screen may stay black or blue meanwhile)" : "Running. If nothing shows up, open Log below to see what Wine says.");
+  if (s >= 90) clearInterval(esperaWin);
+}, 1000);
