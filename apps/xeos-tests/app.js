@@ -2,7 +2,7 @@
 // SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
 (function () {
   "use strict";
-  var SUITE_VERSION = 3;
+  var SUITE_VERSION = 4;
   var lancados = [];
   if (window.launchQueue) launchQueue.setConsumer(function (p) { lancados.push((p.files || []).map(function (f) { return f.name; }).join(",") || "no files"); });
   var res = {}, $ = function (id) { return document.getElementById(id); };
@@ -169,6 +169,17 @@
       return Object.getOwnPropertyNames(w).filter(function (k) { return !base.has(k); }).join(",") || "none";
     });
     put("xeos.webkitBridge", null, w.webkit ? "webkit=" + Object.getOwnPropertyNames(w.webkit).join(",") + " · handlers: " + (w.webkit.messageHandlers ? ["xeos", "XeOS", "bridge", "native", "files", "fileSystem", "download", "share", "recorder", "window", "app", "log", "console"].filter(function (h) { try { return !!w.webkit.messageHandlers[h]; } catch (e) { return false; } }).join(",") || "none of the common names" : "none") : "no window.webkit");
+    await t("xeos.internals", function () {
+      return Object.getOwnPropertyNames(w).filter(function (k) { return /^__edb|^__air|^__active/.test(k); }).map(function (k) {
+        var v = w[k], d = typeof v;
+        if (d === "function") d += " " + Function.prototype.toString.call(v).slice(0, 200);
+        else if (v && d === "object") { try { d += " {" + Object.keys(v).slice(0, 30).join(",") + "}"; } catch (e) { d += " (locked)"; } }
+        else d += " " + String(v).slice(0, 80);
+        return k + ": " + d;
+      }).join(" || ");
+    });
+    await t("xeos.getUserMediaSource", function () { return Function.prototype.toString.call(n.mediaDevices.getUserMedia).slice(0, 400); });
+    await t("xeos.openPickerSource", function () { return Function.prototype.toString.call(w.showOpenFilePicker).slice(0, 400); });
     await t("cpu.wasmSIMD", function () { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11])); });
     await t("gpu.adapter", async function () { var a = await n.gpu.requestAdapter({ powerPreference: "high-performance" }); if (!a) return false; var i = a.info || {}; return (i.vendor || "?") + " " + (i.architecture || "") + " · maxBuffer " + Math.round(a.limits.maxBufferSize / 1048576) + " MB · maxStorageBinding " + Math.round(a.limits.maxStorageBufferBindingSize / 1048576) + " MB · features " + Array.from(a.features).join(","); });
     // indirect estimates
