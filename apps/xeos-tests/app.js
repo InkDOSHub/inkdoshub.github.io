@@ -2,7 +2,7 @@
 // SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
 (function () {
   "use strict";
-  var SUITE_VERSION = 7;
+  var SUITE_VERSION = 8;
   var lancados = [];
   if (window.launchQueue) launchQueue.setConsumer(function (p) { lancados.push((p.files || []).map(function (f) { return f.name; }).join(",") || "no files"); });
   var res = {}, $ = function (id) { return document.getElementById(id); };
@@ -326,7 +326,7 @@
   // suite 7
   extras.gpumem = function () {
     return t("gpu.memoryLimit", async function () {
-      var a = await n().gpu.requestAdapter({ powerPreference: "high-performance" }), d = await a.requestDevice({ requiredLimits: { maxBufferSize: a.limits.maxBufferSize } }), bufs = [], mb = 0, lost = false, chunk = new Uint8Array(256 * 1048576).fill(1);
+      var a = await n().gpu.requestAdapter({ powerPreference: "high-performance" }), d = await a.requestDevice({ requiredLimits: { maxBufferSize: a.limits.maxBufferSize } }), bufs = [], mb = 0, lost = false, chunk = new Uint8Array(256 * 1048576); encher(chunk);
       d.lost.then(function () { lost = true; });
       try {
         while (mb < 16384 && !lost) {
@@ -372,14 +372,16 @@
       });
     }, 20000);
   };
+  // fill with pseudo-random data so iOS cannot compress the memory away
+  function encher(b) { var u = new Uint32Array(b.buffer, b.byteOffset, b.byteLength >> 2), x = (Math.random() * 4294967295) | 1; for (var i = 0; i < u.length; i++) { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; u[i] = x; } }
   var segurando = [];
-  extras.segurar = function () { return t("mem.hold2GB", function () { for (var i = 0; i < 8; i++) { var b = new Uint8Array(256 * 1048576); for (var j = 0; j < b.length; j += 4096) b[j] = 1; segurando.push(b); } return "holding 2048 MB in this window (keep it open)"; }, 60000); };
+  extras.segurar = function () { return t("mem.hold2GB", function () { for (var i = 0; i < 8; i++) { var b = new Uint8Array(256 * 1048576); encher(b); segurando.push(b); } return "holding 2048 MB in this window (keep it open)"; }, 60000); };
   extras.memoria = function () {
     return t("mem.limit", async function () {
       var keep = [], mb = 0;
       try {
         while (mb < 8192) {
-          var b = new Uint8Array(256 * 1048576); for (var i = 0; i < b.length; i += 4096) b[i] = 1; keep.push(b); mb += 256;
+          var b = new Uint8Array(256 * 1048576); encher(b); keep.push(b); mb += 256;
           try { sessionStorage.setItem("xeos-tests-mem", "reached " + mb + " MB before the page reloaded"); } catch (e) {}
           await new Promise(function (r) { setTimeout(r, 30); });
         }
