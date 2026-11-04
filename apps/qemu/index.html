@@ -28,13 +28,14 @@
 <main class="ink-main">
   <p class="nota" id="estado">Loading QEMU (about 140 MB the first time)…</p>
   <div id="term"></div>
-  <p class="nota">Log in as <code>root</code>, then speed test: <code>time sh -c 'i=0; while [ $i -lt 300000 ]; do i=$((i+1)); done'</code></p>
+  <p class="nota"><button type="button" id="btn-root">Log in (root)</button> <button type="button" id="btn-teste">Speed test</button></p>
+  <p class="nota">Speed test runs: <code>time sh -c 'i=0; while [ $i -lt 300000 ]; do i=$((i+1)); done'</code></p>
 </main>
 <script src="modulo.js?v=1"></script>
 <script src="alpine/load-rootfs.js"></script>
 <script src="alpine/load-kernel.js"></script>
 <script src="alpine/load-initramfs.js"></script>
 <script src="alpine/load-rom.js"></script>
-<script type="module" src="app.js?v=1"></script>
+<script type="module" src="app.js?v=2"></script>
 </body>
 </html>

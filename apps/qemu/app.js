@@ -18,3 +18,12 @@ Module["TTY"].stream_ops.poll = function (stream, timeout) {
   if (!pty.readable) return (pty.readable ? 1 : 0) | (pty.writable ? 4 : 0);
   return oldPoll.call(stream, timeout);
 };
+
+// Buttons that type into the terminal (iPhone has no paste in the terminal).
+function digitar(texto) {
+  if (xterm.input) xterm.input(texto, true);
+  else xterm._core.coreService.triggerDataEvent(texto, true);
+}
+document.getElementById("btn-root").onclick = () => digitar("root\r");
+document.getElementById("btn-teste").onclick = () =>
+  digitar("time sh -c 'i=0; while [ $i -lt 300000 ]; do i=$((i+1)); done'\r");
