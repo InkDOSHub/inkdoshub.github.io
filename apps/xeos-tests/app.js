@@ -2,7 +2,9 @@
 // SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
 (function () {
   "use strict";
-  var SUITE_VERSION = 1;
+  var SUITE_VERSION = 2;
+  var lancados = [];
+  if (window.launchQueue) launchQueue.setConsumer(function (p) { lancados.push((p.files || []).map(function (f) { return f.name; }).join(",") || "no files"); });
   var res = {}, $ = function (id) { return document.getElementById(id); };
   var tabela = $("tabela");
 
@@ -144,6 +146,20 @@
     has("css.dvh", CSS.supports("height", "100dvh"));
     has("css.backdropFilter", CSS.supports("backdrop-filter", "blur(1px)") || CSS.supports("-webkit-backdrop-filter", "blur(1px)"));
     has("css.containerQueries", CSS.supports("container-type", "inline-size"));
+    put("pwa.launchedWithFiles", null, lancados.join(" | ") || "none (open a file in XeOS with this app to test)");
+    await t("storage.idbSpeed50MB", function () {
+      return new Promise(function (ok, no) {
+        var r = indexedDB.open("xeos-tests", 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore("s"); };
+        r.onsuccess = function () {
+          var db = r.result, t0 = performance.now(), tx = db.transaction("s", "readwrite");
+          tx.objectStore("s").put(new Blob([new Uint8Array(50 * 1048576)]), "big");
+          tx.oncomplete = function () { var ms = performance.now() - t0; var d = db.transaction("s", "readwrite"); d.objectStore("s").delete("big"); d.oncomplete = function () { db.close(); }; ok(Math.round(ms) + " ms"); };
+          tx.onerror = function () { no(tx.error); };
+        };
+        r.onerror = function () { no(r.error); };
+      });
+    }, 30000);
     has("css.has", CSS.supports("selector(:has(a))"));
   }
 
@@ -163,6 +179,18 @@
       }, 60000);
     },
     download: function () { return t("tap.download", function () { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["XeOS download test"], { type: "text/plain" })); a.download = "xeos-download-test.txt"; a.click(); return "triggered (check if the file arrived and note it below)"; }); }
+  };
+  extras.salvar = function () { return t("tap.saveFilePicker", async function () { var h = await window.showSaveFilePicker({ suggestedName: "xeos-save-test.txt" }); var w = await h.createWritable(); await w.write("XeOS save test " + new Date().toISOString()); await w.close(); var f = await h.getFile(); return "wrote " + f.name + " " + f.size + " B"; }, 60000); };
+  extras.dialogos = function () { return t("tap.confirmAlert", function () { var t0 = Date.now(), c = window.confirm("XeOS test: tap OK"), ms1 = Date.now() - t0; t0 = Date.now(); window.alert("XeOS test: close this"); var ms2 = Date.now() - t0; return "confirm=" + c + " after " + ms1 + " ms, alert closed after " + ms2 + " ms (under ~50 ms means blocked)"; }, 60000); };
+  extras.camera4k = async function () {
+    for (var sz of [[1920, 1080], [3840, 2160]]) {
+      await t("tap.camera" + sz[1] + "p", async function () { var s = await n().mediaDevices.getUserMedia({ video: { width: { ideal: sz[0] }, height: { ideal: sz[1] }, frameRate: { ideal: 60 } } }); var k = s.getVideoTracks()[0], st = k.getSettings(), c = k.getCapabilities ? k.getCapabilities() : {}; s.getTracks().forEach(function (x) { x.stop(); }); return st.width + "x" + st.height + "@" + Math.round(st.frameRate || 0) + (c.width ? " · max " + c.width.max + "x" + c.height.max + "@" + (c.frameRate ? Math.round(c.frameRate.max) : "?") : "") + " · " + (k.label || ""); }, 20000);
+    }
+  };
+  extras.persistir = function () { return t("tap.storagePersist", async function () { return "granted=" + await n().storage.persist(); }); };
+  extras.tela2 = async function () {
+    await t("tap.fullscreen", async function () { var el = document.documentElement; await (el.requestFullscreen ? el.requestFullscreen() : el.webkitRequestFullscreen()); var on = !!(document.fullscreenElement || document.webkitFullscreenElement); if (document.exitFullscreen) document.exitFullscreen().catch(function () {}); return on; });
+    await t("tap.wakeLock", async function () { var l = await n().wakeLock.request("screen"); await l.release(); return "acquired"; });
   };
   function n() { return navigator; }
 
