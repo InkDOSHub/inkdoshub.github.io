@@ -12,3 +12,4 @@ artcraft/deckcraft/*_bg.wasm
 artcraft/wordcraft/*_bg.wasm
 visualizadores/bentopdf/libreoffice-wasm/soffice.data.gz
 visualizadores/bentopdf/libreoffice-wasm/soffice.wasm.gz
+apps/video/cortar/ffmpeg-core-mt/ffmpeg-core.wasm

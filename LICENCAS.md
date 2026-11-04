@@ -24,7 +24,7 @@ This is not legal advice. For a paid product, check with a lawyer, especially th
 | SeaBIOS / VGA BIOS | LGPL-3.0 | keep the license (`terminal/bios/COPYING.LESSER`) and say where the source code is |
 | ArtCraft editors (`artcraft/`, pages in `apps/wordcraft`, `apps/gridcraft`, `apps/deckcraft`) | MIT or Apache-2.0 | downloaded from the web releases of github.com/storytold/{wordcraft,gridcraft,deckcraft} by the `artcraft.yml` action, unmodified; versions in `artcraft/versoes.txt` |
 | jschardet (inside VS Code) | LGPL-2.1 | keep the license; the file is unmodified |
-| ffmpeg.wasm 0.12.5 (`apps/video/cortar/ffmpeg-core/`, used for export) | GPL-2.0 or later | offer the source code: it is the `@ffmpeg/core@0.12.5` package unmodified, with source at https://github.com/ffmpegwasm/ffmpeg.wasm |
+| ffmpeg.wasm 0.12.5 (`apps/video/cortar/ffmpeg-core/`) and 0.12.10 multithread (`apps/video/cortar/ffmpeg-core-mt/`), used for export | GPL-2.0 or later | offer the source code: they are the `@ffmpeg/core@0.12.5` and `@ffmpeg/core-mt@0.12.10` packages unmodified, with source at https://github.com/ffmpegwasm/ffmpeg.wasm |
 | FFmpeg inside web-demuxer and ffprobe-wasm | LGPL-2.1 | keep the license and point to the source code (unmodified npm packages) |
 | BentoPDF (`visualizadores/bentopdf/`) | AGPL-3.0 | keep the license and offer the source code (this repository is public) |
 
