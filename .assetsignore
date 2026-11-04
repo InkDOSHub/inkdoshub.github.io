@@ -13,4 +13,3 @@ artcraft/wordcraft/*_bg.wasm
 visualizadores/bentopdf/libreoffice-wasm/soffice.data.gz
 visualizadores/bentopdf/libreoffice-wasm/soffice.wasm.gz
 apps/video/cortar/ffmpeg-core-mt/ffmpeg-core.wasm
-apps/wine/fs/fullWine1.7.55-v8.zip
