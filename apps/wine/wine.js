@@ -51,6 +51,15 @@ $("arquivo").onchange = async function () {
     } catch (err) { estado("Could not read this .zip: " + err.message); return; }
   } else exes.push("/" + nome);
   if (!exes.length) { estado("No .exe found in this file."); return; }
+  // this engine runs 32-bit programs only: warn right away about a 64-bit .exe (PE machine 0x8664)
+  var bytesExe = /\.zip$/i.test(nome) ? null : new Uint8Array(dados);
+  if (bytesExe && bytesExe.length > 0x40) {
+    var dv = new DataView(dados), pe = dv.getUint32(0x3c, true);
+    if (pe + 6 < bytesExe.length && dv.getUint16(pe + 4, true) === 0x8664) {
+      estado("This is a 64-bit program. This version runs 32-bit (x86) programs only: look for the 32-bit download of this program.");
+      this.value = ""; return;
+    }
+  }
   iniciarMotor(RAIZ_FS, false);
   quandoPronto(function () {
     readFile(dados, nome, null); // Boxedwine: copies the file (or the unzipped folder) to drive D:
