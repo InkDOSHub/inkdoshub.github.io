@@ -5,7 +5,7 @@ const ORIGEM = "https://inkdoshub.github.io";
 const ISOLAR = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Embedder-Policy": "require-corp",
-  "Cross-Origin-Resource-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "cross-origin",
 };
 export default {
   async fetch(req, env) {
