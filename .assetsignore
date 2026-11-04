@@ -6,3 +6,7 @@
 !/assets/
 !/manifest.webmanifest
 !/_headers
+!/terminal/
+!/tools/
+/tools/*
+!/tools/linux/
