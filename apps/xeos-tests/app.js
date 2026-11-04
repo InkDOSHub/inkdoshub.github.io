@@ -2,7 +2,7 @@
 // SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
 (function () {
   "use strict";
-  var SUITE_VERSION = 6;
+  var SUITE_VERSION = 7;
   var lancados = [];
   if (window.launchQueue) launchQueue.setConsumer(function (p) { lancados.push((p.files || []).map(function (f) { return f.name; }).join(",") || "no files"); });
   var res = {}, $ = function (id) { return document.getElementById(id); };
@@ -323,6 +323,54 @@
       return new Promise(function (ok, no) { var wk = worker(SWAP); wk.onmessage = function (e) { wk.terminate(); /^ERR/.test(e.data) ? no(new Error(e.data)) : ok(e.data); }; wk.postMessage(1); });
     }, 120000);
   };
+  // suite 7
+  extras.gpumem = function () {
+    return t("gpu.memoryLimit", async function () {
+      var a = await n().gpu.requestAdapter({ powerPreference: "high-performance" }), d = await a.requestDevice({ requiredLimits: { maxBufferSize: a.limits.maxBufferSize } }), bufs = [], mb = 0, lost = false, chunk = new Uint8Array(256 * 1048576).fill(1);
+      d.lost.then(function () { lost = true; });
+      try {
+        while (mb < 16384 && !lost) {
+          d.pushErrorScope("out-of-memory");
+          var b = d.createBuffer({ size: chunk.length, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+          d.queue.writeBuffer(b, 0, chunk); await d.queue.onSubmittedWorkDone();
+          var e = await d.popErrorScope(); if (e) { b.destroy(); break; }
+          bufs.push(b); mb += 256;
+          try { sessionStorage.setItem("xeos-tests-gpumem", "GPU reached " + mb + " MB before the page reloaded"); } catch (x) {}
+        }
+      } finally { bufs.forEach(function (b) { b.destroy(); }); d.destroy(); try { sessionStorage.removeItem("xeos-tests-gpumem"); } catch (x) {} }
+      return mb + " MB of GPU buffers" + (lost ? " (device lost)" : "");
+    }, 120000);
+  };
+  extras.termico = function () {
+    return t("bench.thermal5min", async function () {
+      var end = performance.now() + 300000, marks = [], start = performance.now(), last = start, rounds = 0, base = 0;
+      while (performance.now() < end) {
+        var ms = await carga(6, 3e7); rounds++; if (!base) base = ms;
+        if (performance.now() - last >= 30000) { last = performance.now(); marks.push(Math.round((last - start) / 1000) + "s " + (base / ms * 100).toFixed(0) + "%"); $("estado").textContent = "⏳ Thermal test: " + marks[marks.length - 1]; }
+      }
+      return rounds + " rounds · speed vs start: " + marks.join(" · ");
+    }, 330000);
+  };
+  var canal = window.BroadcastChannel ? new BroadcastChannel("xeos-tests") : null;
+  if (canal) canal.onmessage = function (e) { if (e.data && e.data.ping) canal.postMessage({ pong: e.data.ping, size: e.data.buf ? e.data.buf.byteLength : 0 }); };
+  extras.janelas = function () {
+    return t("win.channel", function () {
+      return new Promise(function (ok, no) {
+        if (!canal) return no(new Error("no BroadcastChannel"));
+        var times = [], i = 0, t0, big = false;
+        var c2 = new BroadcastChannel("xeos-tests");
+        c2.onmessage = function (e) {
+          if (!e.data || !e.data.pong) return;
+          if (big) { var ms = performance.now() - t0; c2.close(); return ok("ping avg " + (times.reduce(function (a, b) { return a + b; }, 0) / times.length).toFixed(2) + " ms · 50 MB round trip " + Math.round(ms) + " ms (" + Math.round(100 / (ms / 1000)) + " MB/s)"); }
+          times.push(performance.now() - t0);
+          if (++i < 20) { t0 = performance.now(); c2.postMessage({ ping: i + 1 }); }
+          else { big = true; t0 = performance.now(); c2.postMessage({ ping: 99, buf: new Uint8Array(50 * 1048576).buffer }); }
+        };
+        setTimeout(function () { no(new Error("no answer: open this page in a second window first")); }, 15000);
+        t0 = performance.now(); c2.postMessage({ ping: 1 });
+      });
+    }, 20000);
+  };
   var segurando = [];
   extras.segurar = function () { return t("mem.hold2GB", function () { for (var i = 0; i < 8; i++) { var b = new Uint8Array(256 * 1048576); for (var j = 0; j < b.length; j += 4096) b[j] = 1; segurando.push(b); } return "holding 2048 MB in this window (keep it open)"; }, 60000); };
   extras.memoria = function () {
@@ -367,11 +415,11 @@
   // ?perf shows only the memory and performance tests
   if (/[?&]perf\b/.test(location.search)) {
     $("rodar").hidden = true; $("extras").hidden = $("notas").hidden = $("saida").hidden = false;
-    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|memoria|swap|segurar)$/.test(b.dataset.t)) b.hidden = true; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|memoria|swap|segurar|gpumem|termico|janelas)$/.test(b.dataset.t)) b.hidden = true; });
     put("env.userAgent", null, navigator.userAgent);
     put("env.screen", null, screen.width + "x" + screen.height + " @" + devicePixelRatio);
     put("env.crossOriginIsolated", !!window.crossOriginIsolated);
-    try { var mp = sessionStorage.getItem("xeos-tests-mem"); if (mp) put("mem.lastRun", null, mp); } catch (e) {}
+    try { var mp = sessionStorage.getItem("xeos-tests-mem"); if (mp) put("mem.lastRun", null, mp); var gp = sessionStorage.getItem("xeos-tests-gpumem"); if (gp) put("gpu.lastRun", null, gp); } catch (e) {}
     $("estado").textContent = "Performance mode: tap a test below.";
   }
   $("rodar").addEventListener("click", async function () {
