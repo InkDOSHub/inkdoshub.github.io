@@ -12,7 +12,7 @@ var MOTOR = self.crossOriginIsolated ? "mtjit/" : "jit/";
 // Wine 11 (about 100 MB) is not in the repository: the Cloudflare copy serves it from boxedwine.org
 var FS_BASE = /workers\.dev$/.test(location.hostname) || /^(localhost|127\.)/.test(location.hostname)
   ? "fs/" : "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/wine/fs/";
-var BASE = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&resolution=1024x768&auto=true";
+var BASE = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&auto=true";
 Module.locateFile = function (url) { return MOTOR + url; };
 
 var $ = function (id) { return document.getElementById(id); };
@@ -34,7 +34,8 @@ function iniciarMotor(params) {
     ["width", "availWidth"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return 1024; } }); });
     ["height", "availHeight"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return 768; } }); });
   } catch (e) {}
-  Config.urlParams = BASE + (params ? "&" + params : "");
+  // the Wine desktop is 800x600: same screen size so it fills the picture; programs get 1024x768
+  Config.urlParams = BASE + (params ? "&resolution=1024x768&" + params : "&resolution=800x600");
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");
   s.src = MOTOR + "boxedwine.js?v=2";
