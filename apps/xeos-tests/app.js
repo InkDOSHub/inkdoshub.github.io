@@ -1,0 +1,199 @@
+// XeOS capability tests: runs browser checks and builds a numbered JSON report.
+// SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
+(function () {
+  "use strict";
+  var SUITE_VERSION = 1;
+  var res = {}, $ = function (id) { return document.getElementById(id); };
+  var tabela = $("tabela");
+
+  function put(id, ok, value) {
+    res[id] = { ok: ok, value: value === undefined ? null : value };
+    var tr = document.getElementById("t-" + id);
+    if (!tr) { tr = document.createElement("tr"); tr.id = "t-" + id; tabela.appendChild(tr); }
+    var cls = ok === true ? "ok" : ok === false ? "no" : "na";
+    var txt = value == null ? "" : typeof value === "string" ? value : JSON.stringify(value);
+    tr.innerHTML = "<td></td><td></td>";
+    tr.cells[0].textContent = id; tr.cells[0].className = cls;
+    tr.cells[1].textContent = (ok === true ? "yes " : ok === false ? "no " : "") + txt;
+  }
+  function has(id, v) { put(id, !!v); }
+  function err(e) { return (e && (e.name + ": " + e.message)) || String(e); }
+  function timeout(p, ms) {
+    return Promise.race([p, new Promise(function (_, r) { setTimeout(function () { r(new Error("timeout " + ms + " ms")); }, ms); })]);
+  }
+  async function t(id, fn, ms) {
+    var t0 = performance.now();
+    try { var v = await timeout(Promise.resolve().then(fn), ms || 5000); put(id, v === false ? false : true, v === true || v === false ? null : v); }
+    catch (e) { put(id, false, err(e)); }
+    var r = res[id]; if (r) r.ms = Math.round(performance.now() - t0);
+  }
+
+  async function rodar() {
+    var n = navigator, w = window;
+    // environment
+    put("env.userAgent", null, n.userAgent);
+    put("env.platform", null, n.platform + " · touch " + n.maxTouchPoints);
+    put("env.language", null, n.languages ? n.languages.join(",") : n.language);
+    put("env.timezone", null, Intl.DateTimeFormat().resolvedOptions().timeZone);
+    put("env.screen", null, screen.width + "x" + screen.height + " @" + devicePixelRatio + " · window " + innerWidth + "x" + innerHeight);
+    put("env.cpu", null, (n.hardwareConcurrency || "?") + " threads · " + (n.deviceMemory || "?") + " GB");
+    put("env.displayMode", null, ["standalone", "fullscreen", "minimal-ui", "browser"].filter(function (m) { return matchMedia("(display-mode: " + m + ")").matches; }).join(",") || "?");
+    put("env.navigatorStandalone", null, String(n.standalone));
+    put("env.online", n.onLine);
+    put("env.secureContext", w.isSecureContext);
+    put("env.crossOriginIsolated", !!w.crossOriginIsolated);
+    put("env.colorScheme", null, matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    put("env.inIframe", w.top !== w.self);
+    // storage
+    await t("storage.localStorage", function () { localStorage.setItem("xt", "1"); var ok = localStorage.getItem("xt") === "1"; localStorage.removeItem("xt"); return ok; });
+    await t("storage.sessionStorage", function () { sessionStorage.setItem("xt", "1"); return sessionStorage.getItem("xt") === "1"; });
+    await t("storage.cookies", function () { document.cookie = "xt=1; path=/; SameSite=Lax"; var ok = /xt=1/.test(document.cookie); document.cookie = "xt=; max-age=0; path=/"; return ok; });
+    await t("storage.indexedDB", function () {
+      return new Promise(function (ok, no) {
+        var r = indexedDB.open("xeos-tests", 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore("s"); };
+        r.onerror = function () { no(r.error); };
+        r.onsuccess = function () {
+          var db = r.result, tx = db.transaction("s", "readwrite");
+          tx.objectStore("s").put(new Blob(["x".repeat(1e6)]), "b");
+          tx.oncomplete = function () { db.close(); ok("1 MB blob saved"); };
+          tx.onerror = function () { no(tx.error); };
+        };
+      });
+    });
+    await t("storage.cacheAPI", async function () { var c = await caches.open("xeos-tests"); await c.put("/xt", new Response("1")); var r = await c.match("/xt"); await caches.delete("xeos-tests"); return !!r; });
+    await t("storage.estimate", async function () { var e = await n.storage.estimate(); return Math.round(e.usage / 1048576) + " MB used of " + Math.round(e.quota / 1048576) + " MB"; });
+    await t("storage.persisted", async function () { return "persisted=" + await n.storage.persisted(); });
+    await t("storage.OPFS", async function () {
+      var d = await n.storage.getDirectory(), f = await d.getFileHandle("xt.txt", { create: true });
+      var wr = await f.createWritable(); await wr.write("hello"); await wr.close();
+      var txt = await (await f.getFile()).text(); await d.removeEntry("xt.txt"); return txt === "hello";
+    });
+    // offline / install
+    has("sw.serviceWorker", "serviceWorker" in n);
+    await t("sw.registrations", async function () { var r = await n.serviceWorker.getRegistrations(); return r.length + " registered"; }, 3000);
+    has("pwa.launchQueue", "launchQueue" in w);
+    has("pwa.beforeinstallprompt", "onbeforeinstallprompt" in w);
+    has("pwa.badging", "setAppBadge" in n);
+    // files
+    has("files.showOpenFilePicker", "showOpenFilePicker" in w);
+    has("files.showSaveFilePicker", "showSaveFilePicker" in w);
+    has("files.showDirectoryPicker", "showDirectoryPicker" in w);
+    has("files.inputDirectory", "webkitdirectory" in document.createElement("input"));
+    has("files.dragDrop", "ondrop" in document.body);
+    has("files.downloadAttr", "download" in document.createElement("a"));
+    has("share.share", "share" in n);
+    await t("share.canShareFile", function () { return !!(n.canShare && n.canShare({ files: [new File(["x"], "x.txt", { type: "text/plain" })] })); });
+    // dialogs and windows (not called: XeOS may block them)
+    has("ui.alert", typeof w.alert === "function");
+    has("ui.confirm", typeof w.confirm === "function");
+    has("ui.dialogElement", typeof w.HTMLDialogElement === "function");
+    has("ui.fullscreen", !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen));
+    has("ui.wakeLock", "wakeLock" in n);
+    has("ui.vibrate", "vibrate" in n);
+    has("ui.notification", "Notification" in w);
+    put("ui.notificationPermission", null, w.Notification ? Notification.permission : "n/a");
+    has("ui.pointerPressure", "PointerEvent" in w && "pressure" in PointerEvent.prototype);
+    has("ui.gamepad", "getGamepads" in n);
+    // media
+    has("media.getUserMedia", !!(n.mediaDevices && n.mediaDevices.getUserMedia));
+    has("media.getDisplayMedia", !!(n.mediaDevices && n.mediaDevices.getDisplayMedia));
+    await t("media.devices", async function () { var d = await n.mediaDevices.enumerateDevices(); return d.map(function (x) { return x.kind; }).join(","); });
+    has("media.MediaRecorder", "MediaRecorder" in w);
+    put("media.recorderTypes", null, w.MediaRecorder ? ["video/mp4", "video/webm", "video/webm;codecs=vp9", "audio/mp4", "audio/webm", "audio/wav"].filter(function (m) { return MediaRecorder.isTypeSupported(m); }).join(",") : "n/a");
+    var v = document.createElement("video");
+    put("media.canPlay", null, ["video/mp4; codecs=avc1.42E01E", "video/mp4; codecs=hvc1", "video/webm; codecs=vp9", "video/mp4; codecs=av01.0.05M.08", "audio/mpeg", "audio/flac", "audio/ogg; codecs=opus"].map(function (m) { return m + "=" + (v.canPlayType(m) || "no"); }).join(" | "));
+    has("media.AudioContext", w.AudioContext || w.webkitAudioContext);
+    has("media.pictureInPicture", "requestPictureInPicture" in v || "webkitSetPresentationMode" in v);
+    has("media.WebCodecs", "VideoEncoder" in w);
+    has("media.speechSynthesis", "speechSynthesis" in w);
+    has("media.speechRecognition", w.SpeechRecognition || w.webkitSpeechRecognition);
+    has("media.mediaSession", "mediaSession" in n);
+    // network
+    has("net.WebRTC", "RTCPeerConnection" in w);
+    has("net.WebSocket", "WebSocket" in w);
+    has("net.WebTransport", "WebTransport" in w);
+    has("net.BroadcastChannel", "BroadcastChannel" in w);
+    await t("net.fetchSameOrigin", async function () { var t0 = performance.now(); var r = await fetch("../../manifest.webmanifest", { cache: "no-store" }); return r.status + " in " + Math.round(performance.now() - t0) + " ms"; });
+    // compute
+    has("cpu.WebAssembly", "WebAssembly" in w);
+    has("cpu.SharedArrayBuffer", "SharedArrayBuffer" in w);
+    has("cpu.Worker", "Worker" in w);
+    has("cpu.OffscreenCanvas", "OffscreenCanvas" in w);
+    has("cpu.WebGPU", "gpu" in n);
+    await t("cpu.WebGL", function () {
+      var gl = document.createElement("canvas").getContext("webgl2") || document.createElement("canvas").getContext("webgl");
+      if (!gl) return false; var d = gl.getExtension("WEBGL_debug_renderer_info");
+      return (gl instanceof WebGLRenderingContext ? "webgl1 " : "webgl2 ") + (d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    });
+    await t("cpu.workerRuns", function () {
+      return new Promise(function (ok, no) {
+        var u = URL.createObjectURL(new Blob(["postMessage(6*7)"], { type: "text/javascript" })), wk = new Worker(u);
+        wk.onmessage = function (e) { wk.terminate(); ok(e.data === 42); }; wk.onerror = function (e) { no(new Error(e.message || "worker error")); };
+      });
+    });
+    await t("cpu.benchmark", function () { var t0 = performance.now(), s = 0; for (var i = 0; i < 2e7; i++) s += i % 7; return Math.round(performance.now() - t0) + " ms (2e7 loop)"; });
+    has("crypto.subtle", w.crypto && crypto.subtle);
+    has("misc.CompressionStream", "CompressionStream" in w);
+    has("misc.clipboardAPI", n.clipboard && n.clipboard.writeText);
+    has("misc.geolocation", "geolocation" in n);
+    has("misc.WebAuthn", "PublicKeyCredential" in w);
+    has("misc.PaymentRequest", "PaymentRequest" in w);
+    has("misc.BarcodeDetector", "BarcodeDetector" in w);
+    has("misc.USB/Bluetooth/Serial/HID", ["usb", "bluetooth", "serial", "hid"].filter(function (k) { return k in n; }).join(",") || false);
+    has("css.dvh", CSS.supports("height", "100dvh"));
+    has("css.backdropFilter", CSS.supports("backdrop-filter", "blur(1px)") || CSS.supports("-webkit-backdrop-filter", "blur(1px)"));
+    has("css.containerQueries", CSS.supports("container-type", "inline-size"));
+    has("css.has", CSS.supports("selector(:has(a))"));
+  }
+
+  // tests that need a tap
+  var extras = {
+    camera: function () { return t("tap.cameraMic", async function () { var s = await n().mediaDevices.getUserMedia({ video: true, audio: true }); var r = s.getTracks().map(function (k) { var st = k.getSettings(); return k.kind + " " + (st.width ? st.width + "x" + st.height + "@" + Math.round(st.frameRate || 0) : k.label); }).join(" | "); s.getTracks().forEach(function (k) { k.stop(); }); return r; }, 20000); },
+    tela: function () { return t("tap.screenCapture", async function () { var s = await n().mediaDevices.getDisplayMedia({ video: true, audio: true }); var r = s.getTracks().map(function (k) { return k.kind; }).join(","); s.getTracks().forEach(function (k) { k.stop(); }); return "tracks: " + r; }, 30000); },
+    popup: function () { return t("tap.windowOpen", function () { var p = window.open("about:blank", "_blank", "width=300,height=200"); if (!p) return false; try { p.close(); } catch (e) {} return "opened"; }); },
+    clipboard: function () { return t("tap.clipboard", async function () { await n().clipboard.writeText("xeos-test"); var r = "write ok"; try { r += ", read: " + JSON.stringify(await n().clipboard.readText()); } catch (e) { r += ", read: " + err(e); } return r; }, 10000); },
+    arquivo: function () {
+      return t("tap.filePicker", function () {
+        return new Promise(function (ok) {
+          var i = document.createElement("input"); i.type = "file"; i.multiple = true;
+          i.onchange = function () { ok(Array.prototype.map.call(i.files, function (f) { return f.name + " " + (f.type || "?") + " " + f.size + " B"; }).join(" | ") || "none"); };
+          i.click();
+        });
+      }, 60000);
+    },
+    download: function () { return t("tap.download", function () { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["XeOS download test"], { type: "text/plain" })); a.download = "xeos-download-test.txt"; a.click(); return "triggered (check if the file arrived and note it below)"; }); }
+  };
+  function n() { return navigator; }
+
+  function relatorio() {
+    var num = 1; try { num = +(localStorage.getItem("xeos-tests-run") || 0) + 1; } catch (e) {}
+    return {
+      report: num, suite: SUITE_VERSION, date: new Date().toISOString(),
+      page: location.href, notes: $("notas").value.trim(),
+      summary: Object.keys(res).reduce(function (s, k) { var o = res[k].ok; s[o === true ? "yes" : o === false ? "no" : "info"]++; return s; }, { yes: 0, no: 0, info: 0 }),
+      results: res
+    };
+  }
+  function nome(r) { return "xeos-" + String(r.report).padStart(3, "0") + "-" + r.date.slice(0, 10) + ".json"; }
+
+  $("rodar").addEventListener("click", async function () {
+    this.disabled = true; $("estado").textContent = "Running...";
+    tabela.textContent = ""; res = {};
+    await rodar();
+    $("estado").textContent = Object.keys(res).length + " checks done. Now try the buttons below.";
+    $("extras").hidden = $("notas").hidden = $("saida").hidden = false; this.disabled = false;
+  });
+  $("extras").addEventListener("click", function (e) { var b = e.target.closest("[data-t]"); if (b) extras[b.dataset.t](); });
+  $("baixar").addEventListener("click", function () {
+    var r = relatorio(), a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], { type: "application/json" }));
+    a.download = nome(r); a.click();
+    try { localStorage.setItem("xeos-tests-run", r.report); } catch (e) {}
+    $("estado").textContent = "Saved " + a.download + ". Next: Upload to GitHub.";
+  });
+  $("copiar").addEventListener("click", async function () {
+    try { await navigator.clipboard.writeText(JSON.stringify(relatorio(), null, 2)); $("estado").textContent = "JSON copied."; }
+    catch (e) { $("estado").textContent = "Copy failed: " + err(e); }
+  });
+})();
