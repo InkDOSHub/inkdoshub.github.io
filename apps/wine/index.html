@@ -17,7 +17,9 @@
   .acao{font-weight:600;background:#2563eb;border-color:#2563eb;color:#fff}
   .nota{color:var(--muted);font-size:13px;margin:0;text-align:center}
   #dropzone{width:100%;max-width:1024px}
-  canvas.emscripten{display:block;width:100%;height:auto;background:#000;border-radius:6px;touch-action:none}
+  canvas.emscripten{display:block;width:100%!important;height:auto!important;max-height:calc(100dvh - 150px);object-fit:contain;background:#000;border-radius:6px;touch-action:none}
+  #log{width:100%;max-width:1024px;font-size:12px}
+  #log pre{max-height:200px;overflow:auto;white-space:pre-wrap;margin:4px 0}
   #lista button{margin:2px}
   /* Boxedwine shell elements we do not show */
   #stubs{display:none}
@@ -39,6 +41,7 @@
   </div>
   <p class="nota" id="estado"></p>
   <div class="linha" id="lista" hidden></div>
+  <details id="log" hidden><summary>Log</summary><pre id="log-txt"></pre></details>
   <div id="dropzone"><canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas></div>
   <div id="stubs">
     <div id="status"></div><progress id="progress"></progress><div id="spinner"></div>
@@ -50,9 +53,9 @@
     <div id="message"></div><div id="items"></div><div id="tree"></div><div id="loadStatus"></div><input id="selectedItem">
   </div>
 </main>
-<script src="engine/browserfs.boxedwine.js?v=1"></script>
+<script src="engine/browserfs.boxedwine.js?v=5"></script>
 <script src="engine/jszip.min.js?v=1"></script>
 <script src="engine/boxedwine-shell.js?v=1"></script>
-<script src="wine.js?v=1"></script>
+<script src="wine.js?v=5"></script>
 </body>
 </html>
