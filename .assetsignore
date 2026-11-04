@@ -1,0 +1,8 @@
+# Cloudflare copy serves only the XeOS tests (the full Hub stays on GitHub Pages)
+/*
+!/apps/
+/apps/*
+!/apps/xeos-tests/
+!/assets/
+!/manifest.webmanifest
+!/_headers
