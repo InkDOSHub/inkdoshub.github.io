@@ -2,7 +2,7 @@
 // SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
 (function () {
   "use strict";
-  var SUITE_VERSION = 4;
+  var SUITE_VERSION = 5;
   var lancados = [];
   if (window.launchQueue) launchQueue.setConsumer(function (p) { lancados.push((p.files || []).map(function (f) { return f.name; }).join(",") || "no files"); });
   var res = {}, $ = function (id) { return document.getElementById(id); };
@@ -266,6 +266,56 @@
       t0 = performance.now(); await (await f.getFile()).arrayBuffer(); var rms = performance.now() - t0; await dir.removeEntry("xt-big.bin");
       return "write " + Math.round(200000 / wms) + " MB/s · read " + Math.round(200000 / rms) + " MB/s";
     }, 60000);
+  };
+  // real tasks
+  var BLUR = "onmessage=function(e){var d=new Uint8ClampedArray(e.data.buf),W=e.data.w,H=d.length/4/W,o=new Uint8ClampedArray(d.length),R=6;for(var p=0;p<3;p++){for(var y=0;y<H;y++)for(var x=0;x<W;x++){var r=0,g=0,b=0,n=0;for(var k=-R;k<=R;k++){var xx=x+k;if(xx<0||xx>=W)continue;var i=(y*W+xx)*4;r+=d[i];g+=d[i+1];b+=d[i+2];n++}var j=(y*W+x)*4;o[j]=r/n;o[j+1]=g/n;o[j+2]=b/n;o[j+3]=255}var t=d;d=o;o=t}postMessage(d.buffer,[d.buffer])}";
+  async function blur(k) {
+    var W = 3840, H = 2160, strip = Math.ceil(H / k), jobs = [], t0 = performance.now();
+    for (var i = 0; i < k; i++) {
+      var h = Math.min(strip, H - i * strip), buf = new Uint8ClampedArray(W * h * 4); for (var q = 0; q < buf.length; q += 7) buf[q] = q & 255;
+      jobs.push(new Promise(function (ok) { var wk = worker(BLUR); wk.onmessage = function () { wk.terminate(); ok(); }; wk.postMessage({ buf: buf.buffer, w: W }, [buf.buffer]); }));
+    }
+    await Promise.all(jobs); return performance.now() - t0;
+  }
+  async function encode(codec, w, h, frames) {
+    var cfg = { codec: codec, width: w, height: h, bitrate: w * h * 4, framerate: 30, hardwareAcceleration: "prefer-hardware" };
+    var sup = await VideoEncoder.isConfigSupported(cfg); if (!sup.supported) return "not supported";
+    var out = 0, bytes = 0, enc = new VideoEncoder({ output: function (c) { out++; bytes += c.byteLength; }, error: function () {} });
+    enc.configure(cfg);
+    var cv = new OffscreenCanvas(w, h), cx = cv.getContext("2d"), t0 = performance.now();
+    for (var i = 0; i < frames; i++) {
+      cx.fillStyle = "hsl(" + (i * 7 % 360) + ",70%,50%)"; cx.fillRect(0, 0, w, h); cx.fillStyle = "#fff"; cx.fillRect((i * 37) % w, (i * 23) % h, w / 4, h / 4);
+      var f = new VideoFrame(cv, { timestamp: i * 33333 }); enc.encode(f, { keyFrame: i % 60 === 0 }); f.close();
+      while (enc.encodeQueueSize > 8) await new Promise(function (r) { setTimeout(r, 1); });
+    }
+    await enc.flush(); var s = (performance.now() - t0) / 1000; enc.close();
+    return Math.round(frames / s) + " fps (" + out + " frames, " + (bytes / 1048576).toFixed(1) + " MB)";
+  }
+  async function gpuPeak(f16) {
+    var a = await n().gpu.requestAdapter({ powerPreference: "high-performance" });
+    if (f16 && !a.features.has("shader-f16")) return "no shader-f16";
+    var d = await a.requestDevice(f16 ? { requiredFeatures: ["shader-f16"] } : {}), T = f16 ? "f16" : "f32", COUNT = 1 << 20, ITER = 1024;
+    var code = (f16 ? "enable f16;" : "") + "@group(0) @binding(0) var<storage, read_write> b: array<f32>;@compute @workgroup_size(256) fn main(@builtin(global_invocation_id) g: vec3<u32>){var a=vec4<" + T + ">(" + T + "(g.x%7u));var c=vec4<" + T + ">(1.0);var e=vec4<" + T + ">(0.5);var h=vec4<" + T + ">(0.25);let m=vec4<" + T + ">(0.999);let k=vec4<" + T + ">(0.001);for(var i=0u;i<" + ITER + "u;i++){a=fma(a,m,k);c=fma(c,m,k);e=fma(e,m,k);h=fma(h,m,k);a=fma(a,m,k);c=fma(c,m,k);e=fma(e,m,k);h=fma(h,m,k);}let s=a+c+e+h;b[g.x]=f32(s.x+s.y+s.z+s.w);}";
+    var buf = d.createBuffer({ size: COUNT * 4, usage: GPUBufferUsage.STORAGE });
+    var p = d.createComputePipeline({ layout: "auto", compute: { module: d.createShaderModule({ code: code }), entryPoint: "main" } });
+    var bg = d.createBindGroup({ layout: p.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: buf } }] });
+    function run() { var e = d.createCommandEncoder(), c = e.beginComputePass(); c.setPipeline(p); c.setBindGroup(0, bg); c.dispatchWorkgroups(COUNT / 256); c.end(); d.queue.submit([e.finish()]); return d.queue.onSubmittedWorkDone(); }
+    await run(); var t0 = performance.now(); for (var r = 0; r < 5; r++) await run(); var ms = (performance.now() - t0) / 5; d.destroy();
+    return (COUNT * ITER * 8 * 4 * 2 / ms / 1e6).toFixed(0) + " GFLOPS " + T + " (" + ms.toFixed(1) + " ms per pass)";
+  }
+  extras.reais = async function () {
+    await t("real.gpuPeakF32", function () { return gpuPeak(false); }, 30000);
+    await t("real.gpuPeakF16", function () { return gpuPeak(true); }, 30000);
+    await t("real.photoBlur4K", async function () {
+      var one = await blur(1), out = ["1 worker " + Math.round(one) + " ms"];
+      for (var k of [2, 4, 6]) { var ms = await blur(k); out.push(k + " workers " + Math.round(ms) + " ms (" + (one / ms).toFixed(2) + "x)"); }
+      return out.join(" · ");
+    }, 120000);
+    for (var c of [["avc1.640033", "H.264"], ["hvc1.1.6.L153.B0", "HEVC"]]) {
+      for (var sz of [[1920, 1080, 120], [3840, 2160, 60]]) {
+        await t("real.encode" + c[1] + "_" + sz[1] + "p", function () { return encode(c[0], sz[0], sz[1], sz[2]); }, 60000);
+      }
+    }
   };
   extras.memoria = function () {
     return t("mem.limit", async function () {
