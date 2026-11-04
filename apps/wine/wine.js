@@ -36,7 +36,7 @@ function iniciarMotor(params) {
   Config.urlParams = BASE + (params ? "&" + params : "");
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");
-  s.src = MOTOR + "boxedwine.js?v=1";
+  s.src = MOTOR + "boxedwine.js?v=2";
   document.body.appendChild(s);
 }
 
