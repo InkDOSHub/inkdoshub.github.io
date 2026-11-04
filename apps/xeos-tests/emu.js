@@ -87,6 +87,7 @@ var MODOS = {
   locais: function (n) { var x = inst(prepara().loc); x.r[0] = 1; x.r[1] = n; x.r[2] = 0; x.f(0); return x.r[2]; },
   encadeado: function (n) { var x = inst(prepara().enc); x.r[0] = 1; x.r[1] = n; x.r[2] = 0; x.f(0); return x.r[2]; },
   despacho: function (n) { var x = inst(prepara().desp); x.r[0] = 1; x.r[1] = n; x.r[2] = 0; var f = x.f; while (f(0)) {} return x.r[2]; },
+  js: function (n) { var r0 = 1, r2 = 0; for (var i = n; i; i--) { r0 = (Math.imul(r0, 1103515245) + 12345) | 0; r2 = (r2 ^ (r0 >>> 7)) + (r0 & 255) | 0; } return r2; },
   interpretador: function (n) {
     var r = new Int32Array(4); r[0] = 1; r[1] = n; var pc = 0, P = PROG, L = P.length;
     for (;;) {
@@ -110,6 +111,11 @@ function mede(modo, alvo) {
 
 if (IS_WORKER) {
   onmessage = function (e) {
+    if (e.data.modo) {
+      // diagnosis: same measurement as the page, optionally after a long warm-up
+      var t0 = performance.now(); while (performance.now() - t0 < (e.data.aquece || 0)) MODOS[e.data.modo](2e6);
+      mede(e.data.modo, 150); postMessage(mede(e.data.modo, e.data.alvo || 1500).mips); return;
+    }
     var fim = performance.now() + e.data.ms, feitos = 0, x = inst(prepara().enc);
     while (performance.now() < fim) { x.r[0] = 1; x.r[1] = 2e6; x.r[2] = 0; x.f(0); feitos += 2e6 * PER; }
     postMessage(feitos);
@@ -121,7 +127,7 @@ if (IS_WORKER) {
   var pausa = function () { return new Promise(function (ok) { setTimeout(ok, 30); }); };
   var nucleos = function (n, ms) {
     return Promise.all(Array.from({ length: n }, function () {
-      return new Promise(function (ok) { var w = new Worker("emu.js?v=2"); w.onmessage = function (e) { w.terminate(); ok(e.data); }; w.onerror = function () { w.terminate(); ok(0); }; w.postMessage({ ms: ms }); });
+      return new Promise(function (ok) { var w = new Worker("emu.js?v=3"); w.onmessage = function (e) { w.terminate(); ok(e.data); }; w.onerror = function () { w.terminate(); ok(0); }; w.postMessage({ ms: ms }); });
     })).then(function (v) { return v.reduce(function (a, b) { return a + b; }, 0) / ms / 1000; });
   };
   $("rodar").onclick = async function () {
@@ -155,6 +161,30 @@ if (IS_WORKER) {
       est("emulated cores: " + n + "…"); await pausa();
       var v = await nucleos(n, 2000); if (n === 1) um = v;
       linha("emulated cores (Box64-style): " + n + " workers", Math.round(v) + " MIPS total (" + (v / um).toFixed(2) + "x)");
+    }
+
+    // worker diagnosis: is a worker slower because of the JIT tier or because it runs on an efficiency core?
+    var noWorker = function (modo, aquece, alvo) { return new Promise(function (ok) { var w = new Worker("emu.js?v=3"); w.onmessage = function (e) { w.terminate(); ok(e.data); }; w.onerror = function (e) { w.terminate(); ok(0); }; w.postMessage({ modo: modo, aquece: aquece, alvo: alvo }); }); };
+    var pct = function (v, base) { return Math.round(v) + " MIPS (" + Math.round(v / base * 100) + "% of page)"; };
+    est("worker diagnosis 1/5…"); await pausa();
+    linha("diag: page, JS loop", Math.round((res.js = mede("js", 1500)).mips) + " MIPS");
+    est("worker diagnosis 2/5…");
+    linha("diag: 1 worker, Box64-style, same method as page", pct(await noWorker("locais", 0, 1500), res.locais.mips));
+    est("worker diagnosis 3/5…");
+    linha("diag: 1 worker, after 5 s warm-up", pct(await noWorker("locais", 5000, 1500), res.locais.mips));
+    est("worker diagnosis 4/5…");
+    linha("diag: 1 worker, JS loop", pct(await noWorker("js", 0, 1500), res.js.mips) + " of page JS");
+    est("worker diagnosis 5/5…"); await pausa();
+    var pw = noWorker("locais", 0, 4000); await pausa(); await pausa();
+    var pg = mede("locais", 1500).mips; var wv = await pw;
+    linha("diag: page and 1 worker at the same time", "page " + Math.round(pg) + " / worker " + Math.round(wv) + " MIPS");
+
+    var base1 = 0;
+    for (var k2 of [1, 2, 4, 6]) {
+      est("cores, page method: " + k2 + "…"); await pausa();
+      var vals = await Promise.all(Array.from({ length: k2 }, function () { return noWorker("locais", 0, 2500); }));
+      var tot = vals.reduce(function (a, b) { return a + b; }, 0); if (k2 === 1) base1 = tot;
+      linha("cores, page method: " + k2 + " workers", Math.round(tot) + " MIPS total (" + (tot / res.locais.mips).toFixed(2) + "x the page)");
     }
 
     est("guest RAM…"); await pausa();
