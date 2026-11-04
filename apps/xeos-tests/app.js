@@ -352,7 +352,8 @@
     }, 330000);
   };
   var canal = window.BroadcastChannel ? new BroadcastChannel("xeos-tests") : null;
-  if (canal) canal.onmessage = function (e) { if (e.data && e.data.ping) canal.postMessage({ pong: e.data.ping, size: e.data.buf ? e.data.buf.byteLength : 0 }); };
+  var EU = Math.random().toString(36).slice(2);
+  if (canal) canal.onmessage = function (e) { if (e.data && e.data.ping && e.data.from !== EU) canal.postMessage({ pong: e.data.ping, to: e.data.from, buf: e.data.buf }); };
   extras.janelas = function () {
     return t("win.channel", function () {
       return new Promise(function (ok, no) {
@@ -360,14 +361,14 @@
         var times = [], i = 0, t0, big = false;
         var c2 = new BroadcastChannel("xeos-tests");
         c2.onmessage = function (e) {
-          if (!e.data || !e.data.pong) return;
+          if (!e.data || !e.data.pong || e.data.to !== EU) return;
           if (big) { var ms = performance.now() - t0; c2.close(); return ok("ping avg " + (times.reduce(function (a, b) { return a + b; }, 0) / times.length).toFixed(2) + " ms · 50 MB round trip " + Math.round(ms) + " ms (" + Math.round(100 / (ms / 1000)) + " MB/s)"); }
           times.push(performance.now() - t0);
-          if (++i < 20) { t0 = performance.now(); c2.postMessage({ ping: i + 1 }); }
-          else { big = true; t0 = performance.now(); c2.postMessage({ ping: 99, buf: new Uint8Array(50 * 1048576).buffer }); }
+          if (++i < 20) { t0 = performance.now(); c2.postMessage({ ping: i + 1, from: EU }); }
+          else { big = true; t0 = performance.now(); c2.postMessage({ ping: 99, from: EU, buf: new Uint8Array(50 * 1048576).buffer }); }
         };
         setTimeout(function () { no(new Error("no answer: open this page in a second window first")); }, 15000);
-        t0 = performance.now(); c2.postMessage({ ping: 1 });
+        t0 = performance.now(); c2.postMessage({ ping: 1, from: EU });
       });
     }, 20000);
   };
