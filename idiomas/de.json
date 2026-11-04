@@ -153,6 +153,8 @@
 "No videos.": "Keine Videos.",
 "Normal": "Normal",
 "OK": "OK",
+"Fast version": "Schnelle Version",
+"Same Hub on an address that turns on multithreading (video export, Linux, PDF conversion). Settings and the offline copy are kept separately on each address.": "Derselbe Hub unter einer Adresse mit Multithreading (Videoexport, Linux, PDF-Konvertierung). Einstellungen und Offline-Kopie werden je Adresse getrennt gespeichert.",
 "Offline": "Offline",
 "Offline ready": "Offline bereit",
 "Only 32-bit (x86) programs work. Older programs work best.": "Nur 32-Bit-Programme (x86) funktionieren. Ältere Programme laufen am besten.",

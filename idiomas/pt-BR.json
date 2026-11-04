@@ -227,6 +227,8 @@
 "No videos.": "Nenhum vídeo.",
 "Normal": "Normal",
 "OK": "OK",
+"Fast version": "Versão rápida",
+"Same Hub on an address that turns on multithreading (video export, Linux, PDF conversion). Settings and the offline copy are kept separately on each address.": "O mesmo Hub num endereço que liga o multithread (exportar vídeo, Linux, conversão de PDF). Preferências e cópia offline ficam separadas em cada endereço.",
 "Offline": "Offline",
 "Offline ready": "Offline pronto",
 "On the PC, tap Guest on this page. Under the QR code, open \"Link for OBS\" and tap Copy. Then close this tab: the same code works in one window at a time.": "No PC, toque em Guest nesta página. Embaixo do QR code, abra \"Link para o OBS\" e toque em Copiar. Depois feche esta aba: o mesmo código funciona em uma janela por vez.",

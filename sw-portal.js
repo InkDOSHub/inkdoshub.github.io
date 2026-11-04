@@ -79,5 +79,16 @@ self.addEventListener("fetch", function (e) {
     var caminho = chave(req.url).slice((self.location.origin + RAIZ).length);
     if (caminho !== "index.html") e.waitUntil(caches.open(CACHE).then(function (c) { return c.put(self.location.origin + RAIZ + "__uso__", new Response(caminho)); }).catch(function () {}));
   }
-  e.respondWith(daCopiaOuRede(req));
+  e.respondWith(daCopiaOuRede(req).then(isolar));
 });
+
+/* Compatibility layer for GitHub Pages, which cannot send headers: adds the same isolation headers as the
+   fast address (_headers), so the page gets SharedArrayBuffer and the multithread builds turn on. */
+function isolar(r) {
+  if (!r || !r.status || r.type === "opaque" || r.type === "opaqueredirect") return r;
+  var h = new Headers(r.headers);
+  h.set("Cross-Origin-Opener-Policy", "same-origin");
+  h.set("Cross-Origin-Embedder-Policy", "require-corp");
+  h.set("Cross-Origin-Resource-Policy", "cross-origin");
+  return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
+}

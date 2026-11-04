@@ -12,6 +12,17 @@
   "use strict";
   var CACHE = "inkdoshub-offline";
   var BASE = new URL("./", location.href);
+  // Isolation (SharedArrayBuffer, multithreading): sw-portal.js adds the headers on github.io. Browsers without a
+  // service worker (XeOS) cannot get it here, so ☰ shows the "Fast version" address, which sends the headers itself.
+  var rapida = document.getElementById("linha-rapida");
+  if (rapida && !self.crossOriginIsolated && !("serviceWorker" in navigator) && /github\.io$/.test(location.hostname)) rapida.hidden = false;
+  if ("serviceWorker" in navigator && !self.crossOriginIsolated && !window.inkHubNativo) {
+    // the first visit is not controlled by the worker yet: reload once when it takes over
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      try { if (sessionStorage.getItem("inkdoshub-coi")) return; sessionStorage.setItem("inkdoshub-coi", "1"); } catch (e) { return; }
+      location.reload();
+    });
+  }
   var MARCA = new URL("__offline__/manifesto.json", BASE).href;
   var USO = new URL("__uso__", BASE).href;
   var LEVE = 1e6; // groups smaller than this always go along with the home screen
