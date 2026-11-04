@@ -323,6 +323,8 @@
       return new Promise(function (ok, no) { var wk = worker(SWAP); wk.onmessage = function (e) { wk.terminate(); /^ERR/.test(e.data) ? no(new Error(e.data)) : ok(e.data); }; wk.postMessage(1); });
     }, 120000);
   };
+  var segurando = [];
+  extras.segurar = function () { return t("mem.hold2GB", function () { for (var i = 0; i < 8; i++) { var b = new Uint8Array(256 * 1048576); for (var j = 0; j < b.length; j += 4096) b[j] = 1; segurando.push(b); } return "holding 2048 MB in this window (keep it open)"; }, 60000); };
   extras.memoria = function () {
     return t("mem.limit", async function () {
       var keep = [], mb = 0;
@@ -365,7 +367,7 @@
   // ?perf shows only the memory and performance tests
   if (/[?&]perf\b/.test(location.search)) {
     $("rodar").hidden = true; $("extras").hidden = $("notas").hidden = $("saida").hidden = false;
-    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|memoria|swap)$/.test(b.dataset.t)) b.hidden = true; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|memoria|swap|segurar)$/.test(b.dataset.t)) b.hidden = true; });
     put("env.userAgent", null, navigator.userAgent);
     put("env.screen", null, screen.width + "x" + screen.height + " @" + devicePixelRatio);
     put("env.crossOriginIsolated", !!window.crossOriginIsolated);
