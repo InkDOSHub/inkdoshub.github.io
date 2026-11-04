@@ -2,7 +2,7 @@
 // SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
 (function () {
   "use strict";
-  var SUITE_VERSION = 2;
+  var SUITE_VERSION = 3;
   var lancados = [];
   if (window.launchQueue) launchQueue.setConsumer(function (p) { lancados.push((p.files || []).map(function (f) { return f.name; }).join(",") || "no files"); });
   var res = {}, $ = function (id) { return document.getElementById(id); };
@@ -160,6 +160,19 @@
         r.onerror = function () { no(r.error); };
       });
     }, 30000);
+    // how XeOS works inside: native APIs vs injected JavaScript
+    put("xeos.nativeOrInjected", null, ["showOpenFilePicker", "showSaveFilePicker", "showDirectoryPicker", "open", "alert", "confirm", "fetch"].filter(function (k) { return typeof w[k] === "function"; }).map(function (k) { return k + "=" + (/\[native code\]/.test(Function.prototype.toString.call(w[k])) ? "native" : "injected"); }).concat(["share", "clipboard.writeText", "mediaDevices.getDisplayMedia", "mediaDevices.getUserMedia", "storage.getDirectory"].map(function (k) { var o = n, ps = k.split("."); for (var i = 0; i < ps.length - 1; i++) o = o && o[ps[i]]; var f = o && o[ps[ps.length - 1]]; return k + "=" + (typeof f !== "function" ? "none" : /\[native code\]/.test(Function.prototype.toString.call(f)) ? "native" : "injected"); })).join(" | "));
+    await t("xeos.injectedSource", function () { var f = w.showSaveFilePicker; var src = f ? Function.prototype.toString.call(f) : ""; return /native code/.test(src) ? "native" : src.slice(0, 600); });
+    await t("xeos.extraGlobals", function () {
+      var fr = document.createElement("iframe"); fr.style.display = "none"; document.body.appendChild(fr);
+      var base = new Set(Object.getOwnPropertyNames(fr.contentWindow)); fr.remove();
+      return Object.getOwnPropertyNames(w).filter(function (k) { return !base.has(k); }).join(",") || "none";
+    });
+    put("xeos.webkitBridge", null, w.webkit ? "webkit=" + Object.getOwnPropertyNames(w.webkit).join(",") + " · handlers: " + (w.webkit.messageHandlers ? ["xeos", "XeOS", "bridge", "native", "files", "fileSystem", "download", "share", "recorder", "window", "app", "log", "console"].filter(function (h) { try { return !!w.webkit.messageHandlers[h]; } catch (e) { return false; } }).join(",") || "none of the common names" : "none") : "no window.webkit");
+    await t("cpu.wasmSIMD", function () { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11])); });
+    await t("gpu.adapter", async function () { var a = await n.gpu.requestAdapter({ powerPreference: "high-performance" }); if (!a) return false; var i = a.info || {}; return (i.vendor || "?") + " " + (i.architecture || "") + " · maxBuffer " + Math.round(a.limits.maxBufferSize / 1048576) + " MB · maxStorageBinding " + Math.round(a.limits.maxStorageBufferBindingSize / 1048576) + " MB · features " + Array.from(a.features).join(","); });
+    var memPrev = null; try { memPrev = localStorage.getItem("xeos-tests-mem"); } catch (e) {}
+    if (memPrev) put("mem.lastRun", null, memPrev);
     has("css.has", CSS.supports("selector(:has(a))"));
   }
 
@@ -191,6 +204,69 @@
   extras.tela2 = async function () {
     await t("tap.fullscreen", async function () { var el = document.documentElement; await (el.requestFullscreen ? el.requestFullscreen() : el.webkitRequestFullscreen()); var on = !!(document.fullscreenElement || document.webkitFullscreenElement); if (document.exitFullscreen) document.exitFullscreen().catch(function () {}); return on; });
     await t("tap.wakeLock", async function () { var l = await n().wakeLock.request("screen"); await l.release(); return "acquired"; });
+  };
+  function worker(code) { return new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" }))); }
+  var LOOP = "onmessage=function(e){var t0=performance.now(),s=0;for(var i=0;i<e.data;i++)s+=Math.sqrt(i)%7;postMessage([performance.now()-t0,s])}";
+  function carga(k, N) {
+    var ws = []; for (var i = 0; i < k; i++) ws.push(worker(LOOP));
+    var t0 = performance.now();
+    return Promise.all(ws.map(function (wk) { return new Promise(function (ok) { wk.onmessage = function () { wk.terminate(); ok(); }; wk.postMessage(N); }); })).then(function () { return performance.now() - t0; });
+  }
+  extras.bench = async function () {
+    var N = 1e8;
+    await t("bench.threads", async function () {
+      var one = await carga(1, N), out = ["1 thread " + Math.round(one) + " ms"];
+      for (var k of [2, 4, 8]) { var ms = await carga(k, N); out.push(k + " threads " + Math.round(ms) + " ms (speedup " + (k * one / ms).toFixed(2) + "x)"); }
+      return out.join(" · ");
+    }, 60000);
+    await t("bench.sustained20s", async function () {
+      var ts = [], end = performance.now() + 20000;
+      while (performance.now() < end) ts.push(await carga(4, 3e7));
+      return ts.length + " rounds · first " + Math.round(ts[0]) + " ms · last " + Math.round(ts[ts.length - 1]) + " ms · slowdown " + (ts[ts.length - 1] / ts[0]).toFixed(2) + "x";
+    }, 40000);
+    await t("bench.webgpuCompute", async function () {
+      var a = await n().gpu.requestAdapter({ powerPreference: "high-performance" }), d = await a.requestDevice();
+      var COUNT = 1 << 20, ITER = 2048;
+      var code = "@group(0) @binding(0) var<storage, read_write> b: array<f32>;@compute @workgroup_size(256) fn main(@builtin(global_invocation_id) g: vec3<u32>){var x=f32(g.x)*0.0001;var y=1.0001;for(var i=0u;i<" + ITER + "u;i++){x=fma(x,y,0.5);y=fma(y,0.9999,0.0001);x=fma(x,y,-0.5);y=fma(y,1.0001,-0.0001);}b[g.x]=x+y;}";
+      var buf = d.createBuffer({ size: COUNT * 4, usage: GPUBufferUsage.STORAGE });
+      var p = d.createComputePipeline({ layout: "auto", compute: { module: d.createShaderModule({ code: code }), entryPoint: "main" } });
+      var bg = d.createBindGroup({ layout: p.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: buf } }] });
+      function run() { var e = d.createCommandEncoder(), c = e.beginComputePass(); c.setPipeline(p); c.setBindGroup(0, bg); c.dispatchWorkgroups(COUNT / 256); c.end(); d.queue.submit([e.finish()]); return d.queue.onSubmittedWorkDone(); }
+      await run(); var t0 = performance.now(); for (var r = 0; r < 5; r++) await run(); var ms = (performance.now() - t0) / 5;
+      d.destroy(); return (COUNT * ITER * 4 * 2 / ms / 1e6).toFixed(0) + " GFLOPS (" + ms.toFixed(1) + " ms per pass)";
+    }, 30000);
+    await t("bench.opfsWrite200MB", async function () {
+      var dir = await n().storage.getDirectory(), f = await dir.getFileHandle("xt-big.bin", { create: true }), wr = await f.createWritable(), chunk = new Uint8Array(8 * 1048576), t0 = performance.now();
+      for (var i = 0; i < 25; i++) await wr.write(chunk); await wr.close(); var wms = performance.now() - t0;
+      t0 = performance.now(); await (await f.getFile()).arrayBuffer(); var rms = performance.now() - t0; await dir.removeEntry("xt-big.bin");
+      return "write " + Math.round(200000 / wms) + " MB/s · read " + Math.round(200000 / rms) + " MB/s";
+    }, 60000);
+  };
+  extras.memoria = function () {
+    return t("mem.limit", async function () {
+      var keep = [], mb = 0;
+      try {
+        while (mb < 8192) {
+          var b = new Uint8Array(256 * 1048576); for (var i = 0; i < b.length; i += 4096) b[i] = 1; keep.push(b); mb += 256;
+          try { localStorage.setItem("xeos-tests-mem", "reached " + mb + " MB before the page reloaded"); } catch (e) {}
+          await new Promise(function (r) { setTimeout(r, 30); });
+        }
+      } catch (e) { keep = null; try { localStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "stopped at " + mb + " MB: " + err(e); }
+      keep = null; try { localStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "8192 MB ok";
+    }, 120000);
+  };
+  extras.fundo = function () {
+    $("estado").textContent = "Background test running for 60 s: minimize XeOS or this window now.";
+    return t("bg.timers60s", function () {
+      return new Promise(function (ok) {
+        var last = Date.now(), gaps = 0, maxGap = 0, ticks = 0, vis = [], t0 = Date.now();
+        var wk = worker("setInterval(function(){postMessage(Date.now())},1000)"), wticks = 0; wk.onmessage = function () { wticks++; };
+        function ev() { vis.push(Math.round((Date.now() - t0) / 1000) + "s " + document.visibilityState); }
+        document.addEventListener("visibilitychange", ev);
+        var iv = setInterval(function () { var now = Date.now(), g = now - last; last = now; ticks++; if (g > 1500) gaps++; if (g > maxGap) maxGap = g;
+          if (now - t0 >= 60000) { clearInterval(iv); wk.terminate(); document.removeEventListener("visibilitychange", ev); ok("page ticks " + ticks + "/60 · worker ticks " + wticks + "/60 · gaps " + gaps + " · longest " + Math.round(maxGap / 1000) + " s · visibility: " + (vis.join(", ") || "never hidden")); } }, 1000);
+      });
+    }, 90000);
   };
   function n() { return navigator; }
 
