@@ -23,11 +23,16 @@
   function timeout(p, ms) {
     return Promise.race([p, new Promise(function (_, r) { setTimeout(function () { r(new Error("timeout " + ms + " ms")); }, ms); })]);
   }
+  var ativos = 0;
   async function t(id, fn, ms) {
-    var t0 = performance.now();
+    var t0 = performance.now(), est = $("estado");
+    ativos++; est.textContent = "⏳ Running " + id + "...";
+    put(id, null, "running...");
     try { var v = await timeout(Promise.resolve().then(fn), ms || 5000); put(id, v === false ? false : true, v === true || v === false ? null : v); }
     catch (e) { put(id, false, err(e)); }
     var r = res[id]; if (r) r.ms = Math.round(performance.now() - t0);
+    ativos--; est.textContent = ativos ? est.textContent : "✓ " + id + " done (" + r.ms + " ms)";
+    var tr = document.getElementById("t-" + id); if (tr && tr.scrollIntoView && !$("rodar").disabled) tr.scrollIntoView({ block: "nearest" });
   }
 
   async function rodar() {
@@ -308,7 +313,11 @@
     $("estado").textContent = Object.keys(res).length + " checks done. Now try the buttons below.";
     $("extras").hidden = $("notas").hidden = $("saida").hidden = false; this.disabled = false;
   });
-  $("extras").addEventListener("click", function (e) { var b = e.target.closest("[data-t]"); if (b) extras[b.dataset.t](); });
+  $("extras").addEventListener("click", async function (e) {
+    var b = e.target.closest("[data-t]"); if (!b || b.disabled) return;
+    var txt = b.textContent; b.disabled = true; b.textContent = "⏳ " + txt;
+    try { await extras[b.dataset.t](); } finally { b.disabled = false; b.textContent = "✓ " + txt.replace(/^✓ /, ""); }
+  });
   $("baixar").addEventListener("click", function () {
     var r = relatorio(), a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], { type: "application/json" }));
