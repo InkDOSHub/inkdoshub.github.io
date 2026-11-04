@@ -135,7 +135,7 @@
     var t0 = Date.now(), arquivo = item.blob instanceof File ? item.blob : new File([item.blob], item.nome, { type: item.tipo || item.blob.type });
     var qual = altura + "p", audio = som === "so";
     painel(t("Exporting"), audio ? t("Preparing (sound only)…") : altura ? t("Preparing ({quality})…", { quality: qual }) : t("Preparing (original quality)…"), 0, [{ texto: t("Cancel"), acao: cancelar }]);
-    worker = new Worker("cortar-worker.js?v=3", { type: "module" });
+    worker = new Worker("cortar-worker.js?v=5", { type: "module" });
     worker.onmessage = function (e) {
       var d = e.data;
       if (d.tipo === "progresso") {
