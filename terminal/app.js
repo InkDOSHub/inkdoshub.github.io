@@ -66,7 +66,9 @@ const clearStateDb = () => idbOp("readwrite", (s) => s.delete(KEY));
 let savedMem;
 try { savedMem = localStorage.getItem("inkdoshub-memoria"); } catch {}
 const MEM = params.get("memoria") || savedMem || "normal";
-const LIMITADA = MEM === "limitada";
+// ?ram=<MB> (pilot): bigger RAM, same rules as the limited mode (swap, no saved session)
+const RAM_MB = Math.min(Math.max(+params.get("ram") || 0, 0), 2048);
+const LIMITADA = MEM === "limitada" || RAM_MB > 0;
 const SWAP_BYTES = 1024 * 1024 * 1024;
 
 function abrirSwap() {
@@ -120,7 +122,7 @@ const REDE = [params.get("rede"), savedRede].find((r) => Object.hasOwn(REDES, r)
 const relayUrl = REDES[REDE];
 const config = {
   wasm_path: "vendor/v86/v86.wasm",
-  memory_size: (LIMITADA ? 640 : 256) * 1024 * 1024,
+  memory_size: (RAM_MB || (LIMITADA ? 640 : 256)) * 1024 * 1024,
   vga_memory_size: 2 * 1024 * 1024,
   bios: { url: "bios/seabios.bin" },
   vga_bios: { url: "bios/vgabios.bin" },
@@ -338,7 +340,7 @@ redeBtn.addEventListener("click", () => {
 
 // ---------- Memory choice ----------
 const memBtn = document.getElementById("memoria");
-memBtn.textContent = t("Memory: {size}", { size: LIMITADA ? "640 MB + swap" : "256 MB" });
+memBtn.textContent = t("Memory: {size}", { size: RAM_MB ? RAM_MB + " MB + swap" : LIMITADA ? "640 MB + swap" : "256 MB" });
 memBtn.addEventListener("click", () => {
   try { localStorage.setItem("inkdoshub-memoria", LIMITADA ? "normal" : "limitada"); } catch {}
   const q = new URLSearchParams(location.search);
