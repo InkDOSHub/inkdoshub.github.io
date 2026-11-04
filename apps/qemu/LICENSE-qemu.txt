@@ -1,0 +1,3 @@
+alpine/ scripts and modulo.js settings come from https://github.com/ktock/qemu-wasm-demo (Apache-2.0),
+built from QEMU Wasm https://github.com/ktock/qemu-wasm (QEMU: GPL-2.0). The QEMU .wasm and the Alpine Linux
+disk/kernel are loaded from https://ktock.github.io/qemu-wasm-demo/. vendor/: xterm.js and xterm-pty (MIT).
