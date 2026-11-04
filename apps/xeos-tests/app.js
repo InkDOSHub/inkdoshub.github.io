@@ -2,7 +2,7 @@
 // SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
 (function () {
   "use strict";
-  var SUITE_VERSION = 5;
+  var SUITE_VERSION = 6;
   var lancados = [];
   if (window.launchQueue) launchQueue.setConsumer(function (p) { lancados.push((p.files || []).map(function (f) { return f.name; }).join(",") || "no files"); });
   var res = {}, $ = function (id) { return document.getElementById(id); };
@@ -192,7 +192,7 @@
     await t("est.timerResolution", function () { var min = 1e9, a = performance.now(); for (var i = 0; i < 1e5; i++) { var b = performance.now(); if (b > a && b - a < min) min = b - a; a = b; } return (min * 1000).toFixed(1) + " µs"; });
     await t("est.realResolution", function () { var dpr = 1; for (var d = 1; d <= 4; d += 0.25) if (matchMedia("(min-resolution: " + d + "dppx)").matches) dpr = d; return "media query dppx ≥ " + dpr + " · reported devicePixelRatio " + devicePixelRatio + " · probable panel " + Math.round(screen.width * dpr) + "x" + Math.round(screen.height * dpr); });
     await t("est.jit", function () { var t0 = performance.now(), s = 0; for (var i = 0; i < 5e6; i++) s += (i * 31) % 17; var ms = performance.now() - t0; return (ms < 60 ? "JIT on" : "JIT probably off") + " (" + ms.toFixed(1) + " ms for 5e6)"; });
-    var memPrev = null; try { memPrev = localStorage.getItem("xeos-tests-mem"); } catch (e) {}
+    var memPrev = null; try { memPrev = sessionStorage.getItem("xeos-tests-mem"); } catch (e) {}
     if (memPrev) put("mem.lastRun", null, memPrev);
     has("css.has", CSS.supports("selector(:has(a))"));
   }
@@ -317,17 +317,23 @@
       }
     }
   };
+  var SWAP = "onmessage=async function(){try{var d=await navigator.storage.getDirectory(),f=await d.getFileHandle('xt-swap.bin',{create:true}),h=await f.createSyncAccessHandle(),MB=1048576,SIZE=1024*MB,c=new Uint8Array(8*MB),t0=performance.now();for(var o=0;o<SIZE;o+=c.length)h.write(c,{at:o});h.flush();var w=performance.now()-t0;function rnd(bs,n){var b=new Uint8Array(bs),t=performance.now();for(var i=0;i<n;i++)h.read(b,{at:Math.floor(Math.random()*(SIZE/bs))*bs});return performance.now()-t}var r4=rnd(4096,20000),r64=rnd(65536,5000),r1m=rnd(MB,500);var b=new Uint8Array(4096),t=performance.now();for(var i=0;i<20000;i++)h.write(b,{at:Math.floor(Math.random()*(SIZE/4096))*4096});h.flush();var w4=performance.now()-t;h.close();await d.removeEntry('xt-swap.bin');postMessage('1 GB file · sequential write '+Math.round(1024000/w)+' MB/s · random read 4 KB '+Math.round(20000000/r4)+' IOPS ('+(20000*4/1024/(r4/1000)).toFixed(0)+' MB/s) · 64 KB '+(5000*64/1024/(r64/1000)).toFixed(0)+' MB/s · 1 MB '+(500/(r1m/1000)).toFixed(0)+' MB/s · random write 4 KB '+Math.round(20000000/w4)+' IOPS')}catch(e){postMessage('ERR '+e.name+': '+e.message)}}";
+  extras.swap = function () {
+    return t("swap.opfsSyncHandle", function () {
+      return new Promise(function (ok, no) { var wk = worker(SWAP); wk.onmessage = function (e) { wk.terminate(); /^ERR/.test(e.data) ? no(new Error(e.data)) : ok(e.data); }; wk.postMessage(1); });
+    }, 120000);
+  };
   extras.memoria = function () {
     return t("mem.limit", async function () {
       var keep = [], mb = 0;
       try {
         while (mb < 8192) {
           var b = new Uint8Array(256 * 1048576); for (var i = 0; i < b.length; i += 4096) b[i] = 1; keep.push(b); mb += 256;
-          try { localStorage.setItem("xeos-tests-mem", "reached " + mb + " MB before the page reloaded"); } catch (e) {}
+          try { sessionStorage.setItem("xeos-tests-mem", "reached " + mb + " MB before the page reloaded"); } catch (e) {}
           await new Promise(function (r) { setTimeout(r, 30); });
         }
-      } catch (e) { keep = null; try { localStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "stopped at " + mb + " MB: " + err(e); }
-      keep = null; try { localStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "8192 MB ok";
+      } catch (e) { keep = null; try { sessionStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "stopped at " + mb + " MB: " + err(e); }
+      keep = null; try { sessionStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "8192 MB ok";
     }, 120000);
   };
   extras.fundo = function () {
@@ -359,11 +365,11 @@
   // ?perf shows only the memory and performance tests
   if (/[?&]perf\b/.test(location.search)) {
     $("rodar").hidden = true; $("extras").hidden = $("notas").hidden = $("saida").hidden = false;
-    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|memoria)$/.test(b.dataset.t)) b.hidden = true; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|memoria|swap)$/.test(b.dataset.t)) b.hidden = true; });
     put("env.userAgent", null, navigator.userAgent);
     put("env.screen", null, screen.width + "x" + screen.height + " @" + devicePixelRatio);
     put("env.crossOriginIsolated", !!window.crossOriginIsolated);
-    try { var mp = localStorage.getItem("xeos-tests-mem"); if (mp) put("mem.lastRun", null, mp); } catch (e) {}
+    try { var mp = sessionStorage.getItem("xeos-tests-mem"); if (mp) put("mem.lastRun", null, mp); } catch (e) {}
     $("estado").textContent = "Performance mode: tap a test below.";
   }
   $("rodar").addEventListener("click", async function () {
