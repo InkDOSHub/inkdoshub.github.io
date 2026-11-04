@@ -171,6 +171,11 @@
     put("xeos.webkitBridge", null, w.webkit ? "webkit=" + Object.getOwnPropertyNames(w.webkit).join(",") + " · handlers: " + (w.webkit.messageHandlers ? ["xeos", "XeOS", "bridge", "native", "files", "fileSystem", "download", "share", "recorder", "window", "app", "log", "console"].filter(function (h) { try { return !!w.webkit.messageHandlers[h]; } catch (e) { return false; } }).join(",") || "none of the common names" : "none") : "no window.webkit");
     await t("cpu.wasmSIMD", function () { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11])); });
     await t("gpu.adapter", async function () { var a = await n.gpu.requestAdapter({ powerPreference: "high-performance" }); if (!a) return false; var i = a.info || {}; return (i.vendor || "?") + " " + (i.architecture || "") + " · maxBuffer " + Math.round(a.limits.maxBufferSize / 1048576) + " MB · maxStorageBinding " + Math.round(a.limits.maxStorageBufferBindingSize / 1048576) + " MB · features " + Array.from(a.features).join(","); });
+    // indirect estimates
+    await t("est.refreshRate", function () { return new Promise(function (ok) { var f = 0, t0 = 0; function step(ts) { if (!t0) t0 = ts; f++; if (ts - t0 < 1000) requestAnimationFrame(step); else ok(Math.round(f * 1000 / (ts - t0)) + " Hz (frames per second the page gets)"); } requestAnimationFrame(step); }); });
+    await t("est.timerResolution", function () { var min = 1e9, a = performance.now(); for (var i = 0; i < 1e5; i++) { var b = performance.now(); if (b > a && b - a < min) min = b - a; a = b; } return (min * 1000).toFixed(1) + " µs"; });
+    await t("est.realResolution", function () { var dpr = 1; for (var d = 1; d <= 4; d += 0.25) if (matchMedia("(min-resolution: " + d + "dppx)").matches) dpr = d; return "media query dppx ≥ " + dpr + " · reported devicePixelRatio " + devicePixelRatio + " · probable panel " + Math.round(screen.width * dpr) + "x" + Math.round(screen.height * dpr); });
+    await t("est.jit", function () { var t0 = performance.now(), s = 0; for (var i = 0; i < 5e6; i++) s += (i * 31) % 17; var ms = performance.now() - t0; return (ms < 60 ? "JIT on" : "JIT probably off") + " (" + ms.toFixed(1) + " ms for 5e6)"; });
     var memPrev = null; try { memPrev = localStorage.getItem("xeos-tests-mem"); } catch (e) {}
     if (memPrev) put("mem.lastRun", null, memPrev);
     has("css.has", CSS.supports("selector(:has(a))"));
@@ -216,7 +221,10 @@
     var N = 1e8;
     await t("bench.threads", async function () {
       var one = await carga(1, N), out = ["1 thread " + Math.round(one) + " ms"];
-      for (var k of [2, 4, 8]) { var ms = await carga(k, N); out.push(k + " threads " + Math.round(ms) + " ms (speedup " + (k * one / ms).toFixed(2) + "x)"); }
+      var best = 1, bestRate = 1;
+      for (var k of [2, 4, 6, 8, 10, 12, 16]) { var ms = await carga(k, N), sp = k * one / ms; out.push(k + "t " + Math.round(ms) + " ms (" + sp.toFixed(2) + "x)"); if (sp > bestRate * 1.08) { best = k; bestRate = sp; } }
+      res["est.cores"] = { ok: null, value: "about " + bestRate.toFixed(1) + " cores of real work (peak at " + best + " threads; hardwareConcurrency says " + navigator.hardwareConcurrency + ")" };
+      put("est.cores", null, res["est.cores"].value);
       return out.join(" · ");
     }, 60000);
     await t("bench.sustained20s", async function () {
@@ -235,6 +243,7 @@
       await run(); var t0 = performance.now(); for (var r = 0; r < 5; r++) await run(); var ms = (performance.now() - t0) / 5;
       d.destroy(); return (COUNT * ITER * 4 * 2 / ms / 1e6).toFixed(0) + " GFLOPS (" + ms.toFixed(1) + " ms per pass)";
     }, 30000);
+    await t("bench.download30MB", async function () { var t0 = performance.now(), r = await fetch("../../apps/video/cortar/ffmpeg-core/ffmpeg-core.wasm?nocache=" + Date.now(), { cache: "no-store" }), b = await r.arrayBuffer(), s = (performance.now() - t0) / 1000; return (b.byteLength / 1048576).toFixed(1) + " MB in " + s.toFixed(1) + " s = " + (b.byteLength * 8 / s / 1e6).toFixed(0) + " Mbit/s"; }, 60000);
     await t("bench.opfsWrite200MB", async function () {
       var dir = await n().storage.getDirectory(), f = await dir.getFileHandle("xt-big.bin", { create: true }), wr = await f.createWritable(), chunk = new Uint8Array(8 * 1048576), t0 = performance.now();
       for (var i = 0; i < 25; i++) await wr.write(chunk); await wr.close(); var wms = performance.now() - t0;
