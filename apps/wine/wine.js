@@ -41,24 +41,38 @@ $("btn-abrir").onclick = function () { $("arquivo").click(); };
 
 $("arquivo").onchange = async function () {
   var f = this.files[0]; if (!f) return;
-  var dados = await f.arrayBuffer();
-  var nome = f.name.replace(/[^\w.\- ]/g, "_");
+  this.value = "";
+  abrir(await f.arrayBuffer(), f.name);
+};
+// CPU test: a tiny 32-bit Windows program (tools/bench.c) that measures the emulated CPU and shows the result
+$("btn-teste").onclick = async function () {
+  estado("Loading the CPU test…");
+  var r = await fetch("apps/cputest.exe?v=1"); abrir(await r.arrayBuffer(), "cputest.exe");
+};
+
+// true for a 64-bit Windows program (PE machine 0x8664)
+function e64(b) {
+  if (!b || b.length < 0x40 || b[0] !== 0x4d || b[1] !== 0x5a) return false;
+  var pe = b[0x3c] | b[0x3d] << 8 | b[0x3e] << 16 | b[0x3f] << 24;
+  return pe + 6 < b.length && (b[pe + 4] | b[pe + 5] << 8) === 0x8664;
+}
+
+function abrir(dados, nomeOriginal) {
+  var nome = nomeOriginal.replace(/[^\w.\- ]/g, "_");
   var exes = [];
   if (/\.zip$/i.test(nome)) {
     try {
       var z = new JSZip(dados), pasta = nome.replace(/\.zip$/i, "");
-      for (var e in z.files) if (/\.(exe|bat)$/i.test(e) && !/__MACOSX/.test(e)) exes.push("/" + pasta + "/" + e);
+      var x64 = 0;
+      for (var e in z.files) if (/\.(exe|bat)$/i.test(e) && !/__MACOSX/.test(e)) { exes.push("/" + pasta + "/" + e); if (e64(z.file(e).asUint8Array())) x64++; }
+      if (exes.length && x64 === exes.length) { estado("The programs in this .zip are 64-bit. This version runs 32-bit (x86) programs only."); return; }
     } catch (err) { estado("Could not read this .zip: " + err.message); return; }
   } else exes.push("/" + nome);
   if (!exes.length) { estado("No .exe found in this file."); return; }
   // this engine runs 32-bit programs only: warn right away about a 64-bit .exe (PE machine 0x8664)
-  var bytesExe = /\.zip$/i.test(nome) ? null : new Uint8Array(dados);
-  if (bytesExe && bytesExe.length > 0x40) {
-    var dv = new DataView(dados), pe = dv.getUint32(0x3c, true);
-    if (pe + 6 < bytesExe.length && dv.getUint16(pe + 4, true) === 0x8664) {
-      estado("This is a 64-bit program. This version runs 32-bit (x86) programs only: look for the 32-bit download of this program.");
-      this.value = ""; return;
-    }
+  if (!/\.zip$/i.test(nome) && e64(new Uint8Array(dados))) {
+    estado("This is a 64-bit program. This version runs 32-bit (x86) programs only: look for the 32-bit download of this program.");
+    return;
   }
   iniciarMotor(RAIZ_FS, false);
   quandoPronto(function () {
@@ -72,13 +86,14 @@ $("arquivo").onchange = async function () {
       b.onclick = function () { correr(p); }; l.appendChild(b);
     });
   });
-};
+}
 
 // feedback: download progress, Wine messages in a Log, and a hint while Windows starts
 var linhasLog = [];
 function registra(t) {
   linhasLog.push(String(t)); if (linhasLog.length > 300) linhasLog.shift();
   $("log-txt").textContent = linhasLog.join("\n");
+  if (/CPU test/.test(t)) { clearInterval(esperaWin); estado(String(t) + " · browser ceiling on this device: run apps/xeos-tests/emu.html"); }
 }
 var printOrig = Module.print, errOrig = Module.printErr, statusOrig = Module.setStatus;
 Module.print = function (t) { registra(t); printOrig.apply(this, arguments); };
