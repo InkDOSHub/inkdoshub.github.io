@@ -1,0 +1,3 @@
+Boxedwine 9c64b2820477b3f11c95ea9b59ef99ecc1bbb763
+https://github.com/danoon2/Boxedwine/tree/9c64b2820477b3f11c95ea9b59ef99ecc1bbb763
+Emscripten 5.0.7, make Jit
