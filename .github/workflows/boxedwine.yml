@@ -26,7 +26,7 @@ jobs:
         id: up
         run: |
           set -euo pipefail
-          c=$(git ls-remote https://github.com/danoon2/Boxedwine HEAD | cut -f1)
+          c=$(git ls-remote https://github.com/danoon2/Boxedwine HEAD | head -1 | cut -c1-40)
           echo "commit=$c" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = "schedule" ] && grep -qs "$c" apps/wine/jit/VERSION.txt; then
             echo "skip=1" >> "$GITHUB_OUTPUT"; echo "already built: $c"
