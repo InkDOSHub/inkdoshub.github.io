@@ -28,6 +28,7 @@ window.fetch = function (url) {
 
 function iniciarMotor(params) {
   $("inicio").hidden = true; $("lista").hidden = true;
+  $("ir-desktop").hidden = !params;
   // Boxedwine opens its window at the screen size: report a 1024x768 screen so the picture keeps its shape
   try {
     ["width", "availWidth"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return 1024; } }); });
@@ -41,6 +42,10 @@ function iniciarMotor(params) {
 }
 
 $("btn-desktop").onclick = function () { iniciarMotor(""); };
+// installed programs stay saved in the browser: the desktop (Start menu) shows them.
+// "Go to desktop" restarts the page straight into the Windows desktop.
+$("btn-ir-desktop").onclick = function () { location.href = "./?desktop=1"; };
+if (/[?&]desktop=1/.test(location.search)) iniciarMotor("");
 $("btn-exemplo").onclick = function () { iniciarMotor("app=abiword&appBase=apps/&p=ABIWORD.EXE"); };
 $("btn-teste").onclick = function () { iniciarMotor("app=cputest&appBase=apps/&p=cputest.exe"); };
 $("btn-abrir").onclick = function () { $("arquivo").click(); };

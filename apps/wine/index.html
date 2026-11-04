@@ -42,6 +42,7 @@
     <input id="arquivo" type="file" accept=".zip,.exe,application/zip,application/x-msdownload" hidden>
   </div>
   <p class="nota" id="estado"></p>
+  <div class="linha" id="ir-desktop" hidden><button class="ink-btn" id="btn-ir-desktop" type="button">Go to Windows desktop</button><span class="nota">Installed programs are in Start › Programs.</span></div>
   <div class="linha" id="lista" hidden></div>
   <details id="log" hidden><summary>Log</summary><pre id="log-txt"></pre></details>
   <div id="dropzone"><canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas><canvas class="emscripten boxedwine-webgl-canvas" id="boxedwine-webgl-canvas-0" oncontextmenu="event.preventDefault()"></canvas></div>
@@ -59,6 +60,6 @@
 <script src="engine/jszip.min.js?v=1"></script>
 <script src="jit/fsfs.js?v=1"></script>
 <script src="jit/boxedwine-shell.js?v=1"></script>
-<script src="wine.js?v=9"></script>
+<script src="wine.js?v=10"></script>
 </body>
 </html>
