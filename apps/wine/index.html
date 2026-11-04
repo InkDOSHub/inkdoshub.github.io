@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=7">
+<title>Windows apps · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=1">
+<link rel="stylesheet" href="../../assets/barra.css?v=4">
+<script src="../../assets/barra.js?v=3" defer></script>
+<script src="../../assets/icones.js?v=2" defer></script>
+<style>
+  [hidden]{display:none!important}
+  .ink-main{overflow:auto;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}
+  .acao{font-weight:600;background:#2563eb;border-color:#2563eb;color:#fff}
+  .nota{color:var(--muted);font-size:13px;margin:0;text-align:center}
+  #dropzone{width:100%;max-width:1024px}
+  canvas.emscripten{display:block;width:100%;height:auto;background:#000;border-radius:6px;touch-action:none}
+  #lista button{margin:2px}
+  /* Boxedwine shell elements we do not show */
+  #stubs{display:none}
+</style>
+</head>
+<body class="ink-app" data-simbolo="../../assets/inkdoshub-icone-32.png?v=7">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Windows apps</span>
+  <span class="ink-spacer"></span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Runs 32-bit Windows programs (98/XP era) with Wine inside the browser, using Boxedwine (open source, GPL). Nothing is installed: open a program as a .zip (or a single .exe) and pick the .exe to run. Your files appear as drive D:. First start downloads about 50 MB. Faster on the isolated address. Source: github.com/danoon2/Boxedwine.</p></div></details>
+</header>
+<main class="ink-main">
+  <div class="linha" id="inicio">
+    <button class="ink-btn acao" id="btn-abrir" type="button">Open program (.zip or .exe)</button>
+    <button class="ink-btn" id="btn-desktop" type="button">Windows desktop</button>
+    <button class="ink-btn" id="btn-exemplo" type="button">Sample: AbiWord</button>
+    <input id="arquivo" type="file" accept=".zip,.exe,application/zip,application/x-msdownload" hidden>
+  </div>
+  <p class="nota" id="estado"></p>
+  <div class="linha" id="lista" hidden></div>
+  <div id="dropzone"><canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas></div>
+  <div id="stubs">
+    <div id="status"></div><progress id="progress"></progress><div id="spinner"></div>
+    <button id="startbtn" disabled></button><span id="sound-checkbox"><input type="checkbox" id="soundToggle"></span>
+    <input type="checkbox" id="showConsole"><textarea id="output"></textarea>
+    <div id="inline"></div><div id="inline-runbtn"></div>
+    <button id="uploadbtn"></button><button id="downloadbtn"></button>
+    <a id="modalLink" href="#"></a><a id="modalLinkExe" href="#"></a><a id="openModalExeClick" href="#"></a>
+    <div id="message"></div><div id="items"></div><div id="tree"></div><div id="loadStatus"></div><input id="selectedItem">
+  </div>
+</main>
+<script src="engine/browserfs.boxedwine.js?v=1"></script>
+<script src="engine/jszip.min.js?v=1"></script>
+<script src="engine/boxedwine-shell.js?v=1"></script>
+<script src="wine.js?v=1"></script>
+</body>
+</html>
