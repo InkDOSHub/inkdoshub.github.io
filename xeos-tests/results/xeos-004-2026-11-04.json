@@ -1,0 +1,414 @@
+{
+  "report": 4,
+  "suite": 3,
+  "date": "2026-11-04T02:25:49.736Z",
+  "page": "https://inkdoshub.github.io/apps/xeos-tests/",
+  "notes": "",
+  "summary": {
+    "yes": 66,
+    "no": 12,
+    "info": 16
+  },
+  "results": {
+    "env.userAgent": {
+      "ok": null,
+      "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15"
+    },
+    "env.platform": {
+      "ok": null,
+      "value": "MacIntel · touch 5"
+    },
+    "env.language": {
+      "ok": null,
+      "value": "pt-BR"
+    },
+    "env.timezone": {
+      "ok": null,
+      "value": "America/Sao_Paulo"
+    },
+    "env.screen": {
+      "ok": null,
+      "value": "1278x738 @1 · window 1278x738"
+    },
+    "env.cpu": {
+      "ok": null,
+      "value": "4 threads · ? GB"
+    },
+    "env.displayMode": {
+      "ok": null,
+      "value": "browser"
+    },
+    "env.navigatorStandalone": {
+      "ok": null,
+      "value": "false"
+    },
+    "env.online": {
+      "ok": true,
+      "value": null
+    },
+    "env.secureContext": {
+      "ok": true,
+      "value": null
+    },
+    "env.crossOriginIsolated": {
+      "ok": false,
+      "value": null
+    },
+    "env.colorScheme": {
+      "ok": null,
+      "value": "dark"
+    },
+    "env.inIframe": {
+      "ok": false,
+      "value": null
+    },
+    "storage.localStorage": {
+      "ok": true,
+      "value": null,
+      "ms": 2
+    },
+    "storage.sessionStorage": {
+      "ok": true,
+      "value": null,
+      "ms": 0
+    },
+    "storage.cookies": {
+      "ok": true,
+      "value": null,
+      "ms": 3
+    },
+    "storage.indexedDB": {
+      "ok": true,
+      "value": "1 MB blob saved",
+      "ms": 10
+    },
+    "storage.cacheAPI": {
+      "ok": true,
+      "value": null,
+      "ms": 23
+    },
+    "storage.estimate": {
+      "ok": true,
+      "value": "42 MB used of 9830 MB",
+      "ms": 0
+    },
+    "storage.persisted": {
+      "ok": true,
+      "value": "persisted=false",
+      "ms": 0
+    },
+    "storage.OPFS": {
+      "ok": true,
+      "value": null,
+      "ms": 11
+    },
+    "sw.serviceWorker": {
+      "ok": false,
+      "value": null
+    },
+    "sw.registrations": {
+      "ok": false,
+      "value": "TypeError: undefined is not an object (evaluating 'n.serviceWorker.getRegistrations')",
+      "ms": 1
+    },
+    "pwa.launchQueue": {
+      "ok": true,
+      "value": null
+    },
+    "pwa.beforeinstallprompt": {
+      "ok": false,
+      "value": null
+    },
+    "pwa.badging": {
+      "ok": false,
+      "value": null
+    },
+    "files.showOpenFilePicker": {
+      "ok": true,
+      "value": null
+    },
+    "files.showSaveFilePicker": {
+      "ok": true,
+      "value": null
+    },
+    "files.showDirectoryPicker": {
+      "ok": false,
+      "value": null
+    },
+    "files.inputDirectory": {
+      "ok": true,
+      "value": null
+    },
+    "files.dragDrop": {
+      "ok": true,
+      "value": null
+    },
+    "files.downloadAttr": {
+      "ok": true,
+      "value": null
+    },
+    "share.share": {
+      "ok": true,
+      "value": null
+    },
+    "share.canShareFile": {
+      "ok": true,
+      "value": null,
+      "ms": 0
+    },
+    "ui.alert": {
+      "ok": true,
+      "value": null
+    },
+    "ui.confirm": {
+      "ok": true,
+      "value": null
+    },
+    "ui.dialogElement": {
+      "ok": true,
+      "value": null
+    },
+    "ui.fullscreen": {
+      "ok": true,
+      "value": null
+    },
+    "ui.wakeLock": {
+      "ok": true,
+      "value": null
+    },
+    "ui.vibrate": {
+      "ok": false,
+      "value": null
+    },
+    "ui.notification": {
+      "ok": false,
+      "value": null
+    },
+    "ui.notificationPermission": {
+      "ok": null,
+      "value": "n/a"
+    },
+    "ui.pointerPressure": {
+      "ok": true,
+      "value": null
+    },
+    "ui.gamepad": {
+      "ok": true,
+      "value": null
+    },
+    "media.getUserMedia": {
+      "ok": true,
+      "value": null
+    },
+    "media.getDisplayMedia": {
+      "ok": true,
+      "value": null
+    },
+    "media.devices": {
+      "ok": true,
+      "value": "audioinput,videoinput",
+      "ms": 26
+    },
+    "media.MediaRecorder": {
+      "ok": true,
+      "value": null
+    },
+    "media.recorderTypes": {
+      "ok": null,
+      "value": "video/mp4,video/webm,video/webm;codecs=vp9,audio/mp4,audio/webm"
+    },
+    "media.canPlay": {
+      "ok": null,
+      "value": "video/mp4; codecs=avc1.42E01E=probably | video/mp4; codecs=hvc1=probably | video/webm; codecs=vp9=probably | video/mp4; codecs=av01.0.05M.08=no | audio/mpeg=maybe | audio/flac=maybe | audio/ogg; codecs=opus=probably"
+    },
+    "media.AudioContext": {
+      "ok": true,
+      "value": null
+    },
+    "media.pictureInPicture": {
+      "ok": true,
+      "value": null
+    },
+    "media.WebCodecs": {
+      "ok": true,
+      "value": null
+    },
+    "media.speechSynthesis": {
+      "ok": true,
+      "value": null
+    },
+    "media.speechRecognition": {
+      "ok": true,
+      "value": null
+    },
+    "media.mediaSession": {
+      "ok": true,
+      "value": null
+    },
+    "net.WebRTC": {
+      "ok": true,
+      "value": null
+    },
+    "net.WebSocket": {
+      "ok": true,
+      "value": null
+    },
+    "net.WebTransport": {
+      "ok": true,
+      "value": null
+    },
+    "net.BroadcastChannel": {
+      "ok": true,
+      "value": null
+    },
+    "net.fetchSameOrigin": {
+      "ok": true,
+      "value": "200 in 11 ms",
+      "ms": 11
+    },
+    "cpu.WebAssembly": {
+      "ok": true,
+      "value": null
+    },
+    "cpu.SharedArrayBuffer": {
+      "ok": false,
+      "value": null
+    },
+    "cpu.Worker": {
+      "ok": true,
+      "value": null
+    },
+    "cpu.OffscreenCanvas": {
+      "ok": true,
+      "value": null
+    },
+    "cpu.WebGPU": {
+      "ok": true,
+      "value": null
+    },
+    "cpu.WebGL": {
+      "ok": true,
+      "value": "webgl2 Apple GPU",
+      "ms": 26
+    },
+    "cpu.workerRuns": {
+      "ok": true,
+      "value": null,
+      "ms": 19
+    },
+    "cpu.benchmark": {
+      "ok": true,
+      "value": "16 ms (2e7 loop)",
+      "ms": 16
+    },
+    "crypto.subtle": {
+      "ok": true,
+      "value": null
+    },
+    "misc.CompressionStream": {
+      "ok": true,
+      "value": null
+    },
+    "misc.clipboardAPI": {
+      "ok": true,
+      "value": null
+    },
+    "misc.geolocation": {
+      "ok": true,
+      "value": null
+    },
+    "misc.WebAuthn": {
+      "ok": true,
+      "value": null
+    },
+    "misc.PaymentRequest": {
+      "ok": true,
+      "value": null
+    },
+    "misc.BarcodeDetector": {
+      "ok": false,
+      "value": null
+    },
+    "misc.USB/Bluetooth/Serial/HID": {
+      "ok": false,
+      "value": null
+    },
+    "css.dvh": {
+      "ok": true,
+      "value": null
+    },
+    "css.backdropFilter": {
+      "ok": true,
+      "value": null
+    },
+    "css.containerQueries": {
+      "ok": true,
+      "value": null
+    },
+    "pwa.launchedWithFiles": {
+      "ok": null,
+      "value": "none (open a file in XeOS with this app to test)"
+    },
+    "storage.idbSpeed50MB": {
+      "ok": true,
+      "value": "113 ms",
+      "ms": 116
+    },
+    "xeos.nativeOrInjected": {
+      "ok": null,
+      "value": "showOpenFilePicker=injected | showSaveFilePicker=injected | open=native | alert=native | confirm=native | fetch=native | share=native | clipboard.writeText=native | mediaDevices.getDisplayMedia=native | mediaDevices.getUserMedia=injected | storage.getDirectory=native"
+    },
+    "xeos.injectedSource": {
+      "ok": true,
+      "value": "function(n){return n=n||{},l(\"savePicker\",{suggestedName:n.suggestedName||\"\",types:D(n.types)}).then(function(t){if(!t||!t.file)throw x();return new f(t.file)})}",
+      "ms": 0
+    },
+    "xeos.extraGlobals": {
+      "ok": true,
+      "value": "isProbablyReaderable,isNodeVisible,isReaderable,REGEXPS,__edbNetLogInstalled,__edbErrorsInstalled,launchQueue,showOpenFilePicker,showSaveFilePicker,__edbFileAccess,inkTema,__edbViewportGen,inkIcone,inkIcones,__edbStorageBackup,AirDatepicker,__airDatepickerOverrideInstalled,__activeCustomDatePicker,__edbPerf",
+      "ms": 4
+    },
+    "xeos.webkitBridge": {
+      "ok": null,
+      "value": "webkit= · handlers: none of the common names"
+    },
+    "cpu.wasmSIMD": {
+      "ok": true,
+      "value": null,
+      "ms": 15
+    },
+    "gpu.adapter": {
+      "ok": true,
+      "value": "apple apple · maxBuffer 1024 MB · maxStorageBinding 1024 MB · features depth-clip-control,depth32float-stencil8,timestamp-query,texture-compression-etc2,texture-compression-astc,texture-compression-astc-sliced-3d,indirect-first-instance,shader-f16,rg11b10ufloat-renderable,bgra8unorm-storage,float32-blendable,clip-distances,primitive-index,float16-renderable,float32-renderable,core-features-and-limits,texture-formats-tier1,texture-formats-tier2",
+      "ms": 10
+    },
+    "est.refreshRate": {
+      "ok": true,
+      "value": "60 Hz (frames per second the page gets)",
+      "ms": 1002
+    },
+    "est.timerResolution": {
+      "ok": true,
+      "value": "1000.0 µs",
+      "ms": 4
+    },
+    "est.realResolution": {
+      "ok": true,
+      "value": "media query dppx ≥ 1 · reported devicePixelRatio 1 · probable panel 1278x738",
+      "ms": 0
+    },
+    "est.jit": {
+      "ok": true,
+      "value": "JIT on (4.0 ms for 5e6)",
+      "ms": 4
+    },
+    "mem.lastRun": {
+      "ok": null,
+      "value": "reached 2816 MB before the page reloaded"
+    },
+    "css.has": {
+      "ok": true,
+      "value": null
+    }
+  }
+}
