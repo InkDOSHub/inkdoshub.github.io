@@ -1,12 +1,14 @@
-# Cloudflare copy serves only the XeOS tests (the full Hub stays on GitHub Pages)
-/*
-!/apps/
-/apps/*
-!/apps/xeos-tests/
-!/assets/
-!/manifest.webmanifest
-!/_headers
-!/terminal/
-!/tools/
-/tools/*
-!/tools/linux/
+# Cloudflare copy (isolated, multithread): everything except repo-only folders.
+# Files over 25 MB cannot be Cloudflare assets: worker.js fetches them from GitHub Pages.
+.git
+.github
+windows/
+auditoria/
+xeos-tests/
+worker.js
+wrangler.jsonc
+apps/video/cortar/ffmpeg-core/ffmpeg-core.wasm
+artcraft/deckcraft/*_bg.wasm
+artcraft/wordcraft/*_bg.wasm
+visualizadores/bentopdf/libreoffice-wasm/soffice.data.gz
+visualizadores/bentopdf/libreoffice-wasm/soffice.wasm.gz
