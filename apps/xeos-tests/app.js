@@ -356,6 +356,16 @@
   }
   function nome(r) { return "xeos-" + String(r.report).padStart(3, "0") + "-" + r.date.slice(0, 10) + ".json"; }
 
+  // ?perf shows only the memory and performance tests
+  if (/[?&]perf\b/.test(location.search)) {
+    $("rodar").hidden = true; $("extras").hidden = $("notas").hidden = $("saida").hidden = false;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|memoria)$/.test(b.dataset.t)) b.hidden = true; });
+    put("env.userAgent", null, navigator.userAgent);
+    put("env.screen", null, screen.width + "x" + screen.height + " @" + devicePixelRatio);
+    put("env.crossOriginIsolated", !!window.crossOriginIsolated);
+    try { var mp = localStorage.getItem("xeos-tests-mem"); if (mp) put("mem.lastRun", null, mp); } catch (e) {}
+    $("estado").textContent = "Performance mode: tap a test below.";
+  }
   $("rodar").addEventListener("click", async function () {
     this.disabled = true; $("estado").textContent = "Running...";
     tabela.textContent = ""; res = {};
