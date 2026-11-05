@@ -30,11 +30,12 @@
   <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
   <span class="ink-title">XeOS tests</span>
   <span class="ink-spacer"></span>
-  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Checks what this browser (XeOS) can do: storage, files, media, pop-ups and other APIs. Tap "Run tests", then the extra buttons (they need a tap). "Download report" saves a numbered JSON file; "Upload to GitHub" opens the results folder, where you drop the file and click "Commit changes".</p></div></details>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Checks what this browser (XeOS) can do: storage, files, media, pop-ups and other APIs. "Run all tests" runs every test in a row (about 10 minutes); "Stop" ends the test that is running and keeps the results so far. Tests that need a tap, may reload the page or need a second window stay as buttons below. "Download report" saves a numbered JSON file; "Upload to GitHub" opens the results folder, where you drop the file and click "Commit changes".</p></div></details>
 </header>
 <main class="ink-main"><div class="box">
   <div class="linha">
-    <button class="ink-btn acao" id="rodar" type="button">Run tests</button>
+    <button class="ink-btn acao" id="rodar" type="button">Run all tests</button>
+    <button class="ink-btn" id="parar" type="button" hidden>Stop</button>
     <span class="nota" id="estado"></span>
   </div>
   <div class="linha" id="extras" hidden>
@@ -67,6 +68,6 @@
   </div>
   <table id="tabela"></table>
 </div></main>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
