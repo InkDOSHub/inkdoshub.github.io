@@ -88,6 +88,7 @@ function iniciar() {
     "&p=explorer&args=" + encodeURIComponent(JOGO ? jogoArgs(JOGO) : "/desktop=shell," + TELA + " winefile.exe D:\\");
   estado(JOGO ? "Starting " + JOGO + "…" : "Loading Wine 11 (about 100 MB the first time)…");
   montarJogos();
+  if (JOGO) try { localStorage.setItem("jogo-tentando", JOGO); } catch (e) {}
   var s = document.createElement("script");
   if (MOTOR === "mtjit/") try { localStorage.setItem("wine-mt-tentando", "1"); } catch (e) {}
   s.src = MOTOR + "boxedwine.js?v=2";
@@ -113,8 +114,12 @@ function isolar() {
 }
 var RAPIDO = "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/wine/";
 
+// a game start that crashed the tab (out of memory) does not start again by itself in a loop
+var JOGO_CAIU = false;
+try { var tj = localStorage.getItem("jogo-tentando"); JOGO_CAIU = !!(tj && tj === new URLSearchParams(location.search).get("jogo")); localStorage.removeItem("jogo-tentando"); } catch (e) {}
 // one emulator at a time: the lock is held while this page is open
-if (isolar()) {} else if (navigator.locks) {
+if (JOGO_CAIU) { listarJogos(); setTimeout(function () { estado("The last start of this game closed the page (probably out of memory). Tap Play to try again, or pick a lower resolution."); }, 0); }
+else if (isolar()) {} else if (navigator.locks) {
   navigator.locks.request("inkdoshub-emulador", { ifAvailable: true }, function (lock) {
     if (!lock) { estado("Another emulator is open in another tab or window. Close it first, then reload this page."); return; }
     listarJogos().then(iniciar, iniciar);
@@ -215,13 +220,15 @@ Module.setStatus = function (t) {
 };
 var inicioWin = 0;
 // leaving the page during a start is not a crash
-addEventListener("pagehide", function () { try { localStorage.removeItem("wine-mt-tentando"); } catch (e) {} });
+addEventListener("pagehide", function () { try { localStorage.removeItem("wine-mt-tentando"); localStorage.removeItem("jogo-tentando"); } catch (e) {} });
 var esperaWin = setInterval(function () {
   if (!isRunning) return;
   if (!inicioWin) inicioWin = Date.now();
   var s = Math.round((Date.now() - inicioWin) / 1000);
   estado(s < 20 ? "Windows is starting… " + s + " s" : "");
-  if (s >= 20) { clearInterval(esperaWin); try { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-reg", REG_CHAVE); } catch (e) {} }
+  if (s === 20) try { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-reg", REG_CHAVE); } catch (e) {}
+  if (s >= 60) try { localStorage.removeItem("jogo-tentando"); } catch (e) {}
+  if (s >= 60) { clearInterval(esperaWin); try { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-reg", REG_CHAVE); } catch (e) {} }
 }, 1000);
 
 // --- Games: a game folder is copied once to this page's disk (OPFS) and shows up as drive E:.
@@ -253,10 +260,39 @@ async function listarJogos() {
   if (JOGO && JOGOS.indexOf(JOGO) >= 0) { ARQS = []; await listar(await raiz.getDirectoryHandle(JOGO), JOGO + "/", ARQS); }
 }
 // piece cache shared by all files: at most 96 MB, the oldest piece goes first
-var PEDACO = 1048576, CACHE = new Map(), CACHE_MAX = 96, LIDOS = { pedacos: 0, mb: 0 };
-function pedaco(url, i, tam) {
-  var k = url + "#" + i, c = CACHE.get(k);
+var PEDACO = 1048576, CACHE = new Map(), CACHE_MAX = 64, LIDOS = { pedacos: 0, mb: 0 };
+// Reader: a worker keeps the game files open on the disk (OPFS sync handles) and copies the asked piece
+// into shared memory; this page waits for it in a short loop. Safari would otherwise load a whole file
+// into memory for every piece (blob Range ignored), which crashed the tab on the iPhone.
+var LEITOR = null;
+var LEITOR_SRC = "var c,d,h={};onmessage=async function(e){c=new Int32Array(e.data.c);d=new Uint8Array(e.data.d);var raiz=await(await navigator.storage.getDirectory()).getDirectoryHandle('jogos');" +
+  "async function abre(p){var x=raiz,ps=p.split('/');for(var i=0;i<ps.length-1;i++)x=await x.getDirectoryHandle(ps[i]);return x.getFileHandle(ps[ps.length-1]).then(function(f){return f.createSyncAccessHandle()})}" +
+  "for(;;){Atomics.wait(c,0,0);if(Atomics.load(c,0)!==1)continue;var p=e.data.l[c[1]];try{if(!h[p])h[p]=await abre(p);c[3]=h[p].read(d.subarray(0,c[4]),{at:c[2]})}catch(x){c[3]=-1}Atomics.store(c,0,2)}}";
+function iniciarLeitor() {
+  if (!self.crossOriginIsolated || typeof SharedArrayBuffer === "undefined" || !ARQS.length) return;
+  var c = new SharedArrayBuffer(20), d = new SharedArrayBuffer(PEDACO);
+  var w = new Worker(URL.createObjectURL(new Blob([LEITOR_SRC], { type: "text/javascript" })));
+  w.postMessage({ c: c, d: d, l: ARQS.map(function (a) { return a.caminho; }) });
+  LEITOR = { c: new Int32Array(c), d: new Uint8Array(d) };
+}
+function lerLeitor(idx, a, n) {
+  var c = LEITOR.c; c[1] = idx; c[2] = a; c[4] = n;
+  Atomics.store(c, 0, 1); Atomics.notify(c, 0);
+  var t = Date.now();
+  while (Atomics.load(c, 0) !== 2) if (Date.now() - t > 20000) { Atomics.store(c, 0, 0); throw new Error("disk read timeout"); }
+  var r = c[3]; Atomics.store(c, 0, 0);
+  if (r < 0) throw new Error("disk read failed");
+  return LEITOR.d.slice(0, r);
+}
+function pedaco(ref, i, tam) {
+  var url = ref.url, k = ref.idx + "#" + i, c = CACHE.get(k);
   if (c) { CACHE.delete(k); CACHE.set(k, c); return c; }
+  if (LEITOR) {
+    var u0 = lerLeitor(ref.idx, i * PEDACO, Math.min(tam, (i + 1) * PEDACO) - i * PEDACO);
+    CACHE.set(k, u0); LIDOS.pedacos++; LIDOS.mb += u0.length / 1048576;
+    if (CACHE.size > CACHE_MAX) CACHE.delete(CACHE.keys().next().value);
+    return u0;
+  }
   var a = i * PEDACO, b = Math.min(tam, a + PEDACO) - 1, x = new XMLHttpRequest();
   x.open("GET", url, false); x.setRequestHeader("Range", "bytes=" + a + "-" + b);
   x.overrideMimeType("text/plain; charset=x-user-defined"); x.send();
@@ -268,8 +304,8 @@ function pedaco(url, i, tam) {
   if (CACHE.size > CACHE_MAX) CACHE.delete(CACHE.keys().next().value);
   return u;
 }
-function arquivoPreguicoso(dir, nome, arq) {
-  var url = URL.createObjectURL(arq), tam = arq.size;
+function arquivoPreguicoso(dir, nome, arq, idx) {
+  var ref = { idx: idx, url: LEITOR ? "" : URL.createObjectURL(arq) }, tam = arq.size;
   // rwx for everyone: Wine refuses to start a program without the execute bit
   var node = FS.createFile(dir, nome, { isDevice: false }, true, true);
   node.mode = (node.mode & ~511) | 493;
@@ -280,7 +316,7 @@ function arquivoPreguicoso(dir, nome, arq) {
     if (position >= tam) return 0;
     var n = Math.min(length, tam - position), feito = 0;
     while (feito < n) {
-      var p = position + feito, i = Math.floor(p / PEDACO), o = p - i * PEDACO, c = pedaco(url, i, tam), k = Math.min(n - feito, c.length - o);
+      var p = position + feito, i = Math.floor(p / PEDACO), o = p - i * PEDACO, c = pedaco(ref, i, tam), k = Math.min(n - feito, c.length - o);
       buffer.set(c.subarray(o, o + k), offset + feito); feito += k;
     }
     return n;
@@ -291,10 +327,11 @@ function arquivoPreguicoso(dir, nome, arq) {
 function montarJogos() {
   Module.preRun.push(function () {
     FS.mkdirTree("/games");
-    ARQS.forEach(function (a) {
+    iniciarLeitor();
+    ARQS.forEach(function (a, idx) {
       var partes = a.caminho.split("/"), nome = partes.pop(), dir = "/games/" + partes.join("/");
       FS.mkdirTree(dir);
-      try { arquivoPreguicoso(dir, nome, a.arquivo); } catch (e) { registra("E: could not add " + a.caminho + ": " + e.message); }
+      try { arquivoPreguicoso(dir, nome, a.arquivo, idx); } catch (e) { registra("E: could not add " + a.caminho + ": " + e.message); }
     });
   });
   // drive E: = /games (added just before Wine starts)
