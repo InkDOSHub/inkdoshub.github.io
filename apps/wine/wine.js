@@ -54,6 +54,7 @@ function ligado(o) {
   });
 })();
 
+var REG_CHAVE = "";
 function iniciar() {
   try {
     ["width", "availWidth"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return LARG; } }); });
@@ -70,6 +71,10 @@ function iniciar() {
       reg.push(['reg', 'add', 'HKLM\\System\\CurrentControlSet\\Services\\' + n, '/v', 'Start', '/t', 'REG_DWORD', '/d', String(ligado(sv) ? sv.liga : 4), '/f']);
     });
   });
+  // Wine keeps its registry saved in this browser: run the commands (each one is a slow Windows
+  // program) only when they changed since the last start that reached the desktop
+  REG_CHAVE = JSON.stringify(reg);
+  try { if (localStorage.getItem("wine-reg") === REG_CHAVE) reg = []; } catch (e) {}
   var regBase = [], dllBase = "";
   Object.defineProperty(Config, "registryCommands", { configurable: true,
     get: function () { return regBase.concat(reg); }, set: function (v) { regBase = v || []; } });
@@ -211,5 +216,5 @@ var esperaWin = setInterval(function () {
   if (!inicioWin) inicioWin = Date.now();
   var s = Math.round((Date.now() - inicioWin) / 1000);
   estado(s < 20 ? "Windows is starting… " + s + " s" : "");
-  if (s >= 20) { clearInterval(esperaWin); try { localStorage.removeItem("wine-mt-tentando"); } catch (e) {} }
+  if (s >= 20) { clearInterval(esperaWin); try { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-reg", REG_CHAVE); } catch (e) {} }
 }, 1000);
