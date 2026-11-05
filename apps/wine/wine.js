@@ -175,7 +175,16 @@ function registra(t) {
 }
 var printOrig = Module.print, errOrig = Module.printErr, statusOrig = Module.setStatus;
 Module.print = function (t) { registra(t); printOrig.apply(this, arguments); };
-Module.printErr = function (t) { registra(t); errOrig.apply(this, arguments); };
+Module.printErr = function (t) {
+  registra(t); errOrig.apply(this, arguments);
+  // the multi-core build stops with an exception on some browsers (seen on the iPad): switch to one core and start again
+  if (MOTOR === "mtjit/" && /^\[post-exception status\]/.test(String(t)) && !Module.voltouUmNucleo) {
+    Module.voltouUmNucleo = true;
+    try { localStorage.setItem("wine-inicio-multi", "0"); localStorage.removeItem("wine-mt-tentando"); } catch (e) {}
+    estado("Multi-core mode failed on this browser: starting again with one core…");
+    setTimeout(function () { location.reload(); }, 1500);
+  }
+};
 Module.setStatus = function (t) {
   statusOrig.apply(this, arguments);
   if (t) estado(/\((\d+)\/(\d+)\)/.test(t) ? t.replace(/\((\d+)\/(\d+)\)/, function (_, a, b) { return Math.round(a / b * 100) + "%"; }) : t);
