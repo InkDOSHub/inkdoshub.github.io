@@ -2,7 +2,7 @@
 // SUITE_VERSION goes up whenever tests are added or changed, so reports stay comparable.
 (function () {
   "use strict";
-  var SUITE_VERSION = 8;
+  var SUITE_VERSION = 9;
   var lancados = [];
   if (window.launchQueue) launchQueue.setConsumer(function (p) { lancados.push((p.files || []).map(function (f) { return f.name; }).join(",") || "no files"); });
   var res = {}, $ = function (id) { return document.getElementById(id); };
@@ -17,7 +17,11 @@
     tr.innerHTML = "<td></td><td></td>";
     tr.cells[0].textContent = id; tr.cells[0].className = cls;
     tr.cells[1].textContent = (ok === true ? "yes " : ok === false ? "no " : "") + txt;
+    salvar();
   }
+  // Every result is kept in localStorage, so nothing is lost if the tab reloads (memory test, crash)
+  var SALVO = "xeos-tests-results";
+  function salvar() { try { localStorage.setItem(SALVO, JSON.stringify(res)); } catch (e) {} }
   function has(id, v) { put(id, !!v); }
   function err(e) { return (e && (e.name + ": " + e.message)) || String(e); }
   function timeout(p, ms) {
@@ -192,7 +196,7 @@
     await t("est.timerResolution", function () { var min = 1e9, a = performance.now(); for (var i = 0; i < 1e5; i++) { var b = performance.now(); if (b > a && b - a < min) min = b - a; a = b; } return (min * 1000).toFixed(1) + " µs"; });
     await t("est.realResolution", function () { var dpr = 1; for (var d = 1; d <= 4; d += 0.25) if (matchMedia("(min-resolution: " + d + "dppx)").matches) dpr = d; return "media query dppx ≥ " + dpr + " · reported devicePixelRatio " + devicePixelRatio + " · probable panel " + Math.round(screen.width * dpr) + "x" + Math.round(screen.height * dpr); });
     await t("est.jit", function () { var t0 = performance.now(), s = 0; for (var i = 0; i < 5e6; i++) s += (i * 31) % 17; var ms = performance.now() - t0; return (ms < 60 ? "JIT on" : "JIT probably off") + " (" + ms.toFixed(1) + " ms for 5e6)"; });
-    var memPrev = null; try { memPrev = sessionStorage.getItem("xeos-tests-mem"); } catch (e) {}
+    var memPrev = null; try { memPrev = localStorage.getItem("xeos-tests-mem"); } catch (e) {}
     if (memPrev) put("mem.lastRun", null, memPrev);
     has("css.has", CSS.supports("selector(:has(a))"));
   }
@@ -382,11 +386,11 @@
       try {
         while (mb < 8192) {
           var b = new Uint8Array(256 * 1048576); encher(b); keep.push(b); mb += 256;
-          try { sessionStorage.setItem("xeos-tests-mem", "reached " + mb + " MB before the page reloaded"); } catch (e) {}
+          try { localStorage.setItem("xeos-tests-mem", "reached " + mb + " MB before the page reloaded"); } catch (e) {}
           await new Promise(function (r) { setTimeout(r, 30); });
         }
-      } catch (e) { keep = null; try { sessionStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "stopped at " + mb + " MB: " + err(e); }
-      keep = null; try { sessionStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "8192 MB ok";
+      } catch (e) { keep = null; try { localStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "stopped at " + mb + " MB: " + err(e); }
+      keep = null; try { localStorage.removeItem("xeos-tests-mem"); } catch (x) {} return "8192 MB ok";
     }, 120000);
   };
   extras.fundo = function () {
@@ -401,6 +405,106 @@
           if (now - t0 >= 60000) { clearInterval(iv); wk.terminate(); document.removeEventListener("visibilitychange", ev); ok("page ticks " + ticks + "/60 · worker ticks " + wticks + "/60 · gaps " + gaps + " · longest " + Math.round(maxGap / 1000) + " s · visibility: " + (vis.join(", ") || "never hidden")); } }, 1000);
       });
     }, 90000);
+  };
+  // Emulation capacity: an emulator spends its time in a fetch/decode/memory loop.
+  // WASM loop (like a JIT/wasm emulator core) and a JS switch interpreter (like an interpreted CPU core).
+  function emuWorkerSrc() {
+    function sleb(v) { var o = []; for (;;) { var b = v & 127; v >>= 7; if ((v === 0 && !(b & 64)) || (v === -1 && (b & 64))) { o.push(b); return o; } o.push(b | 128); } }
+    function wasmBytes() {
+      var body = [1, 3, 0x7f, 0x03, 0x40,
+        0x20, 2, 0x41].concat(sleb(1103515245), [0x6c, 0x20, 1, 0x6a, 0x41], sleb(0xFFFFC), [0x71, 0x21, 3,
+        0x20, 2, 0x20, 3, 0x28, 2, 0, 0x6a, 0x20, 1, 0x73, 0x21, 2,
+        0x20, 3, 0x20, 2, 0x36, 2, 0,
+        0x20, 1, 0x41, 1, 0x6a, 0x22, 1, 0x20, 0, 0x49, 0x0d, 0, 0x0b, 0x20, 2, 0x0b]);
+      return new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 6, 1, 0x60, 1, 0x7f, 1, 0x7f, 3, 2, 1, 0, 5, 3, 1, 0, 16,
+        7, 7, 1, 3, 114, 117, 110, 0, 0, 10, body.length + 2, 1, body.length].concat(body));
+    }
+    function interp(n) {
+      var prog = new Int32Array([0, 1, 2, 3, 4, 5, 6, 7]), mem = new Int32Array(65536), r = new Int32Array(4), pc = 0;
+      for (var i = 0; i < n; i++) {
+        switch (prog[pc]) {
+          case 0: r[0] = (r[0] + i) | 0; break;
+          case 1: r[1] = mem[r[0] & 65535]; break;
+          case 2: r[2] = (r[1] ^ r[0]) | 0; break;
+          case 3: mem[r[2] & 65535] = r[2]; break;
+          case 4: r[3] = (r[3] + r[2]) | 0; break;
+          case 5: r[0] = r[3] << 1; break;
+          case 6: r[1] = (r[1] - 1) | 0; break;
+          default: if (r[1] < 0) r[0] = 0;
+        }
+        pc = (pc + 1) & 7;
+      }
+      return r[3];
+    }
+    onmessage = function (e) {
+      var d = e.data, t0;
+      if (d.kind === "wasm") {
+        var run = new WebAssembly.Instance(new WebAssembly.Module(wasmBytes())).exports.run;
+        run(1e6); t0 = performance.now(); run(d.n);
+      } else { interp(1e6); t0 = performance.now(); interp(d.n); }
+      postMessage(performance.now() - t0);
+    };
+  }
+  var EMU = "(" + emuWorkerSrc.toString() + ")()";
+  function emuRun(kind, k, N) {
+    var ws = []; for (var i = 0; i < k; i++) ws.push(worker(EMU));
+    var t0 = performance.now();
+    return Promise.all(ws.map(function (wk) { return new Promise(function (ok, no) { wk.onerror = function (e) { wk.terminate(); no(new Error(e.message || "worker error")); }; wk.onmessage = function (e) { wk.terminate(); ok(e.data); }; wk.postMessage({ kind: kind, n: N }); }); }))
+      .then(function (ts) { return { one: N / Math.max.apply(null, ts) / 1000, all: k * N / (performance.now() - t0) / 1000 }; });
+  }
+  extras.emu = async function () {
+    // Real multithreading: workers share one memory (SharedArrayBuffer + Atomics), as wasm threads need
+    await t("emu.sharedThreads", async function () {
+      if (!window.crossOriginIsolated || typeof SharedArrayBuffer === "undefined") return false;
+      var sab = new SharedArrayBuffer(4), k = 4, n = 1e6, ws = [];
+      var wm = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+      for (var i = 0; i < k; i++) ws.push(worker("onmessage=function(e){var a=new Int32Array(e.data);for(var i=0;i<" + n + ";i++)Atomics.add(a,0,1);postMessage(1)}"));
+      await Promise.all(ws.map(function (wk) { return new Promise(function (ok) { wk.onmessage = function () { wk.terminate(); ok(); }; wk.postMessage(sab); }); }));
+      var got = Atomics.load(new Int32Array(sab), 0);
+      return (got === k * n ? "4 workers shared one memory, count " + got : "count wrong " + got) + " · shared wasm memory " + (wm.buffer instanceof SharedArrayBuffer ? "ok" : "no");
+    }, 30000);
+    var cores = Math.min(navigator.hardwareConcurrency || 4, 8);
+    for (var kind of ["wasm", "interp"]) {
+      await t("emu." + kind, async function () {
+        var N = kind === "wasm" ? 2e8 : 1e8, one = await emuRun(kind, 1, N), out = ["1 thread " + Math.round(one.one) + " MIPS"];
+        for (var k = 2; k <= cores; k *= 2) { var m = await emuRun(kind, k, N); out.push(k + " threads " + Math.round(m.all) + " MIPS total (" + (m.all / one.one).toFixed(1) + "x)"); }
+        return out.join(" · ") + (kind === "wasm" ? " · 1 loop = load+store+ALU, like one emulated instruction" : " · switch interpreter, like an emulator without JIT");
+      }, 120000);
+    }
+  };
+  // 3D: WebGL2 triangles per second and pixel shader fill rate, on a visible canvas
+  extras.tresd = async function () {
+    var c = document.createElement("canvas"); c.width = 1280; c.height = 720; c.style.cssText = "width:100%;max-width:760px;border-radius:8px;background:#000";
+    $("tabela").before(c);
+    var gl = c.getContext("webgl2", { antialias: false, powerPreference: "high-performance" });
+    try {
+      await t("3d.webgl2", function () { if (!gl) return false; var x = gl.getExtension("WEBGL_debug_renderer_info"); return (x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) + " · maxTexture " + gl.getParameter(gl.MAX_TEXTURE_SIZE); });
+      if (!gl) return;
+      function prog(vs, fs) { var p = gl.createProgram(); [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]].forEach(function (s) { var sh = gl.createShader(s[0]); gl.shaderSource(sh, "#version 300 es\nprecision highp float;\n" + s[1]); gl.compileShader(sh); gl.attachShader(p, sh); }); gl.linkProgram(p); return p; }
+      function frames(draw, ms) { return new Promise(function (ok) { var f = 0, t0 = 0; function step(ts) { if (!t0) t0 = ts; draw(ts); f++; if (ts - t0 < ms) requestAnimationFrame(step); else { gl.finish(); ok(f * 1000 / (ts - t0)); } } requestAnimationFrame(step); }); }
+      var MAX = 2e6, v = new Float32Array(MAX * 9);
+      for (var i = 0; i < MAX; i++) { var x = Math.random() * 2 - 1, y = Math.random() * 2 - 1, z = Math.random(); for (var j = 0; j < 3; j++) { v[i * 9 + j * 3] = x + (Math.random() - 0.5) * 0.02; v[i * 9 + j * 3 + 1] = y + (Math.random() - 0.5) * 0.02; v[i * 9 + j * 3 + 2] = z; } }
+      var p = prog("in vec3 a;uniform float t;out vec3 col;void main(){float s=sin(t+a.z*6.28),c=cos(t+a.z*6.28);vec2 q=mat2(c,-s,s,c)*a.xy;col=vec3(a.z,0.5+0.5*s,1.0-a.z);gl_Position=vec4(q*0.9,a.z,1.0);}", "in vec3 col;out vec4 o;void main(){o=vec4(col,1.0);}");
+      gl.useProgram(p); gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, v, gl.STATIC_DRAW); v = null;
+      gl.enableVertexAttribArray(0); gl.bindAttribLocation(p, 0, "a"); gl.vertexAttribPointer(gl.getAttribLocation(p, "a"), 3, gl.FLOAT, false, 0, 0); gl.enable(gl.DEPTH_TEST);
+      var ut = gl.getUniformLocation(p, "t");
+      await t("3d.triangles", async function () {
+        var out = [], best = 0;
+        for (var n of [1e5, 5e5, 2e6]) for (var rep of [1, 4]) {
+          var fps = await frames(function (ts) { gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); for (var r = 0; r < rep; r++) { gl.uniform1f(ut, ts / 1000 + r); gl.drawArrays(gl.TRIANGLES, 0, n * 3); } }, 2000);
+          var mt = fps * n * rep / 1e6; if (mt > best) best = mt; out.push((n * rep / 1e6) + "M tris/frame " + fps.toFixed(0) + " fps");
+        }
+        return "peak " + Math.round(best) + " M triangles/s · " + out.join(" · ");
+      }, 60000);
+      gl.disable(gl.DEPTH_TEST);
+      var pf = prog("const vec2 P[3]=vec2[3](vec2(-1,-1),vec2(3,-1),vec2(-1,3));void main(){gl_Position=vec4(P[gl_VertexID],0,1);}", "uniform float t;out vec4 o;void main(){vec2 u=gl_FragCoord.xy/720.0;float s=0.0;for(int i=0;i<32;i++){s+=sin(u.x*float(i)+t)*cos(u.y*float(i)-t);}o=vec4(0.5+0.5*sin(s),u,1);}");
+      gl.useProgram(pf); var ut2 = gl.getUniformLocation(pf, "t");
+      await t("3d.pixelShader", async function () {
+        var out = [];
+        for (var rep of [1, 4, 16]) { var fps = await frames(function (ts) { for (var r = 0; r < rep; r++) { gl.uniform1f(ut2, ts / 1000 + r); gl.drawArrays(gl.TRIANGLES, 0, 3); } }, 2000); out.push(rep + " screens/frame " + fps.toFixed(0) + " fps (" + (fps * rep * 1280 * 720 / 1e9).toFixed(2) + " Gpix/s)"); }
+        return "1280x720, 32 sin+cos per pixel · " + out.join(" · ");
+      }, 60000);
+    } finally { var lose = gl && gl.getExtension("WEBGL_lose_context"); if (lose) lose.loseContext(); c.remove(); }
   };
   function n() { return navigator; }
 
@@ -418,17 +522,17 @@
   // ?perf shows only the memory and performance tests
   if (/[?&]perf\b/.test(location.search)) {
     $("rodar").hidden = true; $("extras").hidden = $("notas").hidden = $("saida").hidden = false;
-    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|memoria|swap|segurar|gpumem|termico|janelas)$/.test(b.dataset.t)) b.hidden = true; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-t]"), function (b) { if (!/^(bench|reais|emu|tresd|memoria|swap|segurar|gpumem|termico|janelas)$/.test(b.dataset.t)) b.hidden = true; });
     put("env.userAgent", null, navigator.userAgent);
     put("env.screen", null, screen.width + "x" + screen.height + " @" + devicePixelRatio);
     put("env.crossOriginIsolated", !!window.crossOriginIsolated);
-    try { var mp = sessionStorage.getItem("xeos-tests-mem"); if (mp) put("mem.lastRun", null, mp); var gp = sessionStorage.getItem("xeos-tests-gpumem"); if (gp) put("gpu.lastRun", null, gp); } catch (e) {}
+    try { var mp = localStorage.getItem("xeos-tests-mem"); if (mp) put("mem.lastRun", null, mp); var gp = sessionStorage.getItem("xeos-tests-gpumem"); if (gp) put("gpu.lastRun", null, gp); } catch (e) {}
     $("estado").textContent = "Performance mode: tap a test below.";
   }
   // "Run all tests": the checks, then every extra test in a row. Left out: the ones that need a choice
   // from the user (file), may reload the page (memory) or need a second window.
   var SEQUENCIA = ["camera", "tela", "popup", "clipboard", "download", "salvar", "dialogos", "camera4k", "persistir", "tela2",
-    "bench", "reais", "swap", "termico", "fundo"];
+    "bench", "reais", "emu", "tresd", "swap", "termico", "fundo", "memoria"];
   var PARCIAL = "xeos-tests-parcial";
   function mostrarExtras() { $("extras").hidden = $("notas").hidden = $("saida").hidden = false; }
   $("rodar").addEventListener("click", async function () {
@@ -459,6 +563,20 @@
       Object.keys(r0).forEach(function (k) { put(k, r0[k].ok, r0[k].value); if (r0[k].ms != null) res[k].ms = r0[k].ms; });
       mostrarExtras();
       $("estado").textContent = "Stopped. " + Object.keys(r0).length + " results kept: download the report or run again.";
+    }
+  } catch (e) {}
+  try {
+    var salvo = !Object.keys(res).length && localStorage.getItem(SALVO);
+    if (salvo) {
+      var r1 = JSON.parse(salvo), marca = localStorage.getItem("xeos-tests-mem");
+      Object.keys(r1).forEach(function (k) {
+        var o = r1[k];
+        if (o.value === "running...") { o.ok = false; o.value = k === "mem.limit" && marca ? "page reloaded: " + marca : "interrupted (page reloaded)"; }
+        put(k, o.ok, o.value); if (o.ms != null) res[k].ms = o.ms;
+      });
+      if (marca) localStorage.removeItem("xeos-tests-mem");
+      mostrarExtras();
+      $("estado").textContent = Object.keys(r1).length + " saved results restored. Download or copy the report below.";
     }
   } catch (e) {}
   $("extras").addEventListener("click", async function (e) {
