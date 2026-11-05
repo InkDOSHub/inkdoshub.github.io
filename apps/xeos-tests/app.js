@@ -425,13 +425,42 @@
     try { var mp = sessionStorage.getItem("xeos-tests-mem"); if (mp) put("mem.lastRun", null, mp); var gp = sessionStorage.getItem("xeos-tests-gpumem"); if (gp) put("gpu.lastRun", null, gp); } catch (e) {}
     $("estado").textContent = "Performance mode: tap a test below.";
   }
+  // "Run all tests": the checks, then every extra test in a row. Left out: the ones that need a choice
+  // from the user (file), may reload the page (memory) or need a second window.
+  var SEQUENCIA = ["camera", "tela", "popup", "clipboard", "download", "salvar", "dialogos", "camera4k", "persistir", "tela2",
+    "bench", "reais", "swap", "termico", "fundo"];
+  var PARCIAL = "xeos-tests-parcial";
+  function mostrarExtras() { $("extras").hidden = $("notas").hidden = $("saida").hidden = false; }
   $("rodar").addEventListener("click", async function () {
-    this.disabled = true; $("estado").textContent = "Running...";
+    this.disabled = true; $("parar").hidden = false; $("estado").textContent = "Running...";
     tabela.textContent = ""; res = {};
     await rodar();
-    $("estado").textContent = Object.keys(res).length + " checks done. Now try the buttons below.";
-    $("extras").hidden = $("notas").hidden = $("saida").hidden = false; this.disabled = false;
+    mostrarExtras();
+    for (var i = 0; i < SEQUENCIA.length; i++) {
+      var b = document.querySelector('[data-t="' + SEQUENCIA[i] + '"]');
+      if (b) b.textContent = "⏳ " + b.textContent;
+      try { await extras[SEQUENCIA[i]](); } catch (e) {}
+      if (b) b.textContent = "✓ " + b.textContent.replace(/^⏳ /, "");
+    }
+    $("estado").textContent = Object.keys(res).length + " results. Download the report below.";
+    $("parar").hidden = true; this.disabled = false;
   });
+  // Stop: the running test is marked as stopped, and the page reloads to end its work (workers, timers)
+  $("parar").addEventListener("click", function () {
+    Object.keys(res).forEach(function (k) { if (res[k].value === "running...") { res[k].ok = false; res[k].value = "stopped by the user"; } });
+    try { sessionStorage.setItem(PARCIAL, JSON.stringify(res)); } catch (e) {}
+    location.reload();
+  });
+  try {
+    var parcial = sessionStorage.getItem(PARCIAL);
+    if (parcial) {
+      sessionStorage.removeItem(PARCIAL);
+      var r0 = JSON.parse(parcial);
+      Object.keys(r0).forEach(function (k) { put(k, r0[k].ok, r0[k].value); if (r0[k].ms != null) res[k].ms = r0[k].ms; });
+      mostrarExtras();
+      $("estado").textContent = "Stopped. " + Object.keys(r0).length + " results kept: download the report or run again.";
+    }
+  } catch (e) {}
   $("extras").addEventListener("click", async function (e) {
     var b = e.target.closest("[data-t]"); if (!b || b.disabled) return;
     var txt = b.textContent; b.disabled = true; b.textContent = "⏳ " + txt;

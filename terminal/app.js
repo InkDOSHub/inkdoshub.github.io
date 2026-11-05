@@ -140,7 +140,7 @@ const config = {
 if (saved) config.initial_state = { buffer: saved };
 
 setStatus(saved ? t("Restoring saved session…") : LIMITADA && !swap ? t("Starting (no swap in storage, zram only)…") : t("Starting Linux…"));
-// one emulator at a time (shared with the Emulator's other environments): wait here if another is open
+// one Linux at a time: stop here if another tab already runs it
 if (navigator.locks) {
   await new Promise((ok) => navigator.locks.request("inkdoshub-emulador", { ifAvailable: true }, (lock) => {
     if (!lock) {
