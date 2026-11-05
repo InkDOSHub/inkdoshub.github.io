@@ -121,3 +121,27 @@ var esperaWin = setInterval(function () {
   estado(s < 20 ? "Windows is starting… " + s + " s" : "");
   if (s >= 20) clearInterval(esperaWin);
 }, 1000);
+
+// folder shared with the Linux environment (../emulador/compartilhada.js): D:\Shared
+var COMP = "Shared";
+function listarComp(dir, rel, out) {
+  FS.readdir(dir).forEach(function (n) {
+    if (n === "." || n === "..") return;
+    var c = dir + "/" + n, r = rel ? rel + "/" + n : n, st = FS.stat(c);
+    if (FS.isDir(st.mode)) listarComp(c, r, out);
+    else out.push({ path: r, mtime: +st.mtime + ":" + st.size, ler: function () { return Promise.resolve(FS.readFile(c)); } });
+  });
+  return out;
+}
+var compPronta = setInterval(function () {
+  if (!isRunning || !Config.d_drive) return;
+  clearInterval(compPronta);
+  var base = Config.d_drive + "/" + COMP;
+  Compartilhada.carregar().then(function (lista) {
+    FS.mkdirTree(base);
+    lista.forEach(function (f) { try { escreverD(COMP + "/" + f.path, f.data); } catch (e) {} });
+  }).catch(function (e) { console.warn("shared folder:", e); }).then(function () {
+    var salvar = function () { try { Compartilhada.salvar(listarComp(base, "", [])); } catch (e) {} };
+    salvar(); setInterval(salvar, 5000); addEventListener("pagehide", salvar);
+  });
+}, 1000);
