@@ -17,6 +17,8 @@ var FS_BASE = /workers\.dev$/.test(location.hostname) || /^(localhost|127\.)/.te
 // Boxedwine offers the browser screen size as a display mode only above 1600 px wide:
 // a 1680x945 (16:9) screen gives a widescreen Windows desktop
 var LARG = 1680, ALT = 945, TELA = LARG + "x" + ALT;
+// internet: the Hub's tunnel on Cloudflare (worker.js), DNS answered with DNS-over-HTTPS
+var NET = "&network=true&networkGateway=" + encodeURIComponent("wss://inkdoshub-github-io.vfydr2m9wk.workers.dev/net/boxedwine");
 Module.locateFile = function (url) { return MOTOR + url; };
 
 var $ = function (id) { return document.getElementById(id); };
@@ -51,7 +53,7 @@ function iniciar(app, exe) {
     ["height", "availHeight"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return ALT; } }); });
   } catch (e) {}
   var args = "/desktop=shell," + TELA + (exe ? ' "' + exe + '"' : "");
-  Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&auto=true&resolution=" + TELA +
+  Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&auto=true&resolution=" + TELA + NET +
     (app || "") + "&p=explorer&args=" + encodeURIComponent(args);
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");
