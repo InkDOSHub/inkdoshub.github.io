@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/inkdoshub-icone-32.png?v=7">
+<title>Linux · Emulator · InkDOS Hub</title>
+<script src="../../../assets/tema.js?v=1"></script>
+<link rel="stylesheet" href="../../../assets/info.css?v=1">
+<link rel="stylesheet" href="../../../assets/barra.css?v=5">
+<script src="../../../assets/barra.js?v=3" defer></script>
+<script src="../../../assets/icones.js?v=2" defer></script>
+<style>
+  [hidden]{display:none!important}
+  .ink-main{overflow:auto;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .nota{color:var(--muted);font-size:13px;margin:0;text-align:center}
+  #tela{position:relative;width:min(100%,calc((100dvh - 110px) * 16 / 9));aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
+  #tela canvas{position:absolute;inset:0;width:100%!important;height:100%!important;object-fit:contain;touch-action:none}
+  #tela>div{position:absolute;inset:0;color:#ccc;font:13px/1.2 monospace;white-space:pre;overflow:hidden;padding:4px}
+  #teclado{position:fixed;left:-100px;top:0;width:1px;height:1px;opacity:0}
+  #log{width:100%;font-size:12px}
+  #log pre{max-height:240px;overflow:auto;white-space:pre-wrap;margin:4px 0}
+  #log summary{cursor:pointer}
+</style>
+</head>
+<body class="ink-app" data-simbolo="../../../assets/inkdoshub-icone-32.png?v=7">
+<header class="ink-bar">
+  <a class="ink-home" href="../" data-icone="voltar">Emulator</a>
+  <span class="ink-title">Linux</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" id="btn-abrir" type="button">Open file</button>
+  <button class="ink-btn" id="btn-teclado" type="button">Keyboard</button>
+  <button class="ink-btn" id="btn-reiniciar" type="button">Restart Linux</button>
+  <button class="ink-btn" id="btn-reinstalar" type="button">Reinstall system (erases changes)</button>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop">
+    <p><b>System.</b> Alpine Linux 3.22 for x86 (32-bit), running in the page with v86 (open source, BSD), the same engine as the Linux terminal: the x86 code is translated to WebAssembly while it runs. Alpine was chosen because it is small (musl and BusyBox), fast to start and has a large package collection for 32-bit x86, which most other distributions dropped.</p>
+    <p><b>Desktop.</b> Openbox (windows), tint2 (taskbar) and PCManFM (files and desktop icons), about 70 MB in all. It is the best balance between a real desktop and lightness on an emulated 32-bit processor: JWM or plain Openbox lack a file manager and taskbar, while Xfce, LXQt or GNOME are 3 to 10 times heavier and slow to open here.</p>
+    <p><b>Programs.</b> Install with <code>apk add name</code>. Repositories: Alpine main and community (in /etc/apk/repositories; testing can be added). Inside, pip (Python), npm (Node.js), git and gcc also work for their own packages. Only 32-bit programs run.</p>
+    <p><b>Internet.</b> Through the Hub tunnel on Cloudflare: TCP only (web, git, apk, ssh). No UDP or ping, no e-mail sending (port 25), and no incoming connections. Modern sites in a browser inside Linux are too slow to be practical.</p>
+    <p><b>Memory and files.</b> 1.5 GB of RAM, compressed memory (zram) and a 2 GB swap disk in the site storage. The system disk (3 GB) is downloaded once and keeps what you install. Open file copies to /root/Device. Built by GitHub Actions: tools/linux-gui.</p>
+  </div></details>
+</header>
+<main class="ink-main">
+  <input id="arquivo" type="file" multiple hidden>
+  <textarea id="teclado" class="phone_keyboard" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Keyboard"></textarea>
+  <p class="nota" id="estado">Loading…</p>
+  <p class="nota" id="aviso-novo" hidden>A new version of the system exists. Reinstall system in ☰ to get it (erases your changes).</p>
+  <div id="tela"><div></div><canvas></canvas></div>
+  <details id="log"><summary>Log</summary><button class="ink-btn" id="btn-copiar" type="button">Copy log</button><pre id="log-txt"></pre></details>
+</main>
+<script type="module" src="linux.js?v=1"></script>
+</body>
+</html>
