@@ -4,7 +4,7 @@
 import { V86 } from "../../../terminal/vendor/v86/libv86.mjs?v=5";
 
 const V = "../../../terminal/";
-const IMG = /workers\.dev$/.test(location.hostname) ? "linux-gui.img.gz"
+const IMG = /workers\.dev$|^(localhost|127\.)/.test(location.hostname) ? "linux-gui.img.gz"
   : "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/emulador/linux/linux-gui.img.gz";
 const RAM_MB = 1536, SWAP = 2000 * 1024 * 1024, CHAVE = "inkdoshub-linux-disco";
 const $ = (id) => document.getElementById(id);
@@ -85,7 +85,7 @@ async function iniciar() {
   });
   let telaOk = false;
   emulator.add_listener("screen-set-size", (a) => {
-    if (a && a[2] === 1 || a && !a[2] && a[0] > 640) { if (!telaOk) { telaOk = true; estado(""); } }
+    if (a && a[0] >= 800 && !telaOk) { telaOk = true; estado(""); }
   });
   // files from the device go to /root/Device
   $("btn-abrir").onclick = () => $("arquivo").click();
