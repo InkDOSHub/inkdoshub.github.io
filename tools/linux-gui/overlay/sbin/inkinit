@@ -1,0 +1,31 @@
+#!/bin/sh
+# Emulator › Linux init: mounts the system, swap on the second disk, network, devices, then the desktop.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root
+mount -t proc proc /proc; mount -t sysfs sys /sys; mount -t devtmpfs dev /dev 2>/dev/null
+mkdir -p /dev/pts /dev/shm; mount -t devpts devpts /dev/pts; mount -t tmpfs shm /dev/shm
+mount -t tmpfs tmp /tmp; mount -t tmpfs run /run; mkdir -p /run/dbus
+mount -o remount,rw /
+hostname inkdoshub; ip link set lo up
+# swap: zram (compressed memory) plus the swap disk in the site storage (second disk)
+for a in $(cat /proc/cmdline); do case "$a" in inkzram=*) ZRAM=${a#inkzram=} ;; esac; done
+if [ -n "$ZRAM" ] && [ -e /sys/block/zram0 ]; then
+  echo lz4 > /sys/block/zram0/comp_algorithm 2>/dev/null
+  echo "$ZRAM" > /sys/block/zram0/disksize && mkswap /dev/zram0 >/dev/null && swapon -p 100 /dev/zram0
+fi
+[ -b /dev/sdb ] && mkswap /dev/sdb >/dev/null && swapon -p 10 /dev/sdb
+echo 100 > /proc/sys/vm/swappiness
+# folder shared with the device
+mkdir -p /mnt/device; mount -t 9p -o trans=virtio,version=9p2000.L,cache=none host9p /mnt/device 2>/dev/null
+ln -sfn /mnt/device /root/Device
+# network in the background
+[ -e /sys/class/net/eth0 ] && ( ip link set eth0 up; udhcpc -i eth0 -q -n -t 5 -T 2 >/dev/null 2>&1 ) &
+# devices (keyboard, mouse) and the message bus
+udevd --daemon; udevadm trigger; udevadm settle -t 5
+dbus-daemon --system --fork 2>/dev/null
+# shell on the serial line (the page's Log), desktop on the screen
+( while true; do setsid -c /bin/sh -l </dev/ttyS0 >/dev/ttyS0 2>&1; done ) &
+cd /root
+while true; do
+  startx /root/.xinitrc -- -nolisten tcp vt1 >/var/log/x.log 2>&1
+  echo "desktop closed, starting again" > /dev/ttyS0; sleep 2
+done
