@@ -29,6 +29,7 @@ found, what changed and the commit. The git history proves each change.
 | — | InkDOS toolbars use the ArtCraft icons | [023-artcraft-icons.md](023-artcraft-icons.md) |
 | — | Polish review: language packs | [024-polish-translations.md](024-polish-translations.md) |
 | — | Polish review: offline worker and Recorder | [025-polish-offline-recorder.md](025-polish-offline-recorder.md) |
+| — | Polish review: loading size and update notice | [026-polish-loading-update.md](026-polish-loading-update.md) |
 
 ## Summary (2026-10-29)
 
