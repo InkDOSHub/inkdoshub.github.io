@@ -343,11 +343,16 @@ $("arq-jogo").onchange = function () {
 $("pasta-jogo").onchange = async function () {
   var fs = Array.prototype.slice.call(this.files); this.value = "";
   if (!fs.length) return;
-  var nome = (fs[0].webkitRelativePath || fs[0].name).split("/")[0].replace(/[^\w.\-]/g, "_") || "game";
+  // the iPad adds its own folders in front (e.g. "File Provider Storage"): the game folder is the
+  // deepest folder all the files share
+  var caminhos = fs.map(function (f) { return (f.webkitRelativePath || f.name).split("/"); }), comum = 0;
+  while (caminhos.every(function (c) { return c.length > comum + 1 && c[comum] === caminhos[0][comum]; })) comum++;
+  var nome = ((comum ? caminhos[0][comum - 1] : caminhos[0][0]) || "game").replace(/[^\w.\-]/g, "_");
+  if (!comum) comum = caminhos[0].length > 1 ? 1 : 0;
   var raiz = await pastaJogos(), total = fs.reduce(function (s, f) { return s + f.size; }, 0), feito = 0, lista = [];
   try {
     for (var i = 0; i < fs.length; i++) {
-      var partes = (fs[i].webkitRelativePath || fs[i].name).split("/"); partes[0] = nome;
+      var partes = [nome].concat(caminhos[i].slice(comum));
       estado("Copying " + nome + ": " + Math.round(feito / 1048576) + " of " + Math.round(total / 1048576) + " MB (" + (i + 1) + "/" + fs.length + " files)");
       await gravar(raiz, partes, fs[i]); feito += fs[i].size;
       lista.push({ caminho: partes.slice(1).join("/"), tam: fs[i].size });
@@ -368,7 +373,8 @@ function mostrarJogos() {
     var res = document.createElement("select"); res.title = "Resolution";
     ["640x360", "960x540", "1280x720"].forEach(function (r) { var o = document.createElement("option"); o.value = o.textContent = r; o.selected = r === (p.res || "1280x720"); res.appendChild(o); });
     res.onchange = function () { p.res = res.value; salvarPerfil(nome, p); };
-    var jogar = document.createElement("a"); jogar.className = "ink-btn"; jogar.textContent = "Play"; jogar.href = "?jogo=" + encodeURIComponent(nome);
+    if (!p.exe) { var aviso = document.createElement("span"); aviso.className = "nota"; aviso.textContent = "no .exe found in this folder"; linha.append(aviso); }
+    var jogar = document.createElement("a"); jogar.className = "ink-btn"; jogar.textContent = "Play"; jogar.href = "?jogo=" + encodeURIComponent(nome); if (!p.exe) jogar.hidden = true;
     var tirar = document.createElement("button"); tirar.className = "ink-btn"; tirar.type = "button"; tirar.textContent = "Remove";
     tirar.onclick = async function () { await (await pastaJogos()).removeEntry(nome, { recursive: true }); try { localStorage.removeItem("jogo-" + nome); } catch (e) {} listarJogos(); };
     linha.append(t, sel, res, jogar, tirar); c.appendChild(linha);
