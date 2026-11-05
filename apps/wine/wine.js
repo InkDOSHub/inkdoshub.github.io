@@ -10,7 +10,13 @@
 window.confirm = function () { return true; };
 window.alert = function (m) { console.warn(m); };
 
-var MOTOR = self.crossOriginIsolated ? "mtjit/" : "jit/";
+// Multi-core (switch in ⚙). If a multi-core start did not reach the desktop (the tab crashed and
+// reloaded, as iOS does when memory runs out), the switch turns off by itself and the one-core build is used.
+var MULTI = { id: "multi", nome: "Multi-core (faster; turn off if the page keeps reloading)", padrao: true };
+try {
+  if (localStorage.getItem("wine-mt-tentando")) { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-inicio-multi", "0"); }
+} catch (e) {}
+var MOTOR = self.crossOriginIsolated && ligado(MULTI) ? "mtjit/" : "jit/";
 // Wine 11 (about 100 MB) is not in the repository: the Cloudflare copy serves it from boxedwine.org
 var FS_BASE = /workers\.dev$/.test(location.hostname) || /^(localhost|127\.)/.test(location.hostname)
   ? "fs/" : "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/wine/fs/";
@@ -37,7 +43,7 @@ function ligado(o) {
 }
 (function () {
   var caixa = $("inicio-opcoes");
-  SERVICOS.concat([ATALHOS]).forEach(function (o) {
+  [MULTI].concat(SERVICOS, [ATALHOS]).forEach(function (o) {
     var l = document.createElement("label"), c = document.createElement("input");
     c.type = "checkbox"; c.checked = ligado(o);
     c.onchange = function () {
@@ -76,6 +82,7 @@ function iniciar() {
     "&p=explorer&args=" + encodeURIComponent("/desktop=shell," + TELA + " winefile.exe D:\\");
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");
+  if (MOTOR === "mtjit/") try { localStorage.setItem("wine-mt-tentando", "1"); } catch (e) {}
   s.src = MOTOR + "boxedwine.js?v=2";
   document.body.appendChild(s);
 }
@@ -84,9 +91,10 @@ function iniciar() {
 // (sw-portal.js) adds the headers: register it and reload once. Without a service worker (XeOS),
 // open the fast address, which sends the headers itself (its C: and D: are saved separately).
 function isolar() {
-  if (self.crossOriginIsolated || !/github\.io$/.test(location.hostname)) return false;
+  if (self.crossOriginIsolated || !ligado(MULTI) || !/github\.io$/.test(location.hostname)) return false;
   var tentou = false;
   try { tentou = sessionStorage.getItem("wine-isolar") === "1"; sessionStorage.setItem("wine-isolar", "1"); } catch (e) {}
+  try { tentou = tentou || Date.now() - (+localStorage.getItem("wine-isolar") || 0) < 120000; localStorage.setItem("wine-isolar", String(Date.now())); } catch (e) {}
   if (tentou) return false;
   if ("serviceWorker" in navigator) {
     estado("Turning on multi-core mode…");
@@ -173,10 +181,12 @@ Module.setStatus = function (t) {
   if (t) estado(/\((\d+)\/(\d+)\)/.test(t) ? t.replace(/\((\d+)\/(\d+)\)/, function (_, a, b) { return Math.round(a / b * 100) + "%"; }) : t);
 };
 var inicioWin = 0;
+// leaving the page during a start is not a crash
+addEventListener("pagehide", function () { try { localStorage.removeItem("wine-mt-tentando"); } catch (e) {} });
 var esperaWin = setInterval(function () {
   if (!isRunning) return;
   if (!inicioWin) inicioWin = Date.now();
   var s = Math.round((Date.now() - inicioWin) / 1000);
   estado(s < 20 ? "Windows is starting… " + s + " s" : "");
-  if (s >= 20) clearInterval(esperaWin);
+  if (s >= 20) { clearInterval(esperaWin); try { localStorage.removeItem("wine-mt-tentando"); } catch (e) {} }
 }, 1000);
