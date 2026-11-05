@@ -160,6 +160,20 @@ $("btn-teste").onclick = async function () {
   copiarParaD(new Uint8Array(await r.arrayBuffer()), "cputest.exe");
 };
 $("btn-desktop").onclick = function () { location.reload(); };
+function telaCheia(liga) {
+  document.body.classList.toggle("cheia", liga);
+  var el = document.documentElement, rf = el.requestFullscreen || el.webkitRequestFullscreen;
+  var sai = document.exitFullscreen || document.webkitExitFullscreen;
+  try {
+    if (liga && rf) { var r = rf.call(el); if (r && r.catch) r.catch(function () {}); }
+    else if (!liga && sai && (document.fullscreenElement || document.webkitFullscreenElement)) sai.call(document);
+  } catch (e) {}
+}
+$("btn-cheia").onclick = function () { telaCheia(true); };
+$("sair-cheia").onclick = function () { telaCheia(false); };
+["fullscreenchange", "webkitfullscreenchange"].forEach(function (ev) {
+  document.addEventListener(ev, function () { if (!(document.fullscreenElement || document.webkitFullscreenElement)) document.body.classList.remove("cheia"); });
+});
 $("btn-copiar").onclick = function () {
   var t = $("log-txt").textContent, b = this;
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () {
