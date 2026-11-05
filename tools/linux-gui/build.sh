@@ -10,7 +10,7 @@ SIZE_MB=${SIZE_MB:-3072}
 mkdir -p "$WORK" && cd "$WORK"
 
 # --- root disk: Alpine packages installed in an x86 container, then copied into an ext4 image ---
-PKGS="alpine-base eudev dbus dbus-x11 xorg-server xf86-input-evdev xinit xrandr xsetroot xrdb
+PKGS="alpine-base eudev dbus dbus-x11 xorg-server xf86-input-evdev xinit xrandr xsetroot xrdb xrefresh
   xfce4-session xfwm4 xfce4-panel xfdesktop xfce4-settings xfconf thunar xfce4-terminal xfce4-whiskermenu-plugin mousepad
   greybird-themes-gtk3 greybird-themes-xfwm4 papirus-icon-theme adwaita-icon-theme font-dejavu nano htop ca-certificates e2fsprogs-extra"
 sudo docker rm -f inkgui 2>/dev/null || true
