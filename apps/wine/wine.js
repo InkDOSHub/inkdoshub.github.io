@@ -31,7 +31,14 @@ function iniciar() {
     // SDL multiplies the screen by the pixel ratio (2 on a Mac, 3 on an iPhone): keep it at 1
     Object.defineProperty(window, "devicePixelRatio", { configurable: true, get: function () { return 1; } });
   } catch (e) {}
-  Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&auto=true&resolution=" + TELA + NET +
+  // look: wallpaper "Altai" (Alesya Khoteeva, KDE, CC BY-SA 4.0) from visual/visual.zip, set in the
+  // registry before the desktop opens; storageKey=default keeps the same saved C: and D: as before
+  var reg = [['reg', 'add', 'HKCU\\Control Panel\\Desktop', '/v', 'Wallpaper', '/t', 'REG_SZ', '/d', 'C:\\windows\\altai.bmp', '/f']];
+  var regBase = [];
+  Object.defineProperty(Config, "registryCommands", { configurable: true,
+    get: function () { return regBase.concat(reg); }, set: function (v) { regBase = v || []; } });
+  Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&overlay=visual&overlayBase=visual%2F&storageKey=default" +
+    "&auto=true&resolution=" + TELA + NET +
     "&p=explorer&args=" + encodeURIComponent("/desktop=shell," + TELA + " winefile.exe D:\\");
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");

@@ -34,7 +34,7 @@
   <button class="ink-btn" id="btn-abrir" type="button">Open file</button>
   <button class="ink-btn" id="btn-teste" type="button">CPU test (to D:)</button>
   <button class="ink-btn" id="btn-desktop" type="button">Restart Windows</button>
-  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT) and uses several cores on the fast link.</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It is copied to drive D: (a .zip becomes a folder) without restarting Windows; open it in the file manager. Drive D: and what you install stay saved in this browser. 64-bit programs do not run yet. Memory: up to 3 GB. Internet goes through the Hub tunnel.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine.</p></div></details>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT) and uses several cores on the fast link.</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It is copied to drive D: (a .zip becomes a folder) without restarting Windows; open it in the file manager. Drive D: and what you install stay saved in this browser. 64-bit programs do not run yet. Memory: up to 3 GB. Internet goes through the Hub tunnel.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine. Wallpaper: "Altai" by Alesya Khoteeva (KDE), CC BY-SA 4.0.</p></div></details>
 </header>
 <main class="ink-main">
   <input id="arquivo" type="file" accept=".zip,.exe,application/zip,application/x-msdownload" hidden>
@@ -56,6 +56,6 @@
 <script src="engine/jszip.min.js?v=1"></script>
 <script src="jit/fsfs.js?v=1"></script>
 <script src="jit/boxedwine-shell.js?v=1"></script>
-<script src="wine.js?v=17"></script>
+<script src="wine.js?v=18"></script>
 </body>
 </html>
