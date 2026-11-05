@@ -83,7 +83,8 @@ function iniciar() {
     get: function () { return [dllBase, ligado(ATALHOS) ? "" : "winemenubuilder.exe=d"].filter(Boolean).join(";"); },
     set: function (v) { dllBase = v || ""; } });
   Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&overlay=visual&overlayBase=visual%2F&storageKey=default" +
-    "&auto=true&resolution=" + TELA + (ligado(SERVICOS[0]) ? NET : "") +
+    "&auto=true&resolution=" + (JOGO ? (perfil(JOGO).res || "1280x720") : TELA) + (ligado(SERVICOS[0]) ? NET : "") +
+    (JOGO ? "&w=" + encodeURIComponent("/home/username/.wine/dosdevices/e:/" + JOGO + jogoPasta(JOGO)) : "") +
     "&p=explorer&args=" + encodeURIComponent(JOGO ? jogoArgs(JOGO) : "/desktop=shell," + TELA + " winefile.exe D:\\");
   estado(JOGO ? "Starting " + JOGO + "…" : "Loading Wine 11 (about 100 MB the first time)…");
   montarJogos();
@@ -231,10 +232,11 @@ var JOGOS = [], ARQS = [];
 function perfil(nome) { try { return JSON.parse(localStorage.getItem("jogo-" + nome)) || {}; } catch (e) { return {}; } }
 function salvarPerfil(nome, p) { try { localStorage.setItem("jogo-" + nome, JSON.stringify(p)); } catch (e) {} }
 function jogoArgs(nome) {
-  var p = perfil(nome), exe = (p.exe || "").replace(/\//g, "\\"), pasta = exe.lastIndexOf("\\") > 0 ? exe.slice(0, exe.lastIndexOf("\\")) : "";
+  var p = perfil(nome), exe = (p.exe || "").replace(/\//g, "\\");
   var res = p.res || "1280x720";
-  return "/desktop=jogo," + res + ' start.exe /d "E:\\' + nome + (pasta ? "\\" + pasta : "") + '" "E:\\' + nome + "\\" + exe + '"';
+  return "/desktop=jogo," + res + ' "E:\\' + nome + "\\" + exe + '"';
 }
+function jogoPasta(nome) { var e = (perfil(nome).exe || ""), i = e.lastIndexOf("/"); return i > 0 ? "/" + e.slice(0, i) : ""; }
 async function pastaJogos() { return (await navigator.storage.getDirectory()).getDirectoryHandle("jogos", { create: true }); }
 async function listar(dir, prefixo, saida) {
   for await (var [nome, h] of dir.entries()) {
@@ -268,7 +270,9 @@ function pedaco(url, i, tam) {
 }
 function arquivoPreguicoso(dir, nome, arq) {
   var url = URL.createObjectURL(arq), tam = arq.size;
-  var node = FS.createFile(dir, nome, { isDevice: false }, true, false);
+  // rwx for everyone: Wine refuses to start a program without the execute bit
+  var node = FS.createFile(dir, nome, { isDevice: false }, true, true);
+  node.mode = (node.mode & ~511) | 493;
   node.contents = null;
   Object.defineProperty(node, "usedBytes", { get: function () { return tam; } });
   var ops = Object.assign({}, node.stream_ops);
@@ -368,7 +372,7 @@ setInterval(function () {
   if (!isRunning) return;
   var t = performance.now(), fps = (MED.quadros - q0) * 1000 / (t - t0); q0 = MED.quadros; t0 = t;
   var mem = (typeof HEAP8 !== "undefined" && HEAP8) ? Math.round(HEAP8.length / 1048576) : 0;
-  var m = { s: Math.round((Date.now() - (inicioWin || Date.now())) / 1000), fps: Math.round(fps), wasmMB: mem, diskMB: Math.round(LIDOS.mb), cacheMB: CACHE.size };
+  var m = { s: Math.round((Date.now() - (inicioWin || Date.now())) / 1000), fps: Math.round(fps), wasmMB: mem, diskMB: +LIDOS.mb.toFixed(1), cacheMB: CACHE.size };
   medidas.push(m); if (medidas.length > 600) medidas.shift();
   $("medidas").textContent = m.fps + " fps · memory " + mem + " MB · read from disk " + m.diskMB + " MB";
   try { localStorage.setItem("jogos-medidas", JSON.stringify({ jogo: JOGO, perfil: perfil(JOGO), ua: navigator.userAgent, isolado: self.crossOriginIsolated, motor: MOTOR, medidas: medidas })); } catch (e) {}
