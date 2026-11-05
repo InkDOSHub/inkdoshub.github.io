@@ -140,6 +140,17 @@ const config = {
 if (saved) config.initial_state = { buffer: saved };
 
 setStatus(saved ? t("Restoring saved session…") : LIMITADA && !swap ? t("Starting (no swap in storage, zram only)…") : t("Starting Linux…"));
+// one emulator at a time (shared with the Emulator's other environments): wait here if another is open
+if (navigator.locks) {
+  await new Promise((ok) => navigator.locks.request("inkdoshub-emulador", { ifAvailable: true }, (lock) => {
+    if (!lock) {
+      document.body.insertAdjacentHTML("afterbegin", '<p style="padding:16px;text-align:center">Another emulator is open in another tab or window. Close it first, then reload this page.</p>');
+      return;
+    }
+    ok();
+    return new Promise(() => {});
+  }));
+}
 const emulator = new V86(config);
 
 // Serial output -> terminal, batched per frame so it stays fast.
