@@ -139,6 +139,7 @@
       return;
     }
     inicio = Date.now();
+    acordado(true);
     medir(audio);
     $("gravar").classList.add("md-hide"); $("parar").classList.remove("md-hide");
     $("nome").disabled = true;
@@ -147,6 +148,15 @@
       estado(t("Recording {name} · {size}", { name: nomeArquivo, size: inkTamanho(bytes) }));
     }, 1000);
   };
+
+  // keeps the screen on while recording: on iPad and iPhone the lock screen pauses the page and the recording
+  var trava = null;
+  function acordado(sim) {
+    if (!sim) { if (trava) trava.release().catch(function () {}); trava = null; return; }
+    if (trava || !navigator.wakeLock || document.visibilityState !== "visible") return;
+    navigator.wakeLock.request("screen").then(function (l) { trava = l; l.onrelease = function () { if (trava === l) trava = null; }; }).catch(function () {});
+  }
+  document.addEventListener("visibilitychange", function () { if (gravador && gravador.state === "recording") acordado(true); });
 
   function parar() {
     if (gravador && gravador.state !== "inactive") gravador.stop();
@@ -157,6 +167,7 @@
 
   function terminar() {
     clearInterval(relogio);
+    acordado(false);
     if (ctx) { ctx.close().catch(function () {}); ctx = null; }
     $("nivel").style.width = "0";
     $("parar").classList.add("md-hide"); $("gravar").classList.remove("md-hide");
