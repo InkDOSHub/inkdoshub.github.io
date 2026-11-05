@@ -13,7 +13,7 @@ const linhas = [];
 const registra = (t) => { linhas.push(t); if (linhas.length > 600) linhas.shift(); $("log-txt").textContent = linhas.join(""); };
 
 // --- disks in OPFS, through the worker ---
-const w = new Worker("disco-worker.js?v=1");
+const w = new Worker("disco-worker.js?v=2");
 let seq = 0;
 const espera = new Map();
 w.onmessage = ({ data }) => {
@@ -45,8 +45,8 @@ async function prepararSistema(reinstalar) {
     const mb = (b) => Math.round(b / 1048576);
     aoProgresso = (b) => estado("Downloading the Linux system: " + mb(b) + " of " + mb(info.bytes) + " MB (only the first time)…");
     aoProgresso(0);
-    const f = await pedir({ op: "fill", name: "inkdoshub-linux.img", url: IMG + "?v=" + info.disk });
-    if (f.size !== info.size) throw new Error("incomplete download, reload the page");
+    const f = await pedir({ op: "fill", name: "inkdoshub-linux.img", url: IMG + "?v=" + info.disk, size: info.size });
+    if (f.size !== info.raw) throw new Error("incomplete download, reload the page");
     try { localStorage.setItem(CHAVE, info.disk); } catch {}
   } else if (guardado !== info.disk) {
     $("aviso-novo").hidden = false;

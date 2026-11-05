@@ -1,6 +1,6 @@
 // Disks of Emulator › Linux in the site's private storage (OPFS), read and written in blocks
-// with synchronous access in this worker. "fill" downloads the system disk once (gzip),
-// writing only the parts that are not empty.
+// with synchronous access in this worker. "fill" downloads the system disk once (gzip)
+// and extends the file to the full disk size.
 const h = {};
 self.onmessage = async ({ data: m }) => {
   try {
@@ -32,12 +32,10 @@ self.onmessage = async ({ data: m }) => {
       for (;;) {
         const { value, done } = await leitor.read();
         if (done) break;
-        let vazio = true;
-        for (let i = 0; i < value.length; i++) if (value[i]) { vazio = false; break; }
-        if (!vazio) d.write(value, { at });
+        d.write(value, { at });
         at += value.length;
       }
-      d.truncate(at);
+      if (m.size > at) d.truncate(m.size); // the rest of the disk: empty space, filled by Linux later
       d.flush();
       self.postMessage({ id: m.id, ok: true, size: at });
     } else if (m.op === "flush") {
