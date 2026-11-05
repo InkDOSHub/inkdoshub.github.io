@@ -27,6 +27,7 @@ found, what changed and the commit. The git history proves each change.
 | — | Integrity: SHA-256 checks and CSP on every page | [021-integrity.md](021-integrity.md) |
 | — | App isolation (sandbox per app) | [022-app-isolation.md](022-app-isolation.md) |
 | — | InkDOS toolbars use the ArtCraft icons | [023-artcraft-icons.md](023-artcraft-icons.md) |
+| — | Polish review: language packs | [024-polish-translations.md](024-polish-translations.md) |
 
 ## Summary (2026-10-29)
 
