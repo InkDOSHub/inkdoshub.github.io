@@ -24,6 +24,30 @@ Module.locateFile = function (url) { return MOTOR + url; };
 var $ = function (id) { return document.getElementById(id); };
 var estado = function (t) { $("estado").textContent = t; };
 
+// --- startup switches, saved in this browser ---
+var SERVICOS = [
+  { id: "net", nome: "Internet (Hub tunnel)", nomes: ["NDIS", "nsiproxy"], liga: 2, padrao: true },
+  { id: "disp", nome: "Game controllers, USB and Bluetooth", nomes: ["winebus", "winehid", "winebth"], liga: 3, padrao: false },
+  { id: "log", nome: "Event log", nomes: ["Eventlog"], liga: 2, padrao: false }
+];
+var ATALHOS = { id: "menu", nome: "Start menu shortcuts made by installers", padrao: false };
+function ligado(o) {
+  try { var v = localStorage.getItem("wine-inicio-" + o.id); if (v !== null) return v === "1"; } catch (e) {}
+  return o.padrao;
+}
+(function () {
+  var caixa = $("inicio-opcoes");
+  SERVICOS.concat([ATALHOS]).forEach(function (o) {
+    var l = document.createElement("label"), c = document.createElement("input");
+    c.type = "checkbox"; c.checked = ligado(o);
+    c.onchange = function () {
+      try { localStorage.setItem("wine-inicio-" + o.id, c.checked ? "1" : "0"); } catch (e) {}
+      $("inicio-aviso").hidden = false;
+    };
+    l.appendChild(c); l.appendChild(document.createTextNode(" " + o.nome)); caixa.appendChild(l);
+  });
+})();
+
 function iniciar() {
   try {
     ["width", "availWidth"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return LARG; } }); });
@@ -34,11 +58,21 @@ function iniciar() {
   // look: wallpaper "Altai" (Alesya Khoteeva, KDE, CC BY-SA 4.0) from visual/visual.zip, set in the
   // registry before the desktop opens; storageKey=default keeps the same saved C: and D: as before
   var reg = [['reg', 'add', 'HKCU\\Control Panel\\Desktop', '/v', 'Wallpaper', '/t', 'REG_SZ', '/d', 'C:\\windows\\altai.bmp', '/f']];
-  var regBase = [];
+  // startup switches (menu "Startup"): each Wine service is set to start or not; Wine reads it on the next start
+  SERVICOS.forEach(function (sv) {
+    sv.nomes.forEach(function (n) {
+      reg.push(['reg', 'add', 'HKLM\\System\\CurrentControlSet\\Services\\' + n, '/v', 'Start', '/t', 'REG_DWORD', '/d', String(ligado(sv) ? sv.liga : 4), '/f']);
+    });
+  });
+  var regBase = [], dllBase = "";
   Object.defineProperty(Config, "registryCommands", { configurable: true,
     get: function () { return regBase.concat(reg); }, set: function (v) { regBase = v || []; } });
+  // menu shortcuts that installers ask Wine to create: useless here and slow to make
+  Object.defineProperty(Config, "dllOverrides", { configurable: true,
+    get: function () { return [dllBase, ligado(ATALHOS) ? "" : "winemenubuilder.exe=d"].filter(Boolean).join(";"); },
+    set: function (v) { dllBase = v || ""; } });
   Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&overlay=visual&overlayBase=visual%2F&storageKey=default" +
-    "&auto=true&resolution=" + TELA + NET +
+    "&auto=true&resolution=" + TELA + (ligado(SERVICOS[0]) ? NET : "") +
     "&p=explorer&args=" + encodeURIComponent("/desktop=shell," + TELA + " winefile.exe D:\\");
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");
@@ -46,8 +80,26 @@ function iniciar() {
   document.body.appendChild(s);
 }
 
+// Several cores need an isolated page (SharedArrayBuffer). On github.io the Hub service worker
+// (sw-portal.js) adds the headers: register it and reload once. Without a service worker (XeOS),
+// open the fast address, which sends the headers itself (its C: and D: are saved separately).
+function isolar() {
+  if (self.crossOriginIsolated || !/github\.io$/.test(location.hostname)) return false;
+  var tentou = false;
+  try { tentou = sessionStorage.getItem("wine-isolar") === "1"; sessionStorage.setItem("wine-isolar", "1"); } catch (e) {}
+  if (tentou) return false;
+  if ("serviceWorker" in navigator) {
+    estado("Turning on multi-core mode…");
+    navigator.serviceWorker.register("../../sw-portal.js", { scope: "../../" })
+      .then(function () { return navigator.serviceWorker.ready; })
+      .then(function () { location.reload(); }, function () { location.replace(RAPIDO + location.search); });
+  } else location.replace(RAPIDO + location.search);
+  return true;
+}
+var RAPIDO = "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/wine/";
+
 // one emulator at a time: the lock is held while this page is open
-if (navigator.locks) {
+if (isolar()) {} else if (navigator.locks) {
   navigator.locks.request("inkdoshub-emulador", { ifAvailable: true }, function (lock) {
     if (!lock) { estado("Another emulator is open in another tab or window. Close it first, then reload this page."); return; }
     iniciar();
