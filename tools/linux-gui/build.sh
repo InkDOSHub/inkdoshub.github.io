@@ -31,16 +31,19 @@ gzip -9 -c linux-gui.img > linux-gui.img.gz
 ls -la linux-gui.img.gz
 
 # --- kernel: the terminal's base (without the built-in system) plus kernel-gui.config ---
+# built in Debian 12 (gcc 12): Linux 6.6 does not compile with gcc 15, which uses C23 by default
 [ -d linux ] || git clone --depth 1 --branch v6.6 https://github.com/torvalds/linux linux
-cd linux
-make ARCH=i386 tinyconfig
-grep -v -e INITRD -e INITRAMFS "$HERE/../linux/kernel-extra.config" >> .config
-cat "$HERE/kernel-gui.config" >> .config
-make ARCH=i386 olddefconfig
-for o in EXT4_FS DRM_BOCHS INPUT_EVDEV MOUSE_PS2 ZRAM ATA_PIIX 9P_FS; do
-  grep -q "^CONFIG_$o=y" .config || { echo "missing CONFIG_$o"; exit 1; }
-done
-make ARCH=i386 -j"$(nproc)" bzImage
+grep -v -e INITRD -e INITRAMFS "$HERE/../linux/kernel-extra.config" > extra.config
+cat "$HERE/kernel-gui.config" >> extra.config
+sudo docker run --rm -v "$WORK:/w" -w /w/linux debian:bookworm sh -ec '
+  apt-get update -qq && apt-get install -yqq gcc make flex bison bc libelf-dev >/dev/null
+  make ARCH=i386 tinyconfig
+  cat ../extra.config >> .config
+  make ARCH=i386 olddefconfig
+  for o in EXT4_FS DRM_BOCHS INPUT_EVDEV MOUSE_PS2 ZRAM ATA_PIIX 9P_FS; do
+    grep -q "^CONFIG_$o=y" .config || { echo "missing CONFIG_$o"; exit 1; }
+  done
+  make ARCH=i386 -j"$(nproc)" bzImage'
 mkdir -p "$HERE/../../apps/emulador/linux"
-cp arch/x86/boot/bzImage "$HERE/../../apps/emulador/linux/linux-gui-bzImage.bin"
+cp linux/arch/x86/boot/bzImage "$HERE/../../apps/emulador/linux/linux-gui-bzImage.bin"
 echo "OK"
