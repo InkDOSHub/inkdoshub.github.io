@@ -79,7 +79,9 @@ self.addEventListener("fetch", function (e) {
     var caminho = chave(req.url).slice((self.location.origin + RAIZ).length);
     if (caminho !== "index.html") e.waitUntil(caches.open(CACHE).then(function (c) { return c.put(self.location.origin + RAIZ + "__uso__", new Response(caminho)); }).catch(function () {}));
   }
-  e.respondWith(daCopiaOuRede(req).then(isolar));
+  // the home screen needs no isolation, and without it the icons of the person's own webapps (other sites) still load
+  var inicio = u.pathname === RAIZ || u.pathname === RAIZ + "index.html";
+  e.respondWith(inicio ? daCopiaOuRede(req) : daCopiaOuRede(req).then(isolar));
 });
 
 /* Compatibility layer for GitHub Pages, which cannot send headers: adds the same isolation headers as the
