@@ -12,7 +12,7 @@ window.alert = function (m) { console.warn(m); };
 
 // Multi-core (switch in ⚙). If a multi-core start did not reach the desktop (the tab crashed and
 // reloaded, as iOS does when memory runs out), the switch turns off by itself and the one-core build is used.
-var MULTI = { id: "multi", nome: "Multi-core (faster; turn off if the page keeps reloading)", padrao: true };
+var MULTI = { id: "multi", nome: "Multi-core (experimental: on the iPad it ran the CPU test 60x slower)", padrao: false };
 try {
   if (localStorage.getItem("wine-mt-tentando")) { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-inicio-multi", "0"); }
 } catch (e) {}
