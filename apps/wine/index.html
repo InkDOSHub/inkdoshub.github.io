@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=7">
+<title>Wine · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=1">
+<link rel="stylesheet" href="../../assets/barra.css?v=5">
+<script src="../../assets/barra.js?v=3" defer></script>
+<script src="../../assets/icones.js?v=2" defer></script>
+<style>
+  [hidden]{display:none!important}
+  .ink-main{overflow:auto;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}
+  .nota{color:var(--muted);font-size:13px;margin:0;text-align:center}
+  /* the Windows picture: page width, 16:9, never taller than the screen */
+  #dropzone{position:relative;width:min(100%,calc((100dvh - 110px) * 16 / 9));aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
+  #dropzone canvas{position:absolute;inset:0;width:100%!important;height:100%!important;object-fit:contain;touch-action:none}
+  #boxedwine-webgl-canvas-0{pointer-events:none;z-index:1}
+  #log{width:100%;font-size:12px}
+  #log pre{max-height:240px;overflow:auto;white-space:pre-wrap;margin:4px 0}
+  #log summary{cursor:pointer}
+  #lista button{margin:2px}
+  #stubs{display:none}
+  /* full screen: the picture fills the whole page (also where the browser has no Fullscreen API) */
+  body.cheia #dropzone{position:fixed;inset:0;width:100vw;height:100dvh;aspect-ratio:auto;border-radius:0;z-index:50}
+  #sair-cheia{display:none;position:fixed;top:6px;right:6px;z-index:60;opacity:.75}
+  body.cheia #sair-cheia{display:block}
+  #inicio-opcoes label{display:flex;gap:8px;align-items:center;margin:6px 0;cursor:pointer}
+  .menu-inicio .pop{min-width:260px}
+</style>
+</head>
+<body class="ink-app" data-simbolo="../../assets/icones-inkdos/wine.svg">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Wine</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" id="btn-abrir" type="button">Open file</button>
+  <button class="ink-btn" id="btn-teste" type="button">CPU test (to D:)</button>
+  <button class="ink-btn" id="btn-cheia" type="button">Full screen</button>
+  <button class="ink-btn" id="btn-desktop" type="button">Restart Windows</button>
+  <details class="i solto menu-inicio"><summary title="Startup" aria-label="Startup">⚙</summary><div class="pop"><p><strong>Startup</strong></p><div id="inicio-opcoes"></div><p class="nota" id="inicio-aviso" hidden>Applies from the next start: <button class="ink-btn" type="button" onclick="location.reload()">Restart Windows</button></p><p>Fewer services make Windows start faster. Turn on what a program needs.</p></div></details>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT). A multi-core mode can be turned on in ⚙ (experimental).</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It is copied to drive D: (a .zip becomes a folder) without restarting Windows; open it in the file manager. Drive D: and what you install stay saved in this browser. 64-bit programs do not run yet. Memory: up to 3 GB. Internet goes through the Hub tunnel.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine. Wallpaper: "Altai" by Alesya Khoteeva (KDE), CC BY-SA 4.0.</p></div></details>
+</header>
+<main class="ink-main">
+  <input id="arquivo" type="file" accept=".zip,.exe,application/zip,application/x-msdownload" hidden>
+  <p class="nota" id="estado"></p>
+  <div class="linha" id="lista" hidden></div>
+  <div id="dropzone"><canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas><canvas class="emscripten boxedwine-webgl-canvas" id="boxedwine-webgl-canvas-0" oncontextmenu="event.preventDefault()"></canvas></div>
+  <details id="log"><summary>Log</summary><div class="linha" style="justify-content:flex-start"><button class="ink-btn" id="btn-copiar" type="button">Copy log</button></div><pre id="log-txt"></pre></details>
+<button class="ink-btn" id="sair-cheia" type="button" aria-label="Exit full screen">✕</button>
+<div id="stubs">
+    <div id="loading"></div><div id="spinner"></div><div id="status"></div><progress id="progress"></progress>
+    <div id="app"></div><div id="controls"></div><div id="console"></div><div id="overlayRow"></div>
+    <button id="startbtn" disabled></button><button id="downloadbtn"></button><button id="savejitbtn"></button>
+    <select id="cdromdisc"></select><button id="cdromejectbtn"></button>
+    <input type="checkbox" id="pointerLock"><input type="checkbox" id="showConsole"><textarea id="output"></textarea>
+    <a id="modalLink" href="#"></a><a id="modalLinkExe" href="#"></a><a id="openModalExeClick" href="#"></a>
+    <div id="openModal"></div><div id="openModalExe"></div>
+    <div id="message"></div><div id="items"></div><div id="tree"></div><div id="loadStatus"></div><input id="selectedItem">
+  </div>
+</main>
+<script src="engine/jszip.min.js?v=1"></script>
+<script src="jit/fsfs.js?v=1"></script>
+<script src="jit/boxedwine-shell.js?v=1"></script>
+<script src="wine.js?v=25"></script>
+</body>
+</html>

@@ -2,13 +2,14 @@
 // Static files are served by Cloudflare with the _headers file. Files Cloudflare cannot
 // hold (over 25 MB) are fetched from GitHub Pages and get the same headers here.
 // It is also the internet tunnel: a WebSocket that opens TCP connections for the Linux terminal
-// (wisp protocol, v86).
+// (wisp protocol, v86) and Windows (Boxedwine's gateway protocol, DNS through DNS-over-HTTPS).
 // Only pages of the Hub can use it.
 import { connect } from "cloudflare:sockets";
 
 const ORIGEM = "https://inkdoshub.github.io";
 // Files kept outside the repository (too big for git); the version in the address changes the cache key.
 const EXTERNOS = {
+  "/apps/wine/fs/wine11.zip": "https://boxedwine.org/v2/24/TinyCore15Wine11.0-web.zip",
   "/terminal/desktop/linux-gui.img.gz": "https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/linux-gui/linux-gui.img.gz",
 };
 const ISOLAR = {
@@ -17,17 +18,18 @@ const ISOLAR = {
   "Cross-Origin-Resource-Policy": "cross-origin",
 };
 const ORIGENS_OK = /^https:\/\/(inkdoshub\.github\.io|inkdoshub-github-io\.vfydr2m9wk\.workers\.dev)$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const DOH = "https://cloudflare-dns.com/dns-query";
 const PORTAS_BLOQUEADAS = new Set([25, 465, 587]); // no e-mail sending
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    if (req.headers.get("Upgrade") === "websocket" && url.pathname === "/net/wisp/") {
+    if (req.headers.get("Upgrade") === "websocket" && (url.pathname === "/net/wisp/" || url.pathname === "/net/boxedwine")) {
       if (!ORIGENS_OK.test(req.headers.get("Origin") || "")) return new Response("forbidden", { status: 403 });
       const par = new WebSocketPair();
       const ws = par[1];
       ws.accept();
-      wisp(ws);
+      if (url.pathname === "/net/wisp/") wisp(ws); else boxedwine(ws);
       return new Response(null, { status: 101, webSocket: par[0] });
     }
     const res = await env.ASSETS.fetch(req);
@@ -57,6 +59,11 @@ function abrirTcp(host, porta, aoReceber, aoFechar) {
     escrever: (b) => escritor.write(b).catch(() => {}),
     fechar: () => { try { s.close(); } catch (e) {} },
   };
+}
+
+async function doh(pergunta) {
+  const r = await fetch(DOH, { method: "POST", headers: { "Content-Type": "application/dns-message", Accept: "application/dns-message" }, body: pergunta });
+  return new Uint8Array(await r.arrayBuffer());
 }
 
 // --- wisp v1 (v86): [type][stream id u32 LE][payload]; 1 CONNECT, 2 DATA, 3 CONTINUE, 4 CLOSE ---
@@ -96,3 +103,43 @@ function wisp(ws) {
   ws.addEventListener("close", () => { for (const f of fluxos.values()) f.tcp && f.tcp.fechar(); fluxos.clear(); });
 }
 
+// --- Boxedwine gateway (subset): JSON control text frames + binary frames
+//     TCP data [1][socket id u32 BE][bytes]; UDP [2][id u32 BE][ipv4 4 bytes][port u16 BE][bytes] ---
+function boxedwine(ws) {
+  const tcp = new Map();
+  const ctrl = (m) => { try { ws.send(JSON.stringify(m)); } catch (e) {} };
+  const quadro = (id, d) => { const f = new Uint8Array(5 + d.length); f[0] = 1; new DataView(f.buffer).setUint32(1, id); f.set(d, 5); try { ws.send(f); } catch (e) {} };
+  ws.addEventListener("message", async (ev) => {
+    if (typeof ev.data === "string") {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.type === "open") {
+        try {
+          const c = abrirTcp(String(m.host), m.port | 0, (d) => quadro(m.id, d), () => { if (tcp.delete(m.id)) ctrl({ type: "close", id: m.id }); });
+          tcp.set(m.id, c);
+          await c.pronto;
+          ctrl({ type: "open", id: m.id, status: 0 });
+        } catch (e) { tcp.delete(m.id); ctrl({ type: "open", id: m.id, status: -111 }); }
+      } else if (m.type === "close") {
+        const c = tcp.get(m.id); if (c) { tcp.delete(m.id); c.fechar(); }
+      } else if (m.type === "udp-open" || m.type === "udp-bind") {
+        ctrl({ type: m.type, id: m.id, status: 0, host: "0.0.0.0", port: m.port || 40000 + (m.id % 20000) });
+      } else if (m.type === "listen") {
+        ctrl({ type: "listen", id: m.id, status: -13 });
+      }
+      return;
+    }
+    const b = new Uint8Array(ev.data), v = new DataView(b.buffer);
+    if (b.length < 5) return;
+    const id = v.getUint32(1);
+    if (b[0] === 1) { const c = tcp.get(id); if (c) c.escrever(b.slice(5)); return; }
+    // UDP: only DNS (port 53), answered with DNS-over-HTTPS
+    if (b[0] === 2 && b.length > 11 && v.getUint16(9) === 53) {
+      try {
+        const resp = await doh(b.slice(11));
+        const f = new Uint8Array(11 + resp.length); f.set(b.subarray(0, 11)); f.set(resp, 11);
+        ws.send(f);
+      } catch (e) {}
+    }
+  });
+  ws.addEventListener("close", () => { for (const c of tcp.values()) c.fechar(); tcp.clear(); });
+}

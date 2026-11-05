@@ -1,0 +1,4 @@
+engine/ and fs/ come from Boxedwine (https://www.boxedwine.org, source: https://github.com/danoon2/Boxedwine),
+licensed under GPL-2.0. The file system (fs/fullWine1.7.55-v8.zip) contains Wine 1.7.55 (LGPL-2.1) and Linux
+user-space tools under their own licenses. apps/abiword.zip is AbiWord 2.4.6 (GPL-2.0, https://www.abisource.com).
+Files are copied unchanged from the Boxedwine web build (build/default, fs/, apps/) on 2026-11-04.
