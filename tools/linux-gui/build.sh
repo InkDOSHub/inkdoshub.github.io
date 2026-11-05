@@ -19,6 +19,13 @@ sudo rm -rf rootfs && mkdir rootfs
 sudo docker export inkgui | sudo tar -x -C rootfs
 sudo docker rm inkgui
 sudo cp -r "$HERE/overlay/." rootfs/
+# Papirus comes in 5 variants with every size: keep Papirus and Papirus-Dark up to 48 px (about 1.2 GB less)
+sudo rm -rf rootfs/usr/share/icons/Papirus-Light rootfs/usr/share/icons/ePapirus rootfs/usr/share/icons/ePapirus-Dark
+sudo sh -c 'for d in rootfs/usr/share/icons/Papirus rootfs/usr/share/icons/Papirus-Dark; do rm -rf "$d"/64x64* "$d"/84x84* "$d"/96x96* "$d"/128x128* "$d"/*@2x; done'
+sudo sed -i 's/,64x64[^,]*//g; s/,84x84[^,]*//g; s/,96x96[^,]*//g; s/,128x128[^,]*//g' rootfs/usr/share/icons/Papirus/index.theme rootfs/usr/share/icons/Papirus-Dark/index.theme
+sudo chroot rootfs gtk-update-icon-cache -f -q /usr/share/icons/Papirus || true
+sudo chroot rootfs gtk-update-icon-cache -f -q /usr/share/icons/Papirus-Dark || true
+sudo du -sh rootfs/usr/share/icons/*
 sudo chmod +x rootfs/sbin/inkinit rootfs/root/.xinitrc
 printf 'nameserver 1.1.1.1\n' | sudo tee rootfs/etc/resolv.conf >/dev/null
 printf '127.0.0.1 localhost inkdoshub\n' | sudo tee rootfs/etc/hosts >/dev/null
