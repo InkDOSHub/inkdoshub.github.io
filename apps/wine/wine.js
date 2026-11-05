@@ -51,6 +51,8 @@ function iniciar(app, exe) {
   try {
     ["width", "availWidth"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return LARG; } }); });
     ["height", "availHeight"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return ALT; } }); });
+    // SDL multiplies the screen by the pixel ratio (2 on a Mac, 3 on an iPhone): keep it at 1
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, get: function () { return 1; } });
   } catch (e) {}
   var args = "/desktop=shell," + TELA + (exe ? ' "' + exe + '"' : "");
   Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&auto=true&resolution=" + TELA + NET +
