@@ -35,3 +35,5 @@ body.ink-app{display:flex;flex-direction:column;height:100dvh;padding:env(safe-a
 .ink-bar.compacta .ink-itens .ink-rotulo{display:inline}
 .ink-dir>details.i{order:-1}
 .ink-bar.compacta .ink-itens .ink-btn:disabled{opacity:.4;cursor:default}
+/* "i" in the bar sits at the right edge: its explanation opens toward the left, inside the screen */
+.ink-dir details.i.solto .pop{left:auto;right:0}

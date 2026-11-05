@@ -1,8 +1,10 @@
-/* Windows apps: Boxedwine (Wine 11 + x86 emulator with a JIT that translates x86 code to WebAssembly).
+/* Emulator › Windows: Boxedwine (Wine 11 + x86 emulator with a JIT that translates x86 code to WebAssembly).
    Engine builds in jit/ (one thread) and mtjit/ (several threads, needs the isolated address), made by
    .github/workflows/boxedwine.yml. Boxedwine's own page script (jit/boxedwine-shell.js) does the work;
-   this file sets its parameters and starts it. The user's program is packed as prog.zip (folder prog/)
-   and handed to the engine as its "app" file, so it shows up on drive D: and starts by itself.
+   this file sets its parameters and starts it.
+   The page always opens the Windows desktop (explorer with a taskbar). A program picked with "Open file"
+   is kept in IndexedDB, the page restarts, and the program is handed to the engine as prog.zip (folder
+   prog/, seen as C:\files\prog) and started inside the desktop.
    XeOS blocks confirm()/alert(), so they answer by themselves. */
 "use strict";
 window.confirm = function () { return true; };
@@ -12,13 +14,29 @@ var MOTOR = self.crossOriginIsolated ? "mtjit/" : "jit/";
 // Wine 11 (about 100 MB) is not in the repository: the Cloudflare copy serves it from boxedwine.org
 var FS_BASE = /workers\.dev$/.test(location.hostname) || /^(localhost|127\.)/.test(location.hostname)
   ? "fs/" : "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/wine/fs/";
-var BASE = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&auto=true";
+// Boxedwine offers the browser screen size as a display mode only above 1600 px wide:
+// a 1680x945 (16:9) screen gives a widescreen Windows desktop
+var LARG = 1680, ALT = 945, TELA = LARG + "x" + ALT;
 Module.locateFile = function (url) { return MOTOR + url; };
 
 var $ = function (id) { return document.getElementById(id); };
 var estado = function (t) { $("estado").textContent = t; };
 
-// the user's program, served to the engine as __user/prog.zip
+// --- program kept between restarts (IndexedDB) ---
+function banco(fn) {
+  var r = indexedDB.open("inkdoshub-emulador", 1);
+  r.onupgradeneeded = function () { r.result.createObjectStore("prog"); };
+  r.onsuccess = function () { fn(r.result.transaction("prog", "readwrite").objectStore("prog")); };
+  r.onerror = function () { fn(null); };
+}
+function guardar(v, depois) { banco(function (s) { if (!s) return depois(); s.put(v, "atual").onsuccess = depois; }); }
+function tirar(fn) {
+  banco(function (s) {
+    if (!s) return fn(null);
+    var g = s.get("atual"); g.onsuccess = function () { s.delete("atual"); fn(g.result || null); }; g.onerror = function () { fn(null); };
+  });
+}
+
 var progZip = null;
 var fetchOrig = window.fetch;
 window.fetch = function (url) {
@@ -26,35 +44,35 @@ window.fetch = function (url) {
   return fetchOrig.apply(this, arguments);
 };
 
-function iniciarMotor(params) {
-  $("inicio").hidden = true; $("lista").hidden = true;
-  $("ir-desktop").hidden = !params;
-  // Boxedwine opens its window at the screen size: report a 1024x768 screen so the picture keeps its shape
+// starts the desktop; "exe" (Windows path) runs inside it
+function iniciar(app, exe) {
   try {
-    ["width", "availWidth"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return 1024; } }); });
-    ["height", "availHeight"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return 768; } }); });
+    ["width", "availWidth"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return LARG; } }); });
+    ["height", "availHeight"].forEach(function (k) { Object.defineProperty(screen, k, { configurable: true, get: function () { return ALT; } }); });
   } catch (e) {}
-  // the Wine desktop is 800x600: same screen size so it fills the picture; programs get 1024x768
-  Config.urlParams = BASE + (params ? "&resolution=1024x768&" + params : "&resolution=800x600");
+  var args = "/desktop=shell," + TELA + (exe ? ' "' + exe + '"' : "");
+  Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&auto=true&resolution=" + TELA +
+    (app || "") + "&p=explorer&args=" + encodeURIComponent(args);
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");
   s.src = MOTOR + "boxedwine.js?v=2";
   document.body.appendChild(s);
 }
 
-$("btn-desktop").onclick = function () { iniciarMotor(""); };
-// installed programs stay saved in the browser: the desktop (Start menu) shows them.
-// "Go to desktop" restarts the page straight into the Windows desktop.
-$("btn-ir-desktop").onclick = function () { location.href = "./?desktop=1"; };
-if (/[?&]desktop=1/.test(location.search)) iniciarMotor("");
-$("btn-exemplo").onclick = function () { iniciarMotor("app=abiword&appBase=apps/&p=ABIWORD.EXE"); };
-$("btn-teste").onclick = function () { iniciarMotor("app=cputest&appBase=apps/&p=cputest.exe"); };
 $("btn-abrir").onclick = function () { $("arquivo").click(); };
+$("btn-desktop").onclick = function () { location.replace("./"); };
+$("btn-teste").onclick = function () { location.replace("./?teste=1"); };
+$("btn-copiar").onclick = function () {
+  var t = $("log-txt").textContent, b = this;
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () {
+    b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy log"; }, 1500);
+  }, function () { var r = document.createRange(); r.selectNodeContents($("log-txt")); getSelection().removeAllRanges(); getSelection().addRange(r); });
+};
 
 $("arquivo").onchange = async function () {
   var f = this.files[0]; if (!f) return;
   this.value = "";
-  abrir(new Uint8Array(await f.arrayBuffer()), f.name);
+  preparar(new Uint8Array(await f.arrayBuffer()), f.name);
 };
 
 // true for a 64-bit Windows program (PE machine 0x8664)
@@ -64,7 +82,8 @@ function e64(b) {
   return pe + 6 < b.length && (b[pe + 4] | b[pe + 5] << 8) === 0x8664;
 }
 
-function abrir(dados, nomeOriginal) {
+// checks the file, asks which .exe when a .zip has several, keeps it and restarts into it
+function preparar(dados, nomeOriginal) {
   var nome = nomeOriginal.replace(/[^\w.\- ]/g, "_");
   var novo = new JSZip(), exes = [], x64 = 0;
   if (/\.zip$/i.test(nome)) {
@@ -80,26 +99,38 @@ function abrir(dados, nomeOriginal) {
       }
     } catch (err) { estado("Could not read this .zip: " + err.message); return; }
     if (!exes.length) { estado("No .exe found in this file."); return; }
-    if (x64 === exes.length) { estado("The programs in this .zip are 64-bit. This version runs 32-bit (x86) programs only."); return; }
+    if (x64 === exes.length) { estado("The programs in this .zip are 64-bit. Only 32-bit (x86) programs run for now."); return; }
   } else {
-    if (e64(dados)) { estado("This is a 64-bit program. This version runs 32-bit (x86) programs only: look for the 32-bit download of this program."); return; }
+    if (e64(dados)) { estado("This is a 64-bit program. Only 32-bit (x86) programs run for now: look for the 32-bit download."); return; }
     novo.file("prog/" + nome, dados); exes.push(nome);
   }
-  progZip = novo.generate({ type: "uint8array", compression: "STORE" });
-  var correr = function (p) { iniciarMotor("app=prog&appBase=__user/&p=" + encodeURIComponent(p)); };
+  var zip = novo.generate({ type: "uint8array", compression: "STORE" });
+  var correr = function (p) {
+    estado("Restarting Windows with " + p.split("/").pop() + "…");
+    guardar({ zip: zip, exe: p }, function () { location.replace("./?abrir=1"); });
+  };
   if (exes.length === 1) return correr(exes[0]);
   estado("Choose the program to run:");
   var l = $("lista"); l.textContent = ""; l.hidden = false;
   exes.sort(function (a, b) { return a.split("/").length - b.split("/").length; }).slice(0, 30).forEach(function (p) {
     var b = document.createElement("button"); b.className = "ink-btn"; b.type = "button"; b.textContent = p;
-    b.onclick = function () { correr(p); }; l.appendChild(b);
+    b.onclick = function () { l.hidden = true; correr(p); }; l.appendChild(b);
   });
 }
 
-// feedback: download progress, Wine messages in a Log, and a hint while Windows starts
+// start: desktop, CPU test, or the program kept before the restart
+if (/[?&]teste=1/.test(location.search)) iniciar("&app=cputest&appBase=apps/", "C:\\files\\cputest\\cputest.exe");
+else if (/[?&]abrir=1/.test(location.search)) tirar(function (v) {
+  if (!v) return iniciar();
+  progZip = v.zip;
+  iniciar("&app=prog&appBase=__user/", "C:\\files\\prog\\" + v.exe.replace(/\//g, "\\"));
+});
+else iniciar();
+
+// feedback: download progress, Wine messages in the Log, and a hint while Windows starts
 var linhasLog = [];
 function registra(t) {
-  linhasLog.push(String(t)); if (linhasLog.length > 300) linhasLog.shift();
+  linhasLog.push(String(t)); if (linhasLog.length > 400) linhasLog.shift();
   $("log-txt").textContent = linhasLog.join("\n");
   if (/CPU test/.test(t)) { clearInterval(esperaWin); estado(String(t)); }
 }
@@ -113,8 +144,8 @@ Module.setStatus = function (t) {
 var inicioWin = 0;
 var esperaWin = setInterval(function () {
   if (!isRunning) return;
-  if (!inicioWin) { inicioWin = Date.now(); $("log").hidden = false; }
+  if (!inicioWin) inicioWin = Date.now();
   var s = Math.round((Date.now() - inicioWin) / 1000);
-  estado(s < 30 ? "Windows is starting… " + s + " s" : "Running (" + (MOTOR === "mtjit/" ? "several cores" : "one core") + "). If nothing shows up, open Log below.");
-  if (s >= 30) clearInterval(esperaWin);
+  if (!/MIPS/.test($("estado").textContent)) estado(s < 20 ? "Windows is starting… " + s + " s" : "");
+  if (s >= 20) clearInterval(esperaWin);
 }, 1000);

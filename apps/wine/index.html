@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=7">
-<title>Windows apps · InkDOS Hub</title>
+<title>Windows · Emulator · InkDOS Hub</title>
 <script src="../../assets/tema.js?v=1"></script>
 <link rel="stylesheet" href="../../assets/info.css?v=1">
 <link rel="stylesheet" href="../../assets/barra.css?v=4">
@@ -12,41 +12,37 @@
 <script src="../../assets/icones.js?v=2" defer></script>
 <style>
   [hidden]{display:none!important}
-  .ink-main{overflow:auto;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .ink-main{overflow:auto;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px}
   .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}
-  .acao{font-weight:600;background:#2563eb;border-color:#2563eb;color:#fff}
   .nota{color:var(--muted);font-size:13px;margin:0;text-align:center}
-  #dropzone{width:100%;max-width:1024px;position:relative}
-  #boxedwine-webgl-canvas-0{position:absolute;inset:0;pointer-events:none;z-index:1}
-  canvas.emscripten{display:block;width:100%!important;height:auto!important;max-height:calc(100dvh - 150px);object-fit:contain;background:#000;border-radius:6px;touch-action:none}
-  #log{width:100%;max-width:1024px;font-size:12px}
-  #log pre{max-height:200px;overflow:auto;white-space:pre-wrap;margin:4px 0}
+  /* the Windows picture: page width, 16:9, never taller than the screen */
+  #dropzone{position:relative;width:min(100%,calc((100dvh - 110px) * 16 / 9));aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
+  #dropzone canvas{position:absolute;inset:0;width:100%!important;height:100%!important;object-fit:contain;touch-action:none}
+  #boxedwine-webgl-canvas-0{pointer-events:none;z-index:1}
+  #log{width:100%;font-size:12px}
+  #log pre{max-height:240px;overflow:auto;white-space:pre-wrap;margin:4px 0}
+  #log summary{cursor:pointer}
   #lista button{margin:2px}
-  /* Boxedwine shell elements we do not show */
   #stubs{display:none}
 </style>
 </head>
 <body class="ink-app" data-simbolo="../../assets/inkdoshub-icone-32.png?v=7">
 <header class="ink-bar">
-  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
-  <span class="ink-title">Windows apps</span>
+  <a class="ink-home" href="../emulador/" data-icone="voltar">Emulator</a>
+  <span class="ink-title">Windows</span>
   <span class="ink-spacer"></span>
-  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Runs 32-bit Windows programs (98/XP era) with Wine inside the browser, using Boxedwine (open source, GPL). Nothing is installed: open a program as a .zip (or a single .exe) and pick the .exe to run. Your files appear as drive D:. First start downloads about 100 MB (Wine 11). The x86 code is translated to WebAssembly while it runs (JIT), and uses several cores on the isolated address. Faster on the isolated address. Source: github.com/danoon2/Boxedwine.</p></div></details>
+  <button class="ink-btn" id="btn-abrir" type="button">Open file</button>
+  <button class="ink-btn" id="btn-teste" type="button">CPU test</button>
+  <button class="ink-btn" id="btn-desktop" type="button">Restart desktop</button>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT) and uses several cores on the fast link.</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It runs inside the desktop, and what you install stays saved in this browser. 64-bit programs do not run yet.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine.</p></div></details>
 </header>
 <main class="ink-main">
-  <div class="linha" id="inicio">
-    <button class="ink-btn acao" id="btn-abrir" type="button">Open program (.zip or .exe)</button>
-    <button class="ink-btn" id="btn-desktop" type="button">Windows desktop</button>
-    <button class="ink-btn" id="btn-exemplo" type="button">Sample: AbiWord</button>
-    <button class="ink-btn" id="btn-teste" type="button">CPU test</button>
-    <input id="arquivo" type="file" accept=".zip,.exe,application/zip,application/x-msdownload" hidden>
-  </div>
+  <input id="arquivo" type="file" accept=".zip,.exe,application/zip,application/x-msdownload" hidden>
   <p class="nota" id="estado"></p>
-  <div class="linha" id="ir-desktop" hidden><button class="ink-btn" id="btn-ir-desktop" type="button">Go to Windows desktop</button><span class="nota">Installed programs are in Start › Programs.</span></div>
   <div class="linha" id="lista" hidden></div>
-  <details id="log" hidden><summary>Log</summary><pre id="log-txt"></pre></details>
   <div id="dropzone"><canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas><canvas class="emscripten boxedwine-webgl-canvas" id="boxedwine-webgl-canvas-0" oncontextmenu="event.preventDefault()"></canvas></div>
-  <div id="stubs">
+  <details id="log"><summary>Log</summary><div class="linha" style="justify-content:flex-start"><button class="ink-btn" id="btn-copiar" type="button">Copy log</button></div><pre id="log-txt"></pre></details>
+<div id="stubs">
     <div id="loading"></div><div id="spinner"></div><div id="status"></div><progress id="progress"></progress>
     <div id="app"></div><div id="controls"></div><div id="console"></div><div id="overlayRow"></div>
     <button id="startbtn" disabled></button><button id="downloadbtn"></button><button id="savejitbtn"></button>
@@ -60,6 +56,6 @@
 <script src="engine/jszip.min.js?v=1"></script>
 <script src="jit/fsfs.js?v=1"></script>
 <script src="jit/boxedwine-shell.js?v=1"></script>
-<script src="wine.js?v=11"></script>
+<script src="wine.js?v=12"></script>
 </body>
 </html>
