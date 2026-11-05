@@ -30,7 +30,7 @@ jobs:
           gh release view linux-gui >/dev/null 2>&1 || gh release create linux-gui --title "Emulator Linux disk" --notes "Root disk of Emulator › Linux (Alpine 3.22 x86, Openbox, tint2, PCManFM). Built by .github/workflows/linux-gui.yml."
           gh release upload linux-gui "$img" --clobber
           v=$(sha256sum "$img" | cut -c1-16)
-          printf '{"disk":"%s","bytes":%s,"size":%s}\n' "$v" "$(stat -c %s "$img")" "$((3072*1024*1024))" > apps/emulador/linux/disk.json
+          printf '{"disk":"%s","bytes":%s,"raw":%s,"size":%s}\n' "$v" "$(stat -c %s "$img")" "$(stat -c %s "$RUNNER_TEMP/work/linux-gui.img")" "$((3072*1024*1024))" > apps/emulador/linux/disk.json
       - name: Commit
         run: |
           git add apps/emulador/linux/linux-gui-bzImage.bin apps/emulador/linux/disk.json

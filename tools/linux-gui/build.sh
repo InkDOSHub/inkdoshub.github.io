@@ -11,7 +11,7 @@ mkdir -p "$WORK" && cd "$WORK"
 
 # --- root disk: Alpine packages installed in an x86 container, then copied into an ext4 image ---
 PKGS="alpine-base eudev dbus dbus-x11 xorg-server xf86-input-evdev xinit xrandr xsetroot xrdb
-  openbox tint2 pcmanfm xterm font-dejavu font-misc-misc adwaita-icon-theme nano htop ca-certificates"
+  openbox tint2 pcmanfm xterm font-dejavu font-misc-misc adwaita-icon-theme nano htop ca-certificates e2fsprogs-extra"
 sudo docker rm -f inkgui 2>/dev/null || true
 sudo docker run --name inkgui --platform linux/386 alpine:3.22 sh -c "apk add --no-cache $(echo $PKGS)"
 sudo rm -rf rootfs && mkdir rootfs
@@ -27,6 +27,10 @@ rm -f linux-gui.img
 truncate -s ${SIZE_MB}M linux-gui.img
 sudo mkfs.ext4 -q -L inkroot -O ^has_journal,^metadata_csum -d rootfs linux-gui.img
 sudo e2fsck -fy linux-gui.img || true
+# ship only the used part (no long runs of zeros for the browser to expand); Linux grows it on first boot
+sudo resize2fs -M linux-gui.img
+BLOCOS=$(sudo dumpe2fs -h linux-gui.img 2>/dev/null | awk -F: '/^Block count/{print $2+0}')
+truncate -s $((BLOCOS * 4096)) linux-gui.img
 sudo chown "$(id -u)" linux-gui.img
 gzip -9 -c linux-gui.img > linux-gui.img.gz
 ls -la linux-gui.img.gz

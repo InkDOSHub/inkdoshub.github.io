@@ -5,6 +5,8 @@ mount -t proc proc /proc; mount -t sysfs sys /sys; mount -t devtmpfs dev /dev 2>
 mkdir -p /dev/pts /dev/shm; mount -t devpts devpts /dev/pts; mount -t tmpfs shm /dev/shm
 mount -t tmpfs tmp /tmp; mount -t tmpfs run /run; mkdir -p /run/dbus
 mount -o remount,rw /
+# the disk arrives with only its used part: grow the file system to the whole disk (3 GB)
+resize2fs /dev/sda >/dev/null 2>&1 &
 hostname inkdoshub; ip link set lo up
 # swap: zram (compressed memory) plus the swap disk in the site storage (second disk)
 for a in $(cat /proc/cmdline); do case "$a" in inkzram=*) ZRAM=${a#inkzram=} ;; esac; done
