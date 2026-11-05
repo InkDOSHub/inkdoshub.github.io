@@ -6,6 +6,10 @@
 import { connect } from "cloudflare:sockets";
 
 const ORIGEM = "https://inkdoshub.github.io";
+// Files kept outside the repository (too big for git); the version in the address changes the cache key.
+const EXTERNOS = {
+  "/terminal/desktop/linux-gui.img.gz": "https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/linux-gui/linux-gui.img.gz",
+};
 const ISOLAR = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Embedder-Policy": "require-corp",
@@ -27,9 +31,10 @@ export default {
     }
     const res = await env.ASSETS.fetch(req);
     if (res.status !== 404 || req.method !== "GET") return res;
-    const up = await fetch(ORIGEM + url.pathname + url.search, { cf: { cacheTtl: 3600, cacheEverything: true } });
+    const up = await fetch(EXTERNOS[url.pathname] ? EXTERNOS[url.pathname] + url.search : ORIGEM + url.pathname + url.search, { cf: { cacheTtl: 3600, cacheEverything: true } });
     const h = new Headers(up.headers);
     for (const [k, v] of Object.entries(ISOLAR)) h.set(k, v);
+    if (EXTERNOS[url.pathname]) h.set("Access-Control-Allow-Origin", "*");
     return new Response(up.body, { status: up.status, statusText: up.statusText, headers: h });
   },
 };
