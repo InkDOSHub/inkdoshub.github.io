@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds the Linux terminal's Desktop system (run from tools/linux-gui/, on Linux with docker, as a user with sudo):
 #   terminal/desktop/linux-gui-bzImage.bin      Linux 6.6 i386 (same base as the terminal, plus disk, screen and mouse)
-#   work/linux-gui.img.gz                      Alpine 3.22 x86 root disk (ext4) with Xfce, the Arc theme and Papirus icons
+#   work/linux-gui.img.gz                      Alpine 3.22 x86 root disk (ext4) with Xfce, the Greybird theme and Papirus icons
 # Needs: gcc make flex bison bc libelf-dev git docker e2fsprogs
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -12,7 +12,7 @@ mkdir -p "$WORK" && cd "$WORK"
 # --- root disk: Alpine packages installed in an x86 container, then copied into an ext4 image ---
 PKGS="alpine-base eudev dbus dbus-x11 xorg-server xf86-input-evdev xinit xrandr xsetroot xrdb
   xfce4-session xfwm4 xfce4-panel xfdesktop xfce4-settings xfconf thunar xfce4-terminal xfce4-whiskermenu-plugin mousepad
-  arc-theme papirus-icon-theme adwaita-icon-theme font-dejavu nano htop ca-certificates e2fsprogs-extra"
+  greybird-themes-gtk3 greybird-themes-xfwm4 papirus-icon-theme adwaita-icon-theme font-dejavu nano htop ca-certificates e2fsprogs-extra"
 sudo docker rm -f inkgui 2>/dev/null || true
 sudo docker run --name inkgui --platform linux/386 alpine:3.22 sh -c "apk add --no-cache $(echo $PKGS)"
 sudo rm -rf rootfs && mkdir rootfs

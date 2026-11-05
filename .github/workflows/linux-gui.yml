@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           img="$RUNNER_TEMP/work/linux-gui.img.gz"
-          gh release view linux-gui >/dev/null 2>&1 || gh release create linux-gui --title "Terminal Desktop disk" --notes "Root disk of the Linux terminal Desktop (Alpine 3.22 x86, Xfce, Arc, Papirus). Built by .github/workflows/linux-gui.yml."
+          gh release view linux-gui >/dev/null 2>&1 || gh release create linux-gui --title "Terminal Desktop disk" --notes "Root disk of the Linux terminal Desktop (Alpine 3.22 x86, Xfce, Greybird, Papirus). Built by .github/workflows/linux-gui.yml."
           gh release upload linux-gui "$img" --clobber
           v=$(sha256sum "$img" | cut -c1-16)
           printf '{"disk":"%s","bytes":%s,"raw":%s,"size":%s}\n' "$v" "$(stat -c %s "$img")" "$(stat -c %s "$RUNNER_TEMP/work/linux-gui.img")" "$((3072*1024*1024))" > terminal/desktop/disk.json
