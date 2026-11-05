@@ -9,7 +9,6 @@
 
   var APPS = [
     { id: "terminal", nome: "Linux terminal", url: "terminal/" },
-    { id: "wine", nome: "Wine", url: "apps/wine/" },
     { id: "foto", nome: "Photos", url: "apps/foto/" },
     { id: "videoeditor", nome: "Edit video", url: "apps/video/cortar/" },
     { id: "video", nome: "Video", url: "apps/video/" },
