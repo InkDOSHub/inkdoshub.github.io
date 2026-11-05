@@ -225,12 +225,22 @@
   btn.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); abrirPainel(); });
 
   /* ---------- new version notice ---------- */
+  // only when something the person keeps changed (a change in an app that is not stored does not count)
+  function mudou(m, n) {
+    var tem = guardados(m), velho = {}, novo = {};
+    m.grupos.forEach(function (g) { (g.arquivos || []).forEach(function (a) { velho[a[0]] = a[2]; }); });
+    n.grupos.forEach(function (g) { if (tem[g.id] || base(g)) g.arquivos.forEach(function (a) { novo[a[0]] = a[2]; }); });
+    var k;
+    for (k in novo) if (velho[k] !== novo[k]) return true;
+    for (k in velho) if (!(k in novo)) return true;
+    return false;
+  }
   var aviso = null;
   estado().then(function (m) {
     btn.setAttribute("aria-pressed", m ? "true" : "false");
     if (!m) return;
     site().then(function (n) {
-      if (n.versao === m.versao) return;
+      if (n.versao === m.versao || !mudou(m, n)) return;
       info.textContent = t("Update available");
       aviso = el("button", "aviso-atualizar", t("Update available") + " · " + t("Update")); aviso.type = "button";
       aviso.addEventListener("click", function () {
