@@ -16,7 +16,7 @@ import html.parser, json, os, re, sys
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PASTAS = ["index.html", "inicio", "assets", "desktop", "terminal", "apps"]
 FORA = ("terminal/vendor/", "terminal/images/", "apps/codigo/vscode/", "apps/codigo/ext/",
-        "apps/quadro/assets/", "apps/quadro/fonts/", "apps/quadro/src/", "apps/video/cortar/ffmpeg-core/")
+        "apps/quadro/assets/", "apps/quadro/fonts/", "apps/quadro/src/", "apps/video/cortar/ffmpeg-core/", "apps/xeos-tests/")
 ATRIBUTOS = {"title", "aria-label", "placeholder", "alt"}
 PULAR = {"script", "style", "textarea"}
 VAZIOS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
