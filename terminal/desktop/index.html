@@ -30,16 +30,14 @@
   <span class="ink-spacer"></span>
   <button class="ink-btn" id="btn-abrir" type="button">Open file</button>
   <button class="ink-btn" id="btn-teclado" type="button">Keyboard</button>
-  <button class="ink-btn" id="btn-salvar" type="button">Save session now</button>
-  <button class="ink-btn" id="btn-reiniciar" type="button">Restart Linux (new session)</button>
+  <button class="ink-btn" id="btn-reiniciar" type="button">Restart Linux</button>
   <button class="ink-btn" id="btn-reinstalar" type="button">Reinstall system (erases changes)</button>
   <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop">
     <p><b>System.</b> Alpine Linux 3.22 for x86 (32-bit), running in the page with v86 (open source, BSD), the same engine as the Linux terminal: the x86 code is translated to WebAssembly while it runs. Alpine was chosen because it is small (musl and BusyBox), fast to start and has a large package collection for 32-bit x86, which most other distributions dropped.</p>
     <p><b>Desktop.</b> Xfce with the Greybird theme and Papirus icons, all ready-made Alpine packages. Xfce was chosen because it is a complete, polished desktop (menu, taskbar, file manager, settings) that is still light enough for an emulated 32-bit processor; GNOME, KDE and Cinnamon need a graphics card and would be too slow here.</p>
     <p><b>Programs.</b> Install with <code>apk add name</code>. Repositories: Alpine main and community (in /etc/apk/repositories; testing can be added). Inside, pip (Python), npm (Node.js), git and gcc also work for their own packages. Only 32-bit programs run.</p>
     <p><b>Internet.</b> Through the Hub tunnel on Cloudflare: TCP only (web, git, apk, ssh). No UDP or ping, no e-mail sending (port 25), and no incoming connections. Modern sites in a browser inside Linux are too slow to be practical.</p>
-    <p><b>Session.</b> Starting Linux from zero on an emulated processor takes about a minute. So the running machine is kept: it is saved in this browser right after the desktop first opens, every 5 minutes and when you leave the page, and the next start resumes it in a few seconds. Changes made after the last save are lost if the page closes first; "Save session now" in ☰ saves at once. "Restart Linux" starts a new session.</p>
-    <p><b>Memory and files.</b> 768 MB of RAM, compressed memory (zram) and a 2 GB swap disk in the site storage. The system disk (3 GB) is downloaded once and keeps what you install. Open file copies to /root/Device. Built by GitHub Actions: tools/linux-gui.</p>
+    <p><b>Memory and files.</b> 1 GB of RAM, compressed memory (zram) and a 2 GB swap disk in the site storage. The system disk (3 GB) is downloaded once and keeps what you install. Open file copies to /root/Device. Built by GitHub Actions: tools/linux-gui.</p>
   </div></details>
 </header>
 <main class="ink-main">
@@ -50,6 +48,6 @@
   <div id="tela"><div></div><canvas></canvas></div>
   <details id="log"><summary>Log</summary><button class="ink-btn" id="btn-copiar" type="button">Copy log</button><pre id="log-txt"></pre></details>
 </main>
-<script type="module" src="linux.js?v=8"></script>
+<script type="module" src="linux.js?v=9"></script>
 </body>
 </html>
