@@ -30,6 +30,7 @@ found, what changed and the commit. The git history proves each change.
 | — | Polish review: language packs | [024-polish-translations.md](024-polish-translations.md) |
 | — | Polish review: offline worker and Recorder | [025-polish-offline-recorder.md](025-polish-offline-recorder.md) |
 | — | Polish review: loading size and update notice | [026-polish-loading-update.md](026-polish-loading-update.md) |
+| — | Polish review: top bar look | [027-polish-top-bar.md](027-polish-top-bar.md) |
 
 ## Summary (2026-10-29)
 
