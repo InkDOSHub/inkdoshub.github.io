@@ -37,17 +37,19 @@
   <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
   <span class="ink-title">Wine</span>
   <span class="ink-spacer"></span>
-  <button class="ink-btn" id="btn-jogo" type="button">Add game</button>
+  <button class="ink-btn" id="btn-jogo" type="button">Add game folder</button>
+  <button class="ink-btn" id="btn-jogo-arq" type="button">Add game archive</button>
   <button class="ink-btn" id="btn-abrir" type="button">Open file</button>
   <button class="ink-btn" id="btn-teste" type="button">CPU test (to D:)</button>
   <button class="ink-btn" id="btn-cheia" type="button">Full screen</button>
   <button class="ink-btn" id="btn-desktop" type="button">Restart Windows</button>
   <details class="i solto menu-inicio"><summary title="Startup" aria-label="Startup">⚙</summary><div class="pop"><p><strong>Startup</strong></p><div id="inicio-opcoes"></div><p class="nota" id="inicio-aviso" hidden>Applies from the next start: <button class="ink-btn" type="button" onclick="location.reload()">Restart Windows</button></p><p>Fewer services make Windows start faster. Turn on what a program needs.</p></div></details>
-  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT). A multi-core mode can be turned on in ⚙ (experimental).</p><p>Add game: pick the game folder (32-bit Windows games). It is copied once to this browser's disk and appears as drive E:; Play starts it in a 1280x720 window (change it next to the game). Saves go to C:.</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It is copied to drive D: (a .zip becomes a folder) without restarting Windows; open it in the file manager. Drive D: and what you install stay saved in this browser. 64-bit programs do not run yet. Memory: up to 3 GB. Internet goes through the Hub tunnel.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine. Wallpaper: "Altai" by Alesya Khoteeva (KDE), CC BY-SA 4.0.</p></div></details>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT). A multi-core mode can be turned on in ⚙ (experimental).</p><p>Add game: pick the game folder (32-bit Windows games). It is copied once to this browser's disk and appears as drive E:; Play starts it in a 1280x720 window (change it next to the game). Saves go to C:. Add game archive: a .zip, .rar or .7z of the game is unpacked straight to that disk (7-Zip, LGPL + unRAR license).</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It is copied to drive D: (a .zip becomes a folder) without restarting Windows; open it in the file manager. Drive D: and what you install stay saved in this browser. 64-bit programs do not run yet. Memory: up to 3 GB. Internet goes through the Hub tunnel.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine. Wallpaper: "Altai" by Alesya Khoteeva (KDE), CC BY-SA 4.0.</p></div></details>
 </header>
 <main class="ink-main">
   <input id="arquivo" type="file" accept=".zip,.exe,application/zip,application/x-msdownload" hidden>
   <input id="pasta-jogo" type="file" webkitdirectory multiple hidden>
+  <input id="arq-jogo" type="file" accept=".zip,.rar,.7z,.tar,.gz,.iso" hidden>
   <p class="nota" id="estado"></p>
   <div id="jogos" hidden><div id="jogos-lista"></div><p class="nota"><span id="medidas"></span> <button class="ink-btn" id="btn-medidas" type="button">Copy measurements</button></p></div>
   <div class="linha" id="lista" hidden></div>
@@ -68,6 +70,6 @@
 <script src="engine/jszip.min.js?v=1"></script>
 <script src="jit/fsfs.js?v=1"></script>
 <script src="jit/boxedwine-shell.js?v=1"></script>
-<script src="wine.js?v=27"></script>
+<script src="wine.js?v=28"></script>
 </body>
 </html>
