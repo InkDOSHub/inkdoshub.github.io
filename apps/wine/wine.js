@@ -322,6 +322,24 @@ function escolherExe(lista) {
   return bons.length ? bons[0].caminho : "";
 }
 $("btn-jogo").onclick = function () { $("pasta-jogo").click(); };
+$("btn-jogo-arq").onclick = function () { $("arq-jogo").click(); };
+// a game archive (.zip, .rar, .7z) is unpacked by 7-Zip straight into the disk
+$("arq-jogo").onchange = function () {
+  var f = this.files[0]; this.value = ""; if (!f) return;
+  var nome = f.name.replace(/\.[^.]+$/, "").replace(/[^\w.\-]/g, "_") || "game";
+  var w = new Worker("engine/extrator.js?v=1");
+  estado("Opening " + f.name + "…");
+  w.onmessage = function (e) {
+    if (e.data.estado) { estado(e.data.estado); return; }
+    w.terminate();
+    if (!e.data.lista) { estado("Could not unpack: " + e.data.erro); listarJogos(); return; }
+    var p = perfil(nome); p.exe = p.exe || escolherExe(e.data.lista); p.exes = e.data.lista.filter(function (x) { return /\.exe$/i.test(x.caminho); }).map(function (x) { return x.caminho; }); salvarPerfil(nome, p);
+    estado(nome + " unpacked (" + Math.round(e.data.total / 1048576) + " MB)" + (e.data.erro ? " with errors: " + e.data.erro : "") + ". Tap Play.");
+    listarJogos();
+  };
+  w.onerror = function (e) { estado("Could not unpack: " + e.message); };
+  w.postMessage({ arq: f, nome: nome });
+};
 $("pasta-jogo").onchange = async function () {
   var fs = Array.prototype.slice.call(this.files); this.value = "";
   if (!fs.length) return;
