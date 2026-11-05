@@ -37,7 +37,7 @@
     <p><b>Desktop.</b> Openbox (windows), tint2 (taskbar) and PCManFM (files and desktop icons), about 70 MB in all. It is the best balance between a real desktop and lightness on an emulated 32-bit processor: JWM or plain Openbox lack a file manager and taskbar, while Xfce, LXQt or GNOME are 3 to 10 times heavier and slow to open here.</p>
     <p><b>Programs.</b> Install with <code>apk add name</code>. Repositories: Alpine main and community (in /etc/apk/repositories; testing can be added). Inside, pip (Python), npm (Node.js), git and gcc also work for their own packages. Only 32-bit programs run.</p>
     <p><b>Internet.</b> Through the Hub tunnel on Cloudflare: TCP only (web, git, apk, ssh). No UDP or ping, no e-mail sending (port 25), and no incoming connections. Modern sites in a browser inside Linux are too slow to be practical.</p>
-    <p><b>Memory and files.</b> 1.5 GB of RAM, compressed memory (zram) and a 2 GB swap disk in the site storage. The system disk (3 GB) is downloaded once and keeps what you install. Open file copies to /root/Device, a folder shared with the Windows environment (D:\Shared there). Built by GitHub Actions: tools/linux-gui.</p>
+    <p><b>Memory and files.</b> 1 GB of RAM, compressed memory (zram) and a 2 GB swap disk in the site storage. The system disk (3 GB) is downloaded once and keeps what you install. Open file copies to /root/Device, a folder shared with the Windows environment (D:\Shared there). Built by GitHub Actions: tools/linux-gui.</p>
   </div></details>
 </header>
 <main class="ink-main">
@@ -49,6 +49,6 @@
   <details id="log"><summary>Log</summary><button class="ink-btn" id="btn-copiar" type="button">Copy log</button><pre id="log-txt"></pre></details>
 </main>
 <script src="../compartilhada.js?v=1"></script>
-<script type="module" src="linux.js?v=3"></script>
+<script type="module" src="linux.js?v=4"></script>
 </body>
 </html>

@@ -6,7 +6,7 @@ import { V86 } from "../../../terminal/vendor/v86/libv86.mjs?v=5";
 const V = "../../../terminal/";
 const IMG = /workers\.dev$|^(localhost|127\.)/.test(location.hostname) ? "linux-gui.img.gz"
   : "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/emulador/linux/linux-gui.img.gz";
-const RAM_MB = 1536, SWAP = 2000 * 1024 * 1024, CHAVE = "inkdoshub-linux-disco";
+const RAM_MB = 1024, SWAP = 2000 * 1024 * 1024, CHAVE = "inkdoshub-linux-disco";
 const $ = (id) => document.getElementById(id);
 const estado = (t) => { $("estado").textContent = t; };
 const linhas = [];
