@@ -97,6 +97,35 @@ async function iniciar() {
     }
     this.value = "";
   };
+  // shared folder with the Windows environment (../compartilhada.js): /root/Device
+  emulator.add_listener("emulator-ready", async () => {
+    const fs = emulator.fs9p;
+    try {
+      for (const f of await Compartilhada.carregar()) {
+        const partes = f.path.split("/");
+        let pai = 0;
+        for (const nome of partes.slice(0, -1)) {
+          const sub = fs.Search(pai, nome);
+          pai = sub === -1 ? fs.CreateDirectory(nome, pai) : sub;
+        }
+        await emulator.create_file("/" + f.path, f.data);
+      }
+    } catch (e) { console.warn("shared folder:", e); }
+    const listar = (dir) => {
+      const out = [];
+      for (const nome of fs.read_dir(dir) || []) {
+        const c = (dir === "/" ? "" : dir) + "/" + nome, r = fs.SearchPath(c);
+        if (r.id === -1 || nome === ".inkdoshub") continue;
+        if (fs.IsDirectory(r.id)) out.push(...listar(c));
+        else out.push({ path: c.slice(1), mtime: fs.GetInode(r.id).mtime + ":" + fs.GetInode(r.id).size, ler: () => emulator.read_file(c) });
+      }
+      return out;
+    };
+    const salvar = () => Compartilhada.salvar(listar("/"));
+    salvar();
+    setInterval(salvar, 5000);
+    addEventListener("pagehide", salvar);
+  });
   $("btn-teclado").onclick = () => $("teclado").focus();
   setInterval(() => pedir({ op: "flush" }).catch(() => {}), 10000);
 }
