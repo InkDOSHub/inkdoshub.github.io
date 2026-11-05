@@ -194,11 +194,17 @@ $("btn-copiar").onclick = function () {
 };
 
 // feedback: download progress, Wine messages in the Log, and a hint while Windows starts
-var linhasLog = [];
+// the log is also kept in this browser, so it survives a crash that reloads the page
+var linhasLog = [], logAnterior = "", salvaLog = 0;
+try { logAnterior = localStorage.getItem("wine-log") || ""; } catch (e) {}
 function registra(t) {
   linhasLog.push(String(t)); if (linhasLog.length > 400) linhasLog.shift();
-  $("log-txt").textContent = linhasLog.join("\n");
+  $("log-txt").textContent = linhasLog.join("\n") + (logAnterior ? "\n\n--- previous start ---\n" + logAnterior : "");
+  clearTimeout(salvaLog); salvaLog = setTimeout(function () {
+    try { localStorage.setItem("wine-log", (JOGO ? "game " + JOGO + " · " : "") + new Date().toISOString() + " · memory " + ((typeof HEAP8 !== "undefined" && HEAP8) ? Math.round(HEAP8.length / 1048576) : 0) + " MB\n" + linhasLog.slice(-150).join("\n")); } catch (e) {}
+  }, 300);
 }
+if (logAnterior) setTimeout(function () { $("log-txt").textContent = "--- previous start ---\n" + logAnterior; }, 0);
 var printOrig = Module.print, errOrig = Module.printErr, statusOrig = Module.setStatus;
 Module.print = function (t) { registra(t); printOrig.apply(this, arguments); };
 Module.printErr = function (t) {
