@@ -40,11 +40,12 @@ onmessage = async function (e) {
       if (k % 50 === 0) diag("Preparing " + (k + 1) + "/" + arquivos.length + " files");
     }
     // 3) files 7-Zip writes under /out go straight to the disk
-    FS.mkdir("/out"); FS.writeFile("/out/.x", ""); var ops = FS.lookupPath("/out/.x").node.stream_ops, escreve = ops.write, feito = 0, ultimo = 0;
+    FS.mkdir("/out"); FS.writeFile("/out/.x", ""); var escritos = {}, ops = FS.lookupPath("/out/.x").node.stream_ops, escreve = ops.write, feito = 0, ultimo = 0;
     ops.write = function (stream, buffer, offset, length, position) {
       var h = alvos[stream.path];
       if (!h) return escreve.apply(this, arguments);
       h.write(buffer.subarray(offset, offset + length), { at: position });
+      escritos[stream.path] = Math.max(escritos[stream.path] || 0, position + length);
       stream.node.usedBytes = Math.max(stream.node.usedBytes || 0, position + length);
       feito += length;
       var t = Date.now(); if (t - ultimo > 500) { ultimo = t; diag("Unpacking " + nome + ": " + Math.round(feito / 1048576) + " of " + Math.round(total / 1048576) + " MB"); }
@@ -52,7 +53,9 @@ onmessage = async function (e) {
     };
     linhas = []; var r = sz.callMain(["x", "-y", "-aoa", "-bsp0", "-o/out", entrada]);
     Object.keys(alvos).forEach(function (p) { try { alvos[p].flush(); alvos[p].close(); } catch (x) {} });
-    var erro = linhas.filter(function (l) { return /ERROR|Wrong password|Can not open/i.test(l); }).slice(0, 3).join(" ");
+    // files 7-Zip did not hand over in full (written somewhere else, or failed)
+    var faltam = arquivos.filter(function (f) { return f.tam > 0 && (escritos["/out/" + f.caminho] || 0) < f.tam; });
+    var erro = (faltam.length ? faltam.length + " files came out incomplete (e.g. " + faltam[0].caminho + ": " + (escritos["/out/" + faltam[0].caminho] || 0) + " of " + faltam[0].tam + " bytes). " : "") + linhas.filter(function (l) { return /ERROR|Wrong password|Can not open/i.test(l); }).slice(0, 3).join(" ") + (faltam.length ? " 7-Zip: " + linhas.slice(-4).join(" | ") : "");
     postMessage({ fim: true, erro: erro, lista: arquivos.map(function (f) { return { caminho: f.caminho.slice(tira.length), tam: f.tam }; }), total: total });
   } catch (err) { postMessage({ fim: true, erro: (err && err.message) || String(err) }); }
 };

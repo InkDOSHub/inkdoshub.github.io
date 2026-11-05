@@ -370,7 +370,7 @@ $("btn-jogo-arq").onclick = function () { $("arq-jogo").click(); };
 $("arq-jogo").onchange = function () {
   var f = this.files[0]; this.value = ""; if (!f) return;
   var nome = f.name.replace(/\.[^.]+$/, "").replace(/[^\w.\-]/g, "_") || "game";
-  var w = new Worker("engine/extrator.js?v=1");
+  var w = new Worker("engine/extrator.js?v=2");
   estado("Opening " + f.name + "…");
   w.onmessage = function (e) {
     if (e.data.estado) { estado(e.data.estado); return; }
