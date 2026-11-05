@@ -84,8 +84,9 @@ function iniciar() {
     set: function (v) { dllBase = v || ""; } });
   Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&overlay=visual&overlayBase=visual%2F&storageKey=default" +
     "&auto=true&resolution=" + TELA + (ligado(SERVICOS[0]) ? NET : "") +
-    "&p=explorer&args=" + encodeURIComponent("/desktop=shell," + TELA + " winefile.exe D:\\");
-  estado("Loading Wine 11 (about 100 MB the first time)…");
+    "&p=explorer&args=" + encodeURIComponent(JOGO ? jogoArgs(JOGO) : "/desktop=shell," + TELA + " winefile.exe D:\\");
+  estado(JOGO ? "Starting " + JOGO + "…" : "Loading Wine 11 (about 100 MB the first time)…");
+  montarJogos();
   var s = document.createElement("script");
   if (MOTOR === "mtjit/") try { localStorage.setItem("wine-mt-tentando", "1"); } catch (e) {}
   s.src = MOTOR + "boxedwine.js?v=2";
@@ -115,10 +116,10 @@ var RAPIDO = "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/wine/";
 if (isolar()) {} else if (navigator.locks) {
   navigator.locks.request("inkdoshub-emulador", { ifAvailable: true }, function (lock) {
     if (!lock) { estado("Another emulator is open in another tab or window. Close it first, then reload this page."); return; }
-    iniciar();
+    listarJogos().then(iniciar, iniciar);
     return new Promise(function () {});
   });
-} else iniciar();
+} else listarJogos().then(iniciar, iniciar);
 
 // --- files to drive D: (live, no restart) ---
 function escreverD(caminho, dados) {
@@ -221,3 +222,158 @@ var esperaWin = setInterval(function () {
   estado(s < 20 ? "Windows is starting… " + s + " s" : "");
   if (s >= 20) { clearInterval(esperaWin); try { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-reg", REG_CHAVE); } catch (e) {} }
 }, 1000);
+
+// --- Games: a game folder is copied once to this page's disk (OPFS) and shows up as drive E:.
+// Wine reads it from the disk in 1 MB pieces only when the game asks (no copy in memory), so a
+// game of many GB fits. E: is read-only; saves go to C: (Documents), which is kept.
+var JOGO = new URLSearchParams(location.search).get("jogo") || "";
+var JOGOS = [], ARQS = [];
+function perfil(nome) { try { return JSON.parse(localStorage.getItem("jogo-" + nome)) || {}; } catch (e) { return {}; } }
+function salvarPerfil(nome, p) { try { localStorage.setItem("jogo-" + nome, JSON.stringify(p)); } catch (e) {} }
+function jogoArgs(nome) {
+  var p = perfil(nome), exe = (p.exe || "").replace(/\//g, "\\"), pasta = exe.lastIndexOf("\\") > 0 ? exe.slice(0, exe.lastIndexOf("\\")) : "";
+  var res = p.res || "1280x720";
+  return "/desktop=jogo," + res + ' start.exe /d "E:\\' + nome + (pasta ? "\\" + pasta : "") + '" "E:\\' + nome + "\\" + exe + '"';
+}
+async function pastaJogos() { return (await navigator.storage.getDirectory()).getDirectoryHandle("jogos", { create: true }); }
+async function listar(dir, prefixo, saida) {
+  for await (var [nome, h] of dir.entries()) {
+    if (h.kind === "directory") await listar(h, prefixo + nome + "/", saida);
+    else saida.push({ caminho: prefixo + nome, arquivo: await h.getFile() });
+  }
+}
+async function listarJogos() {
+  if (!navigator.storage || !navigator.storage.getDirectory) return;
+  var raiz = await pastaJogos();
+  JOGOS = []; for await (var [nome, h] of raiz.entries()) if (h.kind === "directory") JOGOS.push(nome);
+  JOGOS.sort(); mostrarJogos();
+  // only the game being played is mounted (listing every file of every game would be slow)
+  if (JOGO && JOGOS.indexOf(JOGO) >= 0) { ARQS = []; await listar(await raiz.getDirectoryHandle(JOGO), JOGO + "/", ARQS); }
+}
+// piece cache shared by all files: at most 96 MB, the oldest piece goes first
+var PEDACO = 1048576, CACHE = new Map(), CACHE_MAX = 96, LIDOS = { pedacos: 0, mb: 0 };
+function pedaco(url, i, tam) {
+  var k = url + "#" + i, c = CACHE.get(k);
+  if (c) { CACHE.delete(k); CACHE.set(k, c); return c; }
+  var a = i * PEDACO, b = Math.min(tam, a + PEDACO) - 1, x = new XMLHttpRequest();
+  x.open("GET", url, false); x.setRequestHeader("Range", "bytes=" + a + "-" + b);
+  x.overrideMimeType("text/plain; charset=x-user-defined"); x.send();
+  var t = x.responseText, u = new Uint8Array(t.length);
+  for (var j = 0; j < t.length; j++) u[j] = t.charCodeAt(j);
+  // a browser that ignores Range sends the whole file: keep only the piece asked for
+  if (u.length > b - a + 1) u = u.slice(a, b + 1);
+  CACHE.set(k, u); LIDOS.pedacos++; LIDOS.mb += u.length / 1048576;
+  if (CACHE.size > CACHE_MAX) CACHE.delete(CACHE.keys().next().value);
+  return u;
+}
+function arquivoPreguicoso(dir, nome, arq) {
+  var url = URL.createObjectURL(arq), tam = arq.size;
+  var node = FS.createFile(dir, nome, { isDevice: false }, true, false);
+  node.contents = null;
+  Object.defineProperty(node, "usedBytes", { get: function () { return tam; } });
+  var ops = Object.assign({}, node.stream_ops);
+  ops.read = function (stream, buffer, offset, length, position) {
+    if (position >= tam) return 0;
+    var n = Math.min(length, tam - position), feito = 0;
+    while (feito < n) {
+      var p = position + feito, i = Math.floor(p / PEDACO), o = p - i * PEDACO, c = pedaco(url, i, tam), k = Math.min(n - feito, c.length - o);
+      buffer.set(c.subarray(o, o + k), offset + feito); feito += k;
+    }
+    return n;
+  };
+  ops.write = function () { throw new FS.ErrnoError(2); };
+  node.stream_ops = ops;
+}
+function montarJogos() {
+  Module.preRun.push(function () {
+    FS.mkdirTree("/games");
+    ARQS.forEach(function (a) {
+      var partes = a.caminho.split("/"), nome = partes.pop(), dir = "/games/" + partes.join("/");
+      FS.mkdirTree(dir);
+      try { arquivoPreguicoso(dir, nome, a.arquivo); } catch (e) { registra("E: could not add " + a.caminho + ": " + e.message); }
+    });
+  });
+  // drive E: = /games (added just before Wine starts)
+  var args = [], push = args.push;
+  args.push = function (v) { if (v === "/bin/wine" && args.indexOf("/games") < 0) push.call(args, "-mount_drive", "/games", "e"); return push.apply(args, arguments); };
+  Module.arguments = args;
+}
+// copy a picked folder to the disk; the file itself is streamed, never held whole in memory
+var ESCRITOR = "onmessage=async function(e){var d=await navigator.storage.getDirectory();for(var p of e.data.dir)d=await d.getDirectoryHandle(p,{create:true});var h=await(await d.getFileHandle(e.data.nome,{create:true})).createSyncAccessHandle();h.truncate(0);var r=e.data.arq.stream().getReader(),pos=0;for(;;){var x=await r.read();if(x.done)break;h.write(x.value,{at:pos});pos+=x.value.length}h.flush();h.close();postMessage(pos)}";
+var escritor = null;
+function gravarWorker(dir, nome, arq) {
+  escritor = escritor || new Worker(URL.createObjectURL(new Blob([ESCRITOR], { type: "text/javascript" })));
+  return new Promise(function (ok, no) { escritor.onmessage = function (e) { ok(e.data); }; escritor.onerror = function (e) { no(new Error(e.message)); }; escritor.postMessage({ dir: dir, nome: nome, arq: arq }); });
+}
+async function gravar(raiz, partes, arq) {
+  var d = raiz, nome = partes[partes.length - 1];
+  for (var i = 0; i < partes.length - 1; i++) d = await d.getDirectoryHandle(partes[i], { create: true });
+  var fh = await d.getFileHandle(nome, { create: true });
+  if (fh.createWritable) { var w = await fh.createWritable(); await arq.stream().pipeTo(w); return; }
+  await gravarWorker(["jogos"].concat(partes.slice(0, -1)), nome, arq);
+}
+function escolherExe(lista) {
+  var bons = lista.filter(function (f) { return /\.exe$/i.test(f.caminho) && !/unins|setup|crash|redist|dxsetup|dotnet|vcredist|launcher|updater|install/i.test(f.caminho); });
+  bons.sort(function (a, b) { return b.tam - a.tam; });
+  return bons.length ? bons[0].caminho : "";
+}
+$("btn-jogo").onclick = function () { $("pasta-jogo").click(); };
+$("pasta-jogo").onchange = async function () {
+  var fs = Array.prototype.slice.call(this.files); this.value = "";
+  if (!fs.length) return;
+  var nome = (fs[0].webkitRelativePath || fs[0].name).split("/")[0].replace(/[^\w.\-]/g, "_") || "game";
+  var raiz = await pastaJogos(), total = fs.reduce(function (s, f) { return s + f.size; }, 0), feito = 0, lista = [];
+  try {
+    for (var i = 0; i < fs.length; i++) {
+      var partes = (fs[i].webkitRelativePath || fs[i].name).split("/"); partes[0] = nome;
+      estado("Copying " + nome + ": " + Math.round(feito / 1048576) + " of " + Math.round(total / 1048576) + " MB (" + (i + 1) + "/" + fs.length + " files)");
+      await gravar(raiz, partes, fs[i]); feito += fs[i].size;
+      lista.push({ caminho: partes.slice(1).join("/"), tam: fs[i].size });
+    }
+  } catch (e) { estado("Copy stopped: " + e.message + " (disk full?)"); return; }
+  var p = perfil(nome); p.exe = p.exe || escolherExe(lista); p.exes = lista.filter(function (f) { return /\.exe$/i.test(f.caminho); }).map(function (f) { return f.caminho; }); salvarPerfil(nome, p);
+  estado(nome + " copied (" + Math.round(total / 1048576) + " MB). Pick it below and tap Play.");
+  listarJogos();
+};
+function mostrarJogos() {
+  var c = $("jogos-lista"); c.textContent = "";
+  JOGOS.forEach(function (nome) {
+    var p = perfil(nome), linha = document.createElement("div"); linha.className = "linha";
+    var t = document.createElement("strong"); t.textContent = nome;
+    var sel = document.createElement("select"); sel.title = "Program to start";
+    (p.exes && p.exes.length ? p.exes : [p.exe || ""]).forEach(function (x) { var o = document.createElement("option"); o.value = o.textContent = x; o.selected = x === p.exe; sel.appendChild(o); });
+    sel.onchange = function () { p.exe = sel.value; salvarPerfil(nome, p); };
+    var res = document.createElement("select"); res.title = "Resolution";
+    ["640x360", "960x540", "1280x720"].forEach(function (r) { var o = document.createElement("option"); o.value = o.textContent = r; o.selected = r === (p.res || "1280x720"); res.appendChild(o); });
+    res.onchange = function () { p.res = res.value; salvarPerfil(nome, p); };
+    var jogar = document.createElement("a"); jogar.className = "ink-btn"; jogar.textContent = "Play"; jogar.href = "?jogo=" + encodeURIComponent(nome);
+    var tirar = document.createElement("button"); tirar.className = "ink-btn"; tirar.type = "button"; tirar.textContent = "Remove";
+    tirar.onclick = async function () { await (await pastaJogos()).removeEntry(nome, { recursive: true }); try { localStorage.removeItem("jogo-" + nome); } catch (e) {} listarJogos(); };
+    linha.append(t, sel, res, jogar, tirar); c.appendChild(linha);
+  });
+  $("jogos").hidden = false;
+}
+// measurements: frames drawn by the game, memory, disk reads; kept in this browser and copied as JSON
+var MED = { quadros: 0 };
+(function () {
+  var gc = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function (t, o) {
+    var ctx = gc.apply(this, arguments);
+    if (ctx && /webgl/.test(t) && !ctx.__med) { ctx.__med = 1; var cl = ctx.clear; ctx.clear = function () { MED.quadros++; return cl.apply(this, arguments); }; }
+    return ctx;
+  };
+})();
+var medidas = [], q0 = 0, t0 = performance.now();
+setInterval(function () {
+  if (!isRunning) return;
+  var t = performance.now(), fps = (MED.quadros - q0) * 1000 / (t - t0); q0 = MED.quadros; t0 = t;
+  var mem = (typeof HEAP8 !== "undefined" && HEAP8) ? Math.round(HEAP8.length / 1048576) : 0;
+  var m = { s: Math.round((Date.now() - (inicioWin || Date.now())) / 1000), fps: Math.round(fps), wasmMB: mem, diskMB: Math.round(LIDOS.mb), cacheMB: CACHE.size };
+  medidas.push(m); if (medidas.length > 600) medidas.shift();
+  $("medidas").textContent = m.fps + " fps · memory " + mem + " MB · read from disk " + m.diskMB + " MB";
+  try { localStorage.setItem("jogos-medidas", JSON.stringify({ jogo: JOGO, perfil: perfil(JOGO), ua: navigator.userAgent, isolado: self.crossOriginIsolated, motor: MOTOR, medidas: medidas })); } catch (e) {}
+}, 2000);
+$("btn-medidas").onclick = function () {
+  var t = ""; try { t = localStorage.getItem("jogos-medidas") || ""; } catch (e) {}
+  navigator.clipboard.writeText(t).then(function () { estado("Measurements copied."); }, function () { estado("Copy failed."); });
+};
