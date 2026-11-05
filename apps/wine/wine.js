@@ -200,8 +200,11 @@ Module.printErr = function (t) {
   if (MOTOR === "mtjit/" && /^\[post-exception status\]/.test(String(t)) && !Module.voltouUmNucleo) {
     Module.voltouUmNucleo = true;
     try { localStorage.setItem("wine-inicio-multi", "0"); localStorage.removeItem("wine-mt-tentando"); } catch (e) {}
-    estado("Multi-core mode failed on this browser: starting again with one core…");
-    setTimeout(function () { location.reload(); }, 1500);
+    // during the start: restart by itself; later (a program was in use): only say so, the person restarts
+    if (!inicioWin || Date.now() - inicioWin < 20000) {
+      estado("Multi-core mode failed on this browser: starting again with one core…");
+      setTimeout(function () { location.reload(); }, 1500);
+    } else estado("Windows stopped with an error in multi-core mode. Tap Restart Windows: it will use one core (switch in ⚙).");
   }
 };
 Module.setStatus = function (t) {
