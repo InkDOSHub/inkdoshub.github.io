@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=7">
+<title>Emulator · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=1">
+<link rel="stylesheet" href="../../assets/barra.css?v=5">
+<script src="../../assets/barra.js?v=3" defer></script>
+<script src="../../assets/icones.js?v=2" defer></script>
+<style>
+  .ink-main{overflow:auto;padding:16px;display:flex;justify-content:center}
+  .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;width:100%;max-width:920px;align-content:start}
+  .amb{display:flex;flex-direction:column;gap:6px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);text-decoration:none}
+  .amb:hover{border-color:var(--muted)}
+  .amb b{font-size:16px}
+  .amb span{color:var(--muted);font-size:13px;line-height:1.45}
+  .amb.off{opacity:.5;pointer-events:none}
+</style>
+</head>
+<body class="ink-app" data-simbolo="../../assets/inkdoshub-icone-32.png?v=7">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Emulator</span>
+  <span class="ink-spacer"></span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Each environment runs x86 code translated to WebAssembly while it runs (JIT), which the browser turns into instructions for this device's chip. Several cores are used on the fast link. Each environment downloads its files only when you open it.</p></div></details>
+</header>
+<main class="ink-main">
+  <div class="grade">
+    <a class="amb" href="../wine/"><b>Windows</b><span>Wine 11. Runs 32-bit Windows programs inside a desktop.</span></a>
+    <a class="amb" href="linux/" id="amb-linux"><b>Linux</b><span>Light Linux with a desktop.</span></a>
+    <a class="amb" href="../../terminal/"><b>Linux terminal</b><span>Command line Linux, with network and a choice of memory.</span></a>
+    <a class="amb" href="avancado/" id="amb-avancado"><b>Advanced</b><span>Choose engine, memory, screen and files, and test your own setup.</span></a>
+  </div>
+</main>
+</body>
+</html>

@@ -108,17 +108,17 @@ let swap = null;
 if (LIMITADA) {
   try { swap = await abrirSwap(); } catch (err) { console.warn("storage swap unavailable:", err); }
 }
-// Network: like other in-browser Linux emulators, Linux reaches the
-// internet through a public network server (the same one copy.sh/v86 offers).
-//   "wisp"  -> wisps://wisp.mercurywork.shop/v86/ (default, full TCP, http and https)
+// Network: Linux reaches the internet through a network server.
+//   "hub"   -> the Hub's own tunnel on Cloudflare (worker.js, wisp protocol; default)
+//   "wisp"  -> wisps://wisp.mercurywork.shop/v86/ (public server copy.sh/v86 offers)
 //   "relay" -> wss://relay.widgetry.org/ (ethernet completa)
 //   "off"   -> no network
 // Only the known names are accepted (see below).
-const REDES = { wisp: "wisps://wisp.mercurywork.shop/v86/", relay: "wss://relay.widgetry.org/", off: undefined };
+const REDES = { hub: "wisps://inkdoshub-github-io.vfydr2m9wk.workers.dev/net/wisp/", wisp: "wisps://wisp.mercurywork.shop/v86/", relay: "wss://relay.widgetry.org/", off: undefined };
 let savedRede;
-try { savedRede = localStorage.getItem("inkdoshub-rede2"); } catch {}
+try { savedRede = localStorage.getItem("inkdoshub-rede3"); } catch {}
 // Only known names: a link with ?rede=<address> cannot send Linux traffic to another server.
-const REDE = [params.get("rede"), savedRede].find((r) => Object.hasOwn(REDES, r)) || "wisp";
+const REDE = [params.get("rede"), savedRede].find((r) => Object.hasOwn(REDES, r)) || "hub";
 const relayUrl = REDES[REDE];
 const config = {
   wasm_path: "vendor/v86/v86.wasm",
@@ -327,12 +327,12 @@ document.getElementById("download-close").addEventListener("click", () => dialog
 // ---------- Escolha da rede ----------
 // One button (XeOS redraws <select>s): each tap moves to the next option and boots again.
 const redeBtn = document.getElementById("rede");
-const NOMES = { wisp: t("Network: {name}", { name: "wisp" }), relay: t("Network: {name}", { name: "relay" }), off: t("No network") };
+const NOMES = { hub: t("Network: {name}", { name: "Hub" }), wisp: t("Network: {name}", { name: "wisp" }), relay: t("Network: {name}", { name: "relay" }), off: t("No network") };
 redeBtn.textContent = NOMES[REDE];
 redeBtn.addEventListener("click", () => {
-  const ordem = ["wisp", "relay", "off"];
+  const ordem = ["hub", "wisp", "relay", "off"];
   const prox = ordem[(ordem.indexOf(REDE) + 1) % ordem.length];
-  try { localStorage.setItem("inkdoshub-rede2", prox); } catch {}
+  try { localStorage.setItem("inkdoshub-rede3", prox); } catch {}
   const q = new URLSearchParams(location.search);
   q.delete("rede");
   location.search = q.toString();
