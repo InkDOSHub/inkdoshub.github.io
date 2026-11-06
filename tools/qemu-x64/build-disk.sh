@@ -20,7 +20,7 @@ if [ -n "${HTTPS_PROXY:-}" ]; then
 fi
 docker run --name ink-x64-disk "${PROXY[@]}" -v "$HERE/overlay":/overlay:ro -v "$WORK/disk/visual":/visual:ro alpine:3.21 sh -euc '
   [ -f /proxy-ca.crt ] && cat /proxy-ca.crt >> /etc/ssl/certs/ca-certificates.crt
-  apk add -q --no-cache linux-virt eudev xorg-server xf86-input-libinput font-misc-misc font-cursor-misc wine xvfb-run >/dev/null
+  apk add -q --no-cache linux-virt eudev xorg-server xf86-video-fbdev xf86-input-libinput font-misc-misc font-cursor-misc wine xvfb-run >/dev/null
   cp -a /overlay/. /
   export HOME=/root WINEPREFIX=/root/.wine WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml="
   xvfb-run -a sh -c "wineboot -i && wineserver -w"

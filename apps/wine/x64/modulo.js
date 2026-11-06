@@ -16,7 +16,7 @@ Module["arguments"] = [
   "-usb", "-device", "usb-tablet",
   "-L", "/pack-rom/", "-nic", "none",
   "-kernel", "/pack-kernel/vmlinuz-virt", "-initrd", "/pack-initramfs/initramfs-virt",
-  "-append", "root=/dev/vda rootfstype=ext4 rw init=/sbin/inkinit modules=ext4 quiet video=1024x768",
+  "-append", "root=/dev/vda rootfstype=ext4 rw init=/sbin/inkinit modules=ext4 console=tty0 video=1024x768",
   "-drive", "id=d,file=/pack-rootfs/disk-rootfs.img,format=raw,if=none,snapshot=on", "-device", "virtio-blk-pci,drive=d"
 ];
 Module["locateFile"] = function (path) { return MAQ + path + (/rootfs\.data$/.test(path) && DISCO ? "?v=" + DISCO : ""); };
@@ -28,3 +28,6 @@ Module["setStatus"] = function (t) {
 };
 // the disk version changes the address, so a new build is not taken from the cache
 try { var x = new XMLHttpRequest(); x.open("GET", MAQ + "disk.json?t=" + Date.now(), false); x.send(); DISCO = JSON.parse(x.responseText).rootfs || ""; } catch (e) {}
+// QEMU keeps the disk changes (snapshot=on) in a temporary file under /var/tmp
+Module["preRun"] = Module["preRun"] || [];
+Module["preRun"].push(function () { try { Module.FS.mkdirTree("/var/tmp"); } catch (e) { try { FS.mkdirTree("/var/tmp"); } catch (e2) {} } });
