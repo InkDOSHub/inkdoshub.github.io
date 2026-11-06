@@ -153,6 +153,19 @@
         $("msg").textContent = t("{n} files saved in the folder \"{folder}\".", { n: out.length, folder: destino.name });
         return;
       }
+      // XeOS has its own folders and offers them through showSaveFilePicker: one save per file,
+      // with the archive path as the suggested name
+      if (window.showSaveFilePicker) {
+        for (var k = 0; k < out.length; k++) {
+          trabalhando(t("Saving {n} of {total}", { n: k + 1, total: out.length }), k / out.length);
+          var fh = await showSaveFilePicker({ suggestedName: out.length > 1 ? out[k].caminho : out[k].caminho.split("/").pop() });
+          var w = await fh.createWritable(); await w.write(out[k].file); await w.close();
+        }
+        trabalhando("");
+        $("msg").className = "nota ok";
+        $("msg").textContent = t("{n} files saved.", { n: out.length });
+        return;
+      }
       // iPad/iPhone: the share sheet ("Save to Files") saves into the folder the person picks, but
       // cannot make subfolders, so each folder of the archive gets its own button
       if (!(navigator.share && navigator.canShare && navigator.canShare({ files: [out[0].file] }))) {
