@@ -174,7 +174,7 @@ Module['FS_createPath']("/", "pack-initramfs", true, true);
     }
 
     }
-    loadPackage({"files": [{"filename": "/pack-initramfs/initramfs-virt", "start": 0, "end": 9736498}], "remote_package_size": 9736498});
+    loadPackage({"files": [{"filename": "/pack-initramfs/initramfs-virt", "start": 0, "end": 9736475}], "remote_package_size": 9736475});
 
   })();
 
