@@ -30,6 +30,13 @@
   body.cheia #sair-cheia{display:block}
   #inicio-opcoes label{display:flex;gap:8px;align-items:center;margin:6px 0;cursor:pointer}
   .menu-inicio .pop{min-width:260px}
+  #comecar{margin:auto;display:flex;flex-direction:column;gap:12px;width:min(380px,100%);padding:20px;border:1px solid var(--border);border-radius:14px;background:var(--card)}
+  #comecar h2{margin:0;font-size:18px}
+  .maquina{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:2px solid #7c3aed;border-radius:10px}
+  .maquina .nota{text-align:left}
+  .campo{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+  .campo select{font:inherit;font-size:15px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit}
+  .acao{font-weight:600;background:#7c3aed;border-color:#7c3aed;color:#fff;padding:9px 16px}
 </style>
 </head>
 <body class="ink-app" data-simbolo="../../assets/icones-inkdos/wine.svg">
@@ -37,23 +44,25 @@
   <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
   <span class="ink-title">Wine</span>
   <span class="ink-spacer"></span>
-  <button class="ink-btn" id="btn-jogo" type="button">Add game folder</button>
-  <button class="ink-btn" id="btn-jogo-arq" type="button">Add game archive</button>
-  <button class="ink-btn" id="btn-abrir" type="button">Open file</button>
-  <button class="ink-btn" id="btn-teste" type="button">CPU test (to D:)</button>
-  <button class="ink-btn" id="btn-cheia" type="button">Full screen</button>
-  <button class="ink-btn" id="btn-desktop" type="button">Restart Windows</button>
-  <details class="i solto menu-inicio"><summary title="Startup" aria-label="Startup">⚙</summary><div class="pop"><p><strong>Startup</strong></p><div id="inicio-opcoes"></div><p class="nota" id="inicio-aviso" hidden>Applies from the next start: <button class="ink-btn" type="button" onclick="location.reload()">Restart Windows</button></p><p>Fewer services make Windows start faster. Turn on what a program needs.</p></div></details>
-  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT). A multi-core mode can be turned on in ⚙ (experimental).</p><p>Add game: pick the game folder (32-bit Windows games). It is copied once to this browser's disk and appears as drive E:; Play starts it in a 1280x720 window (change it next to the game). Saves go to C:. Add game archive: a .zip, .rar or .7z of the game is unpacked straight to that disk (7-Zip, LGPL + unRAR license).</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It is copied to drive D: (a .zip becomes a folder) without restarting Windows; open it in the file manager. Drive D: and what you install stay saved in this browser. 64-bit programs do not run yet. Memory: up to 3 GB. Internet goes through the Hub tunnel.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine. Wallpaper: "Altai" by Alesya Khoteeva (KDE), CC BY-SA 4.0.</p></div></details>
+  <button class="ink-btn" id="btn-abrir" type="button" hidden>Open file</button>
+  <button class="ink-btn" id="btn-teste" type="button" hidden>CPU test (to D:)</button>
+  <button class="ink-btn" id="btn-cheia" type="button" hidden>Full screen</button>
+  <button class="ink-btn" id="btn-desktop" type="button" hidden>Restart Windows</button>
+  <details class="i solto menu-inicio"><summary title="Startup" aria-label="Startup">⚙</summary><div class="pop"><p><strong>Startup</strong></p><div id="inicio-opcoes"></div><p class="nota" id="inicio-aviso" hidden>Applies from the next start (Restart Windows).</p><p>Fewer services make Windows start faster. Turn on what a program needs.</p></div></details>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT). A multi-core mode can be turned on in ⚙ (experimental).</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It is copied to drive D: (a .zip becomes a folder) without restarting Windows; open it in the file manager. Drive D: and what you install stay saved in this browser. 64-bit programs do not run yet. Memory: up to 3 GB. Internet goes through the Hub tunnel.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine. Wallpaper: "Altai" by Alesya Khoteeva (KDE), CC BY-SA 4.0.</p></div></details>
 </header>
 <main class="ink-main">
   <input id="arquivo" type="file" accept=".zip,.exe,application/zip,application/x-msdownload" hidden>
-  <input id="pasta-jogo" type="file" webkitdirectory multiple hidden>
-  <input id="arq-jogo" type="file" accept=".zip,.rar,.7z,.tar,.gz,.iso" hidden>
   <p class="nota" id="estado"></p>
-  <div id="jogos" hidden><div id="jogos-lista"></div><p class="nota"><span id="medidas"></span> <button class="ink-btn" id="btn-medidas" type="button">Copy measurements</button></p></div>
   <div class="linha" id="lista" hidden></div>
-  <div id="dropzone"><canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas><canvas class="emscripten boxedwine-webgl-canvas" id="boxedwine-webgl-canvas-0" oncontextmenu="event.preventDefault()"></canvas></div>
+  <section id="comecar">
+    <h2>Windows desktop</h2>
+    <div class="maquina"><strong>x32</strong><span class="nota">32-bit Windows programs · Wine 11 with Boxedwine · fastest</span></div>
+    <label class="campo">Screen<select id="tela"></select></label>
+    <button class="ink-btn acao" id="btn-ligar" type="button">Start</button>
+    <p class="nota">The first start downloads about 100 MB. Services and multi-core are in ⚙.</p>
+  </section>
+  <div id="dropzone" hidden><canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas><canvas class="emscripten boxedwine-webgl-canvas" id="boxedwine-webgl-canvas-0" oncontextmenu="event.preventDefault()"></canvas></div>
   <details id="log"><summary>Log</summary><div class="linha" style="justify-content:flex-start"><button class="ink-btn" id="btn-copiar" type="button">Copy log</button></div><pre id="log-txt"></pre></details>
 <button class="ink-btn" id="sair-cheia" type="button" aria-label="Exit full screen">✕</button>
 <div id="stubs">
@@ -70,6 +79,6 @@
 <script src="engine/jszip.min.js?v=1"></script>
 <script src="jit/fsfs.js?v=1"></script>
 <script src="jit/boxedwine-shell.js?v=1"></script>
-<script src="wine.js?v=33"></script>
+<script src="wine.js?v=34"></script>
 </body>
 </html>
