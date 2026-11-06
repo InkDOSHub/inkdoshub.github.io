@@ -60,7 +60,7 @@
   <section id="comecar">
     <h2>Windows desktop</h2>
     <label class="maquina"><span><input type="radio" name="maquina" value="x32" checked> <strong>x32</strong></span><span class="nota">32-bit Windows programs · Wine 11 with Boxedwine · fastest</span></label>
-    <label class="maquina"><span><input type="radio" name="maquina" value="x64"> <strong>x64</strong> (experimental)</span><span class="nota">64-bit PC with QEMU · Linux console for now · much slower</span></label>
+    <label class="maquina"><span><input type="radio" name="maquina" value="x64"> <strong>x64</strong> (experimental)</span><span class="nota">64-bit Windows programs · Wine 9 on an emulated 64-bit PC (QEMU) · much slower, a few minutes to start</span></label>
     <label class="campo" id="campo-tela">Screen<select id="tela"></select></label>
     <label class="campo" id="campo-nucleos" hidden>Cores<select id="nucleos"><option value="1">Single core (recommended)</option><option value="4">Multi-core: may not work, depending on the browser (needs WebAssembly threads; slow on Safari/WebKit and XeOS)</option></select></label>
     <button class="ink-btn acao" id="btn-ligar" type="button">Start</button>
