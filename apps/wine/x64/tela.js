@@ -32,54 +32,75 @@ function qmp(o) {
 qmp({ execute: "qmp_capabilities" });
 
 // --- screen ---
+// Boot: the human monitor's "screendump" (PPM file in Emscripten's file system) once a second.
+// Once Linux has the graphics card in 1024x768 mode, the picture is read straight from the card's
+// memory (bochs VGA, 32 bits per pixel) inside QEMU's WebAssembly memory, at the address the
+// monitor command "gpa2hva" gives: no copying through files, so it can run at many frames per second.
+// (QMP's own screendump stops answering; a serial port written to a file also froze QMP.)
 const tela = $("tela"), ctx = tela.getContext("2d");
-let img = null, quadros = 0, vivo = false;
+const W = 1024, H = 768, FB = 0xfd000000;
+let img = null, quadros = 0, vivo = false, endereco = 0, grafico = false;
+window.inkX64 = { get quadros() { return quadros; }, get endereco() { return endereco; } };
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+function hmp(c) { qmp({ execute: "human-monitor-command", arguments: { "command-line": c } }); }
+function textoQmp() {
+  const b = xterm.buffer.active, l = [];
+  for (let i = Math.max(0, b.length - 40); i < b.length; i++) l.push(b.getLine(i).translateToString(true));
+  return l.join("");
+}
 function cabecalho(d) {
-  // "P6\n<w> <h>\n255\n"
   let i = 0, campos = [];
   while (campos.length < 4 && i < d.length && i < 40) {
-    while (i < d.length && /\s/.test(String.fromCharCode(d[i]))) i++;
-    let s = i; while (i < d.length && !/\s/.test(String.fromCharCode(d[i]))) i++;
+    while (i < d.length && d[i] <= 32) i++;
+    const s = i; while (i < d.length && d[i] > 32) i++;
     campos.push(String.fromCharCode.apply(null, d.subarray(s, i)));
   }
-  if (campos[0] !== "P6" || campos.length < 4) return null;
-  return { w: +campos[1], h: +campos[2], off: i + 1 };
+  return campos[0] === "P6" && campos.length === 4 ? { w: +campos[1], h: +campos[2], off: i + 1 } : null;
 }
-async function lerQuadro(nome) {
-  const ate = performance.now() + 20000;
-  while (performance.now() < ate) {
-    await espera(20);
-    let d;
-    try { if (FS.stat(nome).size < 20) continue; d = FS.readFile(nome); } catch (e) { continue; }
-    const c = cabecalho(d);
-    if (!c || d.length < c.off + c.w * c.h * 3) continue;
-    try { FS.unlink(nome); } catch (e) {}
-    return { c, d };
-  }
-  return null;
+function desenhar(w, h, ler) {
+  if (tela.width !== w || tela.height !== h || !img) { tela.width = w; tela.height = h; img = ctx.createImageData(w, h); }
+  ler(img.data);
+  ctx.putImageData(img, 0, 0);
+  quadros++;
 }
-async function laco() {
+async function inicio() {
   let k = 0;
   for (;;) {
-    const nome = "/tela" + (k++ & 1) + ".ppm";
-    qmp({ execute: "screendump", arguments: { filename: nome } });
-    const q = await lerQuadro(nome);
-    if (!q) continue;
-    const { c, d } = q;
-    if (tela.width !== c.w || tela.height !== c.h) { tela.width = c.w; tela.height = c.h; img = null; }
-    if (!img) img = ctx.createImageData(c.w, c.h);
-    const px = img.data;
-    let escuro = true;
-    for (let i = 0, j = c.off, n = c.w * c.h; i < n; i++, j += 3) {
-      const o = i * 4; px[o] = d[j]; px[o + 1] = d[j + 1]; px[o + 2] = d[j + 2]; px[o + 3] = 255;
-      if (escuro && (d[j] | d[j + 1] | d[j + 2]) > 16) escuro = false;
+    const nome = "/tela" + (k++ & 1) + ".ppm", ate = performance.now() + 15000;
+    hmp("screendump " + nome);
+    while (performance.now() < ate) {
+      await espera(100);
+      let d; try { if (FS.stat(nome).size < 20) continue; d = FS.readFile(nome); } catch (e) { continue; }
+      const c = cabecalho(d);
+      if (!c || d.length < c.off + c.w * c.h * 3) continue;
+      try { FS.unlink(nome); } catch (e) {}
+      desenhar(c.w, c.h, (px) => { for (let i = 0, j = c.off, n = c.w * c.h; i < n; i++, j += 3) { const o = i * 4; px[o] = d[j]; px[o + 1] = d[j + 1]; px[o + 2] = d[j + 2]; px[o + 3] = 255; } });
+      if (c.w === W && c.h === H) return;
+      break;
     }
-    ctx.putImageData(img, 0, 0);
-    quadros++;
-    if (!vivo && !escuro && c.w >= 800) { vivo = true; estado(""); }
-    else if (!vivo) estado("Starting the machine… " + Math.round((performance.now() - t0) / 1000) + " s (a few minutes)");
-    await espera(vivo ? 40 : 1000);
+    estado("Starting the machine… " + Math.round((performance.now() - t0) / 1000) + " s (a few minutes)");
+    await espera(1000);
+  }
+}
+async function laco() {
+  await inicio();
+  while (!endereco) {
+    hmp("gpa2hva 0x" + FB.toString(16));
+    await espera(800);
+    const m = /Host virtual address for 0x[0-9a-f]+.*? is (0x[0-9a-f]+)/i.exec(textoQmp());
+    if (m) endereco = parseInt(m[1], 16);
+  }
+  for (;;) {
+    const mem = Module.HEAPU8;
+    desenhar(W, H, (px) => { for (let i = 0, j = endereco, n = W * H; i < n; i++, j += 4) { const o = i * 4; px[o] = mem[j + 2]; px[o + 1] = mem[j + 1]; px[o + 2] = mem[j]; px[o + 3] = 255; } });
+    if (!vivo) {
+      // Wine's desktop is up once the picture is mostly not black (the text console is)
+      let claro = 0, n = 0; const px = img.data;
+      for (let i = 0; i < px.length; i += 4 * 97, n++) if (px[i] + px[i + 1] + px[i + 2] > 120) claro++;
+      if (claro > n * 0.3) { vivo = true; estado(""); }
+      else estado("Starting Windows (Wine)… " + Math.round((performance.now() - t0) / 1000) + " s");
+    }
+    await espera(vivo ? 66 : 500);
   }
 }
 laco();
