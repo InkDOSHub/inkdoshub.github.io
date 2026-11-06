@@ -9,7 +9,7 @@
 
   function tam(n) { return n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(0) + " KB" : n < 1073741824 ? (n / 1048576).toFixed(1) + " MB" : (n / 1073741824).toFixed(2) + " GB"; }
   function mostrar(sec) { ["inicio", "arquivo", "criar"].forEach(function (s) { $(s).hidden = s !== sec; }); }
-  function msg(s) { $("msg").textContent = s || ""; }
+  function msg(s) { $("msg").className = "nota erro"; $("msg").textContent = s || ""; }
   function trabalhando(s, p) { $("trab").hidden = !s; $("trab-texto").textContent = s || ""; $("trab-barra").style.width = Math.round((p || 0) * 100) + "%"; }
   function limparLinks() { links.forEach(URL.revokeObjectURL); links = []; $("pronto").hidden = true; $("pronto").innerHTML = ""; }
 
@@ -118,6 +118,12 @@
       d.appendChild(s); d.appendChild(m); l.appendChild(d);
     });
     p.appendChild(l);
+    // "Save all to a folder": computers write the folder tree; iPad/iPhone use the share sheet
+    // ("Save to Files" asks for the folder), which saves the files without their subfolders
+    var b = document.createElement("button"); b.type = "button"; b.className = "ink-btn acao";
+    b.textContent = arquivos.length > 1 ? t("Save all to a folder") : t("Save to a folder");
+    b.addEventListener("click", function () { salvarEmPasta(arquivos); });
+    var lb = document.createElement("div"); lb.className = "linha"; lb.style.margin = "10px 0"; lb.appendChild(b); p.insertBefore(lb, l);
     if (arquivos.length > 1) {
       var n = document.createElement("p"); n.className = "nota";
       n.textContent = window.showDirectoryPicker ? t("Tap a name to download it.") : t("Tap a name to save it. For many files, \"Save as .zip\" makes one file the Files app can unpack.");
@@ -125,6 +131,40 @@
     }
     p.hidden = false;
     p.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  async function gravarPasta(destino, out) {
+    for (var k = 0; k < out.length; k++) {
+      trabalhando(t("Saving {n} of {total}", { n: k + 1, total: out.length }), k / out.length);
+      var partes = out[k].caminho.split("/"), d = destino;
+      for (var j = 0; j < partes.length - 1; j++) d = await d.getDirectoryHandle(partes[j], { create: true });
+      var w = await (await d.getFileHandle(partes[partes.length - 1], { create: true })).createWritable();
+      await w.write(out[k].file); await w.close();
+    }
+    trabalhando("");
+  }
+  async function salvarEmPasta(out) {
+    msg("");
+    try {
+      if (window.showDirectoryPicker) {
+        var destino = await showDirectoryPicker({ mode: "readwrite" });
+        await gravarPasta(destino, out);
+        msg(""); $("msg").className = "nota ok";
+        $("msg").textContent = t("{n} files saved in the folder \"{folder}\".", { n: out.length, folder: destino.name });
+        return;
+      }
+      var files = out.map(function (f) { return f.file; });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: files })) {
+        await navigator.share({ files: files });
+        if (out.some(function (f) { return f.caminho.indexOf("/") > 0; }))
+          msg(t("The files were saved without their subfolders. To keep the folders, use \"Save as .zip\" and open the .zip in the Files app."));
+        return;
+      }
+      msg(t("This browser cannot save to a folder. Tap each name to save it, or use \"Save as .zip\"."));
+    } catch (x) {
+      trabalhando("");
+      if (!x || x.name !== "AbortError") msg((x && x.message) || String(x));
+    }
   }
 
   async function extrairEMostrar(sel) {
@@ -137,14 +177,7 @@
     var out = await extrair(sel);
     if (!out || !out.length) return;
     if (destino) {
-      for (var k = 0; k < out.length; k++) {
-        trabalhando(t("Saving {n} of {total}", { n: k + 1, total: out.length }), k / out.length);
-        var partes = out[k].caminho.split("/"), d = destino;
-        for (var j = 0; j < partes.length - 1; j++) d = await d.getDirectoryHandle(partes[j], { create: true });
-        var w = await (await d.getFileHandle(partes[partes.length - 1], { create: true })).createWritable();
-        await w.write(out[k].file); await w.close();
-      }
-      trabalhando("");
+      await gravarPasta(destino, out);
       var p = $("pronto"); p.innerHTML = ""; var h = document.createElement("p"); h.className = "ok";
       h.textContent = t("{n} files saved in the folder \"{folder}\".", { n: out.length, folder: destino.name }); p.appendChild(h); p.hidden = false;
       return;
