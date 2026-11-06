@@ -36,11 +36,14 @@ docker run --name ink-x64-disk "${PROXY[@]}" -v "$HERE/overlay":/overlay:ro -v "
 '
 docker cp ink-x64-disk:/boot/vmlinuz-virt "$OUT/vmlinuz-virt"
 docker cp ink-x64-disk:/boot/initramfs-virt "$OUT/initramfs-virt"
-rm -rf "$WORK/rootfs"; mkdir -p "$WORK/rootfs"
-docker export ink-x64-disk | tar -x -C "$WORK/rootfs" --exclude=boot --exclude=.dockerenv
+# files must stay owned by root inside the disk (Wine refuses a prefix owned by another user),
+# so on a non-root runner the extraction and mkfs run with sudo
+S=""; [ "$(id -u)" = 0 ] || S=sudo
+$S rm -rf "$WORK/rootfs"; mkdir -p "$WORK/rootfs"
+docker export ink-x64-disk | $S tar -x --same-owner -C "$WORK/rootfs" --exclude=boot --exclude=.dockerenv
 docker rm ink-x64-disk >/dev/null
 # the Wine prefix holds copies of Wine's own DLLs: make them hard links to the originals
-python3 - "$WORK/rootfs" <<'PY'
+$S python3 - "$WORK/rootfs" <<'PY'
 import os, sys, hashlib
 root = sys.argv[1]; vistos = {}; ganho = 0
 for base in ("usr/lib/wine", "root/.wine"):
@@ -57,8 +60,9 @@ for base in ("usr/lib/wine", "root/.wine"):
             else: vistos.setdefault(k, p)
 print("hard links saved %d MB" % (ganho >> 20))
 PY
-du -sm "$WORK/rootfs"
-mb=$(( $(du -sm "$WORK/rootfs" | cut -f1) * 110 / 100 + 96 ))
+$S du -sm "$WORK/rootfs"
+mb=$(( $($S du -sm "$WORK/rootfs" | cut -f1) * 110 / 100 + 96 ))
 rm -f "$OUT/disk-rootfs.img"
-mkfs.ext4 -q -O ^has_journal -L inkx64 -d "$WORK/rootfs" "$OUT/disk-rootfs.img" "${mb}M"
+$S mkfs.ext4 -q -O ^has_journal -L inkx64 -d "$WORK/rootfs" "$OUT/disk-rootfs.img" "${mb}M"
+$S chown "$(id -u):$(id -g)" "$OUT/disk-rootfs.img"
 ls -la "$OUT"
