@@ -48,13 +48,17 @@ export default {
 // along and never kept.
 const GH_OK = /^repos\/[\w.-]+\/[\w.-]+\/actions\/(artifacts\/\d+\/zip|jobs\/\d+\/logs)$/;
 async function github(req, url) {
-  const origem = req.headers.get("Origin") || "";
+  // same-origin GETs carry no Origin header: use the page's own address then
+  const origem = req.headers.get("Origin") || (req.headers.get("Sec-Fetch-Site") === "same-origin" ? url.origin : "");
   if (!ORIGENS_OK.test(origem)) return new Response("forbidden", { status: 403 });
   const cors = { "Access-Control-Allow-Origin": origem, "Access-Control-Allow-Headers": "Authorization", "Access-Control-Allow-Methods": "GET", "Vary": "Origin", "Cross-Origin-Resource-Policy": "cross-origin" };
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   const caminho = url.pathname.slice("/net/github/".length);
   if (req.method !== "GET" || !GH_OK.test(caminho)) return new Response("not allowed", { status: 400, headers: cors });
-  const up = await fetch("https://api.github.com/" + caminho, { headers: { Authorization: req.headers.get("Authorization") || "", "User-Agent": "InkDOS-Hub-Wasm-Build", Accept: "application/vnd.github+json" } });
+  let up = await fetch("https://api.github.com/" + caminho, { redirect: "manual", headers: { Authorization: req.headers.get("Authorization") || "", "User-Agent": "InkDOS-Hub-Wasm-Build", Accept: "application/vnd.github+json" } });
+  // the file itself is on a signed storage link, which must be fetched without the GitHub token
+  const destino = up.status >= 300 && up.status < 400 && up.headers.get("Location");
+  if (destino) up = await fetch(destino, { headers: { "User-Agent": "InkDOS-Hub-Wasm-Build" } });
   const h = new Headers(cors);
   h.set("Content-Type", up.headers.get("Content-Type") || "application/octet-stream");
   h.set("Cache-Control", "no-store");
