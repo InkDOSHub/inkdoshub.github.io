@@ -53,7 +53,6 @@
     atual.lista = arqs;
     var total = 0; arqs.forEach(function (f) { total += f.tam; });
     $("arq-info").textContent = t("{n} files · {size} unpacked · {packed} archive", { n: arqs.length, size: tam(total), packed: tam(arq.size) }) + (r.cripto ? " · " + t("password protected") : "");
-    $("como-zip").hidden = /\.zip$/i.test(arq.name);
     desenhar();
   }
 
@@ -117,6 +116,7 @@
       m.className = "t"; m.textContent = tam(f.file.size);
       d.appendChild(s); d.appendChild(m); l.appendChild(d);
     });
+    var pastas = document.createElement("div"); pastas.id = "pastas"; pastas.className = "linha"; pastas.hidden = true; p.appendChild(pastas);
     p.appendChild(l);
     // "Save all to a folder": computers write the folder tree; iPad/iPhone use the share sheet
     // ("Save to Files" asks for the folder), which saves the files without their subfolders
@@ -126,7 +126,7 @@
     var lb = document.createElement("div"); lb.className = "linha"; lb.style.margin = "10px 0"; lb.appendChild(b); p.insertBefore(lb, l);
     if (arquivos.length > 1) {
       var n = document.createElement("p"); n.className = "nota";
-      n.textContent = window.showDirectoryPicker ? t("Tap a name to download it.") : t("Tap a name to save it. For many files, \"Save as .zip\" makes one file the Files app can unpack.");
+      n.textContent = t("Tap a name to save only that file.");
       p.appendChild(n);
     }
     p.hidden = false;
@@ -153,18 +153,39 @@
         $("msg").textContent = t("{n} files saved in the folder \"{folder}\".", { n: out.length, folder: destino.name });
         return;
       }
-      var files = out.map(function (f) { return f.file; });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: files })) {
-        await navigator.share({ files: files });
-        if (out.some(function (f) { return f.caminho.indexOf("/") > 0; }))
-          msg(t("The files were saved without their subfolders. To keep the folders, use \"Save as .zip\" and open the .zip in the Files app."));
+      // iPad/iPhone: the share sheet ("Save to Files") saves into the folder the person picks, but
+      // cannot make subfolders, so each folder of the archive gets its own button
+      if (!(navigator.share && navigator.canShare && navigator.canShare({ files: [out[0].file] }))) {
+        msg(t("This browser cannot save to a folder. Tap each name to save it."));
         return;
       }
-      msg(t("This browser cannot save to a folder. Tap each name to save it, or use \"Save as .zip\"."));
+      var grupos = {};
+      out.forEach(function (f) { var i = f.caminho.lastIndexOf("/"), g = i > 0 ? f.caminho.slice(0, i) : ""; (grupos[g] = grupos[g] || []).push(f.file); });
+      var nomes = Object.keys(grupos).sort();
+      if (nomes.length === 1) return compartilhar(grupos[nomes[0]]);
+      var c = $("pastas"); c.innerHTML = "";
+      var h = document.createElement("p"); h.className = "nota";
+      h.textContent = t("The archive has {n} folders. iPad and iPhone save one folder at a time: tap each one and choose (or create) its folder in Files.", { n: nomes.length });
+      c.appendChild(h);
+      nomes.forEach(function (g) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "ink-btn";
+        b.textContent = (g || t("Main folder")) + " · " + t("{n} files", { n: grupos[g].length });
+        b.setAttribute("data-idioma-nao", "");
+        b.addEventListener("click", function () { compartilhar(grupos[g]).then(function (ok) { if (ok) { b.textContent = "✓ " + b.textContent; } }); });
+        c.appendChild(b);
+      });
+      c.hidden = false;
     } catch (x) {
       trabalhando("");
       if (!x || x.name !== "AbortError") msg((x && x.message) || String(x));
     }
+  }
+
+  function compartilhar(files) {
+    return navigator.share({ files: files }).then(function () { return true; }, function (x) {
+      if (x && x.name !== "AbortError") msg((x && x.message) || String(x));
+      return false;
+    });
   }
 
   async function extrairEMostrar(sel) {
@@ -183,14 +204,6 @@
       return;
     }
     pronto(out.length === 1 ? t("Ready:") : t("{n} files extracted:", { n: out.length }), out);
-  }
-
-  async function comoZip() {
-    limparLinks();
-    var out = await extrair(null);
-    if (!out || !out.length) return;
-    var nome = atual.arq.name.replace(/(\.tar)?\.[^.]+$/i, "") || "archive";
-    await criar(out.map(function (f) { return { caminho: f.caminho, arq: f.file }; }), nome + ".zip", "zip", "5", "");
   }
 
   /* ---------- create ---------- */
@@ -244,7 +257,6 @@
   $("cancelar").addEventListener("click", function () { itens = []; $("c-nome").value = ""; limparLinks(); msg(""); mostrar("inicio"); });
   $("extrair").addEventListener("click", function () { extrairEMostrar(null); });
   $("extrair-sel").addEventListener("click", function () { extrairEMostrar(selecionados()); });
-  $("como-zip").addEventListener("click", comoZip);
   $("busca").addEventListener("input", desenhar);
   $("usar-senha").addEventListener("click", function () { if (atual) abrir(atual.arq, $("senha").value); });
   $("senha").addEventListener("keydown", function (e) { if (e.key === "Enter") $("usar-senha").click(); });
