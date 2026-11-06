@@ -165,6 +165,9 @@
     msg("");
     if (!token) { msg("Connect your GitHub account first."); return; }
     var fonte = $("fonte").value.trim(), cmds = $("comandos").value.trim();
+    // a GitHub page link (release, tag, branch or file) becomes the repository plus that branch or tag
+    var m = /^https:\/\/github\.com\/([\w.-]+\/[\w.-]+?)(?:\.git)?\/(?:releases\/tag|tree|blob|commits?)\/([^\/?#]+)/.exec(fonte);
+    if (m) { fonte = "https://github.com/" + m[1]; if (!$("ref").value.trim()) $("ref").value = decodeURIComponent(m[2]); $("fonte").value = fonte; }
     if (!/^https?:\/\/\S+$/.test(fonte)) { msg("Paste the project's git link (https://...)."); return; }
     if (!cmds) { msg("Write the build commands (or choose an example)."); return; }
     ["fonte", "ref", "comandos", "saidas", "emsdk"].forEach(function (id) { gravar("wasm-" + id, $(id).value); });
