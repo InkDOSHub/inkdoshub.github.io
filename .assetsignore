@@ -13,3 +13,4 @@ artcraft/wordcraft/*_bg.wasm
 visualizadores/bentopdf/libreoffice-wasm/soffice.data.gz
 visualizadores/bentopdf/libreoffice-wasm/soffice.wasm.gz
 apps/video/cortar/ffmpeg-core-mt/ffmpeg-core.wasm
+apps/wine/x64/maquina/qemu-system-x86_64.wasm
