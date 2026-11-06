@@ -39,7 +39,7 @@ qmp({ execute: "qmp_capabilities" });
 // (Screendump to a file sometimes never arrives in the browser; QMP's own screendump hangs.)
 const tela = $("tela"), ctx = tela.getContext("2d");
 const W = 1024, H = 768, FB = 0xfd000000;
-let img = null, quadros = 0, vivo = false, endereco = 0;
+let img = null, quadros = 0, vivo = false, endereco = 0, linux = false;
 window.inkX64 = { get quadros() { return quadros; }, get endereco() { return endereco; }, texto: () => textoQmp() };
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 function hmp(c) { qmp({ execute: "human-monitor-command", arguments: { "command-line": c } }); }
@@ -69,7 +69,7 @@ async function laco() {
       let claro = 0, n = 0; const px = img.data;
       for (let i = 0; i < px.length; i += 4 * 97, n++) if (px[i] + px[i + 1] + px[i + 2] > 120) claro++;
       if (claro > n * 0.3) { vivo = true; estado(""); }
-      else estado((claro ? "Starting Windows (Wine)… " : "Starting the machine… ") + Math.round((performance.now() - t0) / 1000) + " s");
+      else estado(((linux = linux || claro > 0) ? "Starting Windows (Wine)… " : "Starting the machine… ") + Math.round((performance.now() - t0) / 1000) + " s");
     }
     await espera(vivo ? 66 : 500);
   }
