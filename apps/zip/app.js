@@ -158,7 +158,11 @@
       if (window.showSaveFilePicker) {
         for (var k = 0; k < out.length; k++) {
           trabalhando(t("Saving {n} of {total}", { n: k + 1, total: out.length }), k / out.length);
-          var fh = await showSaveFilePicker({ suggestedName: out.length > 1 ? out[k].caminho : out[k].caminho.split("/").pop() });
+          // a plain name: a "/" in the name made XeOS fail ("file xeos-save-… does not exist")
+          var nome = out[k].caminho.split("/").pop(), ext = (nome.match(/\.[A-Za-z0-9]{1,8}$/) || [""])[0];
+          var op = { suggestedName: nome };
+          if (ext) op.types = [{ description: ext.slice(1).toUpperCase(), accept: { [out[k].file.type || "application/octet-stream"]: [ext] } }];
+          var fh = await showSaveFilePicker(op);
           var w = await fh.createWritable(); await w.write(out[k].file); await w.close();
         }
         trabalhando("");
