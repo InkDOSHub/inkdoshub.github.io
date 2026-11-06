@@ -19,6 +19,7 @@ GRUPOS = [
     ("terminal", "Linux terminal", ["terminal"]),
     ("wine", "Wine", ["apps/wine"]),
     ("zip", "Zip", ["apps/zip"]),
+    ("wasm", "Wasm Build", ["apps/wasm"]),
     ("foto", "Photos", ["apps/foto"]),
     ("video", "Video", ["apps/video"]),
     ("codigo", "Code", ["apps/codigo"]),
