@@ -32,15 +32,15 @@ function qmp(o) {
 qmp({ execute: "qmp_capabilities" });
 
 // --- screen ---
-// Boot: the human monitor's "screendump" (PPM file in Emscripten's file system) once a second.
-// Once Linux has the graphics card in 1024x768 mode, the picture is read straight from the card's
-// memory (bochs VGA, 32 bits per pixel) inside QEMU's WebAssembly memory, at the address the
-// monitor command "gpa2hva" gives: no copying through files, so it can run at many frames per second.
-// (QMP's own screendump stops answering; a serial port written to a file also froze QMP.)
+// The picture is read straight from the graphics card's memory (bochs VGA, 1024x768, 32 bits per
+// pixel) inside QEMU's WebAssembly memory, at the address the monitor command "gpa2hva" gives:
+// no copying through files, so it runs at many frames per second. Linux switches the card to
+// that mode a few seconds into the boot; before that the screen stays black with a status line.
+// (Screendump to a file sometimes never arrives in the browser; QMP's own screendump hangs.)
 const tela = $("tela"), ctx = tela.getContext("2d");
 const W = 1024, H = 768, FB = 0xfd000000;
-let img = null, quadros = 0, vivo = false, endereco = 0, grafico = false;
-window.inkX64 = { get quadros() { return quadros; }, get endereco() { return endereco; } };
+let img = null, quadros = 0, vivo = false, endereco = 0;
+window.inkX64 = { get quadros() { return quadros; }, get endereco() { return endereco; }, texto: () => textoQmp() };
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 function hmp(c) { qmp({ execute: "human-monitor-command", arguments: { "command-line": c } }); }
 function textoQmp() {
@@ -48,42 +48,13 @@ function textoQmp() {
   for (let i = Math.max(0, b.length - 40); i < b.length; i++) l.push(b.getLine(i).translateToString(true));
   return l.join("");
 }
-function cabecalho(d) {
-  let i = 0, campos = [];
-  while (campos.length < 4 && i < d.length && i < 40) {
-    while (i < d.length && d[i] <= 32) i++;
-    const s = i; while (i < d.length && d[i] > 32) i++;
-    campos.push(String.fromCharCode.apply(null, d.subarray(s, i)));
-  }
-  return campos[0] === "P6" && campos.length === 4 ? { w: +campos[1], h: +campos[2], off: i + 1 } : null;
-}
 function desenhar(w, h, ler) {
   if (tela.width !== w || tela.height !== h || !img) { tela.width = w; tela.height = h; img = ctx.createImageData(w, h); }
   ler(img.data);
   ctx.putImageData(img, 0, 0);
   quadros++;
 }
-async function inicio() {
-  let k = 0;
-  for (;;) {
-    const nome = "/tela" + (k++ & 1) + ".ppm", ate = performance.now() + 15000;
-    hmp("screendump " + nome);
-    while (performance.now() < ate) {
-      await espera(100);
-      let d; try { if (FS.stat(nome).size < 20) continue; d = FS.readFile(nome); } catch (e) { continue; }
-      const c = cabecalho(d);
-      if (!c || d.length < c.off + c.w * c.h * 3) continue;
-      try { FS.unlink(nome); } catch (e) {}
-      desenhar(c.w, c.h, (px) => { for (let i = 0, j = c.off, n = c.w * c.h; i < n; i++, j += 3) { const o = i * 4; px[o] = d[j]; px[o + 1] = d[j + 1]; px[o + 2] = d[j + 2]; px[o + 3] = 255; } });
-      if (c.w === W && c.h === H) return;
-      break;
-    }
-    estado("Starting the machine… " + Math.round((performance.now() - t0) / 1000) + " s (a few minutes)");
-    await espera(1000);
-  }
-}
 async function laco() {
-  await inicio();
   while (!endereco) {
     hmp("gpa2hva 0x" + FB.toString(16));
     await espera(800);
@@ -98,7 +69,7 @@ async function laco() {
       let claro = 0, n = 0; const px = img.data;
       for (let i = 0; i < px.length; i += 4 * 97, n++) if (px[i] + px[i + 1] + px[i + 2] > 120) claro++;
       if (claro > n * 0.3) { vivo = true; estado(""); }
-      else estado("Starting Windows (Wine)… " + Math.round((performance.now() - t0) / 1000) + " s");
+      else estado((claro ? "Starting Windows (Wine)… " : "Starting the machine… ") + Math.round((performance.now() - t0) / 1000) + " s");
     }
     await espera(vivo ? 66 : 500);
   }
