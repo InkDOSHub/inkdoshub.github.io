@@ -10,8 +10,8 @@ var LOCAL = new URL("alpine/", location.href).href;
 var NUCLEOS = Math.max(1, Math.min(4, +(new URLSearchParams(location.search).get("nucleos")) || 1));
 if (typeof Module === "undefined") Module = {};
 Module["arguments"] = [
-  "-nographic", "-M", "pc", "-m", "512M", "-smp", String(NUCLEOS),
-  "-accel", "tcg,tb-size=500,thread=" + (NUCLEOS > 1 ? "multi" : "single"),
+  // single core = QEMU's default (thread=single hung this build); multi-core adds virtual CPUs (MTTCG)
+  "-nographic", "-M", "pc", "-m", "512M", "-smp", String(NUCLEOS), "-accel", "tcg,tb-size=500",
   "-L", "/pack-rom/", "-nic", "none",
   "-kernel", "/pack-kernel/vmlinuz-virt", "-initrd", "/pack-initramfs/initramfs-virt",
   "-append", "console=ttyS0 root=/dev/vda noautodetect hostname=inkdoshub",
