@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=7">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/inkdoshub-icone-180.png?v=7">
+<title>Zip · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<script src="../../assets/gerenciador-app.js?v=12"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=1">
+<link rel="stylesheet" href="../../assets/barra.css?v=5">
+<script src="../../assets/barra.js?v=3" defer></script>
+<script src="../../assets/icones.js?v=2" defer></script>
+<style>
+  :root{--tc:#d97706}
+  [hidden]{display:none!important}
+  .ink-main{overflow:auto;padding:16px}
+  .box{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .nota{color:var(--muted);font-size:13px;line-height:1.5;margin:0}
+  .acao{font-weight:600;background:var(--tc);border-color:var(--tc);color:#fff}
+  .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .grande{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .grande button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:18px;border-radius:14px;border:1px solid var(--border);background:var(--card);color:inherit;font:inherit;cursor:pointer}
+  .grande button strong{font-size:17px}
+  .grande button.soltar,.grande button:hover{border-color:var(--tc)}
+  .cab{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .cab h2{font-size:17px;margin:0;flex:1;min-width:0;word-break:break-word}
+  .busca{font:inherit;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit;min-width:0;flex:1}
+  .lista{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card)}
+  .it{display:flex;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--border);font-size:14px}
+  .it:first-child{border-top:0}
+  .it .n{flex:1;min-width:0;word-break:break-all}
+  .it .n small{display:block;color:var(--muted);font-size:12px}
+  .it .t{color:var(--muted);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .it input{width:18px;height:18px;margin:0;accent-color:var(--tc)}
+  .it.pasta .n{font-weight:600}
+  .barra{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+  .barra i{display:block;height:100%;width:0;background:var(--tc);transition:width .2s}
+  .campo{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+  .campo input,.campo select{font:inherit;font-size:15px;color:var(--text,inherit);padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg)}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+  .erro{color:#b91c1c}.ok{color:#15803d}
+  .pronto a{color:var(--tc);font-weight:600}
+  input[type=file]{display:none}
+</style>
+</head>
+<body class="ink-app" data-idioma data-simbolo="../../assets/icones-inkdos/zip.svg">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Zip</span>
+  <span class="ink-spacer"></span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Opens and creates compressed archives with 7-Zip, on this device. Opens .zip, .rar, .7z, .tar, .gz, .bz2, .xz, .tgz and many others (iso, cab, dmg, arj, lzh, wim...). Creates .zip, .7z, .tar and .tar.xz, with an optional password for .zip and .7z. RAR files can only be opened: the RAR format is proprietary and only WinRAR can create it. Files are processed on the device's disk, a piece at a time, so large archives work too. 7-Zip is free software (LGPL and unRAR license).</p></div></details>
+</header>
+<main class="ink-main"><div class="box">
+  <section id="inicio">
+    <div class="grande">
+      <button type="button" id="btn-abrir"><strong>Open archive</strong><span class="nota">zip, rar, 7z, tar, gz, bz2, xz and more</span></button>
+      <button type="button" id="btn-criar"><strong>Compress files</strong><span class="nota">Make a .zip, .7z or .tar.xz</span></button>
+      <button type="button" id="btn-pasta"><strong>Compress a folder</strong><span class="nota">Keeps the folders inside</span></button>
+    </div>
+  </section>
+
+  <section id="arquivo" hidden>
+    <div class="cab"><h2 id="arq-nome" data-idioma-nao></h2><button class="ink-btn" type="button" id="fechar">Close</button></div>
+    <p class="nota" id="arq-info"></p>
+    <div class="linha" id="senha-linha" hidden>
+      <input class="busca" id="senha" type="password" placeholder="Password" autocomplete="off">
+      <button class="ink-btn acao" type="button" id="usar-senha">Open</button>
+    </div>
+    <div class="linha">
+      <button class="ink-btn acao" type="button" id="extrair">Extract all</button>
+      <button class="ink-btn" type="button" id="extrair-sel" hidden>Extract selected</button>
+      <button class="ink-btn" type="button" id="como-zip" hidden>Save as .zip</button>
+      <input class="busca" id="busca" type="search" placeholder="Search">
+    </div>
+    <div class="lista" id="lista"></div>
+  </section>
+
+  <section id="criar" hidden>
+    <div class="cab"><h2>Compress</h2><button class="ink-btn" type="button" id="cancelar">Cancel</button></div>
+    <p class="nota" id="criar-info"></p>
+    <div class="grade">
+      <label class="campo">Name<input id="c-nome" autocomplete="off"></label>
+      <label class="campo">Format<select id="c-formato">
+        <option value="zip">.zip</option><option value="7z">.7z</option><option value="tar">.tar</option>
+        <option value="tar.xz">.tar.xz</option></select></label>
+      <label class="campo">Compression<select id="c-nivel">
+        <option value="0">None (store)</option><option value="1">Fast</option><option value="5" selected>Normal</option><option value="9">Maximum</option></select></label>
+      <label class="campo" id="c-senha-campo">Password (optional)<input id="c-senha" type="password" autocomplete="new-password"></label>
+    </div>
+    <div class="linha">
+      <button class="ink-btn acao" type="button" id="c-ir">Create archive</button>
+      <button class="ink-btn" type="button" id="c-mais">Add files</button>
+    </div>
+    <div class="lista" id="c-lista"></div>
+  </section>
+
+  <section id="trab" hidden>
+    <p class="nota" id="trab-texto"></p>
+    <div class="barra"><i id="trab-barra"></i></div>
+  </section>
+  <section id="pronto" class="pronto" hidden></section>
+  <p class="nota erro" id="msg"></p>
+</div></main>
+<input type="file" id="arquivos">
+<input type="file" id="mais" multiple>
+<input type="file" id="pasta" webkitdirectory multiple>
+<script src="app.js?v=1"></script>
+</body>
+</html>
