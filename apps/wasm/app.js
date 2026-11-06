@@ -105,7 +105,7 @@
       $("ver-repo").href = "https://github.com/" + dono + "/" + REPO;
       var ultima = ler("wasm-ultima"), resultado = ler("wasm-resultado");
       if (ultima) seguir(+ultima);
-      else if (resultado) { $("ver-run").href = "https://github.com/" + dono + "/" + REPO + "/actions/runs/" + resultado; trazer(+resultado).catch(function () { gravar("wasm-resultado", ""); $("andamento").hidden = true; }); }
+      else ultimoPronto(resultado);
     } catch (e) {
       token = ""; gravar("wasm-token", "");
       $("sem-conta").hidden = false; $("com-conta").hidden = true;
@@ -118,6 +118,19 @@
     gravar("wasm-token", ""); gravar("wasm-ultima", ""); gravar("wasm-resultado", "");
     $("token").value = ""; $("sem-conta").hidden = false; $("com-conta").hidden = true; $("andamento").hidden = true;
   };
+
+  // shows the last finished build again (the one remembered, or else the newest successful one)
+  async function ultimoPronto(id) {
+    try {
+      if (!id) {
+        var l = await gh("GET", "repos/" + dono + "/" + REPO + "/actions/runs?status=success&per_page=1");
+        if (!l.workflow_runs || !l.workflow_runs.length) return;
+        id = l.workflow_runs[0].id;
+      }
+      $("ver-run").href = "https://github.com/" + dono + "/" + REPO + "/actions/runs/" + id;
+      await trazer(+id);
+    } catch (e) { gravar("wasm-resultado", ""); $("andamento").hidden = true; }
+  }
 
   // --- project form (remembered) ---
   ["fonte", "ref", "comandos", "saidas", "emsdk"].forEach(function (id) {
