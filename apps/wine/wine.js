@@ -416,6 +416,16 @@ function mostrarJogos() {
     var res = document.createElement("select"); res.title = "Resolution";
     ["640x360", "960x540", "1280x720"].forEach(function (r) { var o = document.createElement("option"); o.value = o.textContent = r; o.selected = r === (p.res || "1280x720"); res.appendChild(o); });
     res.onchange = function () { p.res = res.value; salvarPerfil(nome, p); };
+    // 64-bit programs (most games made after ~2020) do not run in this Wine yet: say so before Play
+    if (p.exe) (async function (linha, exe) {
+      try {
+        var d = await pastaJogos(), ps = (nome + "/" + exe).split("/");
+        for (var i = 0; i < ps.length - 1; i++) d = await d.getDirectoryHandle(ps[i]);
+        var f = await (await d.getFileHandle(ps[ps.length - 1])).getFile(), b = new Uint8Array(await f.slice(0, 4096).arrayBuffer());
+        var msg = f.size === 0 ? "the .exe is empty (unpacking failed?)" : e64(b) ? "64-bit program: does not run here yet (only 32-bit)" : "";
+        if (msg) { var a = document.createElement("span"); a.className = "nota"; a.style.color = "#dc2626"; a.textContent = msg; linha.append(a); }
+      } catch (e) {}
+    })(linha, p.exe);
     if (!p.exe) { var aviso = document.createElement("span"); aviso.className = "nota"; aviso.textContent = "no .exe found in this folder"; linha.append(aviso); }
     var jogar = document.createElement("a"); jogar.className = "ink-btn"; jogar.textContent = "Play"; jogar.href = "?jogo=" + encodeURIComponent(nome); if (!p.exe) jogar.hidden = true;
     var tirar = document.createElement("button"); tirar.className = "ink-btn"; tirar.type = "button"; tirar.textContent = "Remove";
