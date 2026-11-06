@@ -133,7 +133,20 @@ function ligar() {
   var sel = $("tela");
   TELAS.forEach(function (t) { var o = document.createElement("option"); o.value = t; o.textContent = t.replace("x", " × ") + (t === "1280x720" ? " (recommended)" : ""); sel.appendChild(o); });
   sel.value = TELA;
-  $("btn-ligar").onclick = ligar;
+  var maq = "x32";
+  try { maq = localStorage.getItem("wine-maquina") === "x64" ? "x64" : "x32"; $("nucleos").value = localStorage.getItem("wine-x64-nucleos") || "1"; } catch (e) {}
+  function escolher() {
+    maq = document.querySelector('input[name=maquina]:checked').value;
+    $("campo-tela").hidden = maq !== "x32"; $("campo-nucleos").hidden = maq !== "x64";
+    try { localStorage.setItem("wine-maquina", maq); } catch (e) {}
+  }
+  document.querySelector('input[name=maquina][value=' + maq + ']').checked = true; escolher();
+  [].forEach.call(document.querySelectorAll("input[name=maquina]"), function (r) { r.onchange = escolher; });
+  $("btn-ligar").onclick = function () {
+    if (maq === "x32") return ligar();
+    try { localStorage.setItem("wine-x64-nucleos", $("nucleos").value); } catch (e) {}
+    location.href = "x64/?nucleos=" + $("nucleos").value;
+  };
   var direto = false;
   try { direto = sessionStorage.getItem("wine-reiniciar") === "1"; sessionStorage.removeItem("wine-reiniciar"); } catch (e) {}
   if (!isolar() && direto) ligar();

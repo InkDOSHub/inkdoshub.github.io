@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../../assets/inkdoshub-icone-32.png?v=7">
+<title>Wine x64 · InkDOS Hub</title>
+<script src="../../../assets/tema.js?v=1"></script>
+<link rel="stylesheet" href="../../../assets/info.css?v=1">
+<link rel="stylesheet" href="../../../assets/barra.css?v=5">
+<link rel="stylesheet" href="vendor/xterm.css">
+<script src="../../../assets/barra.js?v=3" defer></script>
+<script src="../../../assets/icones.js?v=2" defer></script>
+<style>
+  .ink-main{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .nota{color:var(--muted);font-size:13px;margin:0}
+  #term{background:#000;padding:4px;border-radius:6px;overflow:auto}
+</style>
+</head>
+<body class="ink-app" data-simbolo="../../../assets/icones-inkdos/wine.svg">
+<header class="ink-bar">
+  <a class="ink-home" href="../" data-icone="voltar">Wine</a>
+  <span class="ink-title">x64 (experimental)</span>
+  <span class="ink-spacer"></span>
+  <button class="ink-btn" type="button" id="btn-root">Log in (root)</button>
+  <button class="ink-btn" type="button" id="btn-teste">Speed test</button>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>A 64-bit x86 PC (x86_64) with Alpine Linux, emulated by QEMU Wasm (open source, github.com/ktock/qemu-wasm): the x86-64 code is translated to WebAssembly while it runs. This first stage is a text console; the graphical desktop and 64-bit Windows programs come next. It is much slower than x32. Single core by default; multi-core may not work, depending on the browser (it needs WebAssembly threads and shared memory, and Safari/WebKit runs them slowly). First start downloads about 140 MB. Log in as root. No network yet.</p></div></details>
+</header>
+<main class="ink-main">
+  <p class="nota" id="estado">Loading QEMU (about 140 MB the first time)…</p>
+  <div id="term"></div>
+</main>
+<script src="modulo.js?v=2"></script>
+<script src="alpine/load-rootfs.js"></script>
+<script src="alpine/load-kernel.js"></script>
+<script src="alpine/load-initramfs.js"></script>
+<script src="alpine/load-rom.js"></script>
+<script type="module" src="app.js?v=3"></script>
+</body>
+</html>

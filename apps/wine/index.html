@@ -32,7 +32,9 @@
   .menu-inicio .pop{min-width:260px}
   #comecar{margin:auto;display:flex;flex-direction:column;gap:12px;width:min(380px,100%);padding:20px;border:1px solid var(--border);border-radius:14px;background:var(--card)}
   #comecar h2{margin:0;font-size:18px}
-  .maquina{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:2px solid #7c3aed;border-radius:10px}
+  .maquina{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:2px solid var(--border);border-radius:10px;cursor:pointer}
+  .maquina:has(input:checked){border-color:#7c3aed}
+  .maquina input{accent-color:#7c3aed}
   .maquina .nota{text-align:left}
   .campo{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
   .campo select{font:inherit;font-size:15px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit}
@@ -57,8 +59,10 @@
   <div class="linha" id="lista" hidden></div>
   <section id="comecar">
     <h2>Windows desktop</h2>
-    <div class="maquina"><strong>x32</strong><span class="nota">32-bit Windows programs · Wine 11 with Boxedwine · fastest</span></div>
-    <label class="campo">Screen<select id="tela"></select></label>
+    <label class="maquina"><span><input type="radio" name="maquina" value="x32" checked> <strong>x32</strong></span><span class="nota">32-bit Windows programs · Wine 11 with Boxedwine · fastest</span></label>
+    <label class="maquina"><span><input type="radio" name="maquina" value="x64"> <strong>x64</strong> (experimental)</span><span class="nota">64-bit PC with QEMU · Linux console for now · much slower</span></label>
+    <label class="campo" id="campo-tela">Screen<select id="tela"></select></label>
+    <label class="campo" id="campo-nucleos" hidden>Cores<select id="nucleos"><option value="1">Single core (recommended)</option><option value="4">Multi-core: may not work, depending on the browser (needs WebAssembly threads; slow on Safari/WebKit and XeOS)</option></select></label>
     <button class="ink-btn acao" id="btn-ligar" type="button">Start</button>
     <p class="nota">The first start downloads about 100 MB. Services and multi-core are in ⚙.</p>
   </section>
@@ -79,6 +83,6 @@
 <script src="engine/jszip.min.js?v=1"></script>
 <script src="jit/fsfs.js?v=1"></script>
 <script src="jit/boxedwine-shell.js?v=1"></script>
-<script src="wine.js?v=34"></script>
+<script src="wine.js?v=35"></script>
 </body>
 </html>
