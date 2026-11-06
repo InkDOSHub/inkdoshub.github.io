@@ -10,6 +10,7 @@ const ORIGEM = "https://inkdoshub.github.io";
 // Files kept outside the repository (too big for git); the version in the address changes the cache key.
 const EXTERNOS = {
   "/apps/wine/fs/wine11.zip": "https://boxedwine.org/v2/24/TinyCore15Wine11.0-web.zip",
+  "/apps/wine/x64/maquina/load-rootfs.data": "https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/wine-x64/load-rootfs.data",
 };
 const ISOLAR = {
   "Cross-Origin-Opener-Policy": "same-origin",

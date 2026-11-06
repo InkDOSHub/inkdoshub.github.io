@@ -1,0 +1,17 @@
+#!/bin/sh
+# PID 1 of the Wine x64 machine: mounts the basics, starts the X server on the emulated
+# graphics card (bochs) and keeps Wine's desktop (explorer + file manager) running.
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root WINEPREFIX=/root/.wine WINEDEBUG=-all
+mount -t proc proc /proc; mount -t sysfs sys /sys; mount -t devtmpfs dev /dev
+mkdir -p /dev/pts /dev/shm; mount -t devpts devpts /dev/pts; mount -t tmpfs tmpfs /dev/shm
+mount -t tmpfs tmpfs /tmp; mount -t tmpfs tmpfs /run; mount -o remount,rw /
+hostname inkdoshub
+for m in bochs psmouse atkbd usbhid hid_generic uhci_hcd ehci_pci evdev; do modprobe -q $m 2>/dev/null; done
+udevd --daemon; udevadm trigger --action=add; udevadm settle -t 20
+Xorg :0 -nolisten tcp -noreset -nocursor vt1 >/tmp/xorg.log 2>&1 &
+export DISPLAY=:0
+for i in $(seq 1 60); do [ -e /tmp/.X11-unix/X0 ] && break; sleep 1; done
+while :; do
+  wine explorer /desktop=shell,1024x768 winefile.exe 'C:\' >/tmp/wine.log 2>&1
+  sleep 2
+done
