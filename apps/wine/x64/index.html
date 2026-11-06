@@ -12,9 +12,18 @@
 <script src="../../../assets/barra.js?v=3" defer></script>
 <script src="../../../assets/icones.js?v=2" defer></script>
 <style>
-  .ink-main{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
-  .nota{color:var(--muted);font-size:13px;margin:0}
-  #term{background:#000;padding:4px;border-radius:6px;overflow:auto}
+  [hidden]{display:none!important}
+  .ink-main{overflow:auto;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .nota{color:var(--muted);font-size:13px;margin:0;text-align:center}
+  #tela{width:min(100%,calc((100dvh - 110px) * 4 / 3));aspect-ratio:4/3;background:#000;border-radius:6px;touch-action:none;image-rendering:auto;display:block}
+  #teclas{position:fixed;left:-1000px;top:0;width:10px;height:10px;opacity:0}
+  #console{width:100%;font-size:12px}
+  #console summary{cursor:pointer}
+  #term{background:#000;padding:4px;border-radius:6px;overflow:auto;max-height:200px}
+  .ink-btn[aria-pressed=true]{background:#7c3aed;border-color:#7c3aed;color:#fff}
+  body.cheia #tela{position:fixed;inset:0;width:100vw;height:100dvh;aspect-ratio:auto;border-radius:0;z-index:50;object-fit:contain}
+  #sair-cheia{display:none;position:fixed;top:6px;right:6px;z-index:60;opacity:.75}
+  body.cheia #sair-cheia{display:block}
 </style>
 </head>
 <body class="ink-app" data-simbolo="../../../assets/icones-inkdos/wine.svg">
@@ -22,19 +31,23 @@
   <a class="ink-home" href="../" data-icone="voltar">Wine</a>
   <span class="ink-title">x64 (experimental)</span>
   <span class="ink-spacer"></span>
-  <button class="ink-btn" type="button" id="btn-root">Log in (root)</button>
-  <button class="ink-btn" type="button" id="btn-teste">Speed test</button>
-  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>A 64-bit x86 PC (x86_64) with Alpine Linux, emulated by QEMU Wasm (open source, github.com/ktock/qemu-wasm): the x86-64 code is translated to WebAssembly while it runs. This first stage is a text console; the graphical desktop and 64-bit Windows programs come next. It is much slower than x32. Single core by default; multi-core may not work, depending on the browser (it needs WebAssembly threads and shared memory, and Safari/WebKit runs them slowly). First start downloads about 140 MB. Log in as root. No network yet.</p></div></details>
+  <button class="ink-btn" type="button" id="btn-teclado">Keyboard</button>
+  <button class="ink-btn" type="button" id="btn-direito" aria-pressed="false" title="The next tap is a right click">Right click</button>
+  <button class="ink-btn" type="button" id="btn-cheia">Full screen</button>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>A 64-bit x86 PC (x86_64) emulated by QEMU Wasm (open source, github.com/ktock/qemu-wasm): the x86-64 code is translated to WebAssembly while it runs. Inside: Alpine Linux with Wine 9 (64-bit) and the same desktop as x32. It is much slower than x32 and takes a few minutes to start.</p><p>Single core by default. Multi-core may not work, depending on the browser: it needs WebAssembly threads and shared memory, and Safari/WebKit (also in XeOS) runs them slowly.</p><p>Tap to click; "Right click" makes the next tap a right click; "Keyboard" opens the keyboard. First start downloads the machine (about 300 MB). Nothing is saved yet: the machine starts clean each time. No network yet.</p></div></details>
 </header>
 <main class="ink-main">
-  <p class="nota" id="estado">Loading QEMU (about 140 MB the first time)…</p>
-  <div id="term"></div>
+  <p class="nota" id="estado">Loading QEMU…</p>
+  <canvas id="tela" width="1024" height="768"></canvas>
+  <textarea id="teclas" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  <details id="console"><summary>Console</summary><div id="term"></div></details>
 </main>
-<script src="modulo.js?v=3"></script>
-<script src="alpine/load-rootfs.js"></script>
-<script src="alpine/load-kernel.js"></script>
-<script src="alpine/load-initramfs.js"></script>
-<script src="alpine/load-rom.js"></script>
-<script type="module" src="app.js?v=3"></script>
+<button class="ink-btn" id="sair-cheia" type="button" aria-label="Exit full screen">✕</button>
+<script src="modulo.js?v=4"></script>
+<script src="maquina/load-rootfs.js"></script>
+<script src="maquina/load-kernel.js"></script>
+<script src="maquina/load-initramfs.js"></script>
+<script src="maquina/load-rom.js"></script>
+<script type="module" src="tela.js?v=1"></script>
 </body>
 </html>

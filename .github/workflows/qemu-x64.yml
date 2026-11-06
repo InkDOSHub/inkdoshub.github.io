@@ -1,0 +1,48 @@
+name: Build Wine x64 machine
+# Wine x64 (experimental): QEMU Wasm with a graphics console (tools/qemu-x64/build-qemu.sh) and an
+# Alpine Linux x86_64 disk with Xorg and Wine 64-bit (tools/qemu-x64/build-disk.sh).
+# Engine and small packs go to apps/wine/x64/maquina/; the root disk (too big for git) goes to the
+# release "wine-x64" and is served by worker.js.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [tools/qemu-x64/**, .github/workflows/qemu-x64.yml]
+permissions:
+  contents: write
+concurrency:
+  group: qemu-x64
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL; df -h /
+      - name: Build QEMU Wasm
+        run: WORK="$RUNNER_TEMP/q" tools/qemu-x64/build-qemu.sh
+      - name: Build the disk
+        run: WORK="$RUNNER_TEMP/q" tools/qemu-x64/build-disk.sh
+      - name: Pack
+        run: OUT="$RUNNER_TEMP/q/out" tools/qemu-x64/package.sh
+      - name: Publish the disk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/q/out/load-rootfs.data"
+          gh release view wine-x64 >/dev/null 2>&1 || gh release create wine-x64 --title "Wine x64 machine disk" --notes "Root disk of Wine x64 (Alpine Linux 3.21 x86_64, Xorg, Wine 9 64-bit), packed for QEMU Wasm. Built by .github/workflows/qemu-x64.yml."
+          gh release upload wine-x64 "$d" --clobber
+          printf '{"rootfs":"%s","bytes":%s}\n' "$(sha256sum "$d" | cut -c1-16)" "$(stat -c %s "$d")" > apps/wine/x64/maquina/disk.json
+          find apps/wine/x64/maquina -size +24M | while read -r f; do grep -qxF "$f" .assetsignore || echo "$f" >> .assetsignore; done
+      - name: Commit
+        run: |
+          git add -A apps/wine/x64/maquina .assetsignore
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Wine x64 machine build"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push && exit 0; sleep 5; done
+          exit 1
