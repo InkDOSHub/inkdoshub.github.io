@@ -18,6 +18,7 @@ GRUPOS = [
     ("inicio", "Home screen", ["inicio", "assets", "idiomas", "index.html", "manifest.webmanifest", "sw-portal.js", "desktop/index.html"]),
     ("terminal", "Linux terminal", ["terminal"]),
     ("wine", "Wine", ["apps/wine"]),
+    ("zip", "Zip", ["apps/zip"]),
     ("foto", "Photos", ["apps/foto"]),
     ("video", "Video", ["apps/video"]),
     ("codigo", "Code", ["apps/codigo"]),
