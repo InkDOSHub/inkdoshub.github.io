@@ -4,13 +4,10 @@ name: Build Boxedwine JIT
 # Two builds: jit (single thread) and mtjit (multithread, needs cross-origin isolation).
 # Output goes to apps/wine/jit/ and apps/wine/mtjit/ together with the source commit.
 # Runs on demand, and weekly to follow upstream.
+# Manual only: the 2026-11-05 automatic rebuild ran much slower on the iPad, so the
+# engine files in apps/wine stay as they are until a new build is checked by hand.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "41 5 * * 3"
-  push:
-    branches: [main]
-    paths: [.github/workflows/boxedwine.yml]
 permissions:
   contents: write
 concurrency:
