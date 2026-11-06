@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://api.github.com https://inkdoshub-github-io.vfydr2m9wk.workers.dev; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://api.github.com https://inkdoshub-github-io.vfydr2m9wk.workers.dev; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=7">
 <link rel="apple-touch-icon" sizes="180x180" href="../../assets/inkdoshub-icone-180.png?v=7">
@@ -40,6 +40,10 @@
   .it span{color:var(--muted);font-size:12px;white-space:nowrap}
   pre.log{margin:0;max-height:320px;overflow:auto;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all}
   .erro{color:#dc2626}
+  .it button{padding:4px 12px}
+  pre.term{margin:0;height:340px;overflow:auto;font:13px/1.4 ui-monospace,Menlo,monospace;background:#111;color:#e5e5e5;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all}
+  pre.term .e{color:#f87171}
+  #entrada{flex:1;min-width:0;font:14px ui-monospace,Menlo,monospace;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit}
 </style>
 </head>
 <body class="ink-app" data-idioma data-simbolo="../../assets/icones-inkdos/wasm.svg">
@@ -47,7 +51,7 @@
   <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
   <span class="ink-title">Wasm Build</span>
   <span class="ink-spacer"></span>
-  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Compiles an open-source project to WebAssembly with Emscripten, on GitHub's computers, using your own GitHub account. The Hub creates a public repository named "inkdoshub-wasm-build" in your account with one build workflow; each build runs there (free for public repositories, up to 6 hours per build), so small and large projects work. Paste the project's git link and its build commands; when the build ends, the .wasm files (with their .js loaders) come back here. Your token stays only on this device; files from GitHub pass through the Hub's Cloudflare worker only because GitHub's download links block browsers. Only build code you trust: the commands run with your token's repository access inside the build.</p></div></details>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Compiles an open-source project to WebAssembly with Emscripten, on GitHub's computers, using your own GitHub account. The Hub creates a public repository named "inkdoshub-wasm-build" in your account with one build workflow; each build runs there (free for public repositories, up to 6 hours per build), so small and large projects work. Paste the project's git link and its build commands; when the build ends, the .wasm files (with their .js loaders) come back here, and "Run" opens a program in a text terminal (output and typing, no pop-ups). Your token stays only on this device; files from GitHub pass through the Hub's Cloudflare worker only because GitHub's download links block browsers. Only build code you trust: the commands run with your token's repository access inside the build.</p></div></details>
 </header>
 <main class="ink-main"><div class="box">
   <section class="cartao" id="conta">
@@ -99,9 +103,17 @@
     </div>
     <pre class="log" id="log" hidden></pre>
   </section>
+
+  <section class="cartao" id="rodar" hidden>
+    <div class="linha"><h2 id="rodar-nome" style="flex:1" data-idioma-nao></h2><button class="ink-btn" type="button" id="parar">Stop</button><button class="ink-btn" type="button" id="fechar-rodar">Close</button></div>
+    <div class="linha"><input id="args" placeholder="Arguments (optional)" autocomplete="off" style="flex:1;min-width:0;font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit"><button class="ink-btn acao" type="button" id="iniciar">Start</button></div>
+    <pre class="term" id="saida"></pre>
+    <form class="linha" id="form-entrada"><input id="entrada" placeholder="Type here and press Enter" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="ink-btn" type="submit">Enter</button><button class="ink-btn" type="button" id="eof" title="End of input (Ctrl+D)">End</button></form>
+    <p class="nota" id="rodar-nota"></p>
+  </section>
   <p class="nota erro" id="msg"></p>
 </div></main>
-<script src="vendor/jszip.min.js"></script>
-<script src="app.js?v=2"></script>
+<script src="vendor/jszip.min.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

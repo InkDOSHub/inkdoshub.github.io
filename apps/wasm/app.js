@@ -103,8 +103,9 @@
       $("sem-conta").hidden = true; $("com-conta").hidden = false;
       $("quem").textContent = "Connected as " + dono;
       $("ver-repo").href = "https://github.com/" + dono + "/" + REPO;
-      var ultima = ler("wasm-ultima");
+      var ultima = ler("wasm-ultima"), resultado = ler("wasm-resultado");
       if (ultima) seguir(+ultima);
+      else if (resultado) { $("ver-run").href = "https://github.com/" + dono + "/" + REPO + "/actions/runs/" + resultado; trazer(+resultado).catch(function () { gravar("wasm-resultado", ""); $("andamento").hidden = true; }); }
     } catch (e) {
       token = ""; gravar("wasm-token", "");
       $("sem-conta").hidden = false; $("com-conta").hidden = true;
@@ -114,7 +115,7 @@
   $("conectar").onclick = function () { if ($("token").value.trim()) conectar($("token").value); };
   $("sair").onclick = function () {
     token = ""; dono = ""; parar = true;
-    gravar("wasm-token", ""); gravar("wasm-ultima", "");
+    gravar("wasm-token", ""); gravar("wasm-ultima", ""); gravar("wasm-resultado", "");
     $("token").value = ""; $("sem-conta").hidden = false; $("com-conta").hidden = true; $("andamento").hidden = true;
   };
 
@@ -239,7 +240,61 @@
     }
   }
 
+  // --- Run panel: the program runs in a worker, with a terminal-like output and an input line ---
+  var trab = null, prog = null, sab = null, ctl = null, buf = null;
+  function escrever(t, erro) {
+    var o = $("saida"), sp = document.createElement("span");
+    if (erro) sp.className = "e";
+    sp.textContent = t; o.appendChild(sp); o.scrollTop = o.scrollHeight;
+  }
+  function abrirRodar(f) {
+    prog = f;
+    $("rodar").hidden = false; $("rodar-nome").textContent = f.nome.split("/").pop().replace(/\.js$/, "");
+    $("saida").textContent = "";
+    $("rodar-nota").textContent = self.crossOriginIsolated ? "" : "Typing into the program needs the Hub's isolated address (" + PONTE.replace("/net/github/", "/apps/wasm/") + "); here the program only shows its output.";
+    $("rodar").scrollIntoView({ behavior: "smooth" });
+    iniciar();
+  }
+  function parar() { if (trab) { trab.terminate(); trab = null; escrever("\n[stopped]\n", true); } }
+  function iniciar() {
+    if (trab) { trab.terminate(); trab = null; }
+    $("saida").textContent = "";
+    var urls = {};
+    arquivos.forEach(function (g) { urls[g.nome.split("/").pop()] = g.url; });
+    var args = ($("args").value.match(/"[^"]*"|\S+/g) || []).map(function (a) { return a.replace(/^"|"$/g, ""); });
+    sab = self.crossOriginIsolated ? new SharedArrayBuffer(8 + 65536) : null;
+    ctl = sab ? new Int32Array(sab, 0, 2) : null; buf = sab ? new Uint8Array(sab, 8) : null;
+    trab = new Worker("run-worker.js?v=3");
+    trab.onmessage = function (e) {
+      var m = e.data;
+      if (m.t === "o") escrever(m.s);
+      else if (m.t === "e") escrever(m.s, true);
+      else if (m.t === "i") $("entrada").focus();
+      else if (m.t === "x") { escrever("\n[exited with code " + m.c + "]\n", m.c !== 0); trab.terminate(); trab = null; }
+    };
+    trab.onerror = function (e) { escrever((e.message || "error") + "\n", true); };
+    trab.postMessage({ js: prog.url, nome: prog.nome.split("/").pop(), urls: urls, args: args, sab: sab });
+  }
+  function enviar(bytes) {
+    if (!trab || !ctl) return;
+    if (bytes) { buf.set(bytes.subarray(0, buf.length)); Atomics.store(ctl, 1, Math.min(bytes.length, buf.length)); }
+    else Atomics.store(ctl, 1, -1);
+    Atomics.store(ctl, 0, 1); Atomics.notify(ctl, 0);
+  }
+  $("form-entrada").onsubmit = function (e) {
+    e.preventDefault();
+    var t = $("entrada").value; $("entrada").value = "";
+    escrever(t + "\n");
+    enviar(new TextEncoder().encode(t + "\n"));
+  };
+  $("entrada").addEventListener("keydown", function (e) { if (e.ctrlKey && e.key === "d") { e.preventDefault(); enviar(null); } });
+  $("eof").onclick = function () { enviar(null); };
+  $("iniciar").onclick = function () { if (prog) iniciar(); };
+  $("parar").onclick = parar;
+  $("fechar-rodar").onclick = function () { if (trab) { trab.terminate(); trab = null; } $("rodar").hidden = true; };
+
   async function trazer(runId) {
+    gravar("wasm-resultado", String(runId));
     andamento("Bringing the files back", "");
     var a = await gh("GET", "repos/" + dono + "/" + REPO + "/actions/runs/" + runId + "/artifacts");
     var art = (a.artifacts || [])[0];
@@ -259,7 +314,14 @@
       var d = document.createElement("div"); d.className = "it";
       var l = document.createElement("a"); l.href = f.url; l.download = f.nome.split("/").pop(); l.textContent = f.nome;
       var s = document.createElement("span"); s.textContent = tam(f.tamanho);
-      d.appendChild(l); d.appendChild(s); lista.appendChild(d);
+      d.appendChild(l); d.appendChild(s);
+      var base = f.nome.replace(/\.js$/, "");
+      if (/\.js$/.test(f.nome) && !/\.worker\.js$/.test(f.nome) && arquivos.some(function (g) { return g.nome === base + ".wasm"; })) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "ink-btn acao"; b.textContent = "Run";
+        b.onclick = function () { abrirRodar(f); };
+        d.appendChild(b);
+      }
+      lista.appendChild(d);
     });
     $("baixar-tudo").onclick = function () {
       var l = document.createElement("a"); l.href = URL.createObjectURL(blob); l.download = "wasm-build.zip"; document.body.appendChild(l); l.click(); l.remove();
