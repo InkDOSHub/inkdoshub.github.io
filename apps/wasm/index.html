@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://api.github.com https://inkdoshub-github-io.vfydr2m9wk.workers.dev; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=7">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/inkdoshub-icone-180.png?v=7">
+<title>Wasm Build · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<script src="../../assets/gerenciador-app.js?v=52"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=1">
+<link rel="stylesheet" href="../../assets/barra.css?v=5">
+<script src="../../assets/barra.js?v=3" defer></script>
+<script src="../../assets/icones.js?v=2" defer></script>
+<style>
+  :root{--tc:#654ff0}
+  [hidden]{display:none!important}
+  .ink-main{overflow:auto;padding:16px}
+  .box{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .nota{color:var(--muted);font-size:13px;line-height:1.5;margin:0}
+  .acao{font-weight:600;background:var(--tc);border-color:var(--tc);color:#fff}
+  .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .cartao{border:1px solid var(--border);border-radius:14px;background:var(--card);padding:16px;display:flex;flex-direction:column;gap:12px}
+  .cartao h2{font-size:16px;margin:0}
+  .campo{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+  .campo input,.campo textarea,.campo select{font:inherit;font-size:14px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--fg,inherit)}
+  .campo textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;min-height:96px;resize:vertical}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .passos{list-style:none;margin:0;padding:0;font-size:14px;display:flex;flex-direction:column;gap:4px}
+  .passos li::before{content:"○ ";color:var(--muted)}
+  .passos li.ok::before{content:"✓ ";color:#16a34a}
+  .passos li.vai::before{content:"● ";color:var(--tc)}
+  .passos li.erro::before{content:"✕ ";color:#dc2626}
+  .lista{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .it{display:flex;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--border);font-size:14px}
+  .it:first-child{border-top:0}
+  .it a{flex:1;min-width:0;word-break:break-all;color:inherit}
+  .it span{color:var(--muted);font-size:12px;white-space:nowrap}
+  pre.log{margin:0;max-height:320px;overflow:auto;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all}
+  .erro{color:#dc2626}
+</style>
+</head>
+<body class="ink-app" data-idioma data-simbolo="../../assets/icones-inkdos/wasm.svg">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Wasm Build</span>
+  <span class="ink-spacer"></span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Compiles an open-source project to WebAssembly with Emscripten, on GitHub's computers, using your own GitHub account. The Hub creates a public repository named "inkdoshub-wasm-build" in your account with one build workflow; each build runs there (free for public repositories, up to 6 hours per build), so small and large projects work. Paste the project's git link and its build commands; when the build ends, the .wasm files (with their .js loaders) come back here. Your token stays only on this device; files from GitHub pass through the Hub's Cloudflare worker only because GitHub's download links block browsers. Only build code you trust: the commands run with your token's repository access inside the build.</p></div></details>
+</header>
+<main class="ink-main"><div class="box">
+  <section class="cartao" id="conta">
+    <h2>GitHub account</h2>
+    <div id="sem-conta">
+      <p class="nota">Create a token with the "repo" and "workflow" permissions (<a id="criar-token" href="https://github.com/settings/tokens/new?scopes=repo,workflow&amp;description=InkDOS%20Hub%20Wasm%20Build" target="_blank" rel="noopener">open GitHub</a>), then paste it here.</p>
+      <div class="linha" style="margin-top:8px">
+        <input class="campo-in" id="token" type="password" placeholder="ghp_..." autocomplete="off" style="flex:1;min-width:0;font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit">
+        <button class="ink-btn acao" type="button" id="conectar">Connect</button>
+      </div>
+    </div>
+    <div id="com-conta" class="linha" hidden>
+      <span id="quem" style="flex:1" data-idioma-nao></span>
+      <a class="ink-btn" id="ver-repo" target="_blank" rel="noopener">Repository</a>
+      <button class="ink-btn" type="button" id="sair">Disconnect</button>
+    </div>
+  </section>
+
+  <section class="cartao" id="projeto">
+    <h2>Project</h2>
+    <div class="grade">
+      <label class="campo">Git link<input id="fonte" placeholder="https://github.com/owner/project" autocomplete="off"></label>
+      <label class="campo">Branch or tag (optional)<input id="ref" autocomplete="off"></label>
+    </div>
+    <label class="campo">Example<select id="exemplo">
+      <option value="">Choose a starting point…</option>
+      <option value="cmake">CMake</option>
+      <option value="make">Makefile</option>
+      <option value="configure">./configure + make</option>
+      <option value="meson">Meson</option>
+      <option value="cc">Single C/C++ file</option>
+    </select></label>
+    <label class="campo">Build commands (run in the project folder, Emscripten ready)<textarea id="comandos" spellcheck="false"></textarea></label>
+    <div class="grade">
+      <label class="campo">Files to bring back<input id="saidas" value="**/*.wasm" autocomplete="off"></label>
+      <label class="campo">Emscripten version<input id="emsdk" value="latest" autocomplete="off"></label>
+    </div>
+    <div class="linha"><button class="ink-btn acao" type="button" id="compilar">Build</button></div>
+  </section>
+
+  <section class="cartao" id="andamento" hidden>
+    <h2 id="and-titulo" data-idioma-nao></h2>
+    <p class="nota" id="and-texto"></p>
+    <ul class="passos" id="passos"></ul>
+    <div class="linha"><a class="ink-btn" id="ver-run" target="_blank" rel="noopener">Open on GitHub</a></div>
+    <div id="resultado" hidden>
+      <div class="linha" style="margin-bottom:8px"><button class="ink-btn acao" type="button" id="baixar-tudo">Download all (.zip)</button></div>
+      <div class="lista" id="arquivos"></div>
+    </div>
+    <pre class="log" id="log" hidden></pre>
+  </section>
+  <p class="nota erro" id="msg"></p>
+</div></main>
+<script src="vendor/jszip.min.js"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

@@ -32,6 +32,7 @@ export default {
       if (url.pathname === "/net/wisp/") wisp(ws); else boxedwine(ws);
       return new Response(null, { status: 101, webSocket: par[0] });
     }
+    if (url.pathname.startsWith("/net/github/")) return github(req, url);
     const res = await env.ASSETS.fetch(req);
     if (res.status !== 404 || req.method !== "GET") return res;
     const up = await fetch(EXTERNOS[url.pathname] ? EXTERNOS[url.pathname] + url.search : ORIGEM + url.pathname + url.search, { cf: { cacheTtl: 3600, cacheEverything: true } });
@@ -41,6 +42,24 @@ export default {
     return new Response(up.body, { status: up.status, statusText: up.statusText, headers: h });
   },
 };
+
+// Wasm Build app: GitHub sends Actions artifacts and logs through a redirect to storage without
+// CORS, so the page asks here. Only those two read-only API paths; the user's token is passed
+// along and never kept.
+const GH_OK = /^repos\/[\w.-]+\/[\w.-]+\/actions\/(artifacts\/\d+\/zip|jobs\/\d+\/logs)$/;
+async function github(req, url) {
+  const origem = req.headers.get("Origin") || "";
+  if (!ORIGENS_OK.test(origem)) return new Response("forbidden", { status: 403 });
+  const cors = { "Access-Control-Allow-Origin": origem, "Access-Control-Allow-Headers": "Authorization", "Access-Control-Allow-Methods": "GET", "Vary": "Origin", "Cross-Origin-Resource-Policy": "cross-origin" };
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  const caminho = url.pathname.slice("/net/github/".length);
+  if (req.method !== "GET" || !GH_OK.test(caminho)) return new Response("not allowed", { status: 400, headers: cors });
+  const up = await fetch("https://api.github.com/" + caminho, { headers: { Authorization: req.headers.get("Authorization") || "", "User-Agent": "InkDOS-Hub-Wasm-Build", Accept: "application/vnd.github+json" } });
+  const h = new Headers(cors);
+  h.set("Content-Type", up.headers.get("Content-Type") || "application/octet-stream");
+  h.set("Cache-Control", "no-store");
+  return new Response(up.body, { status: up.status, headers: h });
+}
 
 // opens a TCP connection; calls aoReceber(bytes) for each chunk and aoFechar() at the end
 function abrirTcp(host, porta, aoReceber, aoFechar) {
