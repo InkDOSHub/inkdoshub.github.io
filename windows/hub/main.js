@@ -449,7 +449,8 @@ const EMULADORES = [
   { g: 'vm', nome: 'VirtualBox', id: 'Oracle.VirtualBox', pub: /^Oracle\./i, menu: 'VirtualBox', site: 'https://www.virtualbox.org/wiki/Downloads', pt: 'Máquina virtual fácil: Linux, Windows e outros sistemas, com várias configurações.', en: 'Easy virtual machine: Linux, Windows and other systems, with many settings.' },
   { g: 'vm', nome: 'QEMU', id: 'SoftwareFreedomConservancy.QEMU', pub: /^(SoftwareFreedomConservancy|QEMU)\./i, menu: 'QEMU', site: 'https://www.qemu.org/download/#windows', pt: 'Emula quase qualquer processador (x86, ARM, RISC-V…). Mais técnico, por linha de comando.', en: 'Emulates almost any processor (x86, ARM, RISC-V…). More technical, command line.' },
   { g: 'vm', nome: 'Linux do Windows (WSL)', nomeEn: 'Windows Linux (WSL)', wsl: true, pt: 'Linux da Microsoft com desempenho quase nativo. É o mesmo do app Terminal.', en: 'Microsoft Linux with near-native performance. Same as the Terminal app.' },
-  { g: 'mac', nome: 'QEMU + OpenCore (OSX-KVM)', id: 'SoftwareFreedomConservancy.QEMU', pub: /^(SoftwareFreedomConservancy|QEMU)\./i, menu: 'QEMU', site: 'https://github.com/kholia/OSX-KVM', pt: 'Projeto open source mais usado para isso. Instala o QEMU e abre o guia. A Apple só permite o macOS em Mac: use por sua conta e risco.', en: 'Most used open source project for this. Installs QEMU and opens the guide. Apple only allows macOS on Macs: use at your own risk.' },
+  { g: 'mac', nome: 'QEMU', id: 'SoftwareFreedomConservancy.QEMU', pub: /^(SoftwareFreedomConservancy|QEMU)\./i, menu: 'QEMU', site: 'https://www.qemu.org/download/#windows', pt: 'O emulador que roda o macOS. Apple só permite o macOS em Mac: use por sua conta e risco.', en: 'The emulator that runs macOS. Apple only allows macOS on Macs: use at your own risk.' },
+  { g: 'mac', nome: 'OpenCore (OSX-KVM)', osxkvm: true, site: 'https://github.com/kholia/OSX-KVM', pt: 'Projeto open source com o OpenCore e os scripts para baixar o instalador do macOS da Apple. Baixa o projeto e abre a pasta.', en: 'Open source project with OpenCore and scripts to fetch the macOS installer from Apple. Downloads the project and opens the folder.' },
   { g: 'jogo', nome: 'RetroArch', id: 'Libretro.RetroArch', pub: /^Libretro\./i, menu: 'RetroArch', site: 'https://www.retroarch.com/?page=platforms', pt: 'Consoles antigos em um app só (NES, SNES, Mega Drive, Game Boy, N64…).', en: 'Classic consoles in one app (NES, SNES, Genesis, Game Boy, N64…).' },
   { g: 'jogo', nome: 'DuckStation', id: 'Stenzek.DuckStation', pub: /^Stenzek\./i, menu: 'DuckStation', site: 'https://www.duckstation.org/', pt: 'PlayStation 1.', en: 'PlayStation 1.' },
   { g: 'jogo', nome: 'PCSX2', id: 'PCSX2Team.PCSX2', pub: /^PCSX2(Team)?\./i, menu: 'PCSX2', site: 'https://pcsx2.net/downloads', pt: 'PlayStation 2.', en: 'PlayStation 2.' },
@@ -504,6 +505,7 @@ function abrirSemMenu(x) {
   }
   shell.openExternal(x.site);
 }
+const OSXKVM = path.join(app.getPath('userData'), 'OSX-KVM-master');
 let janelaEmuladores = null;
 async function abrirEmuladores() {
   if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + 'apps/wine/'); }
@@ -534,8 +536,8 @@ async function abrirEmuladores() {
     wl = (await winget(['list', '--source', 'winget', '--accept-source-agreements', '--disable-interactivity'])).saida.toLowerCase();
     const wsl = (await distrosWsl()).length > 0;
     EMULADORES.forEach((x, i) => {
-      const tem = x.wsl ? wsl : !!doMenu(menu, x) || (!!x.id && wl.includes(x.id.toLowerCase()));
-      const rot = x.g === 'mac' ? (pt ? (tem ? 'Ver guia' : 'Instalar') : (tem ? 'Guide' : 'Install')) : (tem ? (pt ? 'Abrir' : 'Open') : (pt ? 'Instalar' : 'Install'));
+      const tem = x.osxkvm ? fs.existsSync(OSXKVM) : x.wsl ? wsl : !!doMenu(menu, x) || (!!x.id && wl.includes(x.id.toLowerCase()));
+      const rot = (tem ? (pt ? 'Abrir' : 'Open') : (pt ? 'Instalar' : 'Install'));
       js('var b=document.getElementById("b' + i + '");b.textContent=' + JSON.stringify(rot) + ';b.style.background=' + JSON.stringify(tem ? '#34c759' : '#0a84ff'));
     });
   };
@@ -545,11 +547,23 @@ async function abrirEmuladores() {
     const i = Number(new URL(url).searchParams.get('i')), x = EMULADORES[i];
     if (!x || ocupados.has(i)) return;
     if (x.wsl) return void abrirTerminal();
+    if (x.osxkvm) {
+      if (fs.existsSync(OSXKVM)) return void shell.openPath(OSXKVM);
+      ocupados.add(i);
+      dizer(pt ? 'Baixando o OpenCore (OSX-KVM)…' : 'Downloading OpenCore (OSX-KVM)…');
+      const zip = path.join(app.getPath('temp'), 'osx-kvm.zip');
+      baixarBuf('https://github.com/kholia/OSX-KVM/archive/refs/heads/master.zip').then(b => fsp.writeFile(zip, b)).then(() => new Promise((ok, falha) => cp.execFile('powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command', 'Expand-Archive -LiteralPath $env:INK_ZIP -DestinationPath $env:INK_DEST -Force'],
+        { env: Object.assign({}, process.env, { INK_ZIP: zip, INK_DEST: path.dirname(OSXKVM) }), windowsHide: true }, e => (e ? falha(e) : ok()))))
+        .then(async () => { fsp.rm(zip, { force: true }).catch(() => {}); dizer('OpenCore (OSX-KVM) ✓'); shell.openPath(OSXKVM); await marcar(); })
+        .catch(() => { dizer(pt ? 'Não deu para baixar. Abrindo a página do projeto.' : 'Could not download. Opening the project page.'); shell.openExternal(x.site); })
+        .finally(() => ocupados.delete(i));
+      return;
+    }
     const a = doMenu(menu, x);
-    if (!a && x.id && wl.includes(x.id.toLowerCase())) { if (x.g === 'mac') shell.openExternal(x.site); else abrirSemMenu(x); return; }
+    if (!a && x.id && wl.includes(x.id.toLowerCase())) return void abrirSemMenu(x);
     if (a) {
-      if (x.g === 'mac') shell.openExternal(x.site);
-      else cp.spawn('explorer.exe', ['shell:AppsFolder\\' + a.AppID], { detached: true, stdio: 'ignore' }).unref();
+      cp.spawn('explorer.exe', ['shell:AppsFolder\\' + a.AppID], { detached: true, stdio: 'ignore' }).unref();
       return;
     }
     ocupados.add(i);
@@ -558,7 +572,6 @@ async function abrirEmuladores() {
         ocupados.delete(i);
         if (err && !(await winget(['list', '--id', x.id, '-e', '--disable-interactivity'])).saida.toLowerCase().includes(x.id.toLowerCase())) { dizer((pt ? 'O winget não conseguiu instalar. Abrindo a página oficial de ' : 'winget could not install it. Opening the official page of ') + x.nome + '.'); shell.openExternal(x.site); return; }
         dizer(x.nome + (pt ? ' instalado ✓' : ' installed ✓'));
-        if (x.g === 'mac') shell.openExternal(x.site);
         await marcar();
       });
   });
