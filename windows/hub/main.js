@@ -481,6 +481,29 @@ async function instalarWinget(x) {
   for (const id of ids.slice(0, 2)) if (!(await winget(['install', '--id', id, ...OPC])).e) return null;
   return new Error('winget');
 }
+// installed by winget without a Start menu entry (portable zip like DuckStation, or QEMU): finds the .exe or opens the folder
+function abrirSemMenu(x) {
+  const nome = x.menu.toLowerCase(), raizes = [];
+  const pk = path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Packages');
+  try { for (const d of fs.readdirSync(pk)) if (d.toLowerCase().startsWith(x.id.toLowerCase() + '_')) raizes.push(path.join(pk, d)); } catch (_) {}
+  for (const d of [process.env.ProgramFiles, process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs')]) if (d) raizes.push(path.join(d, x.menu));
+  const achar = (p, n) => {
+    if (n > 3) return null;
+    let l = [];
+    try { l = fs.readdirSync(p, { withFileTypes: true }); } catch (_) { return null; }
+    const e = l.find(f => f.isFile() && /\.exe$/i.test(f.name) && f.name.toLowerCase().includes(nome) && !/unins|setup|update/i.test(f.name));
+    if (e) return path.join(p, e.name);
+    for (const f of l) if (f.isDirectory()) { const r = achar(path.join(p, f.name), n + 1); if (r) return r; }
+    return null;
+  };
+  for (const r of raizes) {
+    if (!fs.existsSync(r)) continue;
+    if (x.id.endsWith('.QEMU')) return void shell.openPath(r); // QEMU is used from the command line: opens its folder
+    const exe = achar(r, 0);
+    if (exe) return void shell.openPath(exe);
+  }
+  shell.openExternal(x.site);
+}
 let janelaEmuladores = null;
 async function abrirEmuladores() {
   if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + 'apps/wine/'); }
@@ -505,12 +528,13 @@ async function abrirEmuladores() {
   const w = janelaEmuladores = new BrowserWindow({ width: 620, height: 760, icon: ICONE, autoHideMenuBar: true, title: pt ? 'Emuladores' : 'Emulators', backgroundColor: '#f2f2f7', webPreferences: { sandbox: true, contextIsolation: true } });
   const js = c => (w.isDestroyed() ? Promise.resolve() : w.webContents.executeJavaScript(c).catch(() => {}));
   const dizer = txt => js('document.getElementById("t").textContent=' + JSON.stringify(txt));
-  let menu = [];
+  let menu = [], wl = '';
   const marcar = async () => {
     menu = await appsDoMenu();
+    wl = (await winget(['list', '--source', 'winget', '--accept-source-agreements', '--disable-interactivity'])).saida.toLowerCase();
     const wsl = (await distrosWsl()).length > 0;
     EMULADORES.forEach((x, i) => {
-      const tem = x.wsl ? wsl : !!doMenu(menu, x);
+      const tem = x.wsl ? wsl : !!doMenu(menu, x) || (!!x.id && wl.includes(x.id.toLowerCase()));
       const rot = x.g === 'mac' ? (pt ? (tem ? 'Ver guia' : 'Instalar') : (tem ? 'Guide' : 'Install')) : (tem ? (pt ? 'Abrir' : 'Open') : (pt ? 'Instalar' : 'Install'));
       js('var b=document.getElementById("b' + i + '");b.textContent=' + JSON.stringify(rot) + ';b.style.background=' + JSON.stringify(tem ? '#34c759' : '#0a84ff'));
     });
@@ -522,6 +546,7 @@ async function abrirEmuladores() {
     if (!x || ocupados.has(i)) return;
     if (x.wsl) return void abrirTerminal();
     const a = doMenu(menu, x);
+    if (!a && x.id && wl.includes(x.id.toLowerCase())) { if (x.g === 'mac') shell.openExternal(x.site); else abrirSemMenu(x); return; }
     if (a) {
       if (x.g === 'mac') shell.openExternal(x.site);
       else cp.spawn('explorer.exe', ['shell:AppsFolder\\' + a.AppID], { detached: true, stdio: 'ignore' }).unref();
@@ -531,7 +556,7 @@ async function abrirEmuladores() {
     dizer((pt ? 'Instalando ' : 'Installing ') + x.nome + (pt ? ' pelo winget… o Windows pode pedir permissão.' : ' with winget… Windows may ask for permission.'));
     instalarWinget(x).then(async err => {
         ocupados.delete(i);
-        if (err) { dizer((pt ? 'O winget não conseguiu instalar. Abrindo a página oficial de ' : 'winget could not install it. Opening the official page of ') + x.nome + '.'); shell.openExternal(x.site); return; }
+        if (err && !(await winget(['list', '--id', x.id, '-e', '--disable-interactivity'])).saida.toLowerCase().includes(x.id.toLowerCase())) { dizer((pt ? 'O winget não conseguiu instalar. Abrindo a página oficial de ' : 'winget could not install it. Opening the official page of ') + x.nome + '.'); shell.openExternal(x.site); return; }
         dizer(x.nome + (pt ? ' instalado ✓' : ' installed ✓'));
         if (x.g === 'mac') shell.openExternal(x.site);
         await marcar();
