@@ -466,8 +466,9 @@ function appsDoMenu() {
 }
 const doMenu = (lista, x) => x.menu && lista.find(a => String(a.Name || '').toLowerCase().includes(x.menu.toLowerCase()));
 // winget: tries the known id; if it fails, searches the name and installs only an id from the expected publisher (x.pub)
-const winget = args => new Promise(ok => cp.execFile('winget.exe', args, { windowsHide: true, timeout: 30 * 60000, maxBuffer: 8 << 20 }, (e, saida) => ok({ e, saida: String(saida || '') })));
-const OPC = ['-e', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'];
+// install runs in a visible window (progress, Windows permission prompts); search stays hidden
+const winget = args => new Promise(ok => cp.execFile('winget.exe', args, { windowsHide: args[0] !== 'install', timeout: 30 * 60000, maxBuffer: 8 << 20 }, (e, saida) => ok({ e, saida: String(saida || '') })));
+const OPC = ['-e', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements'];
 async function instalarWinget(x) {
   if (!(await winget(['install', '--id', x.id, ...OPC])).e) return null;
   const { saida } = await winget(['search', x.nome.split(' ')[0], '--source', 'winget', '--accept-source-agreements', '--disable-interactivity']);
