@@ -752,6 +752,11 @@ app.whenReady().then(async () => {
   // opened by a file (Open with / default app): only that file's app; otherwise, the home screen
   const arqs = arquivosDe(process.argv);
   if (arqs.length) arqs.forEach(abrirArquivo); else abrirInicio();
+  // stored apps update by themselves when the site has a new version (before, they stayed old until "Update" was tapped)
+  if (estado) manifestoDoSite().then(m => {
+    if (!m || m.versao === estado.versao) return;
+    return sincronizar(estado.grupos).then(() => { const w = principal(); if (w) w.webContents.reload(); });
+  }).catch(() => {});
   setTimeout(procurarVersaoNova, 20000);
   setInterval(procurarVersaoNova, 6 * 3600e3);
 
