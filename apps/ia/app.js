@@ -1,5 +1,5 @@
 // AI Chat (experimental): small GGUF models running on the device with wllama (llama.cpp in wasm).
-// The model comes from Hugging Face once and wllama keeps it in the browser (OPFS).
+// The model comes from Hugging Face once, through the site's Worker (worker.js; Safari fails the direct download), and wllama keeps it in the browser (OPFS).
 import { Wllama } from "./wllama/index.js";
 
 const MODELOS = [
@@ -28,7 +28,7 @@ async function carregar() {
   carregado = null;
   aviso("Loading the model…");
   const m = MODELOS[i];
-  await wllama.loadModelFromUrl("https://huggingface.co/" + m.repo + "/resolve/main/" + m.file, {
+  await wllama.loadModelFromUrl(new URL("./modelos/" + m.file, import.meta.url).href, {
     n_ctx: 2048,
     progressCallback: ({ loaded, total }) => { if (total) aviso("Downloading the model… " + Math.round(loaded / total * 100) + "%"); }
   });
