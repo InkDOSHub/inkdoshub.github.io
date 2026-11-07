@@ -499,13 +499,32 @@ function abrirSemMenu(x) {
   };
   for (const r of raizes) {
     if (!fs.existsSync(r)) continue;
-    if (x.id.endsWith('.QEMU')) return void shell.openPath(r); // QEMU is used from the command line: opens its folder
+    if (x.id.endsWith('.QEMU')) return void abrirQemu(r);
     const exe = achar(r, 0);
     if (exe) return void shell.openPath(exe);
   }
   shell.openExternal(x.site);
 }
 const OSXKVM = path.join(app.getPath('userData'), 'OSX-KVM-master');
+// QEMU has no menu of its own: asks for a system image (.iso/.img/.qcow2) and starts a virtual machine with
+// a 64 GB disk kept by the Hub, 4 GB RAM and Windows' hypervisor (WHPX) when it is available.
+async function abrirQemu(pasta) {
+  const pt = /^pt/i.test(app.getLocale());
+  const exe = path.join(pasta, 'qemu-system-x86_64.exe'), img = path.join(pasta, 'qemu-img.exe');
+  if (!fs.existsSync(exe)) return void shell.openPath(pasta);
+  const vm = path.join(app.getPath('userData'), 'qemu'), disco = path.join(vm, 'disco.qcow2');
+  fs.mkdirSync(vm, { recursive: true });
+  const r = await dialog.showOpenDialog({ title: pt ? 'Escolha a imagem do sistema (ISO) ou cancele para ligar o disco já instalado' : 'Choose the system image (ISO) or cancel to boot the installed disk',
+    filters: [{ name: 'ISO / IMG / QCOW2', extensions: ['iso', 'img', 'qcow2'] }], properties: ['openFile'] });
+  const iso = !r.canceled && r.filePaths[0];
+  if (!iso && !fs.existsSync(disco)) return;
+  if (!fs.existsSync(disco)) await new Promise(ok => cp.execFile(img, ['create', '-f', 'qcow2', disco, '64G'], { windowsHide: true }, () => ok()));
+  const args = ['-m', '4096', '-smp', String(Math.max(2, Math.min(8, require('os').cpus().length - 2))), '-accel', 'whpx,kernel-irqchip=off', '-accel', 'tcg',
+    '-machine', 'q35', '-vga', 'virtio', '-display', 'sdl', '-usb', '-device', 'usb-tablet', '-nic', 'user,model=virtio-net-pci', '-drive', 'file=' + disco + ',if=virtio'];
+  if (iso && /\.qcow2$/i.test(iso)) args.splice(args.length - 2, 2, '-drive', 'file=' + iso + ',if=virtio');
+  else if (iso) args.push('-cdrom', iso, '-boot', 'd');
+  cp.spawn(exe, args, { cwd: pasta, detached: true, stdio: 'ignore' }).unref();
+}
 let janelaEmuladores = null;
 async function abrirEmuladores() {
   if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + 'apps/wine/'); }
