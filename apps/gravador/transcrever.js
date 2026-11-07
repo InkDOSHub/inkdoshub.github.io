@@ -102,13 +102,22 @@
   }
 
   // any audio or video the browser can play, as 16 kHz mono
+  // Safari cannot decode the sound of a video (.mov/.mp4) directly: copy only its sound to .m4a first
   function decodificar(arquivo) {
+    var video = /^video\//.test(arquivo.type) || /\.(mov|mp4|m4v)$/i.test(arquivo.name);
+    if (video && window.inkExtrairM4a) {
+      return inkExtrairM4a(arquivo, function (p) { barra(p); }).then(decodificarSom, function () { return decodificarSom(arquivo); });
+    }
+    return decodificarSom(arquivo);
+  }
+  function decodificarSom(arquivo) {
     return arquivo.arrayBuffer().then(function (buf) {
       var C = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       var ctx = new C(1, 16000, 16000);
       return new Promise(function (ok, erro) {
-        var p = ctx.decodeAudioData(buf, ok, erro);
-        if (p && p.then) p.then(ok, erro);
+        var falhou = function () { erro(new Error(t("This file has no sound, or its sound could not be read."))); };
+        var p = ctx.decodeAudioData(buf, ok, falhou);
+        if (p && p.then) p.then(ok, falhou);
       });
     }).then(function (ab) {
       if (ab.numberOfChannels === 1) return ab.getChannelData(0);
