@@ -439,5 +439,7 @@
 "Clear app data": "App-Daten löschen",
 "Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.": "Von den Apps gespeicherte Daten löschen (Wine-Laufwerk C:, Transkriptionsmodelle, Caches)? Die Offline-Kopie und die Dokumentwiederherstellung bleiben erhalten.",
 "Clear": "Löschen",
-"App data cleared ✓": "App-Daten gelöscht ✓"
+"App data cleared ✓": "App-Daten gelöscht ✓",
+"Delete everything from this site": "Alles von dieser Website löschen",
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "ALLE Daten dieser Website auf diesem Gerät löschen (Offline-Kopie, App-Daten, Dokumentwiederherstellung, Einstellungen)?"
 }

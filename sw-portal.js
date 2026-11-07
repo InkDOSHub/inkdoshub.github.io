@@ -72,6 +72,8 @@ self.addEventListener("fetch", function (e) {
   if (u.origin !== self.location.origin) return;
   if (req.headers.has("range")) return; // video and audio request ranges; the browser handles it
   if (u.pathname === RAIZ + "inicio/manifesto.json") return; // the Offline button always compares with the site
+  // the Offline panel (data controls) always comes from the site when online, so a full or half-updated copy never hides it
+  if (u.pathname === RAIZ + "inicio/offline.js" || u.pathname === RAIZ + "assets/home.css") { e.respondWith(daRedeOuCopia(req)); return; }
   if (u.searchParams.has("inkoff")) return; // offline copy download: always from the site
 
   // the home screen (inicio/offline.js) offers to store the last opened app, if not stored yet

@@ -439,5 +439,7 @@
 "Clear app data": "清除应用数据",
 "Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.": "删除应用保存的数据（Wine 的 C: 盘、转写模型、缓存）？离线副本和文档恢复数据会保留。",
 "Clear": "清除",
-"App data cleared ✓": "应用数据已清除 ✓"
+"App data cleared ✓": "应用数据已清除 ✓",
+"Delete everything from this site": "删除此网站的所有数据",
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "删除此设备上此网站的所有数据（离线副本、应用数据、文档恢复、设置）？"
 }
