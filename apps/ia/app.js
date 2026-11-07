@@ -1,5 +1,5 @@
 // AI Chat (experimental): small GGUF models running on the device with wllama (llama.cpp in wasm).
-// The model comes from Hugging Face once, through the site's Worker (worker.js; Safari fails the direct download), and wllama keeps it in the browser (OPFS).
+// The model comes from Hugging Face once, through the site's Worker (worker.js; Safari fails the direct download), and is kept in the browser cache.
 import { Wllama } from "./wllama/index.js";
 
 const MODELOS = [
@@ -27,11 +27,27 @@ async function carregar() {
   if (carregado !== null) await wllama.exit();
   carregado = null;
   aviso("Loading the model…");
-  const m = MODELOS[i];
-  await wllama.loadModelFromUrl(new URL("./modelos/" + m.file, import.meta.url).href, {
-    n_ctx: 2048,
-    progressCallback: ({ loaded, total }) => { if (total) aviso("Downloading the model… " + Math.round(loaded / total * 100) + "%"); }
-  });
+  const m = MODELOS[i], url = new URL("./modelos/" + m.file, import.meta.url).href;
+  // same way as the Recorder: Cache API + our own download (wllama's OPFS download stalls in Safari)
+  const cache = window.caches ? await caches.open("inkdoshub-ia").catch(() => null) : null;
+  let r = cache ? await cache.match(url) : null, blob;
+  if (r) blob = await r.blob();
+  else {
+    r = await fetch(url);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const total = +r.headers.get("content-length") || 0, partes = [], leitor = r.body.getReader();
+    let lidos = 0;
+    for (;;) {
+      const p = await leitor.read();
+      if (p.done) break;
+      partes.push(p.value); lidos += p.value.length;
+      aviso("Downloading the model (only the first time)… " + (total ? Math.round(lidos / total * 100) + "%" : Math.round(lidos / 1048576) + " MB"));
+    }
+    blob = new Blob(partes);
+    if (cache) await cache.put(url, new Response(blob)).catch(() => {});
+  }
+  aviso("Loading the model…");
+  await wllama.loadModel([blob], { n_ctx: 2048 });
   carregado = i;
   aviso(wllama.isMultithread() ? "Model ready." : "Model ready (single thread, slower).");
 }
