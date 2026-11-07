@@ -2,6 +2,8 @@
 
 A free, open-source home screen of power tools for iPad and iPhone (Safari and XeOS), also available as a Windows app. Everything runs in the browser: a real Alpine Linux terminal, photo, video and music apps, VS Code for the web, a whiteboard, document, spreadsheet, presentation and PDF apps, a recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay on your device. Everything lives in this repository; nothing is loaded from CDNs or other sites.
 
+The website needs no install. The Windows programs (`.exe`) are **optional** extras for PC users. The Wine app is **experimental**: light 32-bit programs work best.
+
 **Open:** https://inkdoshub.github.io/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md))
 
 Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Code audit logs](auditoria/README.md)
@@ -126,6 +128,10 @@ Needs a Linux machine (or CI runner) with `gcc make flex bison bc cpio libelf-de
 ```
 
 The kernel comes from `torvalds/linux` at tag `v6.6`, unmodified. Alpine comes from the official x86 minirootfs (`alpinelinux/docker-alpine`, branch `v3.22`), with its checksum verified. InkDOS Hub's own files are in `tools/linux/alpine-overlay/`.
+
+## How it was made
+
+InkDOS Hub is built by one person who is not a professional developer, with the help of AI coding tools. Every app was tested and adjusted on real devices (iPad, iPhone and a Windows laptop), and all the code is open here so anyone can check it. Each change is also reviewed in the [audit logs](auditoria/README.md).
 
 ## Code signing
 
