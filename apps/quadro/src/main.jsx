@@ -52,17 +52,29 @@ let timer;
 function onChange(elements, appState, files) {
   clearTimeout(timer);
   timer = setTimeout(() => {
-    gravar({ elements, bg: appState.viewBackgroundColor, files })
+    gravar({ elements, bg: appState.viewBackgroundColor, files, pen: !!appState.penMode })
       .then(() => aviso(""))
       .catch(() => aviso(window.InkIdioma && InkIdioma.t ? InkIdioma.t("The drawing could not be saved in this browser.") : "The drawing could not be saved in this browser."));
   }, 500);
 }
 
+// Apple Pencil / stylus: the first time a pen touches the board, pen mode turns on (the pen draws with
+// pressure, the finger moves and zooms the board, the palm is ignored) and the pen tool is picked.
+// Excalidraw's own pen-mode button turns it off; the choice is remembered with the drawing.
+let api = null;
+document.addEventListener("pointerdown", (e) => {
+  if (e.pointerType !== "pen" || !api) return;
+  const st = api.getAppState();
+  if (st.penMode) return;
+  api.updateScene({ appState: { penMode: true } });
+  if (["selection", "hand"].includes(st.activeTool && st.activeTool.type)) api.setActiveTool({ type: "freedraw" });
+}, true);
+
 function App() {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       {/* O tema segue o do InkDOS Hub (assets/tema.js) e o idioma, o pacote escolhido (assets/idioma.js) */}
-      <Excalidraw initialData={initialData} onChange={onChange} langCode={window.InkIdioma ? InkIdioma.excalidraw() : "en"} theme={window.inkTema ? inkTema.atual() : "light"}>
+      <Excalidraw excalidrawAPI={(a) => { api = a; }} initialData={initialData} onChange={onChange} langCode={window.InkIdioma ? InkIdioma.excalidraw() : "en"} theme={window.inkTema ? inkTema.atual() : "light"}>
         <MainMenu>
           <MainMenu.DefaultItems.LoadScene />
           <MainMenu.DefaultItems.SaveToActiveFile />
@@ -87,6 +99,6 @@ let initialData = null;
       if (s) { await gravar(s); localStorage.removeItem(KEY); }
     } catch {}
   }
-  if (s) initialData = { elements: s.elements, appState: { viewBackgroundColor: s.bg }, files: s.files };
+  if (s) initialData = { elements: s.elements, appState: { viewBackgroundColor: s.bg, penMode: !!s.pen }, files: s.files };
   createRoot(document.getElementById("root")).render(<App />);
 })();
