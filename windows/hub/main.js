@@ -465,6 +465,21 @@ function appsDoMenu() {
     { windowsHide: true, timeout: 30000, maxBuffer: 8 << 20 }, (e, s) => { try { const l = JSON.parse(s); ok(Array.isArray(l) ? l : [l]); } catch (_) { ok([]); } }));
 }
 const doMenu = (lista, x) => x.menu && lista.find(a => String(a.Name || '').toLowerCase().includes(x.menu.toLowerCase()));
+// winget: tries the known id; if it fails, searches the name in winget and installs the first id found
+const winget = args => new Promise(ok => cp.execFile('winget.exe', args, { windowsHide: true, timeout: 30 * 60000, maxBuffer: 8 << 20 }, (e, saida) => ok({ e, saida: String(saida || '') })));
+const OPC = ['-e', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'];
+async function instalarWinget(x) {
+  if (!(await winget(['install', '--id', x.id, ...OPC])).e) return null;
+  const { saida } = await winget(['search', x.nome.split(' ')[0], '--source', 'winget', '--accept-source-agreements', '--disable-interactivity']);
+  const ids = [];
+  for (const linha of saida.split(/\r?\n/)) {
+    if (!linha.toLowerCase().includes(x.nome.split(' ')[0].toLowerCase())) continue;
+    const id = linha.trim().split(/\s{2,}|\s+/).find(t => /^[A-Za-z0-9][\w-]*\.[\w.-]+$/.test(t) && !/^\d/.test(t));
+    if (id && id !== x.id) ids.push(id);
+  }
+  for (const id of ids.slice(0, 2)) if (!(await winget(['install', '--id', id, ...OPC])).e) return null;
+  return new Error('winget');
+}
 let janelaEmuladores = null;
 async function abrirEmuladores() {
   if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + 'apps/wine/'); }
@@ -513,8 +528,7 @@ async function abrirEmuladores() {
     }
     ocupados.add(i);
     dizer((pt ? 'Instalando ' : 'Installing ') + x.nome + (pt ? ' pelo winget… o Windows pode pedir permissão.' : ' with winget… Windows may ask for permission.'));
-    cp.execFile('winget.exe', ['install', '--id', x.id, '-e', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'],
-      { windowsHide: true, timeout: 30 * 60000 }, async err => {
+    instalarWinget(x).then(async err => {
         ocupados.delete(i);
         if (err) { dizer((pt ? 'O winget não conseguiu instalar. Abrindo a página oficial de ' : 'winget could not install it. Opening the official page of ') + x.nome + '.'); shell.openExternal(x.site); return; }
         dizer(x.nome + (pt ? ' instalado ✓' : ' installed ✓'));
