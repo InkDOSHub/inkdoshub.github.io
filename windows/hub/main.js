@@ -446,18 +446,18 @@ async function abrirTransferir() {
 // Games, ROMs, BIOS and system images are not included: the person uses their own.
 const ehWine = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/wine/'); } catch (_) { return false; } };
 const EMULADORES = [
-  { g: 'vm', nome: 'VirtualBox', id: 'Oracle.VirtualBox', menu: 'VirtualBox', site: 'https://www.virtualbox.org/wiki/Downloads', pt: 'Máquina virtual fácil: Linux, Windows e outros sistemas, com várias configurações.', en: 'Easy virtual machine: Linux, Windows and other systems, with many settings.' },
-  { g: 'vm', nome: 'QEMU', id: 'SoftwareFreedomConservancy.QEMU', menu: 'QEMU', site: 'https://www.qemu.org/download/#windows', pt: 'Emula quase qualquer processador (x86, ARM, RISC-V…). Mais técnico, por linha de comando.', en: 'Emulates almost any processor (x86, ARM, RISC-V…). More technical, command line.' },
+  { g: 'vm', nome: 'VirtualBox', id: 'Oracle.VirtualBox', pub: /^Oracle\./i, menu: 'VirtualBox', site: 'https://www.virtualbox.org/wiki/Downloads', pt: 'Máquina virtual fácil: Linux, Windows e outros sistemas, com várias configurações.', en: 'Easy virtual machine: Linux, Windows and other systems, with many settings.' },
+  { g: 'vm', nome: 'QEMU', id: 'SoftwareFreedomConservancy.QEMU', pub: /^(SoftwareFreedomConservancy|QEMU)\./i, menu: 'QEMU', site: 'https://www.qemu.org/download/#windows', pt: 'Emula quase qualquer processador (x86, ARM, RISC-V…). Mais técnico, por linha de comando.', en: 'Emulates almost any processor (x86, ARM, RISC-V…). More technical, command line.' },
   { g: 'vm', nome: 'Linux do Windows (WSL)', nomeEn: 'Windows Linux (WSL)', wsl: true, pt: 'Linux da Microsoft com desempenho quase nativo. É o mesmo do app Terminal.', en: 'Microsoft Linux with near-native performance. Same as the Terminal app.' },
-  { g: 'mac', nome: 'QEMU + OpenCore (OSX-KVM)', id: 'SoftwareFreedomConservancy.QEMU', menu: 'QEMU', site: 'https://github.com/kholia/OSX-KVM', pt: 'Projeto open source mais usado para isso. Instala o QEMU e abre o guia. A Apple só permite o macOS em Mac: use por sua conta e risco.', en: 'Most used open source project for this. Installs QEMU and opens the guide. Apple only allows macOS on Macs: use at your own risk.' },
-  { g: 'jogo', nome: 'RetroArch', id: 'Libretro.RetroArch', menu: 'RetroArch', site: 'https://www.retroarch.com/?page=platforms', pt: 'Consoles antigos em um app só (NES, SNES, Mega Drive, Game Boy, N64…).', en: 'Classic consoles in one app (NES, SNES, Genesis, Game Boy, N64…).' },
-  { g: 'jogo', nome: 'DuckStation', id: 'Stenzek.DuckStation', menu: 'DuckStation', site: 'https://www.duckstation.org/', pt: 'PlayStation 1.', en: 'PlayStation 1.' },
-  { g: 'jogo', nome: 'PCSX2', id: 'PCSX2Team.PCSX2', menu: 'PCSX2', site: 'https://pcsx2.net/downloads', pt: 'PlayStation 2.', en: 'PlayStation 2.' },
-  { g: 'jogo', nome: 'RPCS3', id: 'RPCS3.RPCS3', menu: 'RPCS3', site: 'https://rpcs3.net/download', pt: 'PlayStation 3 (pede um PC forte).', en: 'PlayStation 3 (needs a strong PC).' },
-  { g: 'jogo', nome: 'PPSSPP', id: 'PPSSPPTeam.PPSSPP', menu: 'PPSSPP', site: 'https://www.ppsspp.org/download/', pt: 'PSP.', en: 'PSP.' },
-  { g: 'jogo', nome: 'Dolphin', id: 'DolphinEmulator.Dolphin', menu: 'Dolphin', site: 'https://dolphin-emu.org/download/', pt: 'GameCube e Wii.', en: 'GameCube and Wii.' },
-  { g: 'jogo', nome: 'Cemu', id: 'Cemu.Cemu', menu: 'Cemu', site: 'https://cemu.info/', pt: 'Wii U.', en: 'Wii U.' },
-  { g: 'jogo', nome: 'xemu', id: 'xemu-project.xemu', menu: 'xemu', site: 'https://xemu.app/', pt: 'Xbox original.', en: 'Original Xbox.' }
+  { g: 'mac', nome: 'QEMU + OpenCore (OSX-KVM)', id: 'SoftwareFreedomConservancy.QEMU', pub: /^(SoftwareFreedomConservancy|QEMU)\./i, menu: 'QEMU', site: 'https://github.com/kholia/OSX-KVM', pt: 'Projeto open source mais usado para isso. Instala o QEMU e abre o guia. A Apple só permite o macOS em Mac: use por sua conta e risco.', en: 'Most used open source project for this. Installs QEMU and opens the guide. Apple only allows macOS on Macs: use at your own risk.' },
+  { g: 'jogo', nome: 'RetroArch', id: 'Libretro.RetroArch', pub: /^Libretro\./i, menu: 'RetroArch', site: 'https://www.retroarch.com/?page=platforms', pt: 'Consoles antigos em um app só (NES, SNES, Mega Drive, Game Boy, N64…).', en: 'Classic consoles in one app (NES, SNES, Genesis, Game Boy, N64…).' },
+  { g: 'jogo', nome: 'DuckStation', id: 'Stenzek.DuckStation', pub: /^Stenzek\./i, menu: 'DuckStation', site: 'https://www.duckstation.org/', pt: 'PlayStation 1.', en: 'PlayStation 1.' },
+  { g: 'jogo', nome: 'PCSX2', id: 'PCSX2Team.PCSX2', pub: /^PCSX2(Team)?\./i, menu: 'PCSX2', site: 'https://pcsx2.net/downloads', pt: 'PlayStation 2.', en: 'PlayStation 2.' },
+  { g: 'jogo', nome: 'RPCS3', id: 'RPCS3.RPCS3', pub: /^RPCS3\./i, menu: 'RPCS3', site: 'https://rpcs3.net/download', pt: 'PlayStation 3 (pede um PC forte).', en: 'PlayStation 3 (needs a strong PC).' },
+  { g: 'jogo', nome: 'PPSSPP', id: 'PPSSPPTeam.PPSSPP', pub: /^PPSSPP(Team)?\./i, menu: 'PPSSPP', site: 'https://www.ppsspp.org/download/', pt: 'PSP.', en: 'PSP.' },
+  { g: 'jogo', nome: 'Dolphin', id: 'DolphinEmulator.Dolphin', pub: /^Dolphin(Emulator|Team)?\./i, menu: 'Dolphin', site: 'https://dolphin-emu.org/download/', pt: 'GameCube e Wii.', en: 'GameCube and Wii.' },
+  { g: 'jogo', nome: 'Cemu', id: 'Cemu.Cemu', pub: /^Cemu(-project|Project)?\./i, menu: 'Cemu', site: 'https://cemu.info/', pt: 'Wii U.', en: 'Wii U.' },
+  { g: 'jogo', nome: 'xemu', id: 'xemu-project.xemu', pub: /^xemu(-project)?\./i, menu: 'xemu', site: 'https://xemu.app/', pt: 'Xbox original.', en: 'Original Xbox.' }
 ];
 // Start menu apps (name + id), to know what is installed and to open it
 function appsDoMenu() {
@@ -465,7 +465,7 @@ function appsDoMenu() {
     { windowsHide: true, timeout: 30000, maxBuffer: 8 << 20 }, (e, s) => { try { const l = JSON.parse(s); ok(Array.isArray(l) ? l : [l]); } catch (_) { ok([]); } }));
 }
 const doMenu = (lista, x) => x.menu && lista.find(a => String(a.Name || '').toLowerCase().includes(x.menu.toLowerCase()));
-// winget: tries the known id; if it fails, searches the name in winget and installs the first id found
+// winget: tries the known id; if it fails, searches the name and installs only an id from the expected publisher (x.pub)
 const winget = args => new Promise(ok => cp.execFile('winget.exe', args, { windowsHide: true, timeout: 30 * 60000, maxBuffer: 8 << 20 }, (e, saida) => ok({ e, saida: String(saida || '') })));
 const OPC = ['-e', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'];
 async function instalarWinget(x) {
@@ -475,7 +475,7 @@ async function instalarWinget(x) {
   for (const linha of saida.split(/\r?\n/)) {
     if (!linha.toLowerCase().includes(x.nome.split(' ')[0].toLowerCase())) continue;
     const id = linha.trim().split(/\s{2,}|\s+/).find(t => /^[A-Za-z0-9][\w-]*\.[\w.-]+$/.test(t) && !/^\d/.test(t));
-    if (id && id !== x.id) ids.push(id);
+    if (id && id !== x.id && x.pub && x.pub.test(id)) ids.push(id); // only the expected publisher
   }
   for (const id of ids.slice(0, 2)) if (!(await winget(['install', '--id', id, ...OPC])).e) return null;
   return new Error('winget');
