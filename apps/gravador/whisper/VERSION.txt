@@ -1,0 +1,4 @@
+whisper.cpp v1.9.5
+https://github.com/ggml-org/whisper.cpp/tree/v1.9.5
+emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 7.0.0 (777e6e5db7b4990bcaeb1b9998ed642cc84e6629)
+License: MIT
