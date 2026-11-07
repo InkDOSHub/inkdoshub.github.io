@@ -1,0 +1,56 @@
+name: InkDOS Hub for Linux (experimental)
+# Builds the Linux app (same code as windows/hub + official Electron) as an AppImage and a .tar.gz,
+# starts it once on a virtual screen as a smoke test (screenshot in the artifact), and publishes to the "hub-linux" release.
+on:
+  push:
+    branches: [main]
+    paths: [windows/hub/main.js, windows/hub/preload.js, windows/hub/package.json, linux/**, .github/workflows/linux-hub.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: linux-hub
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "HUB_VERSAO=0.5.${{ github.run_number }}" >> "$GITHUB_ENV"
+          sh linux/montar.sh saida "0.5.${{ github.run_number }}"
+      - name: Smoke test (opens the app on a virtual screen)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb imagemagick libfuse2 >/dev/null
+          chmod 755 saida/InkDOSHub-Linux-x86_64.AppImage
+          xvfb-run -a -s "-screen 0 1280x800x24" sh -c '
+            saida/InkDOSHub-Linux-x86_64.AppImage --appimage-extract-and-run > saida/teste.log 2>&1 & P=$!
+            sleep 25; import -window root saida/teste.png
+            kill -0 $P && echo "app still running after 25 s: OK" || { echo "app closed"; cat saida/teste.log; exit 1; }
+            kill $P'
+          tail -20 saida/teste.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: InkDOSHub-Linux
+          path: |
+            saida/InkDOSHub-Linux-x86_64.AppImage
+            saida/teste.png
+            saida/teste.log
+      - name: Publish to the release hub-linux
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd saida
+          gh release view hub-linux >/dev/null 2>&1 || gh release create hub-linux --title "InkDOS Hub for Linux (experimental)" --latest=false --notes "Experimental."
+          sha256sum InkDOSHub-Linux-x86_64.AppImage > InkDOSHub-Linux-x86_64.AppImage.sha256
+          sha256sum InkDOSHub-Linux-x86_64.tar.gz > InkDOSHub-Linux-x86_64.tar.gz.sha256
+          printf '{"versao":"%s","arquivo":"InkDOSHub-Linux-x86_64.AppImage","sha256":"%s"}\n' "$HUB_VERSAO" "$(cut -d' ' -f1 InkDOSHub-Linux-x86_64.AppImage.sha256)" > versao.json
+          gh release upload hub-linux InkDOSHub-Linux-x86_64.AppImage InkDOSHub-Linux-x86_64.AppImage.sha256 InkDOSHub-Linux-x86_64.tar.gz InkDOSHub-Linux-x86_64.tar.gz.sha256 teste.png --clobber
+          gh release upload hub-linux versao.json --clobber
+          gh release edit hub-linux --notes "EXPERIMENTAL, needs testing on real Linux PCs. InkDOS Hub for Linux x86_64: the same apps as the website, no telemetry. Version $HUB_VERSAO, Electron $ELECTRON_VERSAO (official build). Download the AppImage, make it executable (chmod +x) and open it; it updates itself from ☰ › Offline › Update the app. Terminal opens your system terminal, Code opens VS Code if installed, Webcam and Transfer use the web versions. teste.png = screenshot from the automatic start test. Source: windows/hub/ and linux/ (MIT)."
+          cd .. && git push -f origin "HEAD:refs/tags/hub-linux"

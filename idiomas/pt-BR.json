@@ -510,6 +510,8 @@
 "The Session button (while Wine is open) saves the installed programs and drive D: to a password-protected file. Open session brings everything back, even after the site data is cleared.": "O botão Sessão (com o Wine aberto) guarda os programas instalados e o disco D: num arquivo com senha. Abrir sessão põe tudo de volta, mesmo depois de apagar os dados do site.",
 "The Windows Camera app and Settings › Cameras may not list the OBS Virtual Camera. That is normal; Zoom and the other apps still see it.": "O app Câmera do Windows e Configurações › Câmeras podem não mostrar a OBS Virtual Camera. É normal; o Zoom e os outros apps enxergam ela.",
 "The Windows app is up to date": "O app do Windows está atualizado",
+"The app is up to date": "O app está atualizado",
+"Update the app": "Atualizar o app",
 "The browser cannot play this format.": "O navegador não toca este formato.",
 "The browser did not allow reading the clipboard. Paste the text here:": "O navegador não deixou ler a área de transferência. Cole o texto aqui:",
 "The connection failed. If the devices are on different networks, put both on the same Wi-Fi. Trying again…": "A conexão falhou. Se os aparelhos estão em redes diferentes, coloque os dois no mesmo Wi-Fi. Tentando de novo…",

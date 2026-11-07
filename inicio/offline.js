@@ -129,14 +129,15 @@
     var dizer = function (txt, tipo) { status.textContent = txt; status.className = "off-status" + (tipo ? " " + tipo : ""); };
     // Windows app: button to update the app itself (the shell), besides the stored apps
     if (N && N.atualizarApp) {
-      var app = el("button", "off-atualizar off-app", t("Update the Windows app")); app.type = "button";
+      var win = !N.plataforma || N.plataforma === "win32", rotulo = win ? "Update the Windows app" : "Update the app";
+      var app = el("button", "off-atualizar off-app", t(rotulo)); app.type = "button";
       caixa.appendChild(app);
-      N.versao().then(function (v) { app.textContent = t("Update the Windows app") + " · " + v; }).catch(function () {});
+      N.versao().then(function (v) { app.textContent = t(rotulo) + " · " + v; }).catch(function () {});
       app.onclick = function () {
         app.disabled = true; dizer(t("Checking for updates…"));
         N.atualizarApp(function (p) { dizer(t("Downloading the new app… {pct}%", { pct: p })); }).then(function (r) {
           if (r === "pronto") dizer(t("Installing the new app… it reopens by itself."), "ok");
-          else if (r === "atual") { dizer(t("The Windows app is up to date") + " ✓", "ok"); app.disabled = false; }
+          else if (r === "atual") { dizer(t(win ? "The Windows app is up to date" : "The app is up to date") + " ✓", "ok"); app.disabled = false; }
           else { dizer(t("Failed, try again"), "erro"); app.disabled = false; }
         }, function () { dizer(t("Failed, try again"), "erro"); app.disabled = false; });
       };
