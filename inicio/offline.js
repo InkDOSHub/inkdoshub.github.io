@@ -198,7 +198,7 @@
       }
       if (!navigator.storage || !navigator.storage.estimate) return;
       navigator.storage.estimate().then(function (s) {
-        espaco.textContent = t("Used in this browser: {used}. Free: {free}.", { used: mb(s.usage || 0), free: mb(Math.max(0, (s.quota || 0) - (s.usage || 0))) });
+        espaco.textContent = t("Used by this site: {used}. Browser limit left for the site: {free}.", { used: mb(s.usage || 0), free: mb(Math.max(0, (s.quota || 0) - (s.usage || 0))) });
       }).catch(function () {});
     }
     function desenhar() {

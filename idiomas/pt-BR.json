@@ -718,5 +718,6 @@
 "Clear": "Limpar",
 "App data cleared ✓": "Dados dos apps apagados ✓",
 "Delete everything from this site": "Apagar tudo deste site",
-"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "Apagar TODOS os dados deste site neste aparelho (cópia offline, dados dos apps, recuperação de documentos, ajustes)?"
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "Apagar TODOS os dados deste site neste aparelho (cópia offline, dados dos apps, recuperação de documentos, ajustes)?",
+"Used by this site: {used}. Browser limit left for the site: {free}.": "Usado por este site: {used}. Limite do navegador ainda livre para o site: {free}."
 }
