@@ -19,6 +19,7 @@ else webFrame.executeJavaScript('(' + trocarImprimir.toString() + ')()');
 
 contextBridge.exposeInMainWorld('inkHubNativo', {
   versao: () => ipcRenderer.invoke('hub:versao'),
+  plataforma: process.platform,
   reiniciarAtualizando: () => ipcRenderer.invoke('hub:reiniciar'),
   atualizarApp: progresso => {
     const ouvir = (_e, p) => { try { if (progresso) progresso(p); } catch (_) {} };

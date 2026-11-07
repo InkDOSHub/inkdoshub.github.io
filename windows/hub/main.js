@@ -11,6 +11,7 @@
 'use strict';
 const { app, BrowserWindow, protocol, net, session, shell, ipcMain, Menu, dialog, desktopCapturer } = require('electron');
 const path = require('path');
+const WIN = process.platform === 'win32';
 const fs = require('fs');
 const fsp = fs.promises;
 const crypto = require('crypto');
@@ -275,6 +276,13 @@ function abrirLinux() {
   wt.on('error', () => cp.spawn('cmd.exe', ['/c', 'start', '""', 'wsl.exe', '--cd', '~'], { detached: true, stdio: 'ignore' }).unref());
   wt.unref();
 }
+// Linux (experimental): the system's own terminal; the site terminal if none is found
+function terminalNativo() {
+  for (const t of ['x-terminal-emulator', 'gnome-terminal', 'konsole', 'xfce4-terminal', 'xterm']) {
+    try { if (!cp.spawnSync('which', [t]).status) { cp.spawn(t, [], { cwd: app.getPath('home'), detached: true, stdio: 'ignore' }).unref(); return true; } } catch (_) {}
+  }
+  return false;
+}
 function terminalDoSite() {
   const w = new BrowserWindow(opcoes(1100, 760));
   w.versaoDoSite = true;
@@ -283,7 +291,7 @@ function terminalDoSite() {
 }
 let janelaTerminal = null;
 async function abrirTerminal() {
-  if (process.platform !== 'win32') return terminalDoSite();
+  if (process.platform !== 'win32') return terminalNativo() || terminalDoSite();
   if ((await distrosWsl()).length) return abrirLinux();
   if (janelaTerminal && !janelaTerminal.isDestroyed()) return janelaTerminal.focus();
   const pt = /^pt/i.test(app.getLocale());
@@ -360,6 +368,7 @@ function vsCodeSemTelemetria() {
 }
 let janelaCodigo = null;
 function abrirCodigo() {
+  if (process.platform === 'linux') { try { if (!cp.spawnSync('which', ['code']).status) return void cp.spawn('code', [], { detached: true, stdio: 'ignore' }).unref(); } catch (_) {} }
   if (process.platform !== 'win32') return codigoDoSite();
   const exe = acharVsCode();
   if (exe) { vsCodeSemTelemetria(); return void shell.openPath(exe); }
@@ -602,7 +611,7 @@ async function abrirEmuladores() {
 // ---------- the shell updates itself ----------
 // Reads versao.json from the hub-windows release; if newer, downloads the installer in the background, checks the SHA-256
 // and shows "New app version · Restart" on the home screen. If the person does not tap, installs when the Hub closes.
-const VERSAO_URL = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/hub-windows/versao.json';
+const VERSAO_URL = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/' + (process.platform === 'linux' ? 'hub-linux' : 'hub-windows') + '/versao.json';
 let instaladorPronto = null;
 const maior = (a, b) => {
   const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
@@ -613,7 +622,7 @@ const maior = (a, b) => {
 let procurando = null;
 function procurarVersaoNova(progresso) {
   if (instaladorPronto) return Promise.resolve('pronto');
-  if (!app.isPackaged || process.platform !== 'win32') return Promise.resolve('atual');
+  if (!app.isPackaged || !(process.platform === 'win32' || (process.platform === 'linux' && process.env.APPIMAGE))) return Promise.resolve('atual');
   if (procurando) return procurando;
   procurando = (async () => {
     try {
@@ -635,7 +644,7 @@ function procurarVersaoNova(progresso) {
       }
       const b = Buffer.concat(partes);
       if (sha256(b) !== v.sha256) return 'erro'; // mismatch: try again next time
-      const f = path.join(app.getPath('temp'), 'InkDOSHub-Setup-' + v.versao + '.exe');
+      const f = path.join(app.getPath('temp'), 'InkDOSHub-' + v.versao + '-' + (v.arquivo || 'InkDOSHub-Setup.exe'));
       await fsp.writeFile(f, b);
       instaladorPronto = f;
       mostrarAvisoApp();
@@ -654,6 +663,7 @@ function mostrarAvisoApp() {
 }
 function instalarAtualizacao(relancar) {
   if (!instaladorPronto) return false;
+  if (process.platform === 'linux') return trocarApp(relancar);
   const args = ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS'];
   if (relancar) args.push('/relancar=1');
   require('child_process').spawn(instaladorPronto, args, { detached: true, stdio: 'ignore' }).unref();
@@ -661,8 +671,19 @@ function instalarAtualizacao(relancar) {
   return true;
 }
 
+// Linux: replaces the AppImage file, then reopens if asked.
+function trocarApp(relancar) {
+  const novo = instaladorPronto; instaladorPronto = null;
+  const q = s => "'" + String(s).replace(/'/g, "'\\''") + "'";
+  const alvo = process.env.APPIMAGE;
+  if (!alvo) return false;
+  const sh = 'sleep 1; cp -f ' + q(novo) + ' ' + q(alvo) + '.novo && chmod 755 ' + q(alvo) + '.novo && mv -f ' + q(alvo) + '.novo ' + q(alvo) + (relancar ? ' && ' + q(alvo) + ' &' : '');
+  cp.spawn('/bin/sh', ['-c', sh], { detached: true, stdio: 'ignore' }).unref();
+  return true;
+}
+
 // ---------- janelas ----------
-const ICONE = path.join(__dirname, 'icone.ico');
+const ICONE = path.join(__dirname, process.platform === 'win32' ? 'icone.ico' : 'icone.png');
 const prefs = () => ({
   preload: path.join(__dirname, 'preload.js'),
   contextIsolation: true, sandbox: true, nodeIntegration: false,
@@ -690,7 +711,7 @@ function cuidar(w) {
     if (r === 0) e.preventDefault(); // close anyway
   });
   w.webContents.setWindowOpenHandler(({ url }) => {
-    if (ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
+    if (WIN && ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
     if (ehTerminal(url)) { abrirTerminal(); return { action: 'deny' }; }
     if (ehCodigo(url)) { abrirCodigo(); return { action: 'deny' }; }
     if (ehTransferir(url)) { abrirTransferir(); return { action: 'deny' }; }
@@ -701,9 +722,9 @@ function cuidar(w) {
   });
   w.webContents.on('did-create-window', cuidar);
   w.webContents.on('will-navigate', (e, url) => {
-    if (!w.versaoDoSite && (ehWebcam(url) || ehTerminal(url) || ehCodigo(url) || ehTransferir(url) || ehWine(url))) {
+    if (!w.versaoDoSite && ((WIN && ehWebcam(url)) || ehTerminal(url) || ehCodigo(url) || ehTransferir(url) || ehWine(url))) {
       e.preventDefault();
-      if (ehWebcam(url)) abrirWebcam(); else if (ehTerminal(url)) abrirTerminal(); else if (ehCodigo(url)) abrirCodigo();
+      if (WIN && ehWebcam(url)) abrirWebcam(); else if (ehTerminal(url)) abrirTerminal(); else if (ehCodigo(url)) abrirCodigo();
       else if (ehTransferir(url)) abrirTransferir(); else abrirEmuladores();
       // the home screen opens an empty window and then sends the address: that window closes
       const atual = w.webContents.getURL();
@@ -743,7 +764,7 @@ app.whenReady().then(async () => {
   // audio recorder: without this Electron's getDisplayMedia answers "Not supported"; provides the main screen + Windows sound (loopback)
   s.setDisplayMediaRequestHandler((req, cb) => {
     if (!doSite(req.securityOrigin || (req.frame && req.frame.url) || '')) return cb({});
-    desktopCapturer.getSources({ types: ['screen'] }).then(f => cb(f[0] ? { video: f[0], audio: 'loopback' } : {})).catch(() => cb({}));
+    desktopCapturer.getSources({ types: ['screen'] }).then(f => cb(f[0] ? (WIN ? { video: f[0], audio: 'loopback' } : { video: f[0] }) : {})).catch(() => cb({}));
   });
   protocol.handle('https', req => {
     const host = new URL(req.url).hostname;
