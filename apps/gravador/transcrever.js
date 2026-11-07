@@ -6,7 +6,7 @@
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var t = InkIdioma.t;
-  var BASE = new URL("whisper/", document.currentScript.src).href;
+  var BASE = new URL("whisper/", document.currentScript.src).href, V = "?v=2";
   var MODELOS = {
     tiny: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin",
     base: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin"
@@ -45,12 +45,12 @@
     motor = new Promise(function (ok, erro) {
       window.Module = {
         print: saida, printErr: saida,
-        locateFile: function (p) { return BASE + p; },
-        mainScriptUrlOrBlob: BASE + "libmain.js",
+        locateFile: function (p) { return BASE + p + V; },
+        mainScriptUrlOrBlob: BASE + "libmain.js" + V,
         onRuntimeInitialized: function () { ok(window.Module); }
       };
       var s = document.createElement("script");
-      s.src = BASE + "libmain.js";
+      s.src = BASE + "libmain.js" + V;
       s.onerror = function () { motor = null; erro(new Error(t("The transcription engine is not installed yet."))); };
       document.head.appendChild(s);
     });

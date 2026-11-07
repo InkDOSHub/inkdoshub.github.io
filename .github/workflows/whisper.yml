@@ -34,6 +34,9 @@ jobs:
           cd "$RUNNER_TEMP/w"
           # the page writes the model into the wasm file system
           sed -i "s/'HEAPU8'\]/'HEAPU8', 'FS_createDataFile', 'FS_unlink']/" examples/whisper.wasm/CMakeLists.txt
+          # no eval(): the page's CSP does not allow 'unsafe-eval' (embind needs this to work without it)
+          sed -i 's/-s FORCE_FILESYSTEM=1/-s FORCE_FILESYSTEM=1 -s DYNAMIC_EXECUTION=0/' examples/whisper.wasm/CMakeLists.txt
+          grep -q DYNAMIC_EXECUTION examples/whisper.wasm/CMakeLists.txt
           source "$HOME/emsdk/emsdk_env.sh"
           emcmake cmake -B build -DCMAKE_BUILD_TYPE=Release -DWHISPER_WASM_SINGLE_FILE=OFF
           cmake --build build -j4 --target libmain
