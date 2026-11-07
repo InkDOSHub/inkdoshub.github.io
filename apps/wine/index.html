@@ -6,9 +6,9 @@
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
 <title>Wine · InkDOS Hub</title>
 <script src="../../assets/tema.js?v=1"></script>
-<link rel="stylesheet" href="../../assets/info.css?v=1">
+<link rel="stylesheet" href="../../assets/info.css?v=2">
 <link rel="stylesheet" href="../../assets/barra.css?v=5">
-<script src="../../assets/barra.js?v=3" defer></script>
+<script src="../../assets/barra.js?v=5" defer></script>
 <script src="../../assets/icones.js?v=2" defer></script>
 <style>
   [hidden]{display:none!important}
@@ -30,14 +30,14 @@
   body.cheia #sair-cheia{display:block}
   #inicio-opcoes label{display:flex;gap:8px;align-items:center;margin:6px 0;cursor:pointer}
   .menu-inicio .pop{min-width:260px}
-  #comecar{margin:auto;display:flex;flex-direction:column;gap:12px;width:min(380px,100%);padding:20px;border:1px solid var(--border);border-radius:14px;background:var(--card)}
+  #comecar{margin:auto;display:flex;flex-direction:column;gap:12px;width:min(380px,100%);box-sizing:border-box;padding:20px;border:1px solid var(--border);border-radius:14px;background:var(--card)}
   #comecar h2{margin:0;font-size:18px}
   .maquina{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:2px solid var(--border);border-radius:10px;cursor:pointer}
   .maquina:has(input:checked){border-color:#7c3aed}
   .maquina input{accent-color:#7c3aed}
   .maquina .nota{text-align:left}
   .campo{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
-  .campo select{font:inherit;font-size:15px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit}
+  .campo select{max-width:100%;font:inherit;font-size:15px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit}
   .acao{font-weight:600;background:#7c3aed;border-color:#7c3aed;color:#fff;padding:9px 16px}
 </style>
 </head>

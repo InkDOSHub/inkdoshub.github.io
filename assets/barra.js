@@ -21,7 +21,11 @@
     if (app) { var img = document.createElement("img"); img.className = "ink-simbolo"; img.alt = ""; img.src = document.body.getAttribute("data-simbolo") || raiz + "assets/icones-inkdos/" + app + ".svg?v=3"; meio.appendChild(img); }
     if (titulo) meio.appendChild(titulo);
     dir.appendChild(itens);
-    info.forEach(function (d) { dir.appendChild(d); });
+    info.forEach(function (d) {
+      var pop = d.querySelector(".pop");
+      if (pop && !pop.querySelector(".nota-local")) { var p = document.createElement("p"); p.className = "nota-local"; p.textContent = "Your files stay on this device, inside this browser. Use Save or Export to keep a copy in Files."; pop.appendChild(p); }
+      dir.appendChild(d);
+    });
     // icon-only buttons get their name written, to be readable in the menu
     Array.prototype.forEach.call(itens.querySelectorAll(".ink-btn"), function (b) {
       if (!b.textContent.trim() && (b.title || b.getAttribute("aria-label"))) { var t = document.createElement("span"); t.className = "ink-rotulo"; t.textContent = b.title || b.getAttribute("aria-label"); b.appendChild(t); }

@@ -43,4 +43,10 @@
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   try { localStorage.removeItem("inkdoshub-inicio"); localStorage.removeItem("inkdoshub-paginas"); } catch (_) {}
   if (cartao) location.href = cartao.href;
+  // Ask the browser to keep the Hub's data (Safari may otherwise erase it)
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (_) {}
+  var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  var nota = document.querySelector(".home-footer p");
+  if (nota && ios && !navigator.standalone && !window.__edbFileAccess && !matchMedia("(display-mode: standalone)").matches)
+    { var s = document.createElement("span"); s.textContent = " Safari may erase site data after weeks without use: add the Hub to the Home Screen or export your files."; nota.appendChild(s); }
 })();
