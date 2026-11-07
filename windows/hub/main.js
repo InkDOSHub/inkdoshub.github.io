@@ -579,7 +579,7 @@ async function abrirEmuladores() {
         .finally(() => ocupados.delete(i));
       return;
     }
-    const a = doMenu(menu, x);
+    const a = x.id && x.id.endsWith('.QEMU') ? null : doMenu(menu, x);
     if (!a && x.id && wl.includes(x.id.toLowerCase())) return void abrirSemMenu(x);
     if (a) {
       cp.spawn('explorer.exe', ['shell:AppsFolder\\' + a.AppID], { detached: true, stdio: 'ignore' }).unref();
