@@ -16,18 +16,11 @@
 <script src="assets/tema.js?v=1"></script>
 <script src="assets/idioma.js?v=1"></script>
 <link rel="stylesheet" href="assets/info.css?v=1">
-<link rel="stylesheet" href="assets/home.css?v=21">
+<link rel="stylesheet" href="assets/home.css?v=22">
 </head>
 <body data-idioma>
 <main class="home-shell">
-  <header class="brand-row">
-    <a class="brand" href="./" aria-current="page">
-      <span class="brand-mark" aria-hidden="true"><img src="assets/inkdoshub-icone-192.png?v=8" alt=""></span>
-      <span class="brand-copy"><strong>InkDOS Hub</strong><small>Advanced tools</small></span>
-    </a>
-  </header>
-
-  <section class="intro barra-inicio">
+  <header class="brand-row barra-inicio">
     <details class="menu-inicio" id="menu-inicio">
       <summary class="icone-btn" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></summary>
       <div class="menu-pop">
@@ -48,10 +41,15 @@
         <button class="menu-linha pref-office" type="button" data-pref="inkdos"><span class="marca-ok" aria-hidden="true">✓</span><span>InkDOS (legacy)</span></button>
       </div>
     </details>
-    <button id="btn-abrir" class="abrir-faixa" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Open file</span><small>or drop it here</small></button>
+    <a class="brand" href="./" aria-current="page">
+      <span class="brand-mark" aria-hidden="true"><img src="assets/inkdoshub-icone-192.png?v=8" alt=""></span>
+      <span class="brand-copy"><strong>InkDOS Hub</strong><small>Advanced tools</small></span>
+    </a>
+    <button id="btn-abrir" class="abrir-botao" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Open file</span></button>
     <button id="btn-pronto" class="botao" type="button" hidden>Done</button>
     <input id="abrir-arquivo" type="file" multiple hidden>
-  </section>
+  </header>
+
 
   <section class="recebidos" id="recebidos" hidden aria-label="Received files">
     <h2 class="grupo">Received files</h2>
@@ -150,7 +148,7 @@
 <script src="assets/gerenciador-app.js?v=13"></script>
 <script src="inicio/inicio.js?v=12"></script>
 <script src="inicio/meus-apps.js?v=9"></script>
-<script src="inicio/lancador.js?v=15"></script>
+<script src="inicio/lancador.js?v=16"></script>
 <script src="inicio/offline.js?v=8"></script>
 </body>
 </html>
