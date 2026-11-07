@@ -1,7 +1,7 @@
 {
   "name": "inkdos-hub",
   "productName": "InkDOS Hub",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "description": "InkDOS Hub for Windows: the same apps as the website, local and without telemetry.",
   "main": "main.js",
   "license": "MIT",
