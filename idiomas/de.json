@@ -441,5 +441,6 @@
 "Clear": "Löschen",
 "App data cleared ✓": "App-Daten gelöscht ✓",
 "Delete everything from this site": "Alles von dieser Website löschen",
-"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "ALLE Daten dieser Website auf diesem Gerät löschen (Offline-Kopie, App-Daten, Dokumentwiederherstellung, Einstellungen)?"
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "ALLE Daten dieser Website auf diesem Gerät löschen (Offline-Kopie, App-Daten, Dokumentwiederherstellung, Einstellungen)?",
+"Used by this site: {used}. Browser limit left for the site: {free}.": "Von dieser Website belegt: {used}. Verbleibendes Browser-Limit für die Website: {free}."
 }

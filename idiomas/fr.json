@@ -441,5 +441,6 @@
 "Clear": "Effacer",
 "App data cleared ✓": "Données des apps effacées ✓",
 "Delete everything from this site": "Tout effacer pour ce site",
-"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "Effacer TOUTES les données de ce site sur cet appareil (copie hors ligne, données des apps, récupération des documents, réglages) ?"
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "Effacer TOUTES les données de ce site sur cet appareil (copie hors ligne, données des apps, récupération des documents, réglages) ?",
+"Used by this site: {used}. Browser limit left for the site: {free}.": "Utilisé par ce site : {used}. Limite du navigateur restante pour le site : {free}."
 }

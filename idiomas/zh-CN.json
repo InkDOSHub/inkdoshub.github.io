@@ -441,5 +441,6 @@
 "Clear": "清除",
 "App data cleared ✓": "应用数据已清除 ✓",
 "Delete everything from this site": "删除此网站的所有数据",
-"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "删除此设备上此网站的所有数据（离线副本、应用数据、文档恢复、设置）？"
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "删除此设备上此网站的所有数据（离线副本、应用数据、文档恢复、设置）？",
+"Used by this site: {used}. Browser limit left for the site: {free}.": "此网站已用：{used}。浏览器给此网站的剩余限额：{free}。"
 }

@@ -441,5 +441,6 @@
 "Clear": "消去",
 "App data cleared ✓": "アプリのデータを消去しました ✓",
 "Delete everything from this site": "このサイトのデータをすべて削除",
-"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "この端末にあるこのサイトのすべてのデータ（オフラインコピー、アプリのデータ、文書の復元、設定）を削除しますか？"
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "この端末にあるこのサイトのすべてのデータ（オフラインコピー、アプリのデータ、文書の復元、設定）を削除しますか？",
+"Used by this site: {used}. Browser limit left for the site: {free}.": "このサイトの使用量: {used}。ブラウザがこのサイトに許可する残り: {free}。"
 }

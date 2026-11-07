@@ -441,5 +441,6 @@
 "Clear": "Очистить",
 "App data cleared ✓": "Данные приложений очищены ✓",
 "Delete everything from this site": "Удалить всё с этого сайта",
-"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "Удалить ВСЕ данные этого сайта на этом устройстве (офлайн-копия, данные приложений, восстановление документов, настройки)?"
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "Удалить ВСЕ данные этого сайта на этом устройстве (офлайн-копия, данные приложений, восстановление документов, настройки)?",
+"Used by this site: {used}. Browser limit left for the site: {free}.": "Занято этим сайтом: {used}. Остаток лимита браузера для сайта: {free}."
 }
