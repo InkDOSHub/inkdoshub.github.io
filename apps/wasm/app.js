@@ -7,7 +7,7 @@
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var API = "https://api.github.com/";
-  var PONTE = "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/net/github/";
+  var PONTE = "https://hub.inkdos.workers.dev/net/github/";
   var REPO = "inkdoshub-wasm-build";
   var WF = ".github/workflows/build.yml";
   var token = "", dono = "", parar = false, arquivos = [];

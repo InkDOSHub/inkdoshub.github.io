@@ -3,5 +3,5 @@
    same page there. The Windows/Linux apps (window.inkHubNativo) and pages inside frames stay where they are. */
 (function () {
   if (location.hostname !== "inkdoshub.github.io" || window.inkHubNativo || window.top !== window.self) return;
-  location.replace("https://inkdoshub-github-io.vfydr2m9wk.workers.dev" + location.pathname + location.search + location.hash);
+  location.replace("https://hub.inkdos.workers.dev" + location.pathname + location.search + location.hash);
 })();

@@ -19,7 +19,7 @@ try {
 var MOTOR = self.crossOriginIsolated && ligado(MULTI) ? "mtjit/" : "jit/";
 // Wine 11 (about 100 MB) is not in the repository: the Cloudflare copy serves it from boxedwine.org
 var FS_BASE = /workers\.dev$/.test(location.hostname) || /^(localhost|127\.)/.test(location.hostname)
-  ? "fs/" : "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/wine/fs/";
+  ? "fs/" : "https://hub.inkdos.workers.dev/apps/wine/fs/";
 // Boxedwine offers the browser screen size as a display mode only above 1600 px wide:
 // a 1680x945 (16:9) screen gives a widescreen Windows desktop
 // The screen size is picked on the start panel (smaller = lighter): 1280x720 by default
@@ -27,7 +27,7 @@ var TELAS = ["960x540", "1280x720", "1680x945"], TELA = "1280x720";
 try { if (TELAS.indexOf(localStorage.getItem("wine-tela")) >= 0) TELA = localStorage.getItem("wine-tela"); } catch (e) {}
 var LARG = +TELA.split("x")[0], ALT = +TELA.split("x")[1];
 // internet: the Hub's tunnel on Cloudflare (worker.js), DNS answered with DNS-over-HTTPS
-var NET = "&network=true&networkGateway=" + encodeURIComponent("wss://inkdoshub-github-io.vfydr2m9wk.workers.dev/net/boxedwine");
+var NET = "&network=true&networkGateway=" + encodeURIComponent("wss://hub.inkdos.workers.dev/net/boxedwine");
 Module.locateFile = function (url) { return MOTOR + url + (/\.wasm$/.test(url) ? "?v=3" : ""); };
 
 var $ = function (id) { return document.getElementById(id); };
@@ -112,7 +112,7 @@ function isolar() {
   } else location.replace(RAPIDO + location.search);
   return true;
 }
-var RAPIDO = "https://inkdoshub-github-io.vfydr2m9wk.workers.dev/apps/wine/";
+var RAPIDO = "https://hub.inkdos.workers.dev/apps/wine/";
 
 // The engine only starts when the person taps Start (or right after "Restart Windows").
 function ligar() {
