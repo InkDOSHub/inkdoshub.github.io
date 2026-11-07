@@ -190,6 +190,17 @@ function semInternet(rel, e) {
 const WEBCAM = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip';
 const ehWebcam = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/webcam/'); } catch (_) { return false; } };
 let webcamOcupada = false;
+// Downloads from GitHub releases: Electron's fetch first; if it fails (proxy, antivirus, redirect), Windows' own curl.exe.
+async function baixarBuf(url) {
+  try {
+    const r = await session.fromPartition('inkhub-baixar').fetch(url);
+    if (r.ok) return Buffer.from(await r.arrayBuffer());
+  } catch (_) {}
+  const tmp = path.join(app.getPath('temp'), 'inkhub-' + crypto.randomBytes(6).toString('hex'));
+  await new Promise((ok, falha) => cp.execFile('curl.exe', ['-fsSL', '--retry', '2', '-o', tmp, url], { windowsHide: true, timeout: 20 * 60000 }, e => (e ? falha(new Error('download: ' + e.message.split('\n')[0])) : ok())));
+  try { return await fsp.readFile(tmp); } finally { fsp.rm(tmp, { force: true }).catch(() => {}); }
+}
+const baixarSha = async url => { try { const t = (await baixarBuf(url + '.sha256')).toString().trim().split(/\s+/)[0].toLowerCase(); return /^[0-9a-f]{64}$/.test(t) ? t : null; } catch (_) { return null; } };
 function acharExe(pasta) {
   if (!fs.existsSync(pasta)) return null;
   for (const n of fs.readdirSync(pasta, { withFileTypes: true })) {
@@ -214,29 +225,12 @@ async function abrirWebcam() {
     } else aviso.webContents.executeJavaScript('document.getElementById("t").textContent=' + JSON.stringify(txt)).catch(() => {});
   };
   try {
-    const baixar = session.fromPartition('inkhub-baixar');
     let exe = acharExe(pasta);
-    let remoto = null;
-    try {
-      const r = await baixar.fetch(WEBCAM + '.sha256');
-      if (r.ok) remoto = (await r.text()).trim().split(/\s+/)[0].toLowerCase();
-    } catch (_) {}
+    const remoto = await baixarSha(WEBCAM);
     const local = fs.existsSync(marca) ? fs.readFileSync(marca, 'utf8').trim() : '';
-    if (remoto && /^[0-9a-f]{64}$/.test(remoto) && (!exe || remoto !== local)) {
+    if (remoto && (!exe || remoto !== local)) {
       dizer(pt ? 'Baixando o app da Webcam para Windows…' : 'Downloading the Webcam app for Windows…');
-      const r = await baixar.fetch(WEBCAM);
-      if (!r.ok) throw new Error('download ' + r.status);
-      const total = Number(r.headers.get('content-length')) || 0, partes = [];
-      let feito = 0, ultimo = -1;
-      const leitor = r.body.getReader();
-      for (;;) {
-        const { done, value } = await leitor.read();
-        if (done) break;
-        partes.push(Buffer.from(value)); feito += value.length;
-        const pct = total ? Math.floor(feito * 100 / total) : 0;
-        if (pct !== ultimo && pct % 5 === 0) { ultimo = pct; dizer((pt ? 'Baixando o app da Webcam para Windows… ' : 'Downloading the Webcam app for Windows… ') + pct + '%'); }
-      }
-      const zip = Buffer.concat(partes);
+      const zip = await baixarBuf(WEBCAM);
       if (sha256(zip) !== remoto) throw new Error('SHA-256');
       dizer(pt ? 'SHA-256 conferido ✓ Instalando…' : 'SHA-256 verified ✓ Installing…');
       const novo = pasta + '.novo', arq = path.join(app.getPath('userData'), 'webcam.zip');
@@ -428,14 +422,10 @@ async function abrirTransferir() {
   const pasta = path.join(app.getPath('userData'), 'transferir');
   const exe = path.join(pasta, 'InkDOS Hub Transferir.exe'), marca = path.join(pasta, 'versao.sha256');
   try {
-    const baixar = session.fromPartition('inkhub-baixar');
-    let remoto = null;
-    try { const r = await baixar.fetch(TRANSFERIR + '.sha256'); if (r.ok) remoto = (await r.text()).trim().split(/\s+/)[0].toLowerCase(); } catch (_) {}
+    const remoto = await baixarSha(TRANSFERIR);
     const local = fs.existsSync(marca) ? fs.readFileSync(marca, 'utf8').trim() : '';
-    if (remoto && /^[0-9a-f]{64}$/.test(remoto) && (!fs.existsSync(exe) || remoto !== local)) {
-      const r = await baixar.fetch(TRANSFERIR);
-      if (!r.ok) throw new Error('download ' + r.status);
-      const b = Buffer.from(await r.arrayBuffer());
+    if (remoto && (!fs.existsSync(exe) || remoto !== local)) {
+      const b = await baixarBuf(TRANSFERIR);
       if (sha256(b) !== remoto) throw new Error('SHA-256');
       await fsp.mkdir(pasta, { recursive: true });
       try { await fsp.writeFile(exe, b); await fsp.writeFile(marca, remoto); } catch (_) { /* app open: keep the previous version */ }
