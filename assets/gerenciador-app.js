@@ -11,6 +11,7 @@
     { id: "terminal", nome: "Linux terminal", url: "terminal/" },
     { id: "wine", nome: "Wine", url: "apps/wine/" },
     { id: "zip", nome: "Zip", url: "apps/zip/" },
+    { id: "ia", nome: "AI Chat", url: "apps/ia/" },
     { id: "wasm", nome: "Wasm Build", url: "apps/wasm/" },
     { id: "foto", nome: "Photos", url: "apps/foto/" },
     { id: "videoeditor", nome: "Edit video", url: "apps/video/cortar/" },
