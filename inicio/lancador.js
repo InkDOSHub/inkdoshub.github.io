@@ -36,7 +36,7 @@
   // default: InkDOS on iPhone (ArtCraft has no phone layout), ArtCraft elsewhere
   var PADRAO = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent) ? "inkdos" : "artcraft";
   function preferencia() { var v; try { v = localStorage.getItem(K_PREF) || PADRAO; } catch (_) { v = PADRAO; } return v === "inkdos" ? v : "artcraft"; }
-  // ☰ menu: two rows (ArtCraft, the default / InkDOS legacy), with ✓ on the chosen one
+  // ☰ menu: two rows (ArtCraft desktop / InkDOS mobile), with ✓ on the chosen one
   var opcoes = [].slice.call(document.querySelectorAll(".pref-office"));
   function marcar() { var v = preferencia(); opcoes.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.pref === v)); }); }
   opcoes.forEach(function (b) {
