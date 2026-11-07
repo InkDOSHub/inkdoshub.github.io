@@ -160,3 +160,10 @@ button.off-item:hover{background:var(--accent-soft)}
 .off-oferta{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:55;width:min(420px,calc(100% - 32px));padding:12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.18);color:var(--text);font-size:14px;box-sizing:border-box}
 .off-oferta p{margin:6px 0 10px;font-size:13px;color:var(--muted)}
 .off-botoes{display:flex;justify-content:flex-end;gap:8px}
+
+/* Guide */
+.guia-passos{margin:0 0 14px;padding:0;list-style:none;counter-reset:g;display:flex;flex-direction:column;gap:12px}
+.guia-passos li{counter-increment:g;display:grid;grid-template-columns:26px 1fr;column-gap:10px;font-size:14px;line-height:1.35}
+.guia-passos li::before{content:counter(g);grid-row:span 2;width:24px;height:24px;border-radius:50%;background:var(--text);color:var(--card);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.guia-passos strong{font-size:14px}
+.guia-passos span{color:var(--muted)}
