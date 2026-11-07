@@ -37,3 +37,6 @@
 
 /* Native dropdowns follow the InkDOS theme, not the device: with the device dark and InkDOS light they were drawn dark */
 :root[data-theme="light"] select{color-scheme:light}:root[data-theme="dark"] select{color-scheme:dark}
+
+/* Touch screens: 44 px tall touch area for the 30 px bar buttons (look unchanged) */
+@media (pointer:coarse){:root[data-ui-density="desktop"] .frame-btn:not(.inkdos-hub-link),:root[data-ui-density="desktop"] .tool-btn.icon-only{position:relative}:root[data-ui-density="desktop"] .frame-btn:not(.inkdos-hub-link)::after,:root[data-ui-density="desktop"] .tool-btn.icon-only::after{content:"";position:absolute;inset:-7px -1px}}
