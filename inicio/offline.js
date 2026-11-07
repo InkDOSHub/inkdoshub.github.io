@@ -145,36 +145,45 @@
     caixa.appendChild(espaco);
     // app data outside the offline copy (Wine C: drive, JIT and transcription caches, app databases) grows with use
     if (!N) {
-      var limpar = el("button", "off-limpar", t("Clear app data")); limpar.type = "button";
-      caixa.appendChild(limpar);
-      limpar.onclick = function () {
-        if (caixa.querySelector(".off-conf-dados")) return;
-        var conf = el("div", "off-conf off-conf-dados");
-        conf.appendChild(el("span", null, t("Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.")));
-        var nao = el("button", "off-nao", t("Cancel")); nao.type = "button";
-        var sim = el("button", "off-sim", t("Clear")); sim.type = "button";
-        nao.onclick = function () { conf.remove(); };
-        sim.onclick = function () {
-          sim.disabled = nao.disabled = true; sim.textContent = "…";
-          var fica = { "inkdoshub-offline": 1, "inkdoshub-idioma": 1 };
-          var c1 = caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return !fica[k]; }).map(function (k) { return caches.delete(k); })); });
-          var c2 = (indexedDB.databases ? indexedDB.databases() : Promise.resolve([])).then(function (dbs) {
-            return Promise.all(dbs.filter(function (d) { return d.name && d.name !== "inkdos-work-safety"; }).map(function (d) {
-              return new Promise(function (ok) { var r = indexedDB.deleteDatabase(d.name); r.onsuccess = r.onerror = r.onblocked = function () { ok(); }; });
-            }));
-          });
-          var c3 = navigator.storage && navigator.storage.getDirectory ? navigator.storage.getDirectory().then(function (raiz) {
-            var nomes = []; var it = raiz.keys();
-            function prox() { return it.next().then(function (x) { if (x.done) return; nomes.push(x.value); return prox(); }); }
-            return prox().then(function () { return Promise.all(nomes.map(function (n) { return raiz.removeEntry(n, { recursive: true }).catch(function () {}); })); });
-          }).catch(function () {}) : Promise.resolve();
-          Promise.all([c1.catch(function () {}), c2.catch(function () {}), c3]).then(function () {
-            conf.remove(); dizer(t("App data cleared ✓"), "ok"); setTimeout(function () { location.reload(); }, 800);
-          });
+      // tudo = also the offline copy, language pack, document recovery, settings and the service worker
+      var botaoLimpar = function (rotulo, pergunta, tudo) {
+        var limpar = el("button", "off-limpar", t(rotulo)); limpar.type = "button";
+        caixa.appendChild(limpar);
+        limpar.onclick = function () {
+          if (caixa.querySelector(".off-conf-dados")) return;
+          var conf = el("div", "off-conf off-conf-dados");
+          conf.appendChild(el("span", null, t(pergunta)));
+          var nao = el("button", "off-nao", t("Cancel")); nao.type = "button";
+          var sim = el("button", "off-sim", t("Clear")); sim.type = "button";
+          nao.onclick = function () { conf.remove(); };
+          sim.onclick = function () {
+            sim.disabled = nao.disabled = true; sim.textContent = "…";
+            var fica = tudo ? {} : { "inkdoshub-offline": 1, "inkdoshub-idioma": 1 };
+            var c1 = caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return !fica[k]; }).map(function (k) { return caches.delete(k); })); });
+            var c2 = (indexedDB.databases ? indexedDB.databases() : Promise.resolve([])).then(function (dbs) {
+              return Promise.all(dbs.filter(function (d) { return d.name && (tudo || d.name !== "inkdos-work-safety"); }).map(function (d) {
+                return new Promise(function (ok) { var r = indexedDB.deleteDatabase(d.name); r.onsuccess = r.onerror = r.onblocked = function () { ok(); }; });
+              }));
+            });
+            var c3 = navigator.storage && navigator.storage.getDirectory ? navigator.storage.getDirectory().then(function (raiz) {
+              var nomes = []; var it = raiz.keys();
+              function prox() { return it.next().then(function (x) { if (x.done) return; nomes.push(x.value); return prox(); }); }
+              return prox().then(function () { return Promise.all(nomes.map(function (n) { return raiz.removeEntry(n, { recursive: true }).catch(function () {}); })); });
+            }).catch(function () {}) : Promise.resolve();
+            var c4 = tudo ? navigator.serviceWorker.getRegistrations().then(function (rs) {
+              try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+              return Promise.all(rs.map(function (r) { return r.unregister(); }));
+            }) : Promise.resolve();
+            Promise.all([c1.catch(function () {}), c2.catch(function () {}), c3, c4.catch(function () {})]).then(function () {
+              conf.remove(); dizer(t("App data cleared ✓"), "ok"); setTimeout(function () { location.reload(); }, 800);
+            });
+          };
+          conf.appendChild(nao); conf.appendChild(sim);
+          limpar.after(conf);
         };
-        conf.appendChild(nao); conf.appendChild(sim);
-        limpar.after(conf);
       };
+      botaoLimpar("Clear app data", "Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.", false);
+      botaoLimpar("Delete everything from this site", "Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?", true);
     }
     var lista = el("div", "off-lista", "…");
     caixa.appendChild(lista);

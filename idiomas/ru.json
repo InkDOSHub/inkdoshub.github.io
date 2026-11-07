@@ -439,5 +439,7 @@
 "Clear app data": "Очистить данные приложений",
 "Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.": "Удалить данные, сохранённые приложениями (диск C: Wine, модели транскрипции, кэши)? Офлайн-копия и восстановление документов сохранятся.",
 "Clear": "Очистить",
-"App data cleared ✓": "Данные приложений очищены ✓"
+"App data cleared ✓": "Данные приложений очищены ✓",
+"Delete everything from this site": "Удалить всё с этого сайта",
+"Delete ALL data of this site on this device (offline copy, app data, document recovery, settings)?": "Удалить ВСЕ данные этого сайта на этом устройстве (офлайн-копия, данные приложений, восстановление документов, настройки)?"
 }
