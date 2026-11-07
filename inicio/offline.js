@@ -169,7 +169,7 @@
             return prox().then(function () { return Promise.all(nomes.map(function (n) { return raiz.removeEntry(n, { recursive: true }).catch(function () {}); })); });
           }).catch(function () {}) : Promise.resolve();
           Promise.all([c1.catch(function () {}), c2.catch(function () {}), c3]).then(function () {
-            conf.remove(); dizer(t("App data cleared ✓"), "ok"); setTimeout(contar, 800);
+            conf.remove(); dizer(t("App data cleared ✓"), "ok"); setTimeout(function () { location.reload(); }, 800);
           });
         };
         conf.appendChild(nao); conf.appendChild(sim);
