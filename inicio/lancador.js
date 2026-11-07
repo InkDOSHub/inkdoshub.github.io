@@ -228,12 +228,14 @@
   if (botao && entrada) {
     botao.addEventListener("click", function () { entrada.value = ""; entrada.click(); });
     entrada.addEventListener("change", function () { abrirArquivos([].slice.call(entrada.files || [])); });
-    // drag and drop onto the bar (computers)
-    ["dragenter", "dragover"].forEach(function (t) { botao.addEventListener(t, function (e) { e.preventDefault(); botao.classList.add("soltar"); }); });
-    botao.addEventListener("dragleave", function () { botao.classList.remove("soltar"); });
-    botao.addEventListener("drop", function (e) {
-      e.preventDefault(); botao.classList.remove("soltar");
-      var f = [].slice.call(e.dataTransfer && e.dataTransfer.files || []);
+    // drag and drop anywhere on the page (computers)
+    var corpo = document.body, temArquivo = function (e) { return e.dataTransfer && [].indexOf.call(e.dataTransfer.types || [], "Files") >= 0; };
+    ["dragenter", "dragover"].forEach(function (t) { document.addEventListener(t, function (e) { if (!temArquivo(e)) return; e.preventDefault(); corpo.classList.add("soltar"); }); });
+    document.addEventListener("dragleave", function (e) { if (!e.relatedTarget) corpo.classList.remove("soltar"); });
+    document.addEventListener("drop", function (e) {
+      if (!temArquivo(e)) return;
+      e.preventDefault(); corpo.classList.remove("soltar");
+      var f = [].slice.call(e.dataTransfer.files || []);
       if (f.length) abrirArquivos(f);
     });
   }
