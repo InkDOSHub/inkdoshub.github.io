@@ -618,8 +618,10 @@ function cuidar(w) {
     if (r === 0) e.preventDefault(); // close anyway
   });
   w.webContents.setWindowOpenHandler(({ url }) => {
+    if (ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
     if (ehTerminal(url)) { abrirTerminal(); return { action: 'deny' }; }
     if (ehCodigo(url)) { abrirCodigo(); return { action: 'deny' }; }
+    if (ehTransferir(url)) { abrirTransferir(); return { action: 'deny' }; }
     if (ehWine(url)) { abrirEmuladores(); return { action: 'deny' }; }
     if (url === 'about:blank' || doSite(url)) return { action: 'allow', overrideBrowserWindowOptions: opcoes(1200, 820) };
     if (/^https?:/i.test(url)) shell.openExternal(url);
@@ -627,9 +629,10 @@ function cuidar(w) {
   });
   w.webContents.on('did-create-window', cuidar);
   w.webContents.on('will-navigate', (e, url) => {
-    if (!w.versaoDoSite && (ehTerminal(url) || ehCodigo(url) || ehWine(url))) {
+    if (!w.versaoDoSite && (ehWebcam(url) || ehTerminal(url) || ehCodigo(url) || ehTransferir(url) || ehWine(url))) {
       e.preventDefault();
-      if (ehTerminal(url)) abrirTerminal(); else if (ehCodigo(url)) abrirCodigo(); else abrirEmuladores();
+      if (ehWebcam(url)) abrirWebcam(); else if (ehTerminal(url)) abrirTerminal(); else if (ehCodigo(url)) abrirCodigo();
+      else if (ehTransferir(url)) abrirTransferir(); else abrirEmuladores();
       // the home screen opens an empty window and then sends the address: that window closes
       const atual = w.webContents.getURL();
       if (w !== principal() && (!atual || atual === 'about:blank')) w.close();
