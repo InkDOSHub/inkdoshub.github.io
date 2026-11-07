@@ -27,7 +27,8 @@ async function carregar() {
   if (carregado !== null) await wllama.exit();
   carregado = null;
   aviso("Loading the model…");
-  await wllama.loadModelFromHF(MODELOS[i], {
+  const m = MODELOS[i];
+  await wllama.loadModelFromUrl("https://huggingface.co/" + m.repo + "/resolve/main/" + m.file, {
     n_ctx: 2048,
     progressCallback: ({ loaded, total }) => { if (total) aviso("Downloading the model… " + Math.round(loaded / total * 100) + "%"); }
   });
@@ -57,7 +58,7 @@ $("form").addEventListener("submit", async (e) => {
     historico.push({ role: "assistant", content: r || "…" });
   } catch (err) {
     historico.pop();
-    aviso("Error: " + (err && err.message || err) + ". On iPad, try the smaller model.");
+    aviso("Error: " + (err && err.message || err) + ". Try Qwen 0.5B.");
   }
   ocupado = false; parar = null; enviar.textContent = "Send";
 });
