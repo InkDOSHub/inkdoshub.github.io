@@ -9,7 +9,8 @@
   var BASE = new URL("whisper/", document.currentScript.src).href, V = "?v=2";
   var MODELOS = {
     tiny: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin",
-    base: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin"
+    base: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
+    small: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin"
   };
   var PARTE = 16000 * 600; // 10 minutes
   var motor = null, instancia = 0, modeloAtual = "", ocupado = false;
@@ -182,6 +183,14 @@
     }).then(function () { ocupado = false; progresso = null; audio = null; $("tr-escolher").disabled = false; });
   }
   window.inkTranscrever = transcrever;
+  // frees the space of the downloaded models (they come back when used again)
+  $("tr-apagar").onclick = function () {
+    if (ocupado) return;
+    (window.caches ? caches.delete("inkdoshub-whisper") : Promise.resolve()).then(function () {
+      if (motor && instancia) motor.then(function (M) { M.free(instancia); instancia = 0; modeloAtual = ""; });
+      estado(t("Downloaded models deleted."));
+    });
+  };
 
   $("tr-escolher").onclick = function () { $("tr-arquivo").click(); };
   $("tr-arquivo").onchange = function (e) { var f = e.target.files[0]; e.target.value = ""; transcrever(f); };

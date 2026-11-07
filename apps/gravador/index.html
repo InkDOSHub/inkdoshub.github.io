@@ -92,6 +92,7 @@ html.md-sem-audios #cartao-audios{display:none!important}
           <select id="tr-modelo" class="ink-btn" title="Model">
             <option value="tiny">Fast (32 MB)</option>
             <option value="base">Better (60 MB)</option>
+            <option value="small">Precise (190 MB, slow)</option>
           </select>
           <select id="tr-idioma" class="ink-btn" title="Language">
             <option value="auto">Detect language</option>
@@ -117,7 +118,8 @@ html.md-sem-audios #cartao-audios{display:none!important}
       <div class="info"><strong style="flex:1">Offline transcription (AI)</strong>
         <details class="i solto"><summary title="How it works" aria-label="How it works">i</summary><div class="pop">
           <p>Turns speech into text on this device with whisper.cpp. The model is downloaded once and kept in this browser; after that it works offline. Nothing is sent anywhere.</p>
-          <p>Fast is good for clear speech; Better makes fewer mistakes but takes about twice as long.</p>
+          <p>Fast is good for clear speech. Better makes fewer mistakes but takes about twice as long; Precise is the most accurate and about four times slower than Better. Choosing the language instead of “Detect language” also helps.</p>
+          <p><button class="ink-btn" id="tr-apagar" type="button">Delete downloaded models</button></p>
         </div></details>
       </div>
     </section>
@@ -153,6 +155,6 @@ html.md-sem-audios #cartao-audios{display:none!important}
 <script src="extrair-m4a.js?v=1"></script>
 <input id="tr-arquivo" type="file" accept="audio/*,video/*" hidden>
 <script src="gravar.js?v=10"></script>
-<script src="transcrever.js?v=4"></script>
+<script src="transcrever.js?v=5"></script>
 </body>
 </html>
