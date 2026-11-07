@@ -25,7 +25,8 @@
     $("sem-suporte").hidden = !(m === "sistema" && !suporta);
     $("cartao-tela").classList.toggle("md-hide", m !== "tela");
     if ($("cartao-audios")) $("cartao-audios").classList.toggle("md-hide", m !== "tela");
-    $("cartao-gravar").classList.toggle("md-hide", m === "tela");
+    $("cartao-gravar").classList.toggle("md-hide", m === "tela" || m === "transcrever");
+    $("cartao-transcrever").classList.toggle("md-hide", m !== "transcrever");
     $("dica-mic").classList.toggle("md-hide", m !== "mic");
     $("gravar").disabled = (m === "sistema" && !suporta) || (m === "mic" && !temMic);
     // without this the button just sits there, unexplained (e.g. an app that does not allow the microphone for sites)
@@ -288,6 +289,7 @@
           linha.appendChild(botao("Share", function () { navigator.share({ files: [arq] }).catch(function () {}); }));
         }
         linha.appendChild(botao("Download", function () { inkBaixar(arq); }));
+        if (window.inkTranscrever) linha.appendChild(botao("Transcribe", function () { escolherModo("transcrever"); inkTranscrever(arq); }));
         linha.appendChild(botao("Delete", function () { audios.remover(i.id).then(listarAudios); }));
         caixa.appendChild(linha);
       });

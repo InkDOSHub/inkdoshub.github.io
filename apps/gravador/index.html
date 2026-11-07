@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob: https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
 <link rel="icon" type="image/png" sizes="192x192" href="../../assets/inkdoshub-icone-192.png?v=8">
@@ -36,6 +36,9 @@
   #modos .ink-btn[aria-pressed=true]{background:var(--btn-active);font-weight:600}
   details.i.solto .pop{left:auto;right:0;top:auto;bottom:30px}
   #sem-suporte{color:#e5484d}
+  .tr-opcoes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  #tr-escolher{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  #tr-texto{width:min(640px,100%);min-height:180px;flex:1;font:inherit;font-size:14px;line-height:1.5;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);resize:vertical;text-align:left}
 </style>
 <style>
 /* screen mode without recordings: only the notice in the middle */
@@ -55,6 +58,7 @@ html.md-sem-audios #cartao-audios{display:none!important}
     <button class="ink-btn" data-modo="sistema" aria-pressed="true">Computer sound</button>
     <button class="ink-btn" data-modo="mic">Microphone</button>
     <button class="ink-btn" data-modo="tela">Screen recording</button>
+    <button class="ink-btn" data-modo="transcrever">Transcription</button>
   </span>
 </header>
 <main class="ink-main">
@@ -81,6 +85,41 @@ html.md-sem-audios #cartao-audios{display:none!important}
       <div id="lista-audios" class="lista md-list"></div>
       <p id="vazio-audios" class="md-empty">Nothing here yet.</p>
     </aside>
+    <section class="md-stage md-hide" id="cartao-transcrever">
+      <div class="palco">
+        <div class="tr-opcoes">
+          <select id="tr-modelo" class="ink-btn" title="Model">
+            <option value="tiny">Fast (32 MB)</option>
+            <option value="base">Better (60 MB)</option>
+          </select>
+          <select id="tr-idioma" class="ink-btn" title="Language">
+            <option value="auto">Detect language</option>
+            <option value="pt">Português</option>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="it">Italiano</option>
+            <option value="ja">日本語</option>
+          </select>
+          <button class="ink-btn" id="tr-escolher">Choose audio or video</button>
+        </div>
+        <div class="nivel"><span id="tr-nivel"></span></div>
+        <p id="tr-estado" data-idioma-nao></p>
+        <textarea id="tr-texto" readonly hidden data-idioma-nao></textarea>
+        <div class="tr-opcoes" id="tr-acoes" hidden>
+          <button class="ink-btn" id="tr-copiar">Copy</button>
+          <button class="ink-btn" id="tr-txt">Download .txt</button>
+          <button class="ink-btn" id="tr-srt">Download .srt</button>
+        </div>
+      </div>
+      <div class="info"><strong style="flex:1">Offline transcription (AI)</strong>
+        <details class="i solto"><summary title="How it works" aria-label="How it works">i</summary><div class="pop">
+          <p>Turns speech into text on this device with whisper.cpp. The model is downloaded once and kept in this browser; after that it works offline. Nothing is sent anywhere.</p>
+          <p>Fast is good for clear speech; Better makes fewer mistakes but takes about twice as long.</p>
+        </div></details>
+      </div>
+    </section>
     <section class="md-stage" id="cartao-gravar">
       <div class="palco">
         <p id="sem-suporte" hidden>This browser cannot record the computer’s sound. Use Chrome or Edge on a Windows computer. Safari (iPad, iPhone, Mac) does not let websites capture other windows’ sound.</p>
@@ -111,6 +150,8 @@ html.md-sem-audios #cartao-audios{display:none!important}
 <script src="../../assets/icones.js?v=2"></script>
 <input id="arquivo-tela" type="file" accept="video/*,.mp4,.mov,.m4v" hidden>
 <script src="extrair-m4a.js?v=1"></script>
-<script src="gravar.js?v=9"></script>
+<input id="tr-arquivo" type="file" accept="audio/*,video/*" hidden>
+<script src="gravar.js?v=10"></script>
+<script src="transcrever.js?v=1"></script>
 </body>
 </html>

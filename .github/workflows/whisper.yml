@@ -1,0 +1,60 @@
+name: Build whisper.cpp (wasm)
+# Builds whisper.cpp (MIT, github.com/ggml-org/whisper.cpp) to WebAssembly for the Recorder's
+# "Offline transcription (AI)". Output: apps/gravador/whisper/ (libmain.js + libmain.wasm,
+# multithread, needs cross-origin isolation). Models are downloaded on demand by the page.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/whisper.yml]
+permissions:
+  contents: write
+concurrency:
+  group: whisper
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Latest whisper.cpp release
+        id: up
+        run: |
+          tag=$(git ls-remote --tags --refs --sort=-v:refname https://github.com/ggml-org/whisper.cpp 'v*' | head -1 | sed 's#.*refs/tags/##')
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"; echo "$tag"
+      - name: Install Emscripten
+        run: |
+          git clone -q --depth 1 https://github.com/emscripten-core/emsdk "$HOME/emsdk"
+          cd "$HOME/emsdk" && ./emsdk install latest && ./emsdk activate latest
+      - name: Build
+        run: |
+          set -euo pipefail
+          git clone -q --depth 1 -b ${{ steps.up.outputs.tag }} https://github.com/ggml-org/whisper.cpp "$RUNNER_TEMP/w"
+          cd "$RUNNER_TEMP/w"
+          # the page writes the model into the wasm file system
+          sed -i "s/'HEAPU8'\]/'HEAPU8', 'FS_createDataFile', 'FS_unlink']/" examples/whisper.wasm/CMakeLists.txt
+          source "$HOME/emsdk/emsdk_env.sh"
+          emcmake cmake -B build -DCMAKE_BUILD_TYPE=Release -DWHISPER_WASM_SINGLE_FILE=OFF
+          cmake --build build -j4 --target libmain
+          ls -la build/bin
+          emcc --version | head -1 > "$RUNNER_TEMP/emcc.txt"
+      - name: Copy into the site
+        run: |
+          set -euo pipefail
+          d=apps/gravador/whisper
+          rm -rf "$d"; mkdir -p "$d"
+          cp "$RUNNER_TEMP"/w/build/bin/libmain.js "$RUNNER_TEMP"/w/build/bin/libmain.wasm "$d/"
+          ls "$RUNNER_TEMP"/w/build/bin/libmain.worker.js 2>/dev/null && cp "$RUNNER_TEMP"/w/build/bin/libmain.worker.js "$d/"
+          printf 'whisper.cpp %s\nhttps://github.com/ggml-org/whisper.cpp/tree/%s\n%s\nLicense: MIT\n' \
+            "${{ steps.up.outputs.tag }}" "${{ steps.up.outputs.tag }}" "$(cat "$RUNNER_TEMP/emcc.txt")" > "$d/VERSION.txt"
+          du -sh "$d"
+      - name: Commit
+        run: |
+          git add -A apps/gravador/whisper
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "whisper.cpp wasm build ${{ steps.up.outputs.tag }}"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push && exit 0; sleep 5; done
+          exit 1
