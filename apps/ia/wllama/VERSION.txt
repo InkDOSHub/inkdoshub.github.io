@@ -1,0 +1,4 @@
+wllama 3.8.1 (llama.cpp in WebAssembly)
+https://github.com/ngxson/wllama
+npm @wllama/wllama 3.8.1, files esm/index.js and esm/wasm/wllama.wasm
+License: MIT
