@@ -416,6 +416,127 @@ function abrirCodigo() {
   }, codigoDoSite);
 }
 
+// ---------- Transfer: on Windows uses the native app (direct Wi-Fi, faster than the page) ----------
+// Downloads the single .exe from the transferir-windows release, checks its SHA-256 and opens it. Updates when the release changes.
+const TRANSFERIR = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/transferir-windows/InkDOSHub-Transferir.exe';
+const ehTransferir = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/transferir/'); } catch (_) { return false; } };
+let transferirOcupado = false;
+async function abrirTransferir() {
+  if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1100, 760)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + 'apps/transferir/'); }
+  if (transferirOcupado) return;
+  transferirOcupado = true;
+  const pasta = path.join(app.getPath('userData'), 'transferir');
+  const exe = path.join(pasta, 'InkDOS Hub Transferir.exe'), marca = path.join(pasta, 'versao.sha256');
+  try {
+    const baixar = session.fromPartition('inkhub-baixar');
+    let remoto = null;
+    try { const r = await baixar.fetch(TRANSFERIR + '.sha256'); if (r.ok) remoto = (await r.text()).trim().split(/\s+/)[0].toLowerCase(); } catch (_) {}
+    const local = fs.existsSync(marca) ? fs.readFileSync(marca, 'utf8').trim() : '';
+    if (remoto && /^[0-9a-f]{64}$/.test(remoto) && (!fs.existsSync(exe) || remoto !== local)) {
+      const r = await baixar.fetch(TRANSFERIR);
+      if (!r.ok) throw new Error('download ' + r.status);
+      const b = Buffer.from(await r.arrayBuffer());
+      if (sha256(b) !== remoto) throw new Error('SHA-256');
+      await fsp.mkdir(pasta, { recursive: true });
+      try { await fsp.writeFile(exe, b); await fsp.writeFile(marca, remoto); } catch (_) { /* app open: keep the previous version */ }
+    }
+    if (!fs.existsSync(exe)) throw new Error('offline');
+    const err = await shell.openPath(exe);
+    if (err) throw new Error(err);
+  } catch (e) {
+    const pt = /^pt/i.test(app.getLocale());
+    dialog.showMessageBox({ type: 'warning', title: 'InkDOS Hub', message: pt ? 'Não deu para abrir o Transferir.' : 'Could not open Transfer.',
+      detail: e.message === 'SHA-256' ? (pt ? 'O arquivo baixado não confere (SHA-256). Tente de novo.' : 'The download does not match its SHA-256. Try again.') : (pt ? 'Confira a internet e tente de novo.' : 'Check the internet and try again.') });
+  } finally { transferirOcupado = false; }
+}
+
+// ---------- Emulators: on Windows the Wine app is not needed (Windows runs .exe), so it opens this window instead ----------
+// Well-known open source virtual machines and emulators, installed from the official source by winget (Windows' own
+// package manager, which checks the publisher's hash). If winget fails, opens the official download page.
+// Games, ROMs, BIOS and system images are not included: the person uses their own.
+const ehWine = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/wine/'); } catch (_) { return false; } };
+const EMULADORES = [
+  { g: 'vm', nome: 'VirtualBox', id: 'Oracle.VirtualBox', menu: 'VirtualBox', site: 'https://www.virtualbox.org/wiki/Downloads', pt: 'Máquina virtual fácil: Linux, Windows e outros sistemas, com várias configurações.', en: 'Easy virtual machine: Linux, Windows and other systems, with many settings.' },
+  { g: 'vm', nome: 'QEMU', id: 'SoftwareFreedomConservancy.QEMU', menu: 'QEMU', site: 'https://www.qemu.org/download/#windows', pt: 'Emula quase qualquer processador (x86, ARM, RISC-V…). Mais técnico, por linha de comando.', en: 'Emulates almost any processor (x86, ARM, RISC-V…). More technical, command line.' },
+  { g: 'vm', nome: 'Linux do Windows (WSL)', nomeEn: 'Windows Linux (WSL)', wsl: true, pt: 'Linux da Microsoft com desempenho quase nativo. É o mesmo do app Terminal.', en: 'Microsoft Linux with near-native performance. Same as the Terminal app.' },
+  { g: 'mac', nome: 'QEMU + OpenCore (OSX-KVM)', id: 'SoftwareFreedomConservancy.QEMU', menu: 'QEMU', site: 'https://github.com/kholia/OSX-KVM', pt: 'Projeto open source mais usado para isso. Instala o QEMU e abre o guia. A Apple só permite o macOS em Mac: use por sua conta e risco.', en: 'Most used open source project for this. Installs QEMU and opens the guide. Apple only allows macOS on Macs: use at your own risk.' },
+  { g: 'jogo', nome: 'RetroArch', id: 'Libretro.RetroArch', menu: 'RetroArch', site: 'https://www.retroarch.com/?page=platforms', pt: 'Consoles antigos em um app só (NES, SNES, Mega Drive, Game Boy, N64…).', en: 'Classic consoles in one app (NES, SNES, Genesis, Game Boy, N64…).' },
+  { g: 'jogo', nome: 'DuckStation', id: 'Stenzek.DuckStation', menu: 'DuckStation', site: 'https://www.duckstation.org/', pt: 'PlayStation 1.', en: 'PlayStation 1.' },
+  { g: 'jogo', nome: 'PCSX2', id: 'PCSX2Team.PCSX2', menu: 'PCSX2', site: 'https://pcsx2.net/downloads', pt: 'PlayStation 2.', en: 'PlayStation 2.' },
+  { g: 'jogo', nome: 'RPCS3', id: 'RPCS3.RPCS3', menu: 'RPCS3', site: 'https://rpcs3.net/download', pt: 'PlayStation 3 (pede um PC forte).', en: 'PlayStation 3 (needs a strong PC).' },
+  { g: 'jogo', nome: 'PPSSPP', id: 'PPSSPPTeam.PPSSPP', menu: 'PPSSPP', site: 'https://www.ppsspp.org/download/', pt: 'PSP.', en: 'PSP.' },
+  { g: 'jogo', nome: 'Dolphin', id: 'DolphinEmulator.Dolphin', menu: 'Dolphin', site: 'https://dolphin-emu.org/download/', pt: 'GameCube e Wii.', en: 'GameCube and Wii.' },
+  { g: 'jogo', nome: 'Cemu', id: 'Cemu.Cemu', menu: 'Cemu', site: 'https://cemu.info/', pt: 'Wii U.', en: 'Wii U.' },
+  { g: 'jogo', nome: 'xemu', id: 'xemu-project.xemu', menu: 'xemu', site: 'https://xemu.app/', pt: 'Xbox original.', en: 'Original Xbox.' }
+];
+// Start menu apps (name + id), to know what is installed and to open it
+function appsDoMenu() {
+  return new Promise(ok => cp.execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Get-StartApps | Select-Object Name,AppID | ConvertTo-Json -Compress'],
+    { windowsHide: true, timeout: 30000, maxBuffer: 8 << 20 }, (e, s) => { try { const l = JSON.parse(s); ok(Array.isArray(l) ? l : [l]); } catch (_) { ok([]); } }));
+}
+const doMenu = (lista, x) => x.menu && lista.find(a => String(a.Name || '').toLowerCase().includes(x.menu.toLowerCase()));
+let janelaEmuladores = null;
+async function abrirEmuladores() {
+  if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + 'apps/wine/'); }
+  if (janelaEmuladores && !janelaEmuladores.isDestroyed()) return janelaEmuladores.focus();
+  const pt = /^pt/i.test(app.getLocale());
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const grupos = pt ? { vm: 'Máquinas virtuais (Linux, Windows e outros)', mac: 'macOS (por sua conta e risco)', jogo: 'Consoles' } : { vm: 'Virtual machines (Linux, Windows and others)', mac: 'macOS (at your own risk)', jogo: 'Consoles' };
+  const bt = 'padding:7px 14px;border-radius:8px;font-weight:600;text-decoration:none;white-space:nowrap;background:#0a84ff;color:#fff';
+  let html = '<!doctype html><meta charset="utf-8"><title>' + (pt ? 'Emuladores' : 'Emulators') + '</title><body style="font:14px -apple-system,Segoe UI,sans-serif;margin:0;padding:20px 22px;background:#f2f2f7;color:#1c1c1e">' +
+    '<h2 style="margin:0 0 4px">' + (pt ? 'Emuladores e máquinas virtuais' : 'Emulators and virtual machines') + '</h2>' +
+    '<p style="color:#636366;margin:0 0 6px">' + (pt ? 'Instalados da fonte oficial pelo winget do Windows. Jogos, ROMs, BIOS e imagens de sistema não vêm junto: use os seus.' : 'Installed from the official source by Windows winget. Games, ROMs, BIOS and system images are not included: use your own.') + '</p>';
+  for (const g of Object.keys(grupos)) {
+    html += '<h3 style="margin:18px 0 6px;font-size:13px;color:#636366;text-transform:uppercase">' + grupos[g] + '</h3><div style="background:#fff;border-radius:12px">';
+    EMULADORES.forEach((x, i) => {
+      if (x.g !== g) return;
+      html += '<div style="display:flex;gap:12px;align-items:center;padding:10px 14px;border-bottom:1px solid #e5e5ea"><div style="flex:1"><b>' + esc(pt ? x.nome : (x.nomeEn || x.nome)) + '</b><br><span style="color:#636366;font-size:13px">' + esc(pt ? x.pt : x.en) + '</span></div>' +
+        '<a id="b' + i + '" href="https://inkhub.acao/usar?i=' + i + '" style="' + bt + '">…</a></div>';
+    });
+    html += '</div>';
+  }
+  html += '<p id="t" style="color:#636366;min-height:2em"></p></body>';
+  const w = janelaEmuladores = new BrowserWindow({ width: 620, height: 760, icon: ICONE, autoHideMenuBar: true, title: pt ? 'Emuladores' : 'Emulators', backgroundColor: '#f2f2f7', webPreferences: { sandbox: true, contextIsolation: true } });
+  const js = c => (w.isDestroyed() ? Promise.resolve() : w.webContents.executeJavaScript(c).catch(() => {}));
+  const dizer = txt => js('document.getElementById("t").textContent=' + JSON.stringify(txt));
+  let menu = [];
+  const marcar = async () => {
+    menu = await appsDoMenu();
+    const wsl = (await distrosWsl()).length > 0;
+    EMULADORES.forEach((x, i) => {
+      const tem = x.wsl ? wsl : !!doMenu(menu, x);
+      const rot = x.g === 'mac' ? (pt ? (tem ? 'Ver guia' : 'Instalar') : (tem ? 'Guide' : 'Install')) : (tem ? (pt ? 'Abrir' : 'Open') : (pt ? 'Instalar' : 'Install'));
+      js('var b=document.getElementById("b' + i + '");b.textContent=' + JSON.stringify(rot) + ';b.style.background=' + JSON.stringify(tem ? '#34c759' : '#0a84ff'));
+    });
+  };
+  const ocupados = new Set();
+  w.webContents.on('will-navigate', (e, url) => {
+    e.preventDefault();
+    const i = Number(new URL(url).searchParams.get('i')), x = EMULADORES[i];
+    if (!x || ocupados.has(i)) return;
+    if (x.wsl) return void abrirTerminal();
+    const a = doMenu(menu, x);
+    if (a) {
+      if (x.g === 'mac') shell.openExternal(x.site);
+      else cp.spawn('explorer.exe', ['shell:AppsFolder\\' + a.AppID], { detached: true, stdio: 'ignore' }).unref();
+      return;
+    }
+    ocupados.add(i);
+    dizer((pt ? 'Instalando ' : 'Installing ') + x.nome + (pt ? ' pelo winget… o Windows pode pedir permissão.' : ' with winget… Windows may ask for permission.'));
+    cp.execFile('winget.exe', ['install', '--id', x.id, '-e', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'],
+      { windowsHide: true, timeout: 30 * 60000 }, async err => {
+        ocupados.delete(i);
+        if (err) { dizer((pt ? 'O winget não conseguiu instalar. Abrindo a página oficial de ' : 'winget could not install it. Opening the official page of ') + x.nome + '.'); shell.openExternal(x.site); return; }
+        dizer(x.nome + (pt ? ' instalado ✓' : ' installed ✓'));
+        if (x.g === 'mac') shell.openExternal(x.site);
+        await marcar();
+      });
+  });
+  w.on('closed', () => { janelaEmuladores = null; });
+  await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  marcar();
+}
+
 // ---------- the shell updates itself ----------
 // Reads versao.json from the hub-windows release; if newer, downloads the installer in the background, checks the SHA-256
 // and shows "New app version · Restart" on the home screen. If the person does not tap, installs when the Hub closes.
@@ -510,15 +631,18 @@ function cuidar(w) {
     if (ehWebcam(url)) { abrirWebcam(); return { action: 'deny' }; }
     if (ehTerminal(url)) { abrirTerminal(); return { action: 'deny' }; }
     if (ehCodigo(url)) { abrirCodigo(); return { action: 'deny' }; }
+    if (ehTransferir(url)) { abrirTransferir(); return { action: 'deny' }; }
+    if (ehWine(url)) { abrirEmuladores(); return { action: 'deny' }; }
     if (url === 'about:blank' || doSite(url)) return { action: 'allow', overrideBrowserWindowOptions: opcoes(1200, 820) };
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
   w.webContents.on('did-create-window', cuidar);
   w.webContents.on('will-navigate', (e, url) => {
-    if (!w.versaoDoSite && (ehWebcam(url) || ehTerminal(url) || ehCodigo(url))) {
+    if (!w.versaoDoSite && (ehWebcam(url) || ehTerminal(url) || ehCodigo(url) || ehTransferir(url) || ehWine(url))) {
       e.preventDefault();
-      if (ehWebcam(url)) abrirWebcam(); else if (ehTerminal(url)) abrirTerminal(); else abrirCodigo();
+      if (ehWebcam(url)) abrirWebcam(); else if (ehTerminal(url)) abrirTerminal(); else if (ehCodigo(url)) abrirCodigo();
+      else if (ehTransferir(url)) abrirTransferir(); else abrirEmuladores();
       // the home screen opens an empty window and then sends the address: that window closes
       const atual = w.webContents.getURL();
       if (w !== principal() && (!atual || atual === 'about:blank')) w.close();
