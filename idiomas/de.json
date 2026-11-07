@@ -435,5 +435,9 @@
 "{size} to update": "{size} zu aktualisieren",
 "{start} to {end} · {length}": "{start} bis {end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "„Ton extrahieren“ behält nur den Ton einer langen Aufnahme, ohne das Video zu speichern."
-}
+},
+"Clear app data": "App-Daten löschen",
+"Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.": "Von den Apps gespeicherte Daten löschen (Wine-Laufwerk C:, Transkriptionsmodelle, Caches)? Die Offline-Kopie und die Dokumentwiederherstellung bleiben erhalten.",
+"Clear": "Löschen",
+"App data cleared ✓": "App-Daten gelöscht ✓"
 }

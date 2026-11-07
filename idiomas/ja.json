@@ -435,5 +435,9 @@
 "{size} to update": "アップデート: {size}",
 "{start} to {end} · {length}": "{start}～{end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "「サウンドを抽出」は長い録画のサウンドだけを残し、ビデオは保存しません。"
-}
+},
+"Clear app data": "アプリのデータを消去",
+"Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.": "アプリが保存したデータ（Wine の C: ドライブ、文字起こしモデル、キャッシュ）を削除しますか？オフラインコピーと文書の復元データは残ります。",
+"Clear": "消去",
+"App data cleared ✓": "アプリのデータを消去しました ✓"
 }

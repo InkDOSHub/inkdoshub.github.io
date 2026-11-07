@@ -435,5 +435,9 @@
 "{size} to update": "需更新 {size}",
 "{start} to {end} · {length}": "{start} 至 {end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "“提取声音”只保留长录像的声音，不保存视频。"
-}
+},
+"Clear app data": "清除应用数据",
+"Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.": "删除应用保存的数据（Wine 的 C: 盘、转写模型、缓存）？离线副本和文档恢复数据会保留。",
+"Clear": "清除",
+"App data cleared ✓": "应用数据已清除 ✓"
 }
