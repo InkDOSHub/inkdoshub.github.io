@@ -435,5 +435,9 @@
 "{size} to update": "Обновить: {size}",
 "{start} to {end} · {length}": "{start} – {end} · {length}",
 "“Extract sound” keeps only the sound of a long recording, without storing the video.": "«Извлечь звук» сохраняет только звук длинной записи, не сохраняя видео."
-}
+},
+"Clear app data": "Очистить данные приложений",
+"Delete data saved by the apps (Wine C: drive, transcription models, caches)? The offline copy and document recovery are kept.": "Удалить данные, сохранённые приложениями (диск C: Wine, модели транскрипции, кэши)? Офлайн-копия и восстановление документов сохранятся.",
+"Clear": "Очистить",
+"App data cleared ✓": "Данные приложений очищены ✓"
 }

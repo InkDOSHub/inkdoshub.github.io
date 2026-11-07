@@ -130,6 +130,8 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 .off-x{border:0;background:transparent;color:var(--muted);font-size:16px;width:32px;height:32px;border-radius:8px}
 .off-ajuda,.off-espaco{margin:6px 0 10px;font-size:13px;color:var(--muted)}
 .off-espaco{margin:8px 0 6px}
+.off-limpar{margin:0 0 8px;padding:0;border:0;background:none;color:var(--text);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer}
+.off-conf-dados{margin-left:0}
 .off-atualizar{width:100%;min-height:36px;border:1px solid var(--border);border-radius:10px;background:var(--accent-soft);color:var(--text);font:inherit;font-weight:600}
 .off-app{margin-top:8px;background:var(--card,#fff);font-weight:500}
 .off-lista{display:flex;flex-direction:column;gap:2px}
