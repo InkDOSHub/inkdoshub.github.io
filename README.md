@@ -4,7 +4,7 @@ A free, open-source home screen of power tools for iPad and iPhone (Safari and X
 
 The website needs no install. The Windows programs (`.exe`) are **optional** extras for PC users. The Wine app is **experimental**: light 32-bit programs work best.
 
-**Open:** https://inkdoshub-github-io.vfydr2m9wk.workers.dev/ (old links to inkdoshub.github.io redirect there) · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md))
+**Open:** https://hub.inkdos.workers.dev/ (old links to inkdoshub.github.io redirect there) · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md))
 
 Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Code audit logs](auditoria/README.md)
 
@@ -49,7 +49,7 @@ Every third-party folder has `UPSTREAM-LICENSE.txt` and `UPSTREAM-SOURCE.txt`; `
 
 | Version | How to use | Specifics |
 |---|---|---|
-| **Web** | Open https://inkdoshub-github-io.vfydr2m9wk.workers.dev/ in Safari, Chrome, Edge or Firefox | Always the latest version. Files live in the browser storage (IndexedDB/OPFS); clearing site data erases them. Safari may clear data of rarely used sites; Offline mode and the Home Screen install prevent that. |
+| **Web** | Open https://hub.inkdos.workers.dev/ in Safari, Chrome, Edge or Firefox | Always the latest version. Files live in the browser storage (IndexedDB/OPFS); clearing site data erases them. Safari may clear data of rarely used sites; Offline mode and the Home Screen install prevent that. |
 | **Home Screen (iPhone/iPad)** | Safari › Share › Add to Home Screen | Opens full screen like an app (`manifest.webmanifest`) with a service worker, so Offline mode works and the copy updates through the "Update" notice. |
 | **XeOS (container in the iOS Dock)** | Add the Hub as a Web App in XeOS | XeOS uses WKWebView without service workers, so Offline mode is hidden and the site always loads from the internet. It blocks `confirm()`/`alert()` and downloads inside iframes, so the Hub acts without pop-ups and redirects downloads to the main page. Opening a file from XeOS always goes through the home screen, which hands it to the right app. No screen sharing, so the Recorder only records the microphone. |
 | **Windows (installed)** | `InkDOSHub-Setup.exe` or the portable `.zip` from the [hub-windows release](https://github.com/InkDOSHub/inkdoshub.github.io/releases/tag/hub-windows) | Lean Electron app (`windows/hub/`) with **the same apps as the web**, no substitutes. Stored apps live in `%LOCALAPPDATA%\InkDOS Hub\site`, and every file is checked against the manifest SHA-256 before it is served; the rest comes from the site, also checked. Network is allowed only to the site and PeerJS pairing; no telemetry. The Recorder captures the screen and PC sound (or a single program). The `.exe` is not code-signed yet, so SmartScreen may warn ([ASSINATURA.md](ASSINATURA.md)). |

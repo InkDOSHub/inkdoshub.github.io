@@ -114,7 +114,7 @@ if (LIMITADA) {
 //   "relay" -> wss://relay.widgetry.org/ (ethernet completa)
 //   "off"   -> no network
 // Only the known names are accepted (see below).
-const REDES = { hub: "wisps://inkdoshub-github-io.vfydr2m9wk.workers.dev/net/wisp/", wisp: "wisps://wisp.mercurywork.shop/v86/", relay: "wss://relay.widgetry.org/", off: undefined };
+const REDES = { hub: "wisps://hub.inkdos.workers.dev/net/wisp/", wisp: "wisps://wisp.mercurywork.shop/v86/", relay: "wss://relay.widgetry.org/", off: undefined };
 let savedRede;
 try { savedRede = localStorage.getItem("inkdoshub-rede3"); } catch {}
 // Only known names: a link with ?rede=<address> cannot send Linux traffic to another server.

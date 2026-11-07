@@ -4,7 +4,7 @@
 // Single core by default; ?nucleos=4 adds virtual CPUs (multi-core, may not work in every browser).
 // QEMU Wasm always needs SharedArrayBuffer, so a page without isolation moves to the Cloudflare address.
 if (!self.crossOriginIsolated && !/workers\.dev$|^localhost$|^127\./.test(location.hostname)) {
-  location.replace("https://inkdoshub-github-io.vfydr2m9wk.workers.dev" + location.pathname + location.search);
+  location.replace("https://hub.inkdos.workers.dev" + location.pathname + location.search);
 }
 var MAQ = new URL("maquina/", location.href).href;
 var NUCLEOS = Math.max(1, Math.min(4, +(new URLSearchParams(location.search).get("nucleos")) || 1));
