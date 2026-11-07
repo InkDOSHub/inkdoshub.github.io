@@ -67,7 +67,9 @@
     }).then(function (r) {
       if (r) return r.arrayBuffer();
       estado(t("Downloading the model (only the first time)…"));
-      return fetch(url, { mode: "cors" }).then(function (resp) {
+      // same address first (Cloudflare copy relays it); straight from Hugging Face otherwise
+      var local = new URL("modelos/" + url.split("/").pop(), BASE.replace(/whisper\/$/, "")).href;
+      return fetch(local).then(function (r) { return r.ok ? r : fetch(url, { mode: "cors" }); }, function () { return fetch(url, { mode: "cors" }); }).then(function (resp) {
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         var total = +resp.headers.get("content-length") || 0, lidos = 0, partes = [], leitor = resp.body.getReader();
         return (function ler() {

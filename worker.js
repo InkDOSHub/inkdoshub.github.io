@@ -10,6 +10,9 @@ const ORIGEM = "https://inkdoshub.github.io";
 // Files kept outside the repository (too big for git); the version in the address changes the cache key.
 const EXTERNOS = {
   "/apps/wine/fs/wine11.zip": "https://boxedwine.org/v2/24/TinyCore15Wine11.0-web.zip",
+  // Recorder transcription models (Safari failed the direct cross-origin download)
+  "/apps/gravador/modelos/ggml-tiny-q5_1.bin": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin",
+  "/apps/gravador/modelos/ggml-base-q5_1.bin": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
   "/apps/wine/x64/maquina/load-rootfs.data": "https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/wine-x64/load-rootfs.data",
 };
 const ISOLAR = {

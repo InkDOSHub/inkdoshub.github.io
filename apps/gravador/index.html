@@ -36,6 +36,7 @@
   #modos .ink-btn[aria-pressed=true]{background:var(--btn-active);font-weight:600}
   details.i.solto .pop{left:auto;right:0;top:auto;bottom:30px}
   #sem-suporte{color:#e5484d}
+  .tr-opcoes[hidden]{display:none}
   .tr-opcoes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
   #tr-escolher{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
   #tr-texto{width:min(640px,100%);min-height:180px;flex:1;font:inherit;font-size:14px;line-height:1.5;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);resize:vertical;text-align:left}
@@ -152,6 +153,6 @@ html.md-sem-audios #cartao-audios{display:none!important}
 <script src="extrair-m4a.js?v=1"></script>
 <input id="tr-arquivo" type="file" accept="audio/*,video/*" hidden>
 <script src="gravar.js?v=10"></script>
-<script src="transcrever.js?v=2"></script>
+<script src="transcrever.js?v=3"></script>
 </body>
 </html>
