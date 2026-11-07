@@ -4,7 +4,7 @@ A free, open-source home screen of power tools for iPad and iPhone (Safari and X
 
 The website needs no install. The Windows programs (`.exe`) are **optional** extras for PC users. The Wine app is **experimental**: light 32-bit programs work best.
 
-**Open:** https://inkdoshub.github.io/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md))
+**Open:** https://inkdoshub.github.io/ (main address) · Same site with cross-origin isolation, needed by a few features such as offline transcription and faster on multi-core apps: https://inkdoshub-github-io.vfydr2m9wk.workers.dev/ · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md))
 
 Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Code audit logs](auditoria/README.md)
 
@@ -129,6 +129,14 @@ Needs a Linux machine (or CI runner) with `gcc make flex bison bc cpio libelf-de
 ```
 
 The kernel comes from `torvalds/linux` at tag `v6.6`, unmodified. Alpine comes from the official x86 minirootfs (`alpinelinux/docker-alpine`, branch `v3.22`), with its checksum verified. InkDOS Hub's own files are in `tools/linux/alpine-overlay/`.
+
+## Limits
+
+- **Your files live in this browser.** Safari can erase a site's data (clearing website data, low storage, or weeks without use outside the Home Screen). Add the Hub to the Home Screen and use Save/Export in each app to keep copies in Files.
+- **Heavy apps use battery and heat the device:** Terminal (Linux in an emulator), Wine and video editing.
+- **Webcam** uses the public PeerJS server only to pair the two devices; the video goes directly between them.
+- **XeOS is optional.** The Hub works in Safari and any modern browser; XeOS only adds windows.
+- **Wine and the Linux app are experimental.**
 
 ## How it was made
 
