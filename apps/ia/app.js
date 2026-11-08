@@ -9,7 +9,11 @@ const MODELOS = [
 ];
 const $ = (id) => document.getElementById(id);
 const conversa = $("conversa"), estado = $("estado"), texto = $("texto"), enviar = $("enviar"), modelo = $("modelo");
-const wllama = new Wllama({ default: new URL("./wllama/wllama.wasm", import.meta.url).href });
+// while loading, the engine's last log line is shown, so a stall in XeOS shows where it stopped
+let mostrarLog = false;
+const registro = (...a) => { console.log(...a); if (mostrarLog) aviso("Loading the model… " + a.map(String).join(" ").slice(0, 160)); };
+const wllama = new Wllama({ default: new URL("./wllama/wllama.wasm", import.meta.url).href },
+  { logger: { debug: registro, log: registro, warn: registro, error: registro } });
 let carregado = null, ocupado = false, parar = null;
 const historico = [{ role: "system", content: "You are a helpful assistant. Answer briefly, in the user's language." }];
 
@@ -48,8 +52,9 @@ async function carregar() {
   }
   if (window.caches) caches.delete("inkdoshub-ia").catch(() => {}); // old copies from the first version
   const blob = arq;
-  aviso("Loading the model…");
-  await wllama.loadModel([blob], { n_ctx: 2048 });
+  aviso("Loading the model… (" + Math.round(blob.size / 1048576) + " MB, " + (navigator.hardwareConcurrency || "?") + " cores)");
+  mostrarLog = true;
+  try { await wllama.loadModel([blob], { n_ctx: 2048 }); } finally { mostrarLog = false; }
   carregado = i;
   aviso(wllama.isMultithread() ? "Model ready." : "Model ready (single thread, slower).");
 }
