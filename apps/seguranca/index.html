@@ -26,13 +26,21 @@
   .cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid var(--border)}
   .cmd button{height:34px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font:inherit;font-weight:600}
   .nota{color:var(--muted);font-size:13px}
+  .nota code{font-size:12px}
+  .so{border:1px solid var(--border);border-radius:14px;background:var(--card);margin-bottom:10px}
+  .so summary{list-style:none;cursor:pointer;padding:14px 16px;font-size:15px;font-weight:600;-webkit-tap-highlight-color:transparent}
+  .so summary::-webkit-details-marker{display:none}
+  .so summary::after{content:"\203A";float:right;transition:transform .15s}
+  .so[open] summary::after{transform:rotate(90deg)}
+  .so .corpo{padding:0 12px 12px}
+  .so .cmd{background:transparent}
 </style>
 </head>
 <body class="ink-app" data-idioma>
 <header class="ink-bar">
   <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
   <span class="ink-title">Security</span>
-  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>All InkDOS Hub security tools in one place. The PDF tools run on this device and no file is uploaded. The Windows tools are PowerShell scripts that check whole folders or drives; each one handles one file type, so scans stay small, and several can run at once in separate windows.</p></div></details>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>All InkDOS Hub security tools in one place. The PDF tools run on this device and no file is uploaded. The Windows, Linux and macOS tools are terminal commands that check whole folders or drives; each one handles one file type, so scans stay small, and several can run at once in separate windows.</p></div></details>
 </header>
 <main><div class="w">
   <h2>PDF (this device)</h2>
@@ -43,15 +51,31 @@
     <a href="../../visualizadores/bentopdf/change-permissions.html">Change permissions<small>Printing, copying, editing</small></a>
     <a href="../../visualizadores/bentopdf/remove-restrictions.html">Remove restrictions<small>Unlock owner-password limits</small></a>
   </div>
-  <h2>Windows: whole folders and drives (PowerShell)</h2>
-  <p class="nota">Open PowerShell, paste one line and press Enter. Only files of that type are opened, so OneDrive and iCloud online-only files of other types (like videos) are not downloaded.</p>
-  <div class="cmd"><b>PDF clean</b><small>Neutralizes JavaScript, auto-run actions, launch and embedded files in every PDF. Output copy or R = in place.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
-  <div class="cmd"><b>Office clean</b><small>Word, Excel and PowerPoint (docx, xlsx, pptx and macro versions): removes macros, blanks external links (remote templates, linked files) and empties embedded objects. Old .doc/.xls/.ppt with macros are only reported. Output copy or R = in place.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/officeclean.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
-  <div class="cmd"><b>Archive scan</b><small>.zip (and .rar/.7z when 7-Zip is installed): reports programs, scripts, shortcuts, disk images and fake extensions (like .pdf.exe) inside. Report only.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/archivescan.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
-  <div class="cmd"><b>Risky files scan</b><small>Loose .exe, .lnk, .js, .vbs, .bat, .hta and similar files, and fake extensions, in document folders. Nothing is opened or downloaded. Report only.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/riskyfiles.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+  <h2>Whole folders and drives</h2>
+  <details class="so" name="so"><summary>Windows</summary><div class="corpo">
+    <p class="nota">Open PowerShell, paste one line and press Enter. Only files of that type are opened, so OneDrive and iCloud online-only files of other types (like videos) are not downloaded. Several can run at once in separate windows.</p>
+    <div class="cmd"><b>PDF clean</b><small>Neutralizes JavaScript, auto-run actions, program launch and embedded files in every PDF. Output copy or R = in place.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Office clean</b><small>Word, Excel and PowerPoint (docx, xlsx, pptx and macro versions): removes macros, blanks external links (remote templates, linked files) and empties embedded objects. Old .doc/.xls/.ppt with macros are only reported. Output copy or R = in place.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/officeclean.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Archive scan</b><small>.zip (and .rar/.7z when 7-Zip is installed): reports programs, scripts, shortcuts, disk images and fake extensions (like .pdf.exe) inside. Report only.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/archivescan.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Risky files scan</b><small>Loose .exe, .lnk, .js, .vbs, .bat, .hta and similar files and fake extensions in document folders. Nothing is opened or downloaded. Report only.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/riskyfiles.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+  </div></details>
+  <details class="so" name="so"><summary>Linux</summary><div class="corpo">
+    <p class="nota">Open Terminal, paste one line and press Enter. Needs python3 (already there on most systems). PDF clean needs qpdf: <code>sudo apt install qpdf</code> (or dnf/pacman). Only files of that type are opened; several terminals can run at once.</p>
+    <div class="cmd"><b>PDF clean</b><small>Neutralizes JavaScript, auto-run actions, program launch and embedded files in every PDF. Output copy or R = in place.</small><div class="linha"><code>curl -fsSL "https://hub.inkdos.workers.dev/apps/seguranca/native/pdfclean.sh?$RANDOM" | bash</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Office clean</b><small>Word, Excel and PowerPoint (docx, xlsx, pptx and macro versions): removes macros, blanks external links (remote templates, linked files) and empties embedded objects. Old .doc/.xls/.ppt with macros are only reported. Output copy or R = in place.</small><div class="linha"><code>curl -fsSL "https://hub.inkdos.workers.dev/apps/seguranca/native/officeclean.sh?$RANDOM" | bash</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Archive scan</b><small>.zip (and .rar/.7z with <code>sudo apt install 7zip</code>): reports programs, scripts, shortcuts, disk images and fake extensions (like .pdf.exe) inside. Report only.</small><div class="linha"><code>curl -fsSL "https://hub.inkdos.workers.dev/apps/seguranca/native/archivescan.sh?$RANDOM" | bash</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Risky files scan</b><small>Loose .exe, .lnk, .js, .bat, .sh, .command, .app, .dmg and similar files and fake extensions in document folders. Nothing is opened or downloaded. Report only.</small><div class="linha"><code>curl -fsSL "https://hub.inkdos.workers.dev/apps/seguranca/native/riskyfiles.sh?$RANDOM" | bash</code><button type="button">Copy</button></div></div>
+  </div></details>
+  <details class="so" name="so"><summary>macOS</summary><div class="corpo">
+    <p class="nota">Open Terminal, paste one line and press Enter. Needs python3 (already there on most systems). PDF clean needs qpdf: <code>brew install qpdf</code>. Online-only iCloud Drive files go back to online-only after being read. Only files of that type are opened; several terminals can run at once.</p>
+    <div class="cmd"><b>PDF clean</b><small>Neutralizes JavaScript, auto-run actions, program launch and embedded files in every PDF. Output copy or R = in place.</small><div class="linha"><code>curl -fsSL "https://hub.inkdos.workers.dev/apps/seguranca/native/pdfclean.sh?$RANDOM" | bash</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Office clean</b><small>Word, Excel and PowerPoint (docx, xlsx, pptx and macro versions): removes macros, blanks external links (remote templates, linked files) and empties embedded objects. Old .doc/.xls/.ppt with macros are only reported. Output copy or R = in place.</small><div class="linha"><code>curl -fsSL "https://hub.inkdos.workers.dev/apps/seguranca/native/officeclean.sh?$RANDOM" | bash</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Archive scan</b><small>.zip (and .rar/.7z with <code>brew install sevenzip</code>): reports programs, scripts, shortcuts, disk images and fake extensions (like .pdf.exe) inside. Report only.</small><div class="linha"><code>curl -fsSL "https://hub.inkdos.workers.dev/apps/seguranca/native/archivescan.sh?$RANDOM" | bash</code><button type="button">Copy</button></div></div>
+    <div class="cmd"><b>Risky files scan</b><small>Loose .exe, .lnk, .js, .bat, .sh, .command, .app, .dmg and similar files and fake extensions in document folders. Nothing is opened or downloaded. Report only.</small><div class="linha"><code>curl -fsSL "https://hub.inkdos.workers.dev/apps/seguranca/native/riskyfiles.sh?$RANDOM" | bash</code><button type="button">Copy</button></div></div>
+  </div></details>
   <p class="nota">Each script writes a CSV report. If some files fail (usually open in another program), it saves a retry line next to the report.</p>
 </div></main>
-<script src="index.js?v=1"></script>
+<script src="index.js?v=2"></script>
 <script src="../../assets/icones.js?v=2"></script>
 <script src="../../assets/gerenciador-app.js?v=10"></script>
 </body>

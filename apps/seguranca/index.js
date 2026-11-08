@@ -6,3 +6,9 @@ document.querySelectorAll(".cmd button").forEach(function (b) {
     if (navigator.clipboard) navigator.clipboard.writeText(t).then(ok, function () {});
   };
 });
+// One system open at a time (for browsers without <details name>).
+document.querySelectorAll("details.so").forEach(function (d) {
+  d.addEventListener("toggle", function () {
+    if (d.open) document.querySelectorAll("details.so").forEach(function (o) { if (o !== d) o.open = false; });
+  });
+});
