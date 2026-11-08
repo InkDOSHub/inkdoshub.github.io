@@ -53,6 +53,13 @@ contextBridge.exposeInMainWorld('inkHubNativo', {
     site: url => ipcRenderer.invoke('hub:ia-site', url),
     parar: () => ipcRenderer.invoke('hub:ia-parar')
   },
+  // Native benchmark of this PC (tests page): log lines as they come, then the result JSON
+  bench: (opcoes, aoLinha) => {
+    const ouvir = (_e, l) => { try { if (aoLinha) aoLinha(l); } catch (_) {} };
+    ipcRenderer.on('hub:bench-linha', ouvir);
+    return ipcRenderer.invoke('hub:bench-nativo', opcoes).finally(() => ipcRenderer.removeListener('hub:bench-linha', ouvir));
+  },
+  benchParar: () => ipcRenderer.invoke('hub:bench-parar'),
   estado: () => ipcRenderer.invoke('hub:estado'),
   espaco: () => ipcRenderer.invoke('hub:espaco'),
   sincronizar: (ids, progresso) => {

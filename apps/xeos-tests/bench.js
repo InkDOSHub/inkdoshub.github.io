@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 12;
+  var BENCH_VERSION = 13;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -817,6 +817,23 @@
   // ---------- wiring ----------
   $("b-rodar").addEventListener("click", function () { rodar().catch(function (e) { log("FATAL " + err(e)); $("b-rodar").disabled = false; }); });
   $("b-stress").addEventListener("click", function () { stress(); });
+  // InkDOS Hub app (Windows / Linux): native benchmark of this PC, shown next to the browser result
+  var NAT = window.inkHubNativo && window.inkHubNativo.bench;
+  if (NAT) {
+    $("b-nativo").hidden = $("b-nat-op").hidden = false;
+    $("b-nativo").addEventListener("click", async function () {
+      var b = this; b.disabled = $("b-rodar").disabled = true; parar = false;
+      log("== Native benchmark of this PC (" + (window.inkHubNativo.plataforma || "?") + ")");
+      $("b-estado").textContent = "⏳ Native benchmark running (about 2 min, 7 with stress)...";
+      var stop = function () { window.inkHubNativo.benchParar(); }; $("b-parar").hidden = false; $("b-parar").addEventListener("click", stop);
+      try {
+        var r = await window.inkHubNativo.bench({ stress: $("b-nat-stress").checked }, function (l) { log("  [native] " + l); $("b-estado").textContent = "⏳ " + l.replace(/^\[\s*[\d.]+s\]\s*/, "").slice(0, 90); });
+        if (r && r.resultado) { r.resultado.label = r.resultado.label || "Native"; OUTROS.unshift(r.resultado); while (sets().length > 6) OUTROS.pop(); $("b-estado").textContent = "✓ Native result added to the comparison: " + r.resultado.label; }
+        else $("b-estado").textContent = "Native benchmark failed: " + (r && r.erro || "?") + ". Download the log and send it.";
+      } catch (e) { log("native: " + err(e)); $("b-estado").textContent = "Native benchmark failed: " + e.message; }
+      finally { b.disabled = $("b-rodar").disabled = false; $("b-parar").hidden = true; $("b-parar").removeEventListener("click", stop); desenhar(); }
+    });
+  }
   $("b-parar").addEventListener("click", function () { parar = true; $("b-estado").textContent = "Stopping after the current test..."; });
   $("b-label").addEventListener("change", function () { if (R) { R.label = this.value.trim() || autoLabel(R.info); guardar(); desenhar(); } });
   $("b-pdf").addEventListener("click", function () {
