@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 2;
+  var BENCH_VERSION = 3;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -186,8 +186,8 @@
     else if (/Linux/.test(ua)) { i.os = "Linux"; i.device = "PC"; }
     else { i.os = "?"; i.device = "?"; }
     i.osVersion = ios ? ios[1] + "." + ios[2] : ((ua.match(/Android ([\d.]+)|Windows NT ([\d.]+)|Mac OS X ([\d_]+)/) || []).slice(1).filter(Boolean)[0] || "?").replace(/_/g, ".");
-    // iPad asks for the desktop site, so its UA says "Mac OS X 10_15_7"; the Safari version follows the iPadOS version
-    if (ipad && /Version\/([\d.]+)/.test(ua)) i.osVersion = ua.match(/Version\/([\d.]+)/)[1] + " (from Safari version)";
+    // iPad UA says "Mac OS X 10_15_7" and iOS 26+ freezes "OS 18_7"; the Safari version follows the real iOS/iPadOS version
+    if ((ipad || /iPhone|iPad/.test(i.device)) && /Version\/([\d.]+)/.test(ua)) i.osVersion = ua.match(/Version\/([\d.]+)/)[1] + " (from Safari version)";
     try {
       if (n.userAgentData && n.userAgentData.getHighEntropyValues) {
         var h = await n.userAgentData.getHighEntropyValues(["architecture", "bitness", "model", "platformVersion"]);
