@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head><script src="../../assets/endereco.js?v=2"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/inkdoshub-icone-180.png?v=8">
+<title>Games · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<script src="../../assets/gerenciador-app.js?v=52"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=2">
+<link rel="stylesheet" href="../../assets/barra.css?v=5">
+<script src="../../assets/barra.js?v=5" defer></script>
+<script src="../../assets/icones.js?v=2" defer></script>
+<style>
+  :root{--tc:#7c3aed}
+  [hidden]{display:none!important}
+  .ink-main{overflow:auto;padding:16px}
+  .ink-main.jogando{padding:0;overflow:hidden}
+  .box{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .nota{color:var(--muted);font-size:13px;line-height:1.5;margin:0}
+  .grande{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .grande button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:18px;border-radius:14px;border:1px solid var(--border);background:var(--card);color:inherit;font:inherit;cursor:pointer}
+  .grande button strong{font-size:17px}
+  .grande button:hover{border-color:var(--tc)}
+  .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .linha select{font:inherit;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit}
+  .acao{font-weight:600;background:var(--tc);border-color:var(--tc);color:#fff}
+  .erro{color:#b91c1c}
+  #jogo{width:100%;height:100%;background:#000}
+  input[type=file]{display:none}
+</style>
+</head>
+<body class="ink-app" data-idioma data-simbolo="../../assets/icones-inkdos/wine.svg">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title" id="titulo">Games</span>
+  <span class="ink-spacer"></span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>Plays your own game files on this device with EmulatorJS (RetroArch cores): PlayStation (PCSX ReARMed), Super Nintendo (Snes9x), Nintendo 64 (Mupen64Plus), NES (FCEUmm) and Game Boy Advance (mGBA). No games or BIOS come with the Hub: use copies of games you own. PlayStation: .chd, .pbp, .cue with its .bin files (select them together), .bin, .iso or .m3u. The PlayStation BIOS is optional (scph5501.bin or similar improves compatibility); pick it once and it stays on this device. Saves stay in this browser. On iPad and iPhone touch buttons appear on the screen; Bluetooth controllers also work.</p></div></details>
+</header>
+<main class="ink-main" id="main"><div class="box" id="inicio">
+  <div class="grande">
+    <button type="button" id="btn-jogo"><strong>Open game</strong><span class="nota">PS1, SNES, N64, NES, GBA</span></button>
+    <button type="button" id="btn-bios"><strong>PS1 BIOS</strong><span class="nota" id="bios-info">Optional</span></button>
+  </div>
+  <div class="linha" id="escolher" hidden>
+    <span class="nota">Console:</span>
+    <select id="sistema">
+      <option value="psx">PlayStation</option><option value="snes">Super Nintendo</option><option value="n64">Nintendo 64</option>
+      <option value="nes">NES</option><option value="gba">Game Boy Advance</option>
+    </select>
+    <button class="ink-btn acao" type="button" id="iniciar">Play</button>
+  </div>
+  <p class="nota erro" id="msg"></p>
+</div><div id="jogo" hidden></div></main>
+<input type="file" id="arq-jogo" multiple>
+<input type="file" id="arq-bios">
+<script src="app.js?v=1"></script>
+</body>
+</html>
