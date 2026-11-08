@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 6;
+  var BENCH_VERSION = 7;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -22,7 +22,7 @@
   // ---------- metric definitions (ref = value that scores 1000; lower = smaller is better) ----------
   var CATS = [
     ["cpu1", "CPU single-core"], ["cpuN", "CPU multi-core"], ["mem", "Memory"], ["disk", "Storage (disk)"],
-    ["jit", "JIT + WebAssembly"], ["net", "Network"], ["gfx", "Graphics + GPU"], ["render", "Rendering"], ["media", "Media"]
+    ["jit", "JIT + WebAssembly"], ["net", "Network"], ["gfx", "Graphics + GPU"], ["render", "Rendering"], ["media", "Media"], ["stress", "Sustained load (5 min)"]
   ];
   var KERNELS = [
     ["int", "Integer (JS)", "Mops/s", 500], ["float", "Floating point (JS)", "Mops/s", 200],
@@ -62,6 +62,11 @@
   def("render.fps3d", "render", "3D scene, 1M triangles", "fps", 60);
   def("render.dom", "render", "Page build (2000 elements)", "k elements/s", 100);
   def("render.layout", "render", "Page relayout (2000 elements)", "layouts/s", 100);
+  def("render.tile1", "render", "Tile render, 1 core (smallpt)", "k samples/s", 400);
+  def("render.tileN", "render", "Tile render, all cores (smallpt)", "k samples/s", 400);
+  def("render.fur", "render", "Fur donut (GPU stress)", "fps", 60);
+  def("stress.cpu", "stress", "CPU speed kept after 5 min", "%", 100);
+  def("stress.gpu", "stress", "GPU speed kept after 5 min", "%", 100);
   def("media.encode", "media", "Video encode 1080p (WebCodecs)", "fps", 60);
 
   // ---------- worker with the CPU and memory kernels ----------
@@ -106,11 +111,83 @@
       out.latency = (performance.now() - t0) * 1e6 / steps; sink += k;
       return out;
     }
+    // smallpt (Kevin Beason, open source) path tracer, ported: Cornell box with a mirror and a glass sphere
+    var SPH = [[1e5, 1e5 + 1, 40.8, 81.6, 0, 0, 0, .75, .25, .25, 0], [1e5, -1e5 + 99, 40.8, 81.6, 0, 0, 0, .25, .25, .75, 0], [1e5, 50, 40.8, 1e5, 0, 0, 0, .75, .75, .75, 0],
+      [1e5, 50, 40.8, -1e5 + 170, 0, 0, 0, 0, 0, 0, 0], [1e5, 50, 1e5, 81.6, 0, 0, 0, .75, .75, .75, 0], [1e5, 50, -1e5 + 81.6, 81.6, 0, 0, 0, .75, .75, .75, 0],
+      [16.5, 27, 16.5, 47, 0, 0, 0, .999, .999, .999, 1], [16.5, 73, 16.5, 78, 0, 0, 0, .999, .999, .999, 2], [600, 50, 681.6 - .27, 81.6, 12, 12, 12, 0, 0, 0, 0]];
+    var seed = 2463534242, HT = 0;
+    function rand() { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296; }
+    function hit(ox, oy, oz, dx, dy, dz) {
+      var t = 1e20, id = -1;
+      for (var i = 0; i < SPH.length; i++) {
+        var s = SPH[i], px = s[1] - ox, py = s[2] - oy, pz = s[3] - oz, b = px * dx + py * dy + pz * dz, det = b * b - (px * px + py * py + pz * pz) + s[0] * s[0];
+        if (det < 0) continue; det = Math.sqrt(det);
+        var tt = b - det; if (tt <= 1e-4) { tt = b + det; if (tt <= 1e-4) continue; }
+        if (tt < t) { t = tt; id = i; }
+      }
+      HT = t; return id;
+    }
+    function rad(ox, oy, oz, dx, dy, dz, depth) {
+      var id = hit(ox, oy, oz, dx, dy, dz); if (id < 0) return [0, 0, 0];
+      var s = SPH[id], t = HT, x = ox + dx * t, y = oy + dy * t, z = oz + dz * t;
+      var nx = x - s[1], ny = y - s[2], nz = z - s[3], q = 1 / Math.sqrt(nx * nx + ny * ny + nz * nz); nx *= q; ny *= q; nz *= q;
+      var into = nx * dx + ny * dy + nz * dz < 0, lx = into ? nx : -nx, ly = into ? ny : -ny, lz = into ? nz : -nz;
+      var fr = s[7], fg = s[8], fb = s[9], p = Math.max(fr, fg, fb), c;
+      if (++depth > 5) { if (depth < 12 && rand() < p) { fr /= p; fg /= p; fb /= p; } else return [s[4], s[5], s[6]]; }
+      if (s[10] === 0) {
+        var r1 = 6.283185307 * rand(), r2 = rand(), r2s = Math.sqrt(r2), ux, uy, uz;
+        if (Math.abs(lx) > .1) { ux = lz; uy = 0; uz = -lx; } else { ux = 0; uy = -lz; uz = ly; }
+        q = 1 / Math.sqrt(ux * ux + uy * uy + uz * uz); ux *= q; uy *= q; uz *= q;
+        var vx = ly * uz - lz * uy, vy = lz * ux - lx * uz, vz = lx * uy - ly * ux, a = Math.cos(r1) * r2s, b = Math.sin(r1) * r2s, w = Math.sqrt(1 - r2);
+        var ex = ux * a + vx * b + lx * w, ey = uy * a + vy * b + ly * w, ez = uz * a + vz * b + lz * w; q = 1 / Math.sqrt(ex * ex + ey * ey + ez * ez);
+        c = rad(x, y, z, ex * q, ey * q, ez * q, depth);
+      } else {
+        var dn = nx * dx + ny * dy + nz * dz, rx = dx - nx * 2 * dn, ry = dy - ny * 2 * dn, rz = dz - nz * 2 * dn;
+        if (s[10] === 1) c = rad(x, y, z, rx, ry, rz, depth);
+        else {
+          var nnt = into ? 1 / 1.5 : 1.5, ddn = dx * lx + dy * ly + dz * lz, cos2t = 1 - nnt * nnt * (1 - ddn * ddn);
+          if (cos2t < 0) c = rad(x, y, z, rx, ry, rz, depth);
+          else {
+            var k = (into ? 1 : -1) * (ddn * nnt + Math.sqrt(cos2t)), tx = dx * nnt - nx * k, ty = dy * nnt - ny * k, tz = dz * nnt - nz * k;
+            q = 1 / Math.sqrt(tx * tx + ty * ty + tz * tz); tx *= q; ty *= q; tz *= q;
+            var cs = 1 - (into ? -ddn : tx * nx + ty * ny + tz * nz), Re = .04 + .96 * cs * cs * cs * cs * cs, Tr = 1 - Re, P = .25 + .5 * Re, m1, m2;
+            if (depth > 2) { if (rand() < P) { c = rad(x, y, z, rx, ry, rz, depth); m1 = Re / P; } else { c = rad(x, y, z, tx, ty, tz, depth); m1 = Tr / (1 - P); } c = [c[0] * m1, c[1] * m1, c[2] * m1]; }
+            else { m1 = rad(x, y, z, rx, ry, rz, depth); m2 = rad(x, y, z, tx, ty, tz, depth); c = [m1[0] * Re + m2[0] * Tr, m1[1] * Re + m2[1] * Tr, m1[2] * Re + m2[2] * Tr]; }
+          }
+        }
+      }
+      return [s[4] + fr * c[0], s[5] + fg * c[1], s[6] + fb * c[2]];
+    }
+    function tile(d) {
+      var W = d.W, H = d.H, spp = d.spp, out = new Uint8ClampedArray(d.w * d.h * 4);
+      var L = Math.sqrt(1 + 0.042612 * 0.042612), cdy = -0.042612 / L, cdz = -1 / L, cxx = W * .5135 / H, cyy = -cdz * .5135, cyz = cdy * .5135;
+      function px(v) { return Math.pow(v < 0 ? 0 : v > 1 ? 1 : v, 1 / 2.2) * 255 + .5; }
+      for (var ty = 0; ty < d.h; ty++) {
+        var y = H - 1 - (d.y + ty);
+        for (var tx = 0; tx < d.w; tx++) {
+          var x = d.x + tx, ar = 0, ag = 0, ab = 0;
+          for (var sy = 0; sy < 2; sy++) for (var sx = 0; sx < 2; sx++) {
+            var r = 0, g = 0, b = 0;
+            for (var s = 0; s < spp; s++) {
+              var r1 = 2 * rand(), r2 = 2 * rand(), ddx = r1 < 1 ? Math.sqrt(r1) - 1 : 1 - Math.sqrt(2 - r1), ddy = r2 < 1 ? Math.sqrt(r2) - 1 : 1 - Math.sqrt(2 - r2);
+              var fx = ((sx + .5 + ddx) / 2 + x) / W - .5, fy = ((sy + .5 + ddy) / 2 + y) / H - .5;
+              var dx = cxx * fx, dy = cyy * fy + cdy, dz = cyz * fy + cdz, q = 1 / Math.sqrt(dx * dx + dy * dy + dz * dz);
+              var c = rad(50 + dx * 140, 52 + dy * 140, 295.6 + dz * 140, dx * q, dy * q, dz * q, 0);
+              r += c[0] / spp; g += c[1] / spp; b += c[2] / spp;
+            }
+            ar += (r < 0 ? 0 : r > 1 ? 1 : r) * .25; ag += (g < 0 ? 0 : g > 1 ? 1 : g) * .25; ab += (b < 0 ? 0 : b > 1 ? 1 : b) * .25;
+          }
+          var o = (ty * d.w + tx) * 4; out[o] = px(ar); out[o + 1] = px(ag); out[o + 2] = px(ab); out[o + 3] = 255;
+        }
+      }
+      return out;
+    }
     onmessage = function (e) {
       var d = e.data;
       try {
         if (d.init) { if (d.wasm) wi = new WebAssembly.Instance(new WebAssembly.Module(d.wasm)); postMessage({ ready: true, wasm: !!wi }); return; }
         if (d.mem) { postMessage({ mem: mem() }); return; }
+        if (d.tile) { var px = tile(d.tile); postMessage({ pix: px }, [px.buffer]); return; }
         var f = K[d.k]; if (!f || (d.k[0] === "w" && !wi)) { postMessage({ k: d.k, error: "not available" }); return; }
         var end = performance.now() + d.warm; while (performance.now() < end) f();
         var u = 0, t0 = performance.now(), now; do { u += f(); now = performance.now(); } while (now - t0 < d.ms);
@@ -386,6 +463,101 @@
     } catch (e) { M("render.dom", null, err(e)); }
     finally { box.remove(); }
   }
+  // ---------- tile render (Cinebench-style, smallpt scene) and fur donut (FurMark-style), open implementations ----------
+  var TW = 320, TH = 240, TS = 32, SPP = 8;
+  function tiles() { var a = []; for (var y = 0; y < TH; y += TS) for (var x = 0; x < TW; x += TS) a.push({ x: x, y: y, w: Math.min(TS, TW - x), h: Math.min(TS, TH - y), W: TW, H: TH, spp: SPP }); return a; }
+  function tela(id, on) { var c = $(id); c.hidden = !on; return c; }
+  // Runs tiles on the workers until the image is done (or ms passes; loop = start again forever) and draws them as they arrive
+  async function renderTiles(ws, ms, loop, onTile) {
+    var c = tela("b-tiles", true), g = c.getContext("2d"), fila = tiles(), i = 0, amostras = 0, t0 = performance.now(), fim = false;
+    g.fillStyle = "#111"; g.fillRect(0, 0, TW, TH);
+    function prox() { if (fim || parar || performance.now() - t0 > ms) return null; if (i >= fila.length) { if (!loop) return null; i = 0; } return fila[i++]; }
+    await Promise.all(ws.map(async function (w) {
+      for (var tl; (tl = prox());) {
+        g.strokeStyle = "#f59e0b"; g.strokeRect(tl.x + .5, tl.y + .5, tl.w - 1, tl.h - 1);
+        var r = await ask(w, { tile: tl }); if (r.error) throw new Error(r.error);
+        g.putImageData(new ImageData(r.pix, tl.w, tl.h), tl.x, tl.y);
+        var n = tl.w * tl.h * 4 * SPP; amostras += n; if (onTile) onTile(n);
+      }
+    }));
+    fim = true;
+    return { samples: amostras, ms: performance.now() - t0 };
+  }
+  async function tileTest() {
+    var w1 = [await mkWorker()];
+    try { var a = await renderTiles(w1, 5000, false); M("render.tile1", a.samples / a.ms, (a.samples / 1e6).toFixed(2) + " M samples in " + (a.ms / 1000).toFixed(1) + " s"); }
+    finally { w1.forEach(function (w) { w.terminate(); }); }
+    var n = navigator.brave ? 16 : Math.min(Math.max(navigator.hardwareConcurrency || 4, 2), 16), ws = [];
+    for (var k = 0; k < n; k++) ws.push(await mkWorker());
+    try { var b = await renderTiles(ws, 60000, false); M("render.tileN", b.samples / b.ms, "full 320x240 image, " + (SPP * 4) + " samples/pixel, " + n + " threads, " + (b.ms / 1000).toFixed(1) + " s"); }
+    finally { ws.forEach(function (w) { w.terminate(); }); }
+  }
+  function furGL() {
+    var c = tela("b-fur", true), gl = c.getContext("webgl2", { antialias: true }); if (!gl) throw new Error("no WebGL 2");
+    function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+    var p = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, "#version 300 es\nin vec3 p;in vec3 n;in vec2 uv;uniform float sh;uniform float t;uniform float asp;out vec2 vu;out vec3 vn;out float vs;" +
+      "mat3 rx(float a){float c=cos(a),s=sin(a);return mat3(1.0,0.0,0.0,0.0,c,s,0.0,-s,c);}mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.0,-s,0.0,1.0,0.0,s,0.0,c);}" +
+      "void main(){vec3 q=p+n*sh*0.12;q.y-=0.04*sh*sh;mat3 m=ry(t)*rx(t*0.7+0.6);q=m*q;vn=m*n;vu=uv;vs=sh;q.z-=3.2;gl_Position=vec4(q.x*1.8/asp,q.y*1.8,q.z*-1.0202-0.202,-q.z);}"));
+    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, "#version 300 es\nprecision highp float;in vec2 vu;in vec3 vn;in float vs;out vec4 o;" +
+      "void main(){vec2 g=vu*vec2(480.0,160.0);vec2 c=floor(g);float h=fract(sin(dot(c,vec2(12.9898,78.233)))*43758.5453);vec2 f=fract(g)-0.5;" +
+      "if(vs>0.0&&(h<vs*0.9||length(f)>0.5*(1.0-vs)))discard;float d=max(dot(normalize(vn),normalize(vec3(0.5,0.8,0.6))),0.0);" +
+      "o=vec4(mix(vec3(0.25,0.08,0.02),vec3(1.0,0.55,0.15),vs)*(0.3+0.9*d)*(0.4+0.6*vs+0.2*h),1.0);}"));
+    gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    gl.useProgram(p); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+    var U = 128, V = 64, R = 1, r = 0.45, vb = [], ib = [];
+    for (var i = 0; i <= U; i++) for (var j = 0; j <= V; j++) {
+      var a = i / U * 6.283185, b = j / V * 6.283185, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
+      vb.push((R + r * cb) * ca, r * sb, (R + r * cb) * sa, cb * ca, sb, cb * sa, i / U, j / V);
+    }
+    for (var i2 = 0; i2 < U; i2++) for (var j2 = 0; j2 < V; j2++) { var k = i2 * (V + 1) + j2; ib.push(k, k + V + 1, k + 1, k + 1, k + V + 1, k + V + 2); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vb), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(ib), gl.STATIC_DRAW);
+    [["p", 3, 0], ["n", 3, 12], ["uv", 2, 24]].forEach(function (a) { var l = gl.getAttribLocation(p, a[0]); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, a[1], gl.FLOAT, false, 32, a[2]); });
+    var ush = gl.getUniformLocation(p, "sh"), ut = gl.getUniformLocation(p, "t"), SHELLS = 64, t = 0;
+    gl.uniform1f(gl.getUniformLocation(p, "asp"), c.width / c.height);
+    gl.viewport(0, 0, c.width, c.height); gl.clearColor(0.05, 0.05, 0.08, 1);
+    return {
+      frame: function () { gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.uniform1f(ut, t += 0.012); for (var s = 0; s < SHELLS; s++) { gl.uniform1f(ush, s / (SHELLS - 1)); gl.drawElements(gl.TRIANGLES, ib.length, gl.UNSIGNED_SHORT, 0); } },
+      fim: function () { var l = gl.getExtension("WEBGL_lose_context"); if (l) l.loseContext(); tela("b-fur", false); }
+    };
+  }
+  async function furTest() {
+    var f = furGL();
+    try { await frames(1000, f.frame); M("render.fur", await frames(8000, f.frame), "1280x720, MSAA, 64 shells x 16k triangles"); }
+    finally { f.fim(); }
+  }
+  // Stress: tile render on every core + fur donut on the GPU for 5 minutes, sampled every 10 s
+  async function stress() {
+    if (!R) R = { kind: "inkbench", version: BENCH_VERSION, date: new Date().toISOString(), label: $("b-label").value.trim(), info: {}, metrics: {}, log: [] };
+    if (!R.info || !R.info.browser) { R.info = await identify(); R.label = R.label || autoLabel(R.info); $("b-label").value = R.label; }
+    parar = false; $("b-rodar").disabled = $("b-stress").disabled = true; $("b-parar").hidden = false;
+    log("== Stress test 5 min (all cores tile render + fur donut)");
+    var n = navigator.brave ? 16 : Math.min(Math.max(navigator.hardwareConcurrency || 4, 2), 16), ws = [], f = null, cpu = [], gpu = [], am = 0, fr = 0, vivo = true;
+    try {
+      for (var k = 0; k < n; k++) ws.push(await mkWorker());
+      f = furGL();
+      var cpuRun = renderTiles(ws, 300000, true, function (x) { am += x; });
+      (function loop() { if (!vivo) return; f.frame(); fr++; requestAnimationFrame(loop); })();
+      var t0 = performance.now(), last = t0;
+      while (performance.now() - t0 < 300000 && !parar) {
+        await sleep(10000 - ((performance.now() - t0) % 10000));
+        var now = performance.now(), dt = (now - last) / 1000; last = now;
+        cpu.push(+(am / dt / 1000).toFixed(1)); gpu.push(+(fr / dt).toFixed(1)); am = 0; fr = 0;
+        var el = Math.round((now - t0) / 1000);
+        log("  t=" + el + "s cpu " + cpu[cpu.length - 1] + " k samples/s · gpu " + gpu[gpu.length - 1] + " fps");
+        $("b-estado").textContent = "🔥 Stress " + Math.floor(el / 60) + ":" + String(el % 60).padStart(2, "0") + " / 5:00 · CPU " + cpu[cpu.length - 1] + " k samples/s · GPU " + gpu[gpu.length - 1] + " fps";
+      }
+      vivo = false; parar = true; await cpuRun.catch(function (e) { log("stress cpu: " + err(e)); });
+      function keep(a) { if (a.length < 4) return null; var s = (a[0] + a[1]) / 2, e = (a[a.length - 1] + a[a.length - 2] + a[a.length - 3]) / 3; return s ? e / s * 100 : null; }
+      R.series = { step: 10, cpu: cpu, gpu: gpu };
+      M("stress.cpu", keep(cpu), cpu.length ? "start " + cpu[0] + " · end " + cpu[cpu.length - 1] + " k samples/s · " + cpu.length * 10 + " s" : "");
+      M("stress.gpu", keep(gpu), gpu.length ? "start " + gpu[0] + " · end " + gpu[gpu.length - 1] + " fps" : "");
+      R.log = LOG.slice(); guardar();
+      $("b-estado").textContent = "✓ Stress done. CPU kept " + fmt(R.metrics["stress.cpu"].v) + "% · GPU kept " + fmt(R.metrics["stress.gpu"].v) + "%.";
+    } catch (e) { log("ERROR stress: " + err(e)); $("b-estado").textContent = "Stress failed: " + e.message; }
+    finally { vivo = false; ws.forEach(function (w) { w.terminate(); }); if (f) f.fim(); tela("b-tiles", false); parar = false; $("b-rodar").disabled = $("b-stress").disabled = false; $("b-parar").hidden = true; desenhar(); }
+  }
   async function media() {
     if (!window.VideoEncoder) { M("media.encode", null, "WebCodecs not supported"); return; }
     var W = 1920, H = 1080, cfg = null;
@@ -417,7 +589,7 @@
       M("cpuN.speedup", geo(a.map(function (x) { return x * 1000; })) / 1000, n + " threads");
     }],
     ["Memory", memoria], ["JIT", jit], ["Storage", disco], ["Network + WebAssembly compile", rede],
-    ["Graphics + GPU", graficos], ["Rendering", render], ["Media", media]
+    ["Graphics + GPU", graficos], ["Rendering", render], ["Tile render (smallpt)", tileTest], ["Fur donut (GPU)", furTest], ["Media", media]
   ];
   async function rodar() {
     parar = false;
@@ -495,6 +667,7 @@
   Pdf.prototype.txt = function (x, y, s, sz, bold, cor) { this.c.push(rgb(cor || "#111111") + " rg BT /" + (bold ? "F2" : "F1") + " " + sz + " Tf " + x.toFixed(1) + " " + (842 - y).toFixed(1) + " Td (" + esc(s) + ") Tj ET"); };
   Pdf.prototype.rect = function (x, y, w, h, cor) { this.c.push(rgb(cor) + " rg " + x.toFixed(1) + " " + (842 - y - h).toFixed(1) + " " + w.toFixed(1) + " " + h.toFixed(1) + " re f"); };
   Pdf.prototype.linha = function (x1, y1, x2, y2, cor) { this.c.push(rgb(cor || "#dddddd") + " RG 0.5 w " + x1 + " " + (842 - y1) + " m " + x2 + " " + (842 - y2) + " l S"); };
+  Pdf.prototype.poli = function (pts, cor) { if (pts.length < 2) return; this.c.push(rgb(cor) + " RG 1.4 w " + pts.map(function (q, i) { return q[0].toFixed(1) + " " + (842 - q[1]).toFixed(1) + (i ? " l" : " m"); }).join(" ") + " S"); };
   Pdf.prototype.espaco = function (h) { if (this.y + h > 800) this.novaPagina(); };
   Pdf.prototype.bytes = function (dados) {
     var objs = [null, "<< /Type /Catalog /Pages 2 0 R >>", "", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"];
@@ -566,9 +739,26 @@
       else { var m0 = S[0].metrics[id]; if (m0 && m0.note) p.txt(390, p.y, corta(m0.note, 165, 7), 7, false, "#777777"); var sc = score(id, m0); if (sc) { p.rect(vx + 60, p.y - 7, Math.min(60, sc / 2000 * 60), 7, "#93c5fd"); } }
       p.linha(40, p.y + 4, 555, p.y + 4, "#eeeeee"); p.y += 13;
     });
+    // sustained load chart: each set's CPU and GPU speed over time, as % of its first sample
+    var ser = S.filter(function (s) { return s.series && s.series.cpu && s.series.cpu.length > 1; });
+    if (ser.length) {
+      p.novaPagina(); p.txt(40, p.y, "Sustained load (5 min): speed vs time", 13, true); p.y += 6; p.linha(40, p.y, 555, p.y); p.y += 18;
+      [["cpu", "CPU (tile render, all cores)"], ["gpu", "GPU (fur donut)"]].forEach(function (k) {
+        var top = p.y + 10, h = 150, x0 = 70, w = 470;
+        p.txt(40, p.y, k[1], 10, true); 
+        [0, 50, 100, 120].forEach(function (v) { var yy = top + h - v / 120 * h; p.linha(x0, yy, x0 + w, yy, v === 100 ? "#bbbbbb" : "#eeeeee"); p.txt(40, yy + 3, v + "%", 7, false, "#777777"); });
+        for (var m = 0; m <= 5; m++) p.txt(x0 + m / 5 * w - 6, top + h + 12, m + " min", 7, false, "#777777");
+        ser.forEach(function (s) {
+          var a = s.series[k[0]], base = (a[0] + (a[1] || a[0])) / 2 || 1, pts = a.map(function (v, i) { return [x0 + ((i + 1) * (s.series.step || 10)) / 300 * w, top + h - Math.min(v / base * 100, 120) / 120 * h]; });
+          p.poli(pts, CORES[S.indexOf(s)]);
+        });
+        p.y = top + h + 34;
+      });
+      p.txt(40, p.y, "100% = speed in the first 20 s. A line going down means the device got hot and slowed down (thermal throttling).", 8, false, "#666666");
+    }
     if (comp) { p.y += 8; p.espaco(14); p.txt(40, p.y, "Last column: difference of the last platform vs the first (green = better).", 8, false, "#666666"); }
     // embedded data: every set without the long logs
-    var dados = { kind: "inkbench-pdf", version: BENCH_VERSION, sets: S.map(function (s) { return { kind: "inkbench", version: s.version, date: s.date, label: s.label, info: s.info, metrics: s.metrics, scores: s.scores }; }) };
+    var dados = { kind: "inkbench-pdf", version: BENCH_VERSION, sets: S.map(function (s) { return { kind: "inkbench", version: s.version, date: s.date, label: s.label, info: s.info, metrics: s.metrics, scores: s.scores, series: s.series }; }) };
     return p.bytes(dados);
   }
 
@@ -604,6 +794,7 @@
 
   // ---------- wiring ----------
   $("b-rodar").addEventListener("click", function () { rodar().catch(function (e) { log("FATAL " + err(e)); $("b-rodar").disabled = false; }); });
+  $("b-stress").addEventListener("click", function () { stress(); });
   $("b-parar").addEventListener("click", function () { parar = true; $("b-estado").textContent = "Stopping after the current test..."; });
   $("b-label").addEventListener("change", function () { if (R) { R.label = this.value.trim() || autoLabel(R.info); guardar(); desenhar(); } });
   $("b-pdf").addEventListener("click", function () {
