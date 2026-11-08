@@ -147,7 +147,7 @@
   function editorDe(nome) {
     var e = String(nome || "").toLowerCase().split(".").pop();
     if (/^(xlsx|xlsm|xls|ods|csv|tsv)$/.test(e)) return "gridcraft";
-    if (/^(pptx|ppsx|ppt|odp|key)$/.test(e)) return "deckcraft";
+    if (/^(deckcraft|pptx|ppsx|ppt|odp|key)$/.test(e)) return "deckcraft";
     return "wordcraft";
   }
 

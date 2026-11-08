@@ -17,9 +17,9 @@
   var RAIZ = P.raiz;
   var INKDOS = { documentos: "documents", planilhas: "spreadsheets", apresentacoes: "presentations", pdf: "pdf", texto: "txt", epub: "epub" };
   var ROTAS = [
-    { app: "documentos", ext: ["docx", "rtf", "doc", "odt", "pages"] },
+    { app: "documentos", ext: ["wordcraft", "docx", "rtf", "doc", "odt", "pages"] },
     { app: "planilhas", ext: ["xlsx", "xls", "csv", "tsv", "ods", "numbers"] },
-    { app: "apresentacoes", ext: ["pptx", "ppt", "odp", "key"] },
+    { app: "apresentacoes", ext: ["deckcraft", "pptx", "ppt", "odp", "key"] },
     { app: "pdf", ext: ["pdf"] },
     { app: "epub", ext: ["epub"] },
     { app: "texto", ext: ["txt", "md", "markdown", "log", "ini", "cfg", "conf", "toml", "properties", "xml", "json", "jsonl", "ndjson", "yaml", "yml"] },
@@ -81,7 +81,9 @@
   }
 
   /* Editor chosen in ☰; if it is hidden in Customize and the other is not, opens in the other. */
-  function usaArtcraft(app) {
+  function usaArtcraft(app, nome) {
+    // ArtCraft's own formats only open in ArtCraft
+    if (/\.(deckcraft|wordcraft)$/i.test(nome || "")) return true;
     var M = window.InkMeusApps, sim = preferencia() === "artcraft";
     if (M && sim && M.escondido(CRAFT[app]) && !M.escondido(app)) return false;
     if (M && !sim && M.escondido(app) && !M.escondido(CRAFT[app])) return true;
@@ -92,7 +94,7 @@
   function preparar(rota, files) {
     var id = idNovo();
     // Home screen preference: Word, Excel and PowerPoint open in ArtCraft (full) instead of InkDOS (fast)
-    if (OFFICE[rota.app] && usaArtcraft(rota.app)) {
+    if (OFFICE[rota.app] && usaArtcraft(rota.app, files[0] && files[0].name)) {
       return bytes(files.slice(0, 1)).then(function (l) {
         var v = l[0];
         // kept for 7 days, as in the InkDOS apps: the editor reloads the document from there
