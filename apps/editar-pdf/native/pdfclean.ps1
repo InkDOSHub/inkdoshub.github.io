@@ -57,7 +57,7 @@ if ($inPlace) {
 $risky = 'JavaScript','JS','OpenAction','AA','Launch','EmbeddedFiles','RichMedia','XFA','SubmitForm','ImportData','GoToR'
 $delim = '(?=[\s/<>\[\]\(\)%{}]|$)'
 $latin1 = [Text.Encoding]::GetEncoding(28591)   # byte-for-byte
-$tmpDir = Join-Path $env:TEMP 'inkdos-pdfclean'
+$tmpDir = Join-Path $env:TEMP "inkdos-pdfclean-$PID"  # per window, so several can run at once
 New-Item -ItemType Directory -Force $tmpDir | Out-Null
 $tmpA = Join-Path $tmpDir 'a.pdf'; $tmpB = Join-Path $tmpDir 'b.pdf'; $tmpS = Join-Path $tmpDir 's.pdf'
 # Long paths (over 260 chars) need the \\?\ prefix for .NET file calls.
