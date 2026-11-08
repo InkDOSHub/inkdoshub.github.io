@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head><script src="../../assets/endereco.js?v=2"></script>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/inkdoshub-icone-180.png?v=8">
+<title>Security · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=2">
+<link rel="stylesheet" href="../../assets/barra.css?v=5">
+<script src="../../assets/barra.js?v=5" defer></script>
+<style>
+  main{flex:1;min-height:0;overflow:auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+  .w{max-width:980px;margin:0 auto}
+  h2{margin:22px 0 10px;font-size:13px;font-weight:600;color:var(--muted)}
+  .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+  .grade a{display:flex;flex-direction:column;justify-content:center;min-height:56px;padding:8px 14px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);font-size:14px;font-weight:600;text-decoration:none}
+  .grade a small,.cmd small{font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+  .cmd{border:1px solid var(--border);border-radius:14px;background:var(--card);padding:12px 14px;margin-bottom:10px}
+  .cmd b{display:block;font-size:14px}
+  .cmd small{display:block}
+  .cmd .linha{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid var(--border)}
+  .cmd button{height:34px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font:inherit;font-weight:600}
+  .nota{color:var(--muted);font-size:13px}
+</style>
+</head>
+<body class="ink-app" data-idioma>
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">Security</span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p>All InkDOS Hub security tools in one place. The PDF tools run on this device and no file is uploaded. The Windows tools are PowerShell scripts that check whole folders or drives; each one handles one file type, so scans stay small, and several can run at once in separate windows.</p></div></details>
+</header>
+<main><div class="w">
+  <h2>PDF (this device)</h2>
+  <div class="grade">
+    <a href="pdf.html">Check PDF security<small>Antivirus-style report for one PDF</small></a>
+    <a href="../../visualizadores/bentopdf/sanitize-pdf.html">Sanitize PDF<small>Remove scripts, actions and attachments</small></a>
+    <a href="../../visualizadores/bentopdf/remove-metadata.html">Remove metadata<small>Author, software, dates</small></a>
+    <a href="../../visualizadores/bentopdf/change-permissions.html">Change permissions<small>Printing, copying, editing</small></a>
+    <a href="../../visualizadores/bentopdf/remove-restrictions.html">Remove restrictions<small>Unlock owner-password limits</small></a>
+  </div>
+  <h2>Windows: whole folders and drives (PowerShell)</h2>
+  <p class="nota">Open PowerShell, paste one line and press Enter. Only files of that type are opened, so OneDrive and iCloud online-only files of other types (like videos) are not downloaded.</p>
+  <div class="cmd"><b>PDF clean</b><small>Neutralizes JavaScript, auto-run actions, launch and embedded files in every PDF. Output copy or R = in place.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+  <div class="cmd"><b>Office clean</b><small>Word, Excel and PowerPoint (docx, xlsx, pptx and macro versions): removes macros, blanks external links (remote templates, linked files) and empties embedded objects. Old .doc/.xls/.ppt with macros are only reported. Output copy or R = in place.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/officeclean.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+  <div class="cmd"><b>Archive scan</b><small>.zip (and .rar/.7z when 7-Zip is installed): reports programs, scripts, shortcuts, disk images and fake extensions (like .pdf.exe) inside. Report only.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/archivescan.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+  <div class="cmd"><b>Risky files scan</b><small>Loose .exe, .lnk, .js, .vbs, .bat, .hta and similar files, and fake extensions, in document folders. Nothing is opened or downloaded. Report only.</small><div class="linha"><code>irm "https://hub.inkdos.workers.dev/apps/seguranca/native/riskyfiles.ps1?$(Get-Random)" | iex</code><button type="button">Copy</button></div></div>
+  <p class="nota">Each script writes a CSV report. If some files fail (usually open in another program), it saves a retry line next to the report.</p>
+</div></main>
+<script src="index.js?v=1"></script>
+<script src="../../assets/icones.js?v=2"></script>
+<script src="../../assets/gerenciador-app.js?v=10"></script>
+</body>
+</html>

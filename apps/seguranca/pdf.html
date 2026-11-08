@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head><script src="../../assets/endereco.js?v=2"></script>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/inkdoshub-icone-180.png?v=8">
+<title>Check PDF security · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<script src="../../assets/idioma.js?v=1"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=2">
+<link rel="stylesheet" href="../../assets/barra.css?v=5">
+<script src="../../assets/barra.js?v=5" defer></script>
+<style>
+  main{flex:1;min-height:0;overflow:auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+  .w{max-width:760px;margin:0 auto}
+  .solta{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:180px;border:2px dashed var(--border);border-radius:16px;background:var(--card);color:var(--muted);text-align:center;padding:16px;cursor:pointer}
+  .solta.sobre{border-color:var(--text)}
+  .solta button{height:40px;padding:0 18px;border:1px solid var(--border);border-radius:10px;background:var(--bg,transparent);color:var(--text);font:inherit;font-weight:600}
+  .veredito{margin:16px 0 10px;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
+  .veredito b{display:block;font-size:17px}
+  .veredito span{color:var(--muted);font-size:13px;word-break:break-all}
+  .alto{border-left:6px solid #d93025}.medio{border-left:6px solid #e8a200}.baixo{border-left:6px solid #1e8e3e}.info{border-left:6px solid #8a8a8a}
+  ul.lista{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  ul.lista li{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-size:14px}
+  ul.lista li b{display:block}
+  ul.lista li small{color:var(--muted);display:block;margin-top:2px;word-break:break-all}
+  h2{margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--muted)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body class="ink-app" data-idioma>
+<header class="ink-bar">
+  <a class="ink-home" href="./" data-icone="voltar">Security</a>
+  <span class="ink-title" id="titulo">Check PDF security</span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p id="sobre">Scans a PDF for risky features: JavaScript, auto-run actions, program launch, embedded files, forms that send data, external links, hidden or obfuscated content and encryption. The file never leaves this device. A clean report lowers the risk but is not a guarantee.</p></div></details>
+</header>
+<main><div class="w">
+  <label class="solta" id="solta"><span id="dica">Drop a PDF here</span><button type="button" id="escolher">Choose PDF</button><input type="file" id="arq" accept="application/pdf,.pdf" hidden></label>
+  <div id="res" hidden>
+    <div class="veredito" id="veredito"><b></b><span></span></div>
+    <ul class="lista" id="achados"></ul>
+    <p id="limpar-p" hidden style="margin:12px 0 0"><a id="limpar" href="../../visualizadores/bentopdf/sanitize-pdf.html" style="display:inline-flex;align-items:center;height:40px;padding:0 18px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font-weight:600;text-decoration:none">Remove threats</a></p>
+    <div id="remover" hidden>
+      <h2 id="t-rem"></h2>
+      <ul class="lista" id="rem-lista"></ul>
+      <p style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0"><button type="button" id="rem-ok" style="height:40px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-weight:600"></button></p>
+      <p id="rem-aviso" style="color:var(--muted);font-size:13px" hidden></p>
+    </div>
+    <h2 id="t-log"></h2>
+    <p style="display:flex;flex-wrap:wrap;gap:8px;margin:0"><button type="button" id="log-env" style="height:40px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-weight:600"></button><button type="button" id="log-cop" style="height:40px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-weight:600"></button><button type="button" id="log-sal" style="height:40px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-weight:600"></button></p>
+    <h2 id="t-links" hidden></h2>
+    <ul class="lista" id="links"></ul>
+    <h2 id="t-det"></h2>
+    <ul class="lista" id="detalhes"></ul>
+  </div>
+</div></main>
+<script src="pdf.js?v=1"></script>
+<script src="../../assets/icones.js?v=2"></script>
+<script src="../../assets/gerenciador-app.js?v=10"></script>
+</body>
+</html>

@@ -110,6 +110,8 @@ foreach ($f in $files) {
   Write-Progress -Activity 'Cleaning PDFs' -Status $rel -PercentComplete ([int](100 * $i / [Math]::Max($total,1)))
   $out = Join-Path $dst $rel
   if (-not $inPlace) { [IO.Directory]::CreateDirectory((Get-LongPath (Split-Path $out))) | Out-Null }
+  $wasCloud = $false   # OneDrive/iCloud online-only (Offline | RecallOnOpen | RecallOnDataAccess)
+  try { $wasCloud = (([int][IO.File]::GetAttributes((Get-LongPath $f.FullName))) -band 0x441000) -ne 0 } catch {}
   $status = ''; $found = ''; $note = ''
   try {
     # 1) unpack: decrypt (no-password files), no object streams, classic xref, streams left as-is
