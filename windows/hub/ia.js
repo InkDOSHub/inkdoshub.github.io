@@ -23,6 +23,9 @@ const MODELOS = [
   { id: 'llama8b', nome: 'Llama 3.1 8B', gb: 4.9, url: HF + 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf' },
   { id: 'qwen14b', nome: 'Qwen 2.5 14B', gb: 9.0, url: HF + 'bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/main/Qwen2.5-14B-Instruct-Q4_K_M.gguf' },
   { id: 'qwen32b', nome: 'Qwen 2.5 32B', gb: 19.9, url: HF + 'bartowski/Qwen2.5-32B-Instruct-GGUF/resolve/main/Qwen2.5-32B-Instruct-Q4_K_M.gguf' },
+  // with vision (images): model + its image projector (mmproj)
+  { id: 'qwenvl3b', nome: 'Qwen 2.5 VL 3B (images)', gb: 2.8, url: HF + 'ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf', proj: HF + 'ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf' },
+  { id: 'qwenvl7b', nome: 'Qwen 2.5 VL 7B (images)', gb: 5.5, url: HF + 'ggml-org/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf', proj: HF + 'ggml-org/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/mmproj-Qwen2.5-VL-7B-Instruct-Q8_0.gguf' },
   { id: 'llama70b', nome: 'Llama 3.3 70B', gb: 42.5, url: HF + 'bartowski/Llama-3.3-70B-Instruct-GGUF/resolve/main/Llama-3.3-70B-Instruct-Q4_K_M.gguf' }
 ];
 const PASTA = () => path.join(app.getPath('userData'), 'ia');
@@ -80,13 +83,13 @@ async function garantirLlama(avisar) {
   return exe;
 }
 // model: downloaded straight to disk by curl (resumes with -C -); progress = file size / expected size
-async function garantirModelo(m, avisar) {
-  const f = path.join(PASTA(), m.id + '.gguf');
+async function garantirModelo(m, avisar) { return baixarArquivo(m.id + '.gguf', m.url, (m.gb - (m.proj ? 0.85 : 0)) * 1e9, avisar); }
+async function baixarArquivo(nome, url, total, avisar) {
+  const f = path.join(PASTA(), nome);
   if (fs.existsSync(f + '.ok')) return f;
   await fsp.mkdir(PASTA(), { recursive: true });
-  const total = m.gb * 1e9;
   const t = setInterval(() => { try { avisar('Downloading the model (only the first time)… ' + Math.min(99, Math.round(fs.statSync(f).size / total * 100)) + '%'); } catch (_) {} }, 1000);
-  try { await curl(['-fSL', '--retry', '3', '-C', '-', '-o', f, m.url], 6 * 3600e3); } finally { clearInterval(t); }
+  try { await curl(['-fSL', '--retry', '3', '-C', '-', '-o', f, url], 6 * 3600e3); } finally { clearInterval(t); }
   await fsp.writeFile(f + '.ok', '');
   return f;
 }
@@ -102,14 +105,15 @@ async function iniciar(id, avisar) {
   if (servidor && modeloAtual === id) return true;
   const exe = await garantirLlama(avisar);
   const arq = await garantirModelo(m, avisar);
+  const proj = m.proj ? ['--mmproj', await baixarArquivo(m.id + '.mmproj.gguf', m.proj, 0.85e9, avisar)] : [];
   parar();
   avisar('Loading the model…');
   // first on the graphics card; if llama-server dies while loading (an 8 GB PC died silently with the 7B on the
-  // integrated card), once more on the processor only, with a smaller context
-  const gpu = await subir(exe, arq, ['-c', '8192', '-ngl', '99']);
+  // integrated card), once more on the processor only
+  const gpu = await subir(exe, arq, ['-c', '8192', '-ngl', '99'].concat(proj));
   if (gpu === true) { modeloAtual = id; return true; }
   avisar('Loading the model on the processor…');
-  const cpu = await subir(exe, arq, ['-c', '4096', '-ngl', '0', '--device', 'none']);
+  const cpu = await subir(exe, arq, ['-c', '8192', '-ngl', '0', '--device', 'none'].concat(proj));
   if (cpu === true) { modeloAtual = id; return true; }
   throw new Error('llama-server stopped. Graphics card: ' + gpu + ' — Processor: ' + cpu + ' (log: ' + path.join(PASTA(), 'llama-server.log') + ')');
 }
@@ -159,6 +163,22 @@ function conversar(e, mensagens) {
   });
 }
 
+// web page as text, for the chat (only http/https; at most 5 MB)
+async function lerSite(url) {
+  const u = new URL(url);
+  if (!/^https?:$/.test(u.protocol)) throw new Error('only http and https addresses');
+  const r = await session.fromPartition('inkhub-ia-site').fetch(u.href, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) InkDOS-Hub', 'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8' } });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  let h = (await r.text()).slice(0, 5e6);
+  const titulo = ((h.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '').trim();
+  h = h.replace(/<(script|style|noscript|svg|template|iframe)[\s\S]*?<\/\1>/gi, ' ').replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<\/(p|div|li|h[1-6]|tr|br|section|article|header|footer)>|<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ');
+  const ent = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+  h = h.replace(/&(#x?[0-9a-f]+|\w+);/gi, (x, c) => (c[0] === '#' ? String.fromCodePoint(c[1].toLowerCase() === 'x' ? parseInt(c.slice(2), 16) : +c.slice(1)) : (ent[c.toLowerCase()] || x)));
+  const texto = h.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+  return { titulo, texto };
+}
+
 function registrar(doSite) {
   ipcMain.handle('hub:ia-modelos', () => MODELOS.map(({ id, nome, gb }) => ({ id, nome, gb })));
   ipcMain.handle('hub:ia-iniciar', async (e, id) => {
@@ -172,7 +192,11 @@ function registrar(doSite) {
     if (!doSite(e.senderFrame ? e.senderFrame.url : '')) throw new Error('forbidden');
     return conversar(e, mensagens);
   });
+  ipcMain.handle('hub:ia-site', (e, url) => {
+    if (!doSite(e.senderFrame ? e.senderFrame.url : '')) throw new Error('forbidden');
+    return lerSite(url);
+  });
   ipcMain.handle('hub:ia-parar', e => { const r = conversas.get(e.sender.id); if (r) r.destroy(); return true; });
   app.on('will-quit', parar);
 }
-module.exports = { registrar, _teste: { subir, acharServer, PASTA, parar } };
+module.exports = { registrar, _teste: { subir, acharServer, PASTA, parar, lerSite } };
