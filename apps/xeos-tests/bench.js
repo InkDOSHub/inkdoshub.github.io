@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 8;
+  var BENCH_VERSION = 9;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -549,8 +549,9 @@
       (function loop(now) { if (!vivo) return; if (now) fr += f.tick(now); requestAnimationFrame(loop); })();
       var t0 = performance.now(), last = t0;
       while (performance.now() - t0 < 300000 && !parar) {
-        await sleep(10000 - ((performance.now() - t0) % 10000));
-        var now = performance.now(), dt = (now - last) / 1000; last = now;
+        // sample only after a full 10 s window: late timers (iOS) gave empty windows and spikes
+        await sleep(500); var now = performance.now(); if (now - last < 10000) continue;
+        var dt = (now - last) / 1000; last = now;
         cpu.push(+(am / dt / 1000).toFixed(1)); gpu.push(+(fr / dt).toFixed(1)); am = 0; fr = 0;
         var el = Math.round((now - t0) / 1000);
         log("  t=" + el + "s cpu " + cpu[cpu.length - 1] + " k samples/s · gpu " + gpu[gpu.length - 1] + " fps");
