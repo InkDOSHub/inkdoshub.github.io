@@ -61,7 +61,7 @@ $tmpDir = Join-Path $env:TEMP 'inkdos-pdfclean'
 New-Item -ItemType Directory -Force $tmpDir | Out-Null
 $tmpA = Join-Path $tmpDir 'a.pdf'; $tmpB = Join-Path $tmpDir 'b.pdf'; $tmpS = Join-Path $tmpDir 's.pdf'
 # Long paths (over 260 chars) need the \\?\ prefix for .NET file calls.
-function LP($p) { if ($p.StartsWith('\\')) { $p } else { '\\?\' + $p } }
+function Get-LongPath($p) { if ($p.StartsWith('\\')) { $p } else { '\\?\' + $p } }
 # qpdf prints recoverable warnings to stderr (exit code 3). Run it with errors not stopping the script,
 # otherwise Windows PowerShell turns any stderr text into a failure.
 function Invoke-Qpdf {
@@ -82,11 +82,11 @@ foreach ($f in $files) {
   $rel = $f.FullName.Substring($src.Length)
   Write-Progress -Activity 'Cleaning PDFs' -Status $rel -PercentComplete ([int](100 * $i / [Math]::Max($total,1)))
   $out = Join-Path $dst $rel
-  if (-not $inPlace) { [IO.Directory]::CreateDirectory((LP (Split-Path $out))) | Out-Null }
+  if (-not $inPlace) { [IO.Directory]::CreateDirectory((Get-LongPath (Split-Path $out))) | Out-Null }
   $status = ''; $found = ''; $note = ''
   try {
     # 1) unpack: decrypt (no-password files), no object streams, classic xref, streams left as-is
-    [IO.File]::Copy((LP $f.FullName), $tmpS, $true)
+    [IO.File]::Copy((Get-LongPath $f.FullName), $tmpS, $true)
     $code = Invoke-Qpdf --decrypt --object-streams=disable --stream-data=preserve --no-original-object-ids -- $tmpS $tmpA
     if ($code -ne 0 -and $code -ne 3) { throw "qpdf could not read it (password-protected or badly damaged), exit $code" }
     $text = [IO.File]::ReadAllText($tmpA, $latin1)
@@ -101,7 +101,7 @@ foreach ($f in $files) {
       }
     }
     if ($hits.Count -eq 0) {
-      if (-not $inPlace) { [IO.File]::Copy((LP $f.FullName), (LP $out), $true) }
+      if (-not $inPlace) { [IO.File]::Copy((Get-LongPath $f.FullName), (Get-LongPath $out), $true) }
       $status = 'clean (unchanged)'; $nClean++
     } else {
       [IO.File]::WriteAllText($tmpB, $text, $latin1)
@@ -109,13 +109,13 @@ foreach ($f in $files) {
       $tmpC = Join-Path $tmpDir 'c.pdf'
       $code = Invoke-Qpdf --object-streams=generate --compress-streams=y -- $tmpB $tmpC
       if ($code -ne 0 -and $code -ne 3) { throw "rebuild failed, exit $code" }
-      [IO.File]::Copy($tmpC, $(if ($inPlace) { LP $f.FullName } else { LP $out }), $true)
+      [IO.File]::Copy($tmpC, $(if ($inPlace) { Get-LongPath $f.FullName } else { Get-LongPath $out }), $true)
       $found = $hits -join ' '; $status = 'cleaned'; $nFixed++
       Write-Host "CLEANED  $rel  ->  $found" -ForegroundColor Yellow
     }
   } catch {
     $status = 'FAILED (left as is)'; $note = $_.Exception.Message; $nFail++
-    if (-not $inPlace -and [IO.File]::Exists((LP $out))) { [IO.File]::Delete((LP $out)) }
+    if (-not $inPlace -and [IO.File]::Exists((Get-LongPath $out))) { [IO.File]::Delete((Get-LongPath $out)) }
     Write-Host "FAILED   $rel  ->  $note" -ForegroundColor Red
   }
   $report.Add([pscustomobject]@{ File = $rel; Status = $status; Found = $found; Note = $note; SizeKB = [int]($f.Length / 1KB) })
