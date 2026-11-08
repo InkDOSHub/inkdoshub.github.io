@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 3;
+  var BENCH_VERSION = 4;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -191,10 +191,11 @@
     try {
       if (n.userAgentData && n.userAgentData.getHighEntropyValues) {
         var h = await n.userAgentData.getHighEntropyValues(["architecture", "bitness", "model", "platformVersion"]);
-        i.arch = (h.architecture || "?") + " " + (h.bitness || "") + "-bit"; if (h.model) i.model = h.model; if (h.platformVersion) i.osVersion = h.platformVersion;
+        i.arch = (h.architecture || "?") + " " + (h.bitness || "") + "-bit"; if (h.model) i.model = h.model; if (h.platformVersion) i.osVersion = i.os === "Windows" ? (parseInt(h.platformVersion) >= 13 ? "11" : "10") + " (build " + h.platformVersion + ")" : h.platformVersion;
       }
     } catch (e) { log("UA-CH: " + err(e)); }
     i.cpuThreads = n.hardwareConcurrency || "?";
+    if (n.brave) i.cpuThreads += " (Brave may randomize this and hide the GPU name)";
     i.memory = n.deviceMemory ? n.deviceMemory + " GB (browser rounds it)" : "hidden by the browser";
     try { var est = await n.storage.estimate(); i.storageQuota = (est.quota / 1073741824).toFixed(1) + " GB available to the site"; } catch (e) { i.storageQuota = "?"; }
     try {
