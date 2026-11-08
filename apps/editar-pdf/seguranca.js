@@ -93,6 +93,10 @@
     var prod = s.match(/\/Producer\s*\(([^)]{1,120})\)/), cri = s.match(/\/Creator\s*\(([^)]{1,120})\)/);
     if (cri) det.push({ t: T("Criado com", "Created with"), d: cri[1] });
     if (prod) det.push({ t: T("Gerado por", "Produced by"), d: prod[1] });
+    var achou = {}, nr = normNomes(raw), nd = normNomes(desc);
+    REM.forEach(function (c) { var k = 0; c.nomes.forEach(function (nm) { k += conta(nr, new RegExp("\\/" + nm + "(?![^\\s\\/<>\\[\\]()%{}])", "g")); }); if (k) achou[c.id] = k; });
+    var soComp = REM.some(function (c) { return !achou[c.id] && c.nomes.some(function (nm) { return new RegExp("\\/" + nm + "\\b").test(nd); }); });
+    ultimo = { f: f, u8: u8, A: A, links: links, det: det, achou: achou, soComp: soComp };
     mostrar(A, f, links, det);
   }
   function nomesAnexos(s) {
@@ -100,6 +104,75 @@
     while ((m = r.exec(s)) && o.length < 8) if (!v[m[1]]) { v[m[1]] = 1; o.push(m[1]); }
     return o.length ? " (" + o.join(", ") + ")" : "";
   }
+  var ultimo = null, hashes = {};
+  // what can be stripped: each name is renamed in place to /xxx… (same length, so the file structure stays valid)
+  var REM = [
+    { id: "js", nomes: ["JavaScript", "JS"], p: "JavaScript", e: "JavaScript", on: 1 },
+    { id: "auto", nomes: ["OpenAction", "AA"], p: "Ações automáticas", e: "Automatic actions", on: 1 },
+    { id: "launch", nomes: ["Launch"], p: "Abrir programas (Launch)", e: "Program launch (Launch)", on: 1 },
+    { id: "files", nomes: ["EmbeddedFiles", "EmbeddedFile"], p: "Arquivos embutidos", e: "Embedded files", on: 1 },
+    { id: "media", nomes: ["RichMedia", "Flash", "Movie", "Sound"], p: "Mídia ativa", e: "Active media", on: 1 },
+    { id: "xfa", nomes: ["XFA"], p: "Formulário XFA", e: "XFA form", on: 1 },
+    { id: "import", nomes: ["ImportData", "GoToE"], p: "Importar dados", e: "Data import", on: 1 },
+    { id: "submit", nomes: ["SubmitForm"], p: "Envio de formulário", e: "Form submission", on: 1 },
+    { id: "gotor", nomes: ["GoToR"], p: "Abrir outro arquivo", e: "Open other file", on: 1 },
+    { id: "links", nomes: ["URI"], p: "Links externos (deixam de funcionar)", e: "External links (they stop working)", on: 0 }
+  ];
+  function reNome(nm) {
+    var p = nm.split("").map(function (c) { return "(?:" + c + "|#" + c.charCodeAt(0).toString(16) + ")"; }).join("");
+    return new RegExp("\\/" + p + "(?![^\\s\\/<>\\[\\]()%{}])", "gi");
+  }
+  function montarRemover() {
+    var box = document.getElementById("remover"), ul = document.getElementById("rem-lista"), ids = Object.keys(ultimo.achou);
+    box.hidden = !ids.length && !ultimo.soComp; ul.textContent = "";
+    document.getElementById("t-rem").textContent = T("Remover partes perigosas", "Remove dangerous parts");
+    REM.forEach(function (c) {
+      if (!ultimo.achou[c.id]) return;
+      var li = document.createElement("li"), l = document.createElement("label"), cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = !!c.on; cb.value = c.id; l.style.cssText = "display:flex;gap:10px;align-items:center;font-weight:600";
+      l.appendChild(cb); l.appendChild(document.createTextNode(T(c.p, c.e) + " (" + ultimo.achou[c.id] + ")")); li.appendChild(l); ul.appendChild(li);
+    });
+    var ok = document.getElementById("rem-ok"); ok.hidden = !ids.length; ok.textContent = T("Remover e salvar cópia limpa", "Remove and save clean copy"); ok.onclick = remover;
+    var av = document.getElementById("rem-aviso"); av.hidden = !ultimo.soComp;
+    av.innerHTML = ""; av.appendChild(document.createTextNode(T("Parte do conteúdo perigoso está compactada e não pode ser removida aqui. Use ", "Some dangerous content is compressed and can't be removed here. Use ")));
+    var a = document.createElement("a"); a.href = "../../visualizadores/bentopdf/sanitize-pdf.html"; a.textContent = T("Higienizar PDF", "Sanitize PDF"); av.appendChild(a); av.appendChild(document.createTextNode("."));
+  }
+  function remover() {
+    var sel = Array.prototype.map.call(document.querySelectorAll("#rem-lista input:checked"), function (x) { return x.value; });
+    if (!sel.length) return;
+    var s = latin1(ultimo.u8), feitos = [];
+    REM.forEach(function (c) {
+      if (sel.indexOf(c.id) < 0) return;
+      var k = 0; c.nomes.forEach(function (nm) { s = s.replace(reNome(nm), function (m) { k++; return "/" + new Array(m.length).join("x"); }); });
+      feitos.push(T(c.p, c.e) + ": " + k);
+    });
+    var out = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+    var nome = ultimo.f.name.replace(/\.pdf$/i, "") + T("-limpo.pdf", "-clean.pdf");
+    baixar(new Blob([out], { type: "application/pdf" }), nome);
+    var nf = new File([out], nome, { type: "application/pdf" }); nf.removidos = feitos;
+    analisar(nf); // scan the clean copy so the result is visible
+  }
+  function baixar(blob, nome) {
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+  }
+  function sha256(u8) { return crypto.subtle ? crypto.subtle.digest("SHA-256", u8).then(function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }) : Promise.resolve("?"); }
+  function textoLog() {
+    var u = ultimo, v = document.getElementById("veredito");
+    return sha256(u.u8).then(function (h) {
+      var L = ["InkDOS Hub · " + T("Verificação de segurança do PDF", "PDF security check"), new Date().toISOString(), "", T("Arquivo: ", "File: ") + u.f.name, "SHA-256: " + h, T("Veredito: ", "Verdict: ") + v.firstChild.textContent, ""];
+      if (u.f.removidos) { L.push(T("Removido:", "Removed:")); u.f.removidos.forEach(function (x) { L.push("  - " + x); }); L.push(""); }
+      L.push(T("Achados:", "Findings:")); if (!u.A.length) L.push("  -");
+      u.A.forEach(function (x) { L.push("  [" + { alto: "HIGH", medio: "MEDIUM", baixo: "LOW", info: "INFO" }[x.n] + "] " + x.t + " — " + x.d); });
+      if (u.soComp) L.push("  " + T("Obs.: conteúdo perigoso dentro de fluxos compactados.", "Note: dangerous content inside compressed streams."));
+      if (u.links.length) { L.push("", T("Links:", "Links:")); u.links.forEach(function (x) { L.push("  " + x); }); }
+      L.push("", T("Detalhes:", "Details:")); u.det.forEach(function (x) { L.push("  " + x.t + ": " + x.d); });
+      return L.join("\n");
+    });
+  }
+  document.getElementById("log-cop").onclick = function () { var b = this; textoLog().then(function (t) { return navigator.clipboard.writeText(t); }).then(function () { b.textContent = T("Copiado ✓", "Copied ✓"); }).catch(function () {}); };
+  document.getElementById("log-sal").onclick = function () { textoLog().then(function (t) { baixar(new Blob([t], { type: "text/plain" }), ultimo.f.name.replace(/\.pdf$/i, "") + "-security-log.txt"); }); };
+  document.getElementById("log-env").onclick = function () { textoLog().then(function (t) { return navigator.share({ title: "PDF security log", text: t }); }).catch(function () {}); };
   function mostrar(A, f, links, det) {
     var ordem = { alto: 0, medio: 1, baixo: 2, info: 3 };
     A.sort(function (a, b) { return ordem[a.n] - ordem[b.n]; });
@@ -125,6 +198,12 @@
     var tl = document.getElementById("t-links"); tl.hidden = !links.length; tl.textContent = T("Links encontrados", "Links found");
     document.getElementById("t-det").textContent = T("Detalhes", "Details");
     lista("detalhes", det, false);
+    montarRemover();
+    document.getElementById("t-log").textContent = T("Relatório", "Report");
+    document.getElementById("log-env").textContent = T("Enviar", "Send");
+    document.getElementById("log-cop").textContent = T("Copiar", "Copy");
+    document.getElementById("log-sal").textContent = T("Salvar .txt", "Save .txt");
+    document.getElementById("log-env").hidden = !navigator.share;
     document.getElementById("res").hidden = false;
     document.getElementById("dica").textContent = T("Verificar outro PDF", "Check another PDF");
   }
