@@ -8,8 +8,11 @@
     document.getElementById("sobre").textContent = "Analisa o PDF em busca de recursos de risco: JavaScript, ações automáticas, abertura de programas, arquivos embutidos, formulários que enviam dados, links externos, conteúdo oculto ou disfarçado e criptografia. O arquivo não sai deste aparelho. Um relatório limpo reduz o risco, mas não é garantia.";
     document.getElementById("dica").textContent = "Solte um PDF aqui";
     document.getElementById("escolher").textContent = "Escolher PDF";
+<<<<<<< HEAD
     document.getElementById("lote-arq").textContent = "Limpar vários arquivos";
     document.getElementById("lote-pasta").textContent = "Limpar uma pasta";
+=======
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   }
   var arq = document.getElementById("arq"), solta = document.getElementById("solta");
   document.getElementById("escolher").onclick = function (e) { e.preventDefault(); arq.click(); };
@@ -21,6 +24,7 @@
   function latin1(u8) { var s = "", i, n = 0x8000; for (i = 0; i < u8.length; i += n) s += String.fromCharCode.apply(null, u8.subarray(i, i + n)); return s; }
   // PDF names may hide letters as #xx (e.g. /J#61vaScript)
   function normNomes(s) { return s.replace(/\/[^\s\/<>\[\]()%{}]*#[0-9A-Fa-f]{2}[^\s\/<>\[\]()%{}]*/g, function (m) { return m.replace(/#([0-9A-Fa-f]{2})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); }); }); }
+<<<<<<< HEAD
   function inflarU8(bytes, fmt) { // whole stream, no size cap
     var ds = new DecompressionStream(fmt), w = ds.writable.getWriter();
     w.write(bytes).catch(function () {}); w.close().catch(function () {});
@@ -64,6 +68,8 @@
       });
     });
   }
+=======
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   function inflar(bytes) {
     if (!window.DecompressionStream) return Promise.resolve(null);
     try {
@@ -76,6 +82,7 @@
   }
   function conta(s, re) { var m = s.match(re); return m ? m.length : 0; }
 
+<<<<<<< HEAD
   // decompress object streams (where names are often hidden)
   function compactado(u8, raw) {
     var tarefas = [], rs = /stream\r?\n/g, m, n = 0;
@@ -92,6 +99,21 @@
     f.arrayBuffer().then(function (buf) {
       var u8 = new Uint8Array(buf), raw = latin1(u8);
       return compactado(u8, raw).then(function (d) { relatorio(f, u8, raw, d); });
+=======
+  function analisar(f) {
+    f.arrayBuffer().then(function (buf) {
+      var u8 = new Uint8Array(buf), raw = latin1(u8);
+      // decompress object streams (where names are often hidden) and embedded file streams
+      var tarefas = [], rs = /stream\r?\n/g, m, n = 0;
+      while ((m = rs.exec(raw)) && n < 400) {
+        var ini = m.index + m[0].length, dic = raw.slice(Math.max(0, m.index - 600), m.index);
+        dic = dic.slice(dic.lastIndexOf("obj") + 3);
+        if (!/FlateDecode/.test(dic) || !/\/ObjStm\b/.test(normNomes(dic))) continue;
+        var fim = raw.indexOf("endstream", ini); if (fim < 0) break;
+        tarefas.push(inflar(u8.subarray(ini, fim))); n++; rs.lastIndex = fim;
+      }
+      return Promise.all(tarefas).then(function (txts) { relatorio(f, u8, raw, txts.filter(Boolean).join("\n")); });
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
     }).catch(function (e) { mostrar([{ n: "alto", t: T("Não foi possível ler o arquivo", "Could not read the file"), d: String(e) }], f, [], []); });
   }
 
@@ -202,7 +224,11 @@
   }
   function baixar(blob, nome) {
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click();
+<<<<<<< HEAD
     a.remove(); // blob URL kept alive: Safari may start a big download minutes later
+=======
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   }
   function sha256(u8) { return crypto.subtle ? crypto.subtle.digest("SHA-256", u8).then(function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }) : Promise.resolve("?"); }
   function textoLog() {
@@ -221,6 +247,7 @@
   document.getElementById("log-cop").onclick = function () { var b = this; textoLog().then(function (t) { return navigator.clipboard.writeText(t); }).then(function () { b.textContent = T("Copiado ✓", "Copied ✓"); }).catch(function () {}); };
   document.getElementById("log-sal").onclick = function () { textoLog().then(function (t) { baixar(new Blob([t], { type: "text/plain" }), ultimo.f.name.replace(/\.pdf$/i, "") + "-security-log.txt"); }); };
   document.getElementById("log-env").onclick = function () { textoLog().then(function (t) { return navigator.share({ title: "PDF security log", text: t }); }).catch(function () {}); };
+<<<<<<< HEAD
   // ---- batch: clean many files / a folder into one ZIP (non-PDF files copied as they are)
   var CRC = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
   function crc32(u) { var c = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
@@ -480,6 +507,8 @@
     else baixar(lote.blob, nome);
   };
   document.getElementById("lote-log").onclick = function () { baixar(new Blob([lote.log], { type: "text/plain" }), T("pdfs-limpos-relatorio.txt", "clean-pdfs-report.txt")); };
+=======
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   function mostrar(A, f, links, det) {
     var ordem = { alto: 0, medio: 1, baixo: 2, info: 3 };
     A.sort(function (a, b) { return ordem[a.n] - ordem[b.n]; });

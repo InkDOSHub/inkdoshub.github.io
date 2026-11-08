@@ -13,6 +13,11 @@ Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SU
 <p><img src=".github/prints/abrir-arquivo.gif" width="49%" alt="Opening a Word document from the home screen"> <img src=".github/prints/quadro.gif" width="49%" alt="Drawing on the whiteboard"></p>
 <p><img src=".github/prints/planilhas.png" width="49%" alt="A spreadsheet open in Spreadsheets"> <img src=".github/prints/pdf.png" width="49%" alt="A PDF open in the PDF app"></p>
 
+<<<<<<< HEAD
+=======
+> **No support promised.** InkDOS Hub is a personal project made in spare time. It was tested on iPhone, iPad and a Windows laptop; other devices may or may not work. Feel free to use, copy and adapt it, but fixes, new features and quick answers are not guaranteed. 🙂
+
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 ## Apps
 
 | App | Tool (open source) | Folder |

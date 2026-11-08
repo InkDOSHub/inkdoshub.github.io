@@ -1,6 +1,9 @@
 # Hosting GridCraft for the web
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 `gridcraft-web-<version>.zip` (from the GitHub release, or `packaging/web/package.sh`) holds a
 static site in `gridcraft-web-<version>/`:
 
@@ -78,6 +81,7 @@ Local test: `python3 -m http.server 8765` inside the folder, then open http://lo
   one. Use them when the host window already shows the file name and owns the files, so the sheet's
   own Open or Save As cannot replace what the host thinks is open. Everything stays on by default.
 
+<<<<<<< HEAD
 ### The parent bridge (`?host=parent`)
 
 A page framing GridCraft in a **same-origin** iframe can add `?host=parent` to the iframe's URL
@@ -169,6 +173,8 @@ const { data } = await gridcraft.screenshot();          // the canvas as PNG (ba
 
 The API is there in every mode, with or without a host. Opening a workbook, handing a saved or exported file to the page, the file name and the unsaved flag stay with the host messages above.
 
+=======
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 ## Renderer selection
 
 GridCraft's web build is the same egui app as the desktop one, compiled to wasm

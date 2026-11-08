@@ -99,11 +99,17 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 .painel-dlg input{font:inherit;font-size:16px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
 
 /* Footer */
+<<<<<<< HEAD
 .home-footer{margin-top:auto;padding-top:42px;display:flex;flex-direction:column;align-items:center;gap:14px;color:var(--footer);font-size:12px;text-align:center}
 .home-footer p{margin:0}
 .home-banner{padding:8px 14px;border-radius:10px;background:var(--hover);color:var(--muted);font-size:11px;max-width:560px;line-height:1.45}
 .home-footer nav{display:flex;gap:22px;flex-wrap:wrap;justify-content:center}
 .home-footer nav a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+=======
+.home-footer{margin-top:auto;padding-top:42px;display:flex;align-items:center;gap:24px;color:var(--footer);font-size:12px}
+.home-footer p{margin:0}
+.home-footer nav{margin-left:auto;display:flex;gap:22px}
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 
 @media(max-width:720px){
   .home-shell{width:calc(100% - 28px);padding:20px 0}
@@ -113,8 +119,13 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
   .app-icon img{width:40px;height:40px}
   .workspace-copy strong{font-size:12px}
   .workspace-card.oo .workspace-copy small{display:none}
+<<<<<<< HEAD
   .home-footer{padding-top:28px;gap:12px}
   .home-footer nav{gap:16px}
+=======
+  .home-footer{padding-top:28px;align-items:flex-start;flex-direction:column;gap:14px}
+  .home-footer nav{margin-left:0;gap:16px;flex-wrap:wrap}
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 }
 
 

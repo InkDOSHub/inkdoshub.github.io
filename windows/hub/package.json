@@ -1,7 +1,11 @@
 {
   "name": "inkdos-hub",
   "productName": "InkDOS Hub",
+<<<<<<< HEAD
   "version": "0.4.20",
+=======
+  "version": "0.4.19",
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   "description": "InkDOS Hub for Windows: the same apps as the website, local and without telemetry.",
   "main": "main.js",
   "license": "MIT",

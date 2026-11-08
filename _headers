@@ -8,6 +8,7 @@
 
 /apps/xeos-tests/native/*
   Content-Type: text/plain; charset=utf-8
+<<<<<<< HEAD
 
 /apps/editar-pdf/native/*
   Cache-Control: no-cache
@@ -22,3 +23,5 @@
 
 /artcraft/*.ico
   Cache-Control: public, max-age=31536000, immutable
+=======
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))

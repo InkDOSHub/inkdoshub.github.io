@@ -291,12 +291,20 @@
     var bar = document.createElement('header'); bar.className = 'ink-bar';
     var home = document.createElement('a'); home.className = 'ink-home'; home.href = volta;
     home.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
+<<<<<<< HEAD
     var origem = ''; try { origem = sessionStorage.getItem('inkdoshub-pdf-volta') || ''; } catch (_) {}
     var editar = origem === 'edit', seg = origem === 'seguranca', pt = /^pt/i.test(navigator.language);
     home.appendChild(document.createTextNode(seg ? (pt ? 'Segurança' : 'Security') : editar ? (pt ? 'Editar PDF' : 'Edit PDF') : 'PDF'));
     var esq = document.createElement('div'); esq.appendChild(home);
     var meio = document.createElement('div'); meio.className = 'ink-meio';
     var img = document.createElement('img'); img.className = 'ink-simbolo'; img.alt = ''; img.src = '/assets/icones-inkdos/' + (seg ? 'seguranca.svg' : editar ? 'editar-pdf.svg?v=2' : 'pdf.svg');
+=======
+    var editar = false; try { editar = sessionStorage.getItem('inkdoshub-pdf-volta') === 'edit'; } catch (_) {}
+    home.appendChild(document.createTextNode(editar ? (/^pt/i.test(navigator.language) ? 'Editar PDF' : 'Edit PDF') : 'PDF'));
+    var esq = document.createElement('div'); esq.appendChild(home);
+    var meio = document.createElement('div'); meio.className = 'ink-meio';
+    var img = document.createElement('img'); img.className = 'ink-simbolo'; img.alt = ''; img.src = '/assets/icones-inkdos/' + (editar ? 'editar-pdf.svg?v=2' : 'pdf.svg');
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
     var t = document.createElement('span'); t.className = 'ink-title'; t.textContent = nome();
     meio.append(img, t);
     bar.append(esq, meio, document.createElement('div'));

@@ -65,6 +65,7 @@ Local test: `python3 -m http.server 8765` inside the folder, then open http://lo
 - The app fills the iframe and follows its size, so size the iframe and not the app.
 - Keyboard shortcuts go to the iframe after the user clicks into it, as with any embedded app.
 - **Cross-origin embeds** work. The web build keeps no preferences between visits; it starts
+<<<<<<< HEAD
   with the sample deck (or `?blank`) every time. Opening and saving through the page
   (`?host=parent`, below) needs the same origin.
 - **Sandboxed iframes** need at least
@@ -148,6 +149,14 @@ const { data } = await deckcraft.screenshot();            // the canvas as PNG (
 
 The API is there in every mode, with or without a host. Opening a file, handing a saved or exported file to the page, the file name and the unsaved flag stay with the host messages above.
 
+=======
+  with the sample deck (or `?blank`) every time.
+- **Sandboxed iframes** need at least
+  `sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"`. Without `allow-downloads`, Save and Export (browser
+  downloads) are blocked.
+- Don't send `X-Frame-Options: DENY` or a `frame-ancestors` CSP that excludes the embedding page.
+
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 ## Renderer selection and fallback flags
 
 DeckCraft renders with wgpu. It uses **WebGPU** when the browser has it and falls back to
@@ -159,7 +168,10 @@ DeckCraft renders with wgpu. It uses **WebGPU** when the browser has it and fall
 | `?webgl` | Force the WebGL2 backend (useful when a WebGPU driver misbehaves) |
 | `?blank` | Start with an empty presentation instead of the sample deck |
 | `?show` | Start the slide show immediately (kiosk/embedded decks) |
+<<<<<<< HEAD
 | `?host=parent` | Open and save through the framing page ([above](#opening-and-saving-through-the-page-hostparent)); `&author=` names the user |
+=======
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 
 For example: `<iframe src="https://example.com/deckcraft/?webgl" ...>`.
 

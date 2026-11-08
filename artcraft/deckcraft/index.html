@@ -2,13 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+<<<<<<< HEAD
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-zNn/rt1anCcSzirc0AAc8bFk2ZarsvVqeE0lKjF6/UI=' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+=======
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-t4MnFe9MOJ5Ju0V0wCGdq9m0JYfy9auvJWjJVu6JWLM=' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>DeckCraft</title>
   
 <script type="module">
+<<<<<<< HEAD
 import init, * as bindings from './deckcraft-web-a2bd294f193b235a.js';
 const wasm = await init({ module_or_path: './deckcraft-web-a2bd294f193b235a_bg.wasm' });
+=======
+import init, * as bindings from './deckcraft-web-1736dda13a1b2e0f.js';
+const wasm = await init({ module_or_path: './deckcraft-web-1736dda13a1b2e0f_bg.wasm' });
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 
 
 window.wasmBindings = bindings;
@@ -24,7 +33,11 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
     #deckcraft_loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
       color: #b8b8b8; font: 14px system-ui, sans-serif; pointer-events: none; }
   </style>
+<<<<<<< HEAD
 <link rel="modulepreload" href="./deckcraft-web-a2bd294f193b235a.js" crossorigin="anonymous" integrity="sha384-RzW9m5xTrsVwSctX1txdCIOWjuLe5xSWzeVd2tAMCUKJLb2LjRPcY0piWYwjn8Yb"><link rel="modulepreload" href="./snippets/eframe-d31a8450ea12dfc1/inline0.js" crossorigin="anonymous" integrity="sha384-uPZQ72BwgZ4v7Km6+UIFbkDDlt7ShGEsAVEHVN/+wZSGFhItJZB83iKMFQXauTSs"><link rel="preload" href="./deckcraft-web-a2bd294f193b235a_bg.wasm" crossorigin="anonymous" integrity="sha384-/OsW9Ugxq7EgkJ4A9+4NAldK+nBe4oA6V+gbbWhX/5CACHR7yMpx1wlHVX7dIOR6" as="fetch" type="application/wasm"></head>
+=======
+<link rel="modulepreload" href="./deckcraft-web-1736dda13a1b2e0f.js" crossorigin="anonymous" integrity="sha384-Nw/Y599QdpQv88sGwh8BRDPJTsztxOS/u1LY/8WCac7ZFSb4NCXz6uxRgPKcCxdL"><link rel="modulepreload" href="./snippets/eframe-d31a8450ea12dfc1/inline0.js" crossorigin="anonymous" integrity="sha384-uPZQ72BwgZ4v7Km6+UIFbkDDlt7ShGEsAVEHVN/+wZSGFhItJZB83iKMFQXauTSs"><link rel="preload" href="./deckcraft-web-1736dda13a1b2e0f_bg.wasm" crossorigin="anonymous" integrity="sha384-IeDfGBTojbIDOL1OokOfIiVJ4eLuc7q0i29vjst6+1yeD6DiTlGqT7mwDZira5zz" as="fetch" type="application/wasm"></head>
+>>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 <body>
   <canvas id="deckcraft_canvas"></canvas>
   <div id="deckcraft_loading">Loading DeckCraft&hellip;</div>
