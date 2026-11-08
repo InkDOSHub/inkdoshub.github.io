@@ -1,0 +1,23 @@
+name: Test AI Chat on Windows (llama.cpp)
+# Checks windows/hub/ia.js on a Windows machine without a graphics card (CPU build): release file names,
+# download, llama-server start and one answer.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [windows/hub/ia.js, tools/testes/ia-windows.js, .github/workflows/ia-windows.yml]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/testes/ia-windows.js
+      - if: always()
+        shell: pwsh
+        run: Get-Content "$env:TEMP\inkhub-teste\ia\llama\VERSION.txt" -ErrorAction SilentlyContinue
