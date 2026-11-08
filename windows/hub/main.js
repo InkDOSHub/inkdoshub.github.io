@@ -801,6 +801,8 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('hub:audio-parar', e => { const p = capturas.get(e.sender.id); if (p) p.kill(); return true; });
   ipcMain.handle('hub:versao', () => app.getVersion());
+  // AI Chat: models on native llama.cpp (windows/hub/ia.js)
+  require('./ia').registrar(doSite);
   // Print: Electron has no print preview of its own. The page goes to PDF (with its @page size) and
   // opens in a preview window with the built-in PDF viewer, where it can be printed or saved.
   ipcMain.handle('hub:imprimir', async e => {

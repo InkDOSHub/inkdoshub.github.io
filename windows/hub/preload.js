@@ -37,6 +37,21 @@ contextBridge.exposeInMainWorld('inkHubNativo', {
     },
     parar: () => ipcRenderer.invoke('hub:audio-parar')
   },
+  // AI Chat: every model on native llama.cpp (graphics card or processor)
+  ia: {
+    modelos: () => ipcRenderer.invoke('hub:ia-modelos'),
+    iniciar: (id, aoEstado) => {
+      const ouvir = (_e, t) => { try { if (aoEstado) aoEstado(t); } catch (_) {} };
+      ipcRenderer.on('hub:ia-estado', ouvir);
+      return ipcRenderer.invoke('hub:ia-iniciar', id).finally(() => ipcRenderer.removeListener('hub:ia-estado', ouvir));
+    },
+    conversar: (mensagens, aoTexto) => {
+      const ouvir = (_e, t) => { try { aoTexto(t); } catch (_) {} };
+      ipcRenderer.on('hub:ia-texto', ouvir);
+      return ipcRenderer.invoke('hub:ia-conversar', mensagens).finally(() => ipcRenderer.removeListener('hub:ia-texto', ouvir));
+    },
+    parar: () => ipcRenderer.invoke('hub:ia-parar')
+  },
   estado: () => ipcRenderer.invoke('hub:estado'),
   espaco: () => ipcRenderer.invoke('hub:espaco'),
   sincronizar: (ids, progresso) => {
