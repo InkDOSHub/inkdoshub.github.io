@@ -36,15 +36,34 @@ function Get-Qpdf {
 $qpdf = Get-Qpdf
 Write-Host "Using $qpdf"
 
-$src = (Read-Host 'Folder or drive to scan (e.g. D:\ or C:\Users\you\Books)').Trim('"', ' ')
+# Optional, for the retry command written to pdfclean-retry.txt:
+#   $env:PDFCLEAN_RETRY = a pdfclean-report*.csv (only its FAILED files are processed)
+#   $env:PDFCLEAN_OUT   = 'R' (in place) or an output folder
+$retryCsv = $env:PDFCLEAN_RETRY; $outPre = $env:PDFCLEAN_OUT
+$env:PDFCLEAN_RETRY = $null; $env:PDFCLEAN_OUT = $null
+if (-not $retryCsv) {
+  $ans = (Read-Host 'Folder or drive to scan (or a pdfclean-report.csv to retry only its failed files)').Trim('"', ' ')
+  if ($ans -match '\.csv$') { $retryCsv = $ans } else { $src = $ans }
+}
+$retryRows = $null
+if ($retryCsv) {
+  if (-not (Test-Path -LiteralPath $retryCsv -PathType Leaf)) { throw "Report not found: $retryCsv" }
+  $retryCsv = (Resolve-Path -LiteralPath $retryCsv).ProviderPath
+  $all = @(Import-Csv -LiteralPath $retryCsv)
+  $retryRows = @($all | Where-Object { $_.Status -like 'FAILED*' })
+  # Older reports have no Root column; they were saved in the scanned folder (in-place mode).
+  $src = if ($all.Count -and $all[0].Root) { $all[0].Root } else { Split-Path $retryCsv }
+  Write-Host "Retry mode: $($retryRows.Count) failed file(s) from $retryCsv"
+  if ($retryRows.Count -eq 0) { Write-Host 'No failed files in that report. Nothing to do.' -ForegroundColor Green; return }
+}
 if (-not (Test-Path -LiteralPath $src -PathType Container)) { throw "Folder not found: $src" }
 $src = (Resolve-Path -LiteralPath $src).ProviderPath.TrimEnd('\') + '\'
 $defOut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'PDF-clean'
-$dst = (Read-Host "Output folder [Enter = $defOut, R = replace the originals in place]").Trim('"', ' ')
+$dst = if ($outPre) { $outPre } else { (Read-Host "Output folder [Enter = $defOut, R = replace the originals in place]").Trim('"', ' ') }
 $inPlace = $dst -eq 'R' -or $dst -eq 'r'
 if ($inPlace) {
   Write-Host 'IN-PLACE MODE: risky PDFs will be overwritten with the cleaned version. Clean and failed PDFs are left untouched.' -ForegroundColor Yellow
-  if ((Read-Host 'Type YES to continue') -ne 'YES') { Write-Host 'Cancelled.'; return }
+  if (-not $outPre -and (Read-Host 'Type YES to continue') -ne 'YES') { Write-Host 'Cancelled.'; return }
   $dst = $src
 } else {
   if (-not $dst) { $dst = $defOut }
@@ -70,8 +89,16 @@ function Invoke-Qpdf {
   return $LASTEXITCODE
 }
 
-$files = Get-ChildItem -LiteralPath $src -Recurse -File -Filter *.pdf -ErrorAction SilentlyContinue |
-  Where-Object { $inPlace -or -not $_.FullName.StartsWith($dst, [StringComparison]::OrdinalIgnoreCase) }
+if ($retryCsv) {
+  $files = foreach ($r in $retryRows) {
+    $full = Join-Path $src $r.File
+    $fi = New-Object IO.FileInfo (Get-LongPath $full)
+    if ($fi.Exists) { [pscustomobject]@{ FullName = $full; Length = $fi.Length } } else { Write-Host "Missing now: $($r.File)" }
+  }
+} else {
+  $files = Get-ChildItem -LiteralPath $src -Recurse -File -Filter *.pdf -ErrorAction SilentlyContinue |
+    Where-Object { $inPlace -or -not $_.FullName.StartsWith($dst, [StringComparison]::OrdinalIgnoreCase) }
+}
 $total = @($files).Count
 Write-Host "$total PDF(s) found."
 $report = New-Object System.Collections.Generic.List[object]
@@ -118,13 +145,21 @@ foreach ($f in $files) {
     if (-not $inPlace -and [IO.File]::Exists((Get-LongPath $out))) { [IO.File]::Delete((Get-LongPath $out)) }
     Write-Host "FAILED   $rel  ->  $note" -ForegroundColor Red
   }
-  $report.Add([pscustomobject]@{ File = $rel; Status = $status; Found = $found; Note = $note; SizeKB = [int]($f.Length / 1KB) })
+  $report.Add([pscustomobject]@{ File = $rel; Status = $status; Found = $found; Note = $note; SizeKB = [int]($f.Length / 1KB); Root = $src })
 }
 Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
-$csv = Join-Path $dst 'pdfclean-report.csv'
+$csv = Join-Path $dst $(if ($retryCsv) { 'pdfclean-report-retry.csv' } else { 'pdfclean-report.csv' })
 $report | Export-Csv -LiteralPath $csv -NoTypeInformation -Encoding UTF8
 Write-Host ''
 Write-Host "Done. $total PDF(s): $nClean already clean, $nFixed cleaned, $nFail failed." -ForegroundColor Green
 Write-Host "Output: $dst"
 Write-Host "Report: $csv"
-if ($nFail -gt 0) { Write-Host 'Failed files were NOT copied; check the report (usually password-protected or damaged PDFs).' }
+if ($nFail -gt 0) {
+  Write-Host 'Failed files were NOT copied/changed; check the report (usually password-protected or damaged PDFs).'
+  $q = { param($v) "'" + ($v -replace "'", "''") + "'" }
+  $mode = if ($inPlace) { 'R' } else { $dst }
+  $cmd = '$env:PDFCLEAN_RETRY=' + (& $q $csv) + '; $env:PDFCLEAN_OUT=' + (& $q $mode) + '; irm "https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1?$(Get-Random)" | iex'
+  $txt = Join-Path $dst 'pdfclean-retry.txt'
+  [IO.File]::WriteAllText($txt, "Retry only the $nFail failed file(s): paste this line into PowerShell`r`n`r`n$cmd`r`n", [Text.Encoding]::UTF8)
+  Write-Host "Retry command saved to: $txt"
+}
