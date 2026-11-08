@@ -125,8 +125,8 @@ if have gcc && curl -fsSL https://www.cs.virginia.edu/stream/FTP/Code/stream.c -
 else log "STREAM skipped (needs gcc and internet)"; fi
 
 # ---------- disk: dd sequential 1 MB blocks, direct I/O ----------
-log "== Disk (dd, 1 GB, direct I/O, in $OUT_DIR)"
-F="$OUT_DIR/.inkbench.tmp"
+DISK_DIR="${DISK_DIR:-$HOME}"; log "== Disk (dd, 1 GB, direct I/O, in $DISK_DIR)"
+F="$DISK_DIR/.inkbench.tmp"
 w=$(dd if=/dev/zero of="$F" bs=1M count=1024 oflag=direct conv=fsync 2>&1 | tail -1)
 r=$(dd if="$F" of=/dev/null bs=1M iflag=direct 2>&1 | tail -1); rm -f "$F"
 mbs() { echo "$1" | awk -F', ' '{s=$NF; split(s,a," "); v=a[1]; u=a[2]; if(u ~ /^GB/) v*=1000; if(u ~ /^kB/) v/=1000; if (u ~ /GiB/) v*=1073.7; if (u ~ /MiB/) v*=1.0486; print v}'; }
