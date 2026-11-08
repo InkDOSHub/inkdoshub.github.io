@@ -12,7 +12,7 @@ const conversa = $("conversa"), estado = $("estado"), texto = $("texto"), enviar
 // while loading, the engine's last log line is shown, so a stall in XeOS shows where it stopped
 let mostrarLog = false;
 const registro = (...a) => { console.log(...a); if (mostrarLog) aviso("Loading the model… " + a.map(String).join(" ").slice(0, 160)); };
-// wllama 2.x on purpose: 3.x needs Memory64, which Safari does not have
+// wllama 2.3.7 on purpose: 2.4.0 and later need Memory64, which Safari does not have
 const wllama = new Wllama({
   "single-thread/wllama.wasm": new URL("./wllama/single-thread/wllama.wasm", import.meta.url).href,
   "multi-thread/wllama.wasm": new URL("./wllama/multi-thread/wllama.wasm", import.meta.url).href
