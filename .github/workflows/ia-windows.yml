@@ -17,6 +17,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: llama.cpp release files for Windows
+        shell: pwsh
+        run: |
+          $r = Invoke-RestMethod -Headers @{ 'User-Agent' = 'InkDOS-Hub' } 'https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=4'
+          foreach ($x in $r) { "== $($x.tag_name)"; $x.assets.name | Where-Object { $_ -match 'win' } }
       - run: node tools/testes/ia-windows.js
       - if: always()
         shell: pwsh
