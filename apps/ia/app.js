@@ -24,7 +24,7 @@ const nativo = window.inkHubNativo && window.inkHubNativo.ia;
 if (nativo) nativo.modelos().then((lista) => {
   modelo.textContent = "";
   for (const m of lista) modelo.add(new Option(m.nome + " (" + m.gb + " GB)", m.id));
-  modelo.value = "qwen7b";
+  modelo.value = "qwen3b"; // suggested start (1.9 GB); bigger ones for who wants more
 }).catch(() => {});
 const historico = [{ role: "system", content: "You are a helpful assistant. Answer briefly, in the user's language." }];
 
