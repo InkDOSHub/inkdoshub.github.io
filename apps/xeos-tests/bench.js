@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 10;
+  var BENCH_VERSION = 11;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -67,6 +67,15 @@
   def("render.fur", "render", "Fur donut (GPU stress)", "fps", 60);
   def("stress.cpu", "stress", "CPU speed kept after 5 min", "%", 100);
   def("stress.gpu", "stress", "GPU speed kept after 5 min", "%", 100);
+  // native results (apps/xeos-tests/native/inkbench.sh / .ps1)
+  def("cpu1.7zip", "cpu1", "7-Zip compression + decompression (native)", "MIPS", 5000);
+  def("cpuN.7zip", "cpuN", "7-Zip compression + decompression (native)", "MIPS", 5000);
+  def("mem.stream", "mem", "STREAM Triad (native)", "GB/s", 10);
+  def("mem.winsat", "mem", "WinSAT memory (native)", "GB/s", 10);
+  def("disk.seqWrite", "disk", "Sequential write 1 MB (native)", "MB/s", 500);
+  def("disk.seqRead", "disk", "Sequential read 1 MB (native)", "MB/s", 1000);
+  def("gfx.glmark2", "gfx", "glmark2 score (native)", "points", 1000);
+  def("gfx.winsat", "gfx", "WinSAT Direct3D (native)", "fps", 60);
   def("media.encode", "media", "Video encode 1080p (WebCodecs)", "fps", 60);
 
   // ---------- worker with the CPU and memory kernels ----------
@@ -760,7 +769,7 @@
         [0, 50, 100, 120].forEach(function (v) { var yy = top + h - v / 120 * h; p.linha(x0, yy, x0 + w, yy, v === 100 ? "#bbbbbb" : "#eeeeee"); p.txt(40, yy + 3, v + "%", 7, false, "#777777"); });
         for (var m = 0; m <= 5; m++) p.txt(x0 + m / 5 * w - 6, top + h + 12, m + " min", 7, false, "#777777");
         ser.forEach(function (s) {
-          var a = s.series[k[0]], base = (a[0] + (a[1] || a[0])) / 2 || 1, pts = a.map(function (v, i) { return [x0 + ((i + 1) * (s.series.step || 10)) / 300 * w, top + h - Math.min(v / base * 100, 120) / 120 * h]; });
+          var a = s.series[k[0]]; if (!a || a.filter(function (x) { return x > 0; }).length < 2) return; var base = (a[0] + (a[1] || a[0])) / 2 || 1, pts = a.map(function (v, i) { return [x0 + ((i + 1) * (s.series.step || 10)) / 300 * w, top + h - Math.min(v / base * 100, 120) / 120 * h]; });
           p.poli(pts, CORES[S.indexOf(s)]);
         });
         p.y = top + h + 34;

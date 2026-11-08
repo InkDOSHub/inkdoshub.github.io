@@ -73,6 +73,11 @@
       <button class="ink-btn" id="b-limpar" type="button">Clear loaded</button>
     </div>
     <p class="nota" id="b-lista"></p>
+    <details class="nota"><summary>Native benchmark (Windows / Linux)</summary>
+      <p>Measures the same device outside the browser with standard tools (7-Zip, DiskSpd or dd, STREAM, smallpt, WinSAT, glmark2) and saves a .json on the Desktop or home folder. Load it here with "Load PDF to compare" to see native vs browser.</p>
+      <p>Windows (PowerShell; as administrator also measures memory and GPU):<br><code>irm https://hub.inkdos.workers.dev/apps/xeos-tests/native/inkbench.ps1 | iex</code></p>
+      <p>Linux or WSL (needs curl; gcc for STREAM and smallpt):<br><code>curl -fsSL https://hub.inkdos.workers.dev/apps/xeos-tests/native/inkbench.sh | bash</code></p>
+    </details>
     <table id="b-tabela"></table>
     <div class="linha">
       <button class="ink-btn" id="b-logcopiar" type="button">Copy log</button>
@@ -120,7 +125,7 @@
   </section>
 </div></main>
 <script src="app.js?v=15"></script>
-<script src="bench.js?v=10"></script>
+<script src="bench.js?v=11"></script>
 <script src="abas.js?v=1"></script>
 </body>
 </html>
