@@ -32,8 +32,10 @@ async function carregar() {
   const cache = window.caches ? await caches.open("inkdoshub-ia").catch(() => null) : null;
   let r = cache ? await cache.match(url) : null, blob;
   if (r) blob = await r.blob();
-  else {
-    r = await fetch(url);
+  if (blob && blob.size < 1e7) { blob = null; if (cache) await cache.delete(url).catch(() => {}); } // broken copy from an earlier try
+  if (!blob) {
+    // "inkoff": the site's service worker lets it pass straight to the network
+    r = await fetch(url + "?inkoff=1", { cache: "no-store" });
     if (!r.ok) throw new Error("HTTP " + r.status);
     const total = +r.headers.get("content-length") || 0, partes = [], leitor = r.body.getReader();
     let lidos = 0;
@@ -44,6 +46,7 @@ async function carregar() {
       aviso("Downloading the model (only the first time)… " + (total ? Math.round(lidos / total * 100) + "%" : Math.round(lidos / 1048576) + " MB"));
     }
     blob = new Blob(partes);
+    if (blob.size < 1e7) throw new Error("download incomplete (" + blob.size + " bytes)");
     if (cache) cache.put(url, new Response(blob)).catch(() => {}); // not awaited: Safari can take long here
   }
   aviso("Loading the model…");
