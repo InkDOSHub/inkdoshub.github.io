@@ -6,7 +6,7 @@
 # Run: curl -fsSL https://hub.inkdos.workers.dev/apps/xeos-tests/native/inkbench.sh | bash
 # Options (env): STRESS=0 skips the 5-minute stress test.
 set -u
-VER=1
+VER=2
 W=$(mktemp -d /tmp/inkbench.XXXX); cd "$W" || exit 1
 LOG="$W/inkbench.log"; OUT_DIR="${OUT_DIR:-$HOME}"
 T0=$(date +%s.%N)
@@ -37,7 +37,9 @@ log "RAM: $RAM · GPU: ${GPU:-?} · Disk: ${DISK:-?} · OS: $OS$WSL · kernel $K
 Z=""
 if have 7zz; then Z=7zz; elif have 7z; then Z=7z; else
   A=x64; [ "$ARCH" = aarch64 ] && A=arm64
-  if curl -fsSL "https://www.7-zip.org/a/7z2409-linux-$A.tar.xz" -o 7z.tar.xz && tar -xf 7z.tar.xz 7zz 2>/dev/null; then Z="$W/7zz"; else log "7-Zip download failed"; fi
+  for u in "https://github.com/ip7z/7zip/releases/download/24.09/7z2409-linux-$A.tar.xz" "https://www.7-zip.org/a/7z2409-linux-$A.tar.xz"; do
+    if curl -fsSL "$u" -o 7z.tar.xz 2>>"$LOG" && tar -xJf 7z.tar.xz 7zz 2>>"$LOG"; then Z="$W/7zz"; break; else log "7-Zip download failed from $u"; fi
+  done
 fi
 zrate() { "$Z" b "$@" 2>&1 | tee -a "$LOG.7z" | awk '/^Tot:/{print $NF}' | tail -1; }
 if [ -n "$Z" ]; then
@@ -152,19 +154,21 @@ else log "glmark2 not installed or no display: GPU skipped (sudo apt install glm
 # ---------- stress: 5 min of 7-Zip on all threads, sampled every 10 s, with CPU temperature ----------
 SER=""; TEMPS=""
 temp() { local m=0 t; for z in /sys/class/thermal/thermal_zone*/temp /sys/class/hwmon/hwmon*/temp1_input; do [ -r "$z" ] || continue; t=$(cat "$z" 2>/dev/null); [ "${t:-0}" -gt "$m" ] && m=$t; done; [ "$m" -gt 0 ] && echo $((m / 1000)); }
-if [ "${STRESS:-1}" != 0 ] && [ -n "$Z" ]; then
-  log "== Stress 5 min (7-Zip, all threads)"
+if [ "${STRESS:-1}" != 0 ] && { [ -x ./smallpt ] || [ -n "$Z" ]; }; then
+  if [ -x ./smallpt ]; then UNIT="k samples/s (smallpt, same work as the browser stress)"; one() { ./smallpt 9 | cut -d' ' -f1 | cut -d. -f1; }
+  else UNIT="7-Zip MIPS"; one() { zrate 1; }; fi
+  log "== Stress 5 min ($UNIT, all threads)"
   s0=$(date +%s); next=$((s0 + 10)); acc=0; n=0
   while [ $(( $(date +%s) - s0 )) -lt 300 ]; do
-    r=$(zrate 1); [ -n "$r" ] && { acc=$((acc + r)); n=$((n + 1)); }
+    r=$(one); [ -n "$r" ] && { acc=$((acc + r)); n=$((n + 1)); }
     if [ "$(date +%s)" -ge "$next" ] && [ "$n" -gt 0 ]; then
       v=$((acc / n)); SER="$SER$v,"; tc=$(temp); TEMPS="$TEMPS${tc:-null},"
-      log "  t=$(( $(date +%s) - s0 ))s 7-Zip $v MIPS · CPU ${tc:-?} °C"; acc=0; n=0; next=$((next + 10))
+      log "  t=$(( $(date +%s) - s0 ))s $v $UNIT · CPU ${tc:-?} °C"; acc=0; n=0; next=$((next + 10))
     fi
   done
   SER=${SER%,}; TEMPS=${TEMPS%,}
   keep=$(echo "$SER" | awk -F, '{if(NF<4){print "";exit} s=($1+$2)/2; e=($NF+$(NF-1)+$(NF-2))/3; printf "%.1f", e/s*100}')
-  met stress.cpu "$keep" "7-Zip MIPS start $(echo $SER | cut -d, -f1) · end ${SER##*,} · temp $(echo $TEMPS | cut -d, -f1) to ${TEMPS##*,} °C"
+  met stress.cpu "$keep" "$UNIT start $(echo $SER | cut -d, -f1) · end ${SER##*,} · temp $(echo $TEMPS | cut -d, -f1) to ${TEMPS##*,} °C"
 fi
 
 # ---------- result ----------

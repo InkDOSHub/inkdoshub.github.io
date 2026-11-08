@@ -11,8 +11,8 @@ $desk = [Environment]::GetFolderPath("Desktop")
 $wdesk = (wsl.exe -u root -e wslpath -a "$desk").Trim()
 $stress = if ($env:STRESS -eq "0") { "0" } else { "1" }
 Write-Host "Installing tools in WSL (gcc, curl, bc, xz) if missing..."
-wsl.exe -u root -e sh -c "command -v apt-get >/dev/null && (dpkg -s gcc curl bc xz-utils libgomp1 >/dev/null 2>&1 || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc libc6-dev curl bc xz-utils >/dev/null)) || true"
+wsl.exe -u root -e sh -c "command -v apt-get >/dev/null && (dpkg -s gcc curl bc xz-utils pciutils >/dev/null 2>&1 || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc libc6-dev curl bc xz-utils pciutils >/dev/null)) || true"
 Write-Host "Running the benchmark (about 7 minutes with the stress test)..."
-wsl.exe -u root -e bash -c "curl -fsSL https://hub.inkdos.workers.dev/apps/xeos-tests/native/inkbench.sh -o /tmp/inkbench.sh && STRESS=$stress OUT_DIR='$wdesk' bash /tmp/inkbench.sh"
+wsl.exe -u root -e bash -c "curl -fsSL https://hub.inkdos.workers.dev/apps/xeos-tests/native/inkbench.sh?v=$(Get-Random) -o /tmp/inkbench.sh && STRESS=$stress OUT_DIR='$wdesk' bash /tmp/inkbench.sh"
 Write-Host ""
 Write-Host "Done. The .json and .log are on your Desktop: $desk"
