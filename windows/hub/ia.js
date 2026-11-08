@@ -22,7 +22,8 @@ const MODELOS = [
   { id: 'qwen7b', nome: 'Qwen 2.5 7B', gb: 4.7, url: HF + 'bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/main/Qwen2.5-7B-Instruct-Q4_K_M.gguf' },
   { id: 'llama8b', nome: 'Llama 3.1 8B', gb: 4.9, url: HF + 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf' },
   { id: 'qwen14b', nome: 'Qwen 2.5 14B', gb: 9.0, url: HF + 'bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/main/Qwen2.5-14B-Instruct-Q4_K_M.gguf' },
-  { id: 'qwen32b', nome: 'Qwen 2.5 32B', gb: 19.9, url: HF + 'bartowski/Qwen2.5-32B-Instruct-GGUF/resolve/main/Qwen2.5-32B-Instruct-Q4_K_M.gguf' }
+  { id: 'qwen32b', nome: 'Qwen 2.5 32B', gb: 19.9, url: HF + 'bartowski/Qwen2.5-32B-Instruct-GGUF/resolve/main/Qwen2.5-32B-Instruct-Q4_K_M.gguf' },
+  { id: 'llama70b', nome: 'Llama 3.3 70B', gb: 42.5, url: HF + 'bartowski/Llama-3.3-70B-Instruct-GGUF/resolve/main/Llama-3.3-70B-Instruct-Q4_K_M.gguf' }
 ];
 const PASTA = () => path.join(app.getPath('userData'), 'ia');
 let servidor = null, modeloAtual = null, porta = 0, iniciando = null;
