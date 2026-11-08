@@ -58,10 +58,13 @@
     <p class="nota">Measures the browser on this device: CPU single and multi-core, memory, storage, JIT and WebAssembly, network, graphics, GPU, 3D and page rendering and video encoding (~1–2 minutes, keep the page open). Save the PDF on each platform, then load the other PDFs here to make a comparison PDF.</p>
     <div class="linha">
       <button class="ink-btn acao" id="b-rodar" type="button">Run benchmark</button>
+      <button class="ink-btn" id="b-stress" type="button">Stress test (5 min)</button>
       <button class="ink-btn" id="b-parar" type="button" hidden>Stop</button>
       <span class="nota" id="b-estado"></span>
     </div>
     <div class="linha"><input type="text" id="b-label" placeholder="Name of this platform (e.g. XeOS iPad)" aria-label="Platform name"></div>
+    <canvas id="b-tiles" width="320" height="240" hidden style="width:100%;max-width:640px;align-self:center;border-radius:10px;image-rendering:pixelated;background:#111"></canvas>
+    <canvas id="b-fur" width="1280" height="720" hidden style="width:100%;max-width:640px;align-self:center;border-radius:10px;background:#000"></canvas>
     <div class="cards" id="b-cards"></div>
     <div class="linha" id="b-saida" hidden>
       <button class="ink-btn acao" id="b-pdf" type="button">Save PDF</button>
@@ -117,7 +120,7 @@
   </section>
 </div></main>
 <script src="app.js?v=15"></script>
-<script src="bench.js?v=6"></script>
+<script src="bench.js?v=7"></script>
 <script src="abas.js?v=1"></script>
 </body>
 </html>
