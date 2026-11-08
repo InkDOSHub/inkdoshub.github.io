@@ -107,10 +107,17 @@ async function iniciar(id, avisar) {
   porta = await portaLivre();
   let saida = '';
   servidor = cp.spawn(exe, ['-m', arq, '--host', '127.0.0.1', '--port', String(porta), '-c', '8192', '-ngl', '99'], { windowsHide: true, cwd: path.dirname(exe) });
-  servidor.stderr.on('data', d => { saida = (saida + d).slice(-600); });
+  // whole log kept in ia\llama-server.log; on failure the lines that say why are shown
+  const log = path.join(PASTA(), 'llama-server.log');
+  const anotar = d => { saida = (saida + d).slice(-200000); };
+  servidor.stderr.on('data', anotar); servidor.stdout.on('data', anotar);
   servidor.on('exit', () => { servidor = null; modeloAtual = null; });
   for (let i = 0; i < 600; i++) {
-    if (!servidor) throw new Error('llama-server stopped: ' + saida.split('\n').filter(Boolean).slice(-2).join(' '));
+    if (!servidor) {
+      await fsp.writeFile(log, saida).catch(() => {});
+      const motivo = saida.split('\n').filter(l => /error|fail|unable|cannot|out of memory|exceed|alloc/i.test(l) && !/cleaning up|exiting due to/i.test(l)).slice(-4).join(' | ');
+      throw new Error('llama-server stopped: ' + (motivo || saida.split('\n').filter(Boolean).slice(-3).join(' | ')) + ' (log: ' + log + ')');
+    }
     if (await pronto(porta)) { modeloAtual = id; return true; }
     await new Promise(r => setTimeout(r, 500));
   }
