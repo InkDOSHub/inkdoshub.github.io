@@ -1,5 +1,5 @@
 // AI Chat (experimental): small GGUF models running on the device with wllama (llama.cpp in wasm).
-// The model comes from Hugging Face once, through the site's Worker (worker.js; Safari fails the direct download), and is kept in the browser cache.
+// The model comes from Hugging Face once, through the site's Worker (worker.js; Safari fails the direct download), and is kept as a file in the browser storage (OPFS).
 import { Wllama } from "./wllama/index.js";
 
 const MODELOS = [
@@ -28,30 +28,26 @@ async function carregar() {
   carregado = null;
   aviso("Loading the model…");
   const m = MODELOS[i], url = new URL("./modelos/" + m.file, import.meta.url).href;
-  // same way as the Recorder: Cache API + our own download (wllama's OPFS download stalls in Safari)
-  const cache = window.caches ? await caches.open("inkdoshub-ia").catch(() => null) : null;
-  let r = cache ? await cache.match(url) : null, blob;
-  if (r) blob = await r.blob();
-  if (blob && blob.size < 1e7) { blob = null; if (cache) await cache.delete(url).catch(() => {}); } // broken copy from an earlier try
-  if (!blob) {
-    // "inkoff": the site's service worker lets it pass straight to the network
-    r = await fetch(url + "?inkoff=1");
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const total = +r.headers.get("content-length") || 0, partes = [], leitor = r.body.getReader();
-    let lidos = 0;
-    for (;;) {
-      const p = await leitor.read();
-      if (p.done) break;
-      partes.push(p.value); lidos += p.value.length;
-      aviso("Downloading the model (only the first time)… " + (total ? Math.round(lidos / total * 100) + "%" : Math.round(lidos / 1048576) + " MB"));
-    }
-    blob = new Blob(partes);
-    if (blob.size < 1e7) throw new Error("download incomplete (" + blob.size + " bytes)");
-    // not awaited (Safari takes long); Safari may keep an empty body for a big Blob, so check and drop it
-    const tam = blob.size;
-    if (cache) cache.put(url, new Response(blob)).then(() => cache.match(url)).then((c) => c && c.blob())
-      .then((b) => { if (b && b.size !== tam) cache.delete(url); }).catch(() => cache.delete(url).catch(() => {}));
+  // kept as a file in the browser storage (OPFS), written by baixar.js a piece at a time
+  const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle("ia", { create: true });
+  const completo = await dir.getFileHandle(m.file + ".ok").then(() => true, () => false);
+  let arq = completo ? await dir.getFileHandle(m.file).then((h) => h.getFile()).catch(() => null) : null;
+  if (!arq || arq.size < 1e7) {
+    await new Promise((ok, falha) => {
+      const w = new Worker("baixar.js");
+      w.onmessage = (e) => {
+        const d = e.data;
+        if (d.lidos) aviso("Downloading the model (only the first time)… " + (d.total ? Math.round(d.lidos / d.total * 100) + "%" : Math.round(d.lidos / 1048576) + " MB"));
+        if (d.fim) { w.terminate(); ok(); }
+        if (d.erro) { w.terminate(); falha(new Error(d.erro)); }
+      };
+      w.onerror = (e) => { w.terminate(); falha(new Error(e.message || "download worker failed")); };
+      w.postMessage({ url: url + "?inkoff=1", nome: m.file });
+    });
+    arq = await (await dir.getFileHandle(m.file)).getFile();
   }
+  if (window.caches) caches.delete("inkdoshub-ia").catch(() => {}); // old copies from the first version
+  const blob = arq;
   aviso("Loading the model…");
   await wllama.loadModel([blob], { n_ctx: 2048 });
   carregado = i;
