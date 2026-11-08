@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 1;
+  var BENCH_VERSION = 2;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -176,7 +176,7 @@
     var mv = ua.match(/(?:CriOS|Chrome|FxiOS|Firefox|EdgiOS|Edg|OPR)\/([\d.]+)/) || ua.match(/Version\/([\d.]+)/);
     i.browserVersion = mv ? mv[1] : "?";
     i.engine = /AppleWebKit/.test(ua) && !/Chrome\//.test(ua) ? "WebKit" : /Chrome\//.test(ua) ? "Blink" : /Gecko\//.test(ua) ? "Gecko" : "?";
-    var ios = ua.match(/OS (\d+)_(\d+)/);
+    var ios = ua.match(/(?:iPhone|CPU) OS (\d+)_(\d+)/);
     if (/iPhone/.test(ua)) { i.os = "iOS"; i.device = "iPhone"; }
     else if (/iPad/.test(ua) || ipad) { i.os = "iPadOS"; i.device = "iPad"; }
     else if (/Android/.test(ua)) { i.os = "Android"; i.device = "Android"; }
@@ -186,7 +186,8 @@
     else if (/Linux/.test(ua)) { i.os = "Linux"; i.device = "PC"; }
     else { i.os = "?"; i.device = "?"; }
     i.osVersion = ios ? ios[1] + "." + ios[2] : ((ua.match(/Android ([\d.]+)|Windows NT ([\d.]+)|Mac OS X ([\d_]+)/) || []).slice(1).filter(Boolean)[0] || "?").replace(/_/g, ".");
-    if (/iPad|iPhone|iPod/.test(i.device) && /Version\/([\d.]+)/.test(ua)) i.osVersion += " (WebKit " + ua.match(/Version\/([\d.]+)/)[1] + ")";
+    // iPad asks for the desktop site, so its UA says "Mac OS X 10_15_7"; the Safari version follows the iPadOS version
+    if (ipad && /Version\/([\d.]+)/.test(ua)) i.osVersion = ua.match(/Version\/([\d.]+)/)[1] + " (from Safari version)";
     try {
       if (n.userAgentData && n.userAgentData.getHighEntropyValues) {
         var h = await n.userAgentData.getHighEntropyValues(["architecture", "bitness", "model", "platformVersion"]);
