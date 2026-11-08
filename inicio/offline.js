@@ -127,21 +127,6 @@
     var status = el("p", "off-status", ""); status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
     caixa.appendChild(status);
     var dizer = function (txt, tipo) { status.textContent = txt; status.className = "off-status" + (tipo ? " " + tipo : ""); };
-    // Windows app: button to update the app itself (the shell), besides the stored apps
-    if (N && N.atualizarApp) {
-      var win = !N.plataforma || N.plataforma === "win32", rotulo = win ? "Update the Windows app" : "Update the app";
-      var app = el("button", "off-atualizar off-app", t(rotulo)); app.type = "button";
-      caixa.appendChild(app);
-      N.versao().then(function (v) { app.textContent = t(rotulo) + " · " + v; }).catch(function () {});
-      app.onclick = function () {
-        app.disabled = true; dizer(t("Checking for updates…"));
-        N.atualizarApp(function (p) { dizer(t("Downloading the new app… {pct}%", { pct: p })); }).then(function (r) {
-          if (r === "pronto") dizer(t("Installing the new app… it reopens by itself."), "ok");
-          else if (r === "atual") { dizer(t(win ? "The Windows app is up to date" : "The app is up to date") + " ✓", "ok"); app.disabled = false; }
-          else { dizer(t("Failed, try again"), "erro"); app.disabled = false; }
-        }, function () { dizer(t("Failed, try again"), "erro"); app.disabled = false; });
-      };
-    }
     var espaco = el("p", "off-espaco", "");
     caixa.appendChild(espaco);
     // app data outside the offline copy (Wine C: drive, JIT and transcription caches, app databases) grows with use
@@ -258,7 +243,7 @@
       estado().then(function (m) {
         var quer = guardados(m); quer.__base = 1;
         return sincronizar(quer, function (p) { atualizar.textContent = t("Update") + " " + p + "%"; });
-      }).then(function () { atualizar.textContent = t("Update"); dizer(t("Up to date") + " ✓", "ok"); marcarBotao(); if (aviso) { aviso.remove(); aviso = null; } desenhar(); },
+      }).then(appTambem).then(function (r) { atualizar.textContent = t("Update"); if (r === "pronto") { dizer(t("Installing the new app… it reopens by itself."), "ok"); return; } dizer(t("Up to date") + " ✓", "ok"); marcarBotao(); if (aviso) { aviso.remove(); aviso = null; } desenhar(); },
         function () { atualizar.textContent = t("Update"); dizer(t("Failed, try again"), "erro"); }).then(function () { atualizar.disabled = false; contar(); });
     };
     desenhar(); contar();
@@ -278,19 +263,24 @@
     for (k in velho) if (!(k in novo)) return true;
     return false;
   }
+  // Windows app: the same single "Update" also updates the app itself (no separate button)
+  function appTambem() {
+    if (!N || !N.atualizarApp) return null;
+    return N.atualizarApp(function () {}).catch(function () { return null; });
+  }
   var aviso = null;
   estado().then(function (m) {
     btn.setAttribute("aria-pressed", m ? "true" : "false");
     if (!m) return;
     site().then(function (n) {
-      if (n.versao === m.versao || !mudou(m, n)) return;
+      if (n.versao === m.versao || !mudou(m, n) || document.querySelector(".aviso-atualizar")) return;
       info.textContent = t("Update available");
       aviso = el("button", "aviso-atualizar", t("Update available") + " · " + t("Update")); aviso.type = "button";
       aviso.addEventListener("click", function () {
         aviso.disabled = true; aviso.textContent = "…";
         var quer = guardados(m); quer.__base = 1;
         sincronizar(quer, function (p) { aviso.textContent = t("Update") + " " + p + "%"; })
-          .then(function () { location.reload(); }, function () { aviso.disabled = false; aviso.textContent = t("Failed, try again"); });
+          .then(appTambem).then(function (r) { if (r !== "pronto") location.reload(); }, function () { aviso.disabled = false; aviso.textContent = t("Failed, try again"); });
       });
       document.body.appendChild(aviso);
     }).catch(function () {});
