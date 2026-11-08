@@ -118,6 +118,9 @@
       itens.forEach(function (x) { var li = document.createElement("li"); if (cls) li.className = x.n; var b = document.createElement("b"); b.textContent = x.t; var sm = document.createElement("small"); sm.textContent = x.d; li.appendChild(b); li.appendChild(sm); ul.appendChild(li); });
     }
     lista("achados", A, true);
+    var lp = document.getElementById("limpar-p"), lk = document.getElementById("limpar");
+    lp.hidden = !(pior === "alto" || pior === "medio"); lk.textContent = T("Remover ameaças (cópia limpa)", "Remove threats (clean copy)");
+    lk.onclick = function () { try { sessionStorage.setItem("inkdos-return", location.href); } catch (_) {} };
     lista("links", links.map(function (u) { return { t: u.length > 80 ? u.slice(0, 80) + "…" : u, d: "" }; }), false);
     var tl = document.getElementById("t-links"); tl.hidden = !links.length; tl.textContent = T("Links encontrados", "Links found");
     document.getElementById("t-det").textContent = T("Detalhes", "Details");
