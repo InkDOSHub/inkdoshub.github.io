@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 9;
+  var BENCH_VERSION = 10;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -489,7 +489,7 @@
     finally { w1.forEach(function (w) { w.terminate(); }); }
     var n = navigator.brave ? 16 : Math.min(Math.max(navigator.hardwareConcurrency || 4, 2), 16), ws = [];
     for (var k = 0; k < n; k++) ws.push(await mkWorker());
-    try { var b = await renderTiles(ws, 60000, false); M("render.tileN", b.samples / b.ms, "full 320x240 image, " + (SPP * 4) + " samples/pixel, " + n + " threads, " + (b.ms / 1000).toFixed(1) + " s"); }
+    try { var b = await renderTiles(ws, 5000, true); M("render.tileN", b.samples / b.ms, (b.samples / 1e6).toFixed(1) + " M samples, " + n + " threads, " + (b.ms / 1000).toFixed(1) + " s"); }
     finally { ws.forEach(function (w) { w.terminate(); }); }
   }
   function furGL() {
@@ -519,16 +519,17 @@
     var ush = gl.getUniformLocation(p, "sh"), ut = gl.getUniformLocation(p, "t"), SHELLS = 64, t = 0;
     gl.uniform1f(gl.getUniformLocation(p, "asp"), c.width / c.height);
     gl.viewport(0, 0, c.width, c.height); gl.clearColor(0.05, 0.05, 0.08, 1);
-    var k = 1, prev = 0;
+    var px = new Uint8Array(4);
     return {
-      // draws as many frames per screen refresh as the GPU can, so the score is not capped at 60 fps
-      tick: function (now) { if (prev) { var dt = now - prev; if (dt < 20) k++; else if (dt > 34 && k > 1) k--; } prev = now; for (var q = 0; q < k; q++) this.frame(); return k; },
+      busy: 0,
+      // each screen refresh: draw finished frames (waiting for the GPU) for ~12 ms; fps = frames / GPU-busy time, so it is not capped by the screen
+      tick: function () { var t0 = performance.now(), n = 0, el; do { this.frame(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); n++; el = performance.now() - t0; } while (el < 12); this.busy += el; return n; },
       frame: function () { gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.uniform1f(ut, t += 0.012); for (var s = 0; s < SHELLS; s++) { gl.uniform1f(ush, s / (SHELLS - 1)); gl.drawElements(gl.TRIANGLES, ib.length, gl.UNSIGNED_SHORT, 0); } },
       fim: function () { var l = gl.getExtension("WEBGL_lose_context"); if (l) l.loseContext(); tela("b-fur", false); }
     };
   }
   function furFps(f, ms) {
-    return new Promise(function (ok) { var n = 0, t0 = 0; function go(now) { if (!t0) { t0 = now; f.tick(now); } else n += f.tick(now); if (now - t0 < ms) requestAnimationFrame(go); else ok(n / ((now - t0) / 1000)); } requestAnimationFrame(go); });
+    return new Promise(function (ok) { var n = 0, t0 = 0; function go(now) { if (!t0) { t0 = now; f.tick(); f.busy = 0; } else n += f.tick(); if (now - t0 < ms) requestAnimationFrame(go); else ok(n / (f.busy / 1000)); } requestAnimationFrame(go); });
   }
   async function furTest() {
     var f = furGL();
@@ -546,19 +547,20 @@
       for (var k = 0; k < n; k++) ws.push(await mkWorker());
       f = furGL();
       var cpuRun = renderTiles(ws, 300000, true, function (x) { am += x; });
-      (function loop(now) { if (!vivo) return; if (now) fr += f.tick(now); requestAnimationFrame(loop); })();
+      (function loop(now) { if (!vivo) return; if (now) fr += f.tick(); requestAnimationFrame(loop); })();
       var t0 = performance.now(), last = t0;
       while (performance.now() - t0 < 300000 && !parar) {
         // sample only after a full 10 s window: late timers (iOS) gave empty windows and spikes
         await sleep(500); var now = performance.now(); if (now - last < 10000) continue;
         var dt = (now - last) / 1000; last = now;
-        cpu.push(+(am / dt / 1000).toFixed(1)); gpu.push(+(fr / dt).toFixed(1)); am = 0; fr = 0;
+        if (document.hidden) { log("  t=" + Math.round((now - t0) / 1000) + "s skipped (page hidden)"); am = 0; fr = 0; f.busy = 0; continue; }
+        cpu.push(+(am / dt / 1000).toFixed(1)); gpu.push(+(f.busy ? fr / (f.busy / 1000) : 0).toFixed(1)); am = 0; fr = 0; f.busy = 0;
         var el = Math.round((now - t0) / 1000);
         log("  t=" + el + "s cpu " + cpu[cpu.length - 1] + " k samples/s · gpu " + gpu[gpu.length - 1] + " fps");
         $("b-estado").textContent = "🔥 Stress " + Math.floor(el / 60) + ":" + String(el % 60).padStart(2, "0") + " / 5:00 · CPU " + cpu[cpu.length - 1] + " k samples/s · GPU " + gpu[gpu.length - 1] + " fps";
       }
       vivo = false; parar = true; await cpuRun.catch(function (e) { log("stress cpu: " + err(e)); });
-      function keep(a) { if (a.length < 4) return null; var s = (a[0] + a[1]) / 2, e = (a[a.length - 1] + a[a.length - 2] + a[a.length - 3]) / 3; return s ? e / s * 100 : null; }
+      function keep(a) { a = a.filter(function (x) { return x > 0; }); if (a.length < 4) return null; var s = (a[0] + a[1]) / 2, e = (a[a.length - 1] + a[a.length - 2] + a[a.length - 3]) / 3; return s ? e / s * 100 : null; }
       R.series = { step: 10, cpu: cpu, gpu: gpu };
       M("stress.cpu", keep(cpu), cpu.length ? "start " + cpu[0] + " · end " + cpu[cpu.length - 1] + " k samples/s · " + cpu.length * 10 + " s" : "");
       M("stress.gpu", keep(gpu), gpu.length ? "start " + gpu[0] + " · end " + gpu[gpu.length - 1] + " fps" : "");
