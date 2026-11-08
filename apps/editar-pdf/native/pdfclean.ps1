@@ -59,7 +59,16 @@ $delim = '(?=[\s/<>\[\]\(\)%{}]|$)'
 $latin1 = [Text.Encoding]::GetEncoding(28591)   # byte-for-byte
 $tmpDir = Join-Path $env:TEMP 'inkdos-pdfclean'
 New-Item -ItemType Directory -Force $tmpDir | Out-Null
-$tmpA = Join-Path $tmpDir 'a.pdf'; $tmpB = Join-Path $tmpDir 'b.pdf'
+$tmpA = Join-Path $tmpDir 'a.pdf'; $tmpB = Join-Path $tmpDir 'b.pdf'; $tmpS = Join-Path $tmpDir 's.pdf'
+# Long paths (over 260 chars) need the \\?\ prefix for .NET file calls.
+function LP($p) { if ($p.StartsWith('\\')) { $p } else { '\\?\' + $p } }
+# qpdf prints recoverable warnings to stderr (exit code 3). Run it with errors not stopping the script,
+# otherwise Windows PowerShell turns any stderr text into a failure.
+function Invoke-Qpdf {
+  $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+  try { & $qpdf @args 2>&1 | Out-Null } finally { $ErrorActionPreference = $old }
+  return $LASTEXITCODE
+}
 
 $files = Get-ChildItem -LiteralPath $src -Recurse -File -Filter *.pdf -ErrorAction SilentlyContinue |
   Where-Object { $inPlace -or -not $_.FullName.StartsWith($dst, [StringComparison]::OrdinalIgnoreCase) }
@@ -72,13 +81,14 @@ foreach ($f in $files) {
   $i++
   $rel = $f.FullName.Substring($src.Length)
   Write-Progress -Activity 'Cleaning PDFs' -Status $rel -PercentComplete ([int](100 * $i / [Math]::Max($total,1)))
-  $out = if ($inPlace) { Join-Path $tmpDir 'c.pdf' } else { Join-Path $dst $rel }
-  if (-not $inPlace) { New-Item -ItemType Directory -Force (Split-Path $out) | Out-Null }
+  $out = Join-Path $dst $rel
+  if (-not $inPlace) { [IO.Directory]::CreateDirectory((LP (Split-Path $out))) | Out-Null }
   $status = ''; $found = ''; $note = ''
   try {
     # 1) unpack: decrypt (no-password files), no object streams, classic xref, streams left as-is
-    & $qpdf --decrypt --object-streams=disable --stream-data=preserve --no-original-object-ids -- "$($f.FullName)" "$tmpA" 2>$null | Out-Null
-    if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { throw "qpdf could not read it (password-protected or damaged), exit $LASTEXITCODE" }
+    [IO.File]::Copy((LP $f.FullName), $tmpS, $true)
+    $code = Invoke-Qpdf --decrypt --object-streams=disable --stream-data=preserve --no-original-object-ids -- $tmpS $tmpA
+    if ($code -ne 0 -and $code -ne 3) { throw "qpdf could not read it (password-protected or badly damaged), exit $code" }
     $text = [IO.File]::ReadAllText($tmpA, $latin1)
     $hits = @()
     foreach ($n in $risky) {
@@ -91,20 +101,21 @@ foreach ($f in $files) {
       }
     }
     if ($hits.Count -eq 0) {
-      if (-not $inPlace) { Copy-Item -LiteralPath $f.FullName -Destination $out -Force }
+      if (-not $inPlace) { [IO.File]::Copy((LP $f.FullName), (LP $out), $true) }
       $status = 'clean (unchanged)'; $nClean++
     } else {
       [IO.File]::WriteAllText($tmpB, $text, $latin1)
       # 2) repack: rebuild and recompress; also proves the result is a valid PDF
-      & $qpdf --object-streams=generate --compress-streams=y -- "$tmpB" "$out" 2>$null | Out-Null
-      if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { throw "rebuild failed, exit $LASTEXITCODE" }
-      if ($inPlace) { Copy-Item -LiteralPath $out -Destination $f.FullName -Force }
+      $tmpC = Join-Path $tmpDir 'c.pdf'
+      $code = Invoke-Qpdf --object-streams=generate --compress-streams=y -- $tmpB $tmpC
+      if ($code -ne 0 -and $code -ne 3) { throw "rebuild failed, exit $code" }
+      [IO.File]::Copy($tmpC, $(if ($inPlace) { LP $f.FullName } else { LP $out }), $true)
       $found = $hits -join ' '; $status = 'cleaned'; $nFixed++
       Write-Host "CLEANED  $rel  ->  $found" -ForegroundColor Yellow
     }
   } catch {
     $status = 'FAILED (left as is)'; $note = $_.Exception.Message; $nFail++
-    if (-not $inPlace -and (Test-Path -LiteralPath $out)) { Remove-Item -LiteralPath $out -Force }
+    if (-not $inPlace -and [IO.File]::Exists((LP $out))) { [IO.File]::Delete((LP $out)) }
     Write-Host "FAILED   $rel  ->  $note" -ForegroundColor Red
   }
   $report.Add([pscustomobject]@{ File = $rel; Status = $status; Found = $found; Note = $note; SizeKB = [int]($f.Length / 1KB) })
