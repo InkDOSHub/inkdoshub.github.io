@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 11;
+  var BENCH_VERSION = 12;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -262,8 +262,10 @@
     var ipad = /Macintosh/.test(ua) && n.maxTouchPoints > 1;
     var xeos = Object.keys(window).filter(function (k) { return /^__edb/.test(k); }).length > 0;
     i.browser = xeos ? "XeOS" : n.brave ? "Brave" : /EdgA?\/|EdgiOS/.test(ua) ? "Edge" : /OPR\/|OPiOS/.test(ua) ? "Opera" : /FxiOS|Firefox\//.test(ua) ? "Firefox" : /CriOS|Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Unknown";
+    var hub = ua.match(/InkDOSHub\/([\d.]+)/);
+    if (hub) { i.browser = "InkDOS Hub app (Electron)"; }
     if (n.brave && !xeos) { try { if (!(await n.brave.isBrave())) i.browser = "Chrome"; } catch (e) {} }
-    var mv = ua.match(/(?:CriOS|Chrome|FxiOS|Firefox|EdgiOS|Edg|OPR)\/([\d.]+)/) || ua.match(/Version\/([\d.]+)/);
+    var mv = hub ? [0, hub[1] + " · Chromium " + ((ua.match(/Chrome\/([\d.]+)/) || [0, "?"])[1])] : ua.match(/(?:CriOS|Chrome|FxiOS|Firefox|EdgiOS|Edg|OPR)\/([\d.]+)/) || ua.match(/Version\/([\d.]+)/);
     i.browserVersion = mv ? mv[1] : "?";
     i.engine = /AppleWebKit/.test(ua) && !/Chrome\//.test(ua) ? "WebKit" : /Chrome\//.test(ua) ? "Blink" : /Gecko\//.test(ua) ? "Gecko" : "?";
     var ios = ua.match(/(?:iPhone|CPU) OS (\d+)_(\d+)/);
@@ -376,7 +378,7 @@
     }
     var secs = (performance.now() - t1) / 1000;
     M("net.ttfb", ttfb); M("net.stall", gap);
-    M("net.download", total * 8 / secs / 1e6, (total / 1048576).toFixed(1) + " MB in " + secs.toFixed(1) + " s");
+    M("net.download", total * 8 / secs / 1e6, (total / 1048576).toFixed(1) + " MB in " + secs.toFixed(1) + " s" + (/InkDOSHub\//.test(navigator.userAgent) ? " (Hub app: may come from the local copy, not the internet)" : ""));
     M("net.peak", peak || total * 8 / secs / 1e6);
     var buf = new Uint8Array(total), o = 0; parts.forEach(function (p) { buf.set(p, o); o += p.length; }); parts = null;
     try { var t2 = performance.now(); await WebAssembly.compile(buf); M("jit.wasmCompile", total / 1048576 / ((performance.now() - t2) / 1000)); }
@@ -392,7 +394,7 @@
     function shapes(n) { for (var k = 0; k < n; k++) { g.fillStyle = cols[k & 63]; var x = (k * 97) % 1000, y = (k * 61) % 1000; if (k & 1) g.fillRect(x, y, 40, 30); else { g.beginPath(); g.arc(x, y, 18, 0, 6.283); g.fill(); } } }
     var t0 = performance.now(), cnt = 0; while (performance.now() - t0 < 800) { shapes(500); g.getImageData(0, 0, 1, 1); cnt += 500; }
     M("gfx.canvas", cnt / (performance.now() - t0));
-    M("gfx.fps", await frames(2000, function () { shapes(3000); }), "3000 shapes per frame");
+    M("gfx.fps", await frames(2000, function () { shapes(3000); }), "3000 shapes per frame" + (document.hasFocus() ? "" : " · window was NOT in front (browser slows it down)"));
     try {
       var c2 = document.createElement("canvas"); c2.width = c2.height = 1024;
       var gl = c2.getContext("webgl2", { antialias: false }); if (!gl) throw new Error("no WebGL 2");
