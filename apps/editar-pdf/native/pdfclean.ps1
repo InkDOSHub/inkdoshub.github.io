@@ -85,7 +85,7 @@ function Get-LongPath($p) { if ($p.StartsWith('\\')) { $p } else { '\\?\' + $p }
 # otherwise Windows PowerShell turns any stderr text into a failure.
 function Invoke-Qpdf {
   $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-  try { & $qpdf @args 2>&1 | Out-Null } finally { $ErrorActionPreference = $old }
+  try { $script:qpdfMsg = (& $qpdf @args 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -match 'qpdf|error|password' } | Select-Object -Last 1) } finally { $ErrorActionPreference = $old }
   return $LASTEXITCODE
 }
 
@@ -115,7 +115,7 @@ foreach ($f in $files) {
     # 1) unpack: decrypt (no-password files), no object streams, classic xref, streams left as-is
     [IO.File]::Copy((Get-LongPath $f.FullName), $tmpS, $true)
     $code = Invoke-Qpdf --decrypt --object-streams=disable --stream-data=preserve --no-original-object-ids -- $tmpS $tmpA
-    if ($code -ne 0 -and $code -ne 3) { throw "qpdf could not read it (password-protected or badly damaged), exit $code" }
+    if ($code -ne 0 -and $code -ne 3) { throw "qpdf could not read it (password-protected or badly damaged), exit $($code): $($script:qpdfMsg -replace [regex]::Escape($tmpS), 'file')" }
     $text = [IO.File]::ReadAllText($tmpA, $latin1)
     $hits = @()
     foreach ($n in $risky) {
