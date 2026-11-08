@@ -668,7 +668,7 @@ function mostrarAvisoApp() {
   if (!w || !instaladorPronto) return;
   const pt = /^pt/i.test(app.getLocale());
   const txt = pt ? 'Nova versão do app · Reiniciar' : 'New app version · Restart';
-  w.webContents.executeJavaScript('(function(){if(document.getElementById("hub-app-novo"))return;var b=document.createElement("button");b.id="hub-app-novo";b.type="button";b.className="aviso-atualizar";b.style.bottom="64px";b.textContent=' +
+  w.webContents.executeJavaScript('(function(){if(document.getElementById("hub-app-novo")||document.querySelector(".aviso-atualizar"))return;var b=document.createElement("button");b.id="hub-app-novo";b.type="button";b.className="aviso-atualizar";b.style.bottom="64px";b.textContent=' +
     JSON.stringify(txt) + ';b.onclick=function(){b.disabled=true;b.textContent="…";window.inkHubNativo&&window.inkHubNativo.reiniciarAtualizando()};document.body.appendChild(b)})()').catch(() => {});
 }
 function instalarAtualizacao(relancar) {

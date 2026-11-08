@@ -170,7 +170,7 @@
     editando = !editando;
     grade.classList.toggle("editando", editando);
     botaoEditar.setAttribute("aria-pressed", String(editando));
-    botaoEditar.textContent = editando ? t("Done") : t("Customize");
+    botaoEditar.querySelector("span").textContent = editando ? t("Done") : t("Customize");
     if (editando) marcas(); else Array.prototype.forEach.call(grade.querySelectorAll(".marca"), function (m) { m.remove(); });
   });
   // capture phase: in edit mode a tap hides/removes instead of opening (inicio.js opens the cards)
