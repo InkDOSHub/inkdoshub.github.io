@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 5;
+  var BENCH_VERSION = 6;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -22,7 +22,7 @@
   // ---------- metric definitions (ref = value that scores 1000; lower = smaller is better) ----------
   var CATS = [
     ["cpu1", "CPU single-core"], ["cpuN", "CPU multi-core"], ["mem", "Memory"], ["disk", "Storage (disk)"],
-    ["jit", "JIT + WebAssembly"], ["net", "Network"], ["gfx", "Graphics + GPU"], ["media", "Media"]
+    ["jit", "JIT + WebAssembly"], ["net", "Network"], ["gfx", "Graphics + GPU"], ["render", "Rendering"], ["media", "Media"]
   ];
   var KERNELS = [
     ["int", "Integer (JS)", "Mops/s", 500], ["float", "Floating point (JS)", "Mops/s", 200],
@@ -58,6 +58,10 @@
   def("gfx.canvas", "gfx", "Canvas 2D drawing", "k shapes/s", 500);
   def("gfx.webgl", "gfx", "WebGL 2 shader compute", "GFLOPS", 200);
   def("gfx.webgpu", "gfx", "WebGPU compute", "GFLOPS", 300);
+  def("render.tris", "render", "3D triangles (WebGL)", "M tri/s", 500);
+  def("render.fps3d", "render", "3D scene, 1M triangles", "fps", 60);
+  def("render.dom", "render", "Page build (2000 elements)", "k elements/s", 100);
+  def("render.layout", "render", "Page relayout (2000 elements)", "layouts/s", 100);
   def("media.encode", "media", "Video encode 1080p (WebCodecs)", "fps", 60);
 
   // ---------- worker with the CPU and memory kernels ----------
@@ -336,6 +340,52 @@
       dv.destroy(); M("gfx.webgpu", COUNT * ITER * 4 * 2 / ms2 / 1e6, ms2.toFixed(1) + " ms per pass");
     } catch (e) { M("gfx.webgpu", null, err(e)); }
   }
+  async function render() {
+    // 3D: a mesh of 250k lit triangles drawn with WebGL 2, first as fast as possible, then in a 1M-triangle animated scene
+    try {
+      var c = document.createElement("canvas"); c.width = 1280; c.height = 720;
+      var gl = c.getContext("webgl2", { antialias: true }); if (!gl) throw new Error("no WebGL 2");
+      function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+      var p = gl.createProgram();
+      gl.attachShader(p, sh(gl.VERTEX_SHADER, "#version 300 es\nin vec3 p;in vec3 n;uniform float t;out vec3 vn;void main(){float c=cos(t),s=sin(t);vec3 q=vec3(p.x*c-p.z*s,p.y,p.x*s+p.z*c);vn=vec3(n.x*c-n.z*s,n.y,n.x*s+n.z*c);gl_Position=vec4(q.xy*0.9,q.z*0.5+0.5,1.0);}"));
+      gl.attachShader(p, sh(gl.FRAGMENT_SHADER, "#version 300 es\nprecision highp float;in vec3 vn;out vec4 o;void main(){float d=max(dot(normalize(vn),normalize(vec3(0.4,0.7,0.6))),0.0);o=vec4(vec3(0.15,0.35,0.8)*(0.25+d)+pow(d,24.0)*0.6,1.0);}"));
+      gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      gl.useProgram(p); gl.enable(gl.DEPTH_TEST);
+      var T = 250000, v = new Float32Array(T * 18), seed = 7;
+      function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff * 2 - 1; }
+      for (var i = 0; i < T; i++) {
+        var cx = rnd(), cy = rnd(), cz = rnd(), nx = rnd(), ny = rnd(), nz = rnd();
+        for (var k = 0; k < 3; k++) { var o = i * 18 + k * 6; v[o] = cx + rnd() * 0.03; v[o + 1] = cy + rnd() * 0.03; v[o + 2] = cz + rnd() * 0.03; v[o + 3] = nx; v[o + 4] = ny; v[o + 5] = nz; }
+      }
+      var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, v, gl.STATIC_DRAW); v = null;
+      var lp = gl.getAttribLocation(p, "p"), ln = gl.getAttribLocation(p, "n");
+      gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 3, gl.FLOAT, false, 24, 0);
+      gl.enableVertexAttribArray(ln); gl.vertexAttribPointer(ln, 3, gl.FLOAT, false, 24, 12);
+      var ut = gl.getUniformLocation(p, "t"), px = new Uint8Array(4), tt = 0;
+      gl.viewport(0, 0, 1280, 720); gl.clearColor(0, 0, 0, 1);
+      function frame(n) { gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); for (var r = 0; r < n; r++) { gl.uniform1f(ut, tt += 0.01); gl.drawArrays(gl.TRIANGLES, 0, T * 3); } }
+      frame(1); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      var t0 = performance.now(), drawn = 0;
+      while (performance.now() - t0 < 1000) { frame(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); drawn += 4 * T; }
+      M("render.tris", drawn / ((performance.now() - t0) / 1000) / 1e6, "1280x720, depth test, lit");
+      M("render.fps3d", await frames(2000, function () { frame(4); }), "4 x 250k triangles per frame");
+      var lose = gl.getExtension("WEBGL_lose_context"); if (lose) lose.loseContext();
+    } catch (e) { M("render.tris", null, err(e)); M("render.fps3d", null, "skipped"); }
+    // Page: build 2000 styled elements, then force full relayouts by changing the container width
+    var box = document.createElement("div");
+    box.style.cssText = "position:fixed;left:0;top:0;width:900px;opacity:0.01;pointer-events:none;z-index:-1;display:flex;flex-wrap:wrap;font:13px sans-serif";
+    document.body.appendChild(box);
+    try {
+      var t1 = performance.now(), N = 2000, html = [];
+      for (var j = 0; j < N; j++) html.push('<div style="flex:1 1 120px;margin:2px;padding:4px;border:1px solid #ccc;border-radius:6px;box-shadow:0 1px 2px #0002"><b>Item ' + j + '</b> <span>lorem ipsum dolor sit amet ' + (j * 7 % 13) + '</span></div>');
+      box.innerHTML = html.join(""); box.offsetHeight;
+      M("render.dom", N / (performance.now() - t1));
+      var t2 = performance.now(), L = 0;
+      while (performance.now() - t2 < 1000) { box.style.width = (700 + (L % 2) * 200) + "px"; box.offsetHeight; L++; }
+      M("render.layout", L / ((performance.now() - t2) / 1000));
+    } catch (e) { M("render.dom", null, err(e)); }
+    finally { box.remove(); }
+  }
   async function media() {
     if (!window.VideoEncoder) { M("media.encode", null, "WebCodecs not supported"); return; }
     var W = 1920, H = 1080, cfg = null;
@@ -367,7 +417,7 @@
       M("cpuN.speedup", geo(a.map(function (x) { return x * 1000; })) / 1000, n + " threads");
     }],
     ["Memory", memoria], ["JIT", jit], ["Storage", disco], ["Network + WebAssembly compile", rede],
-    ["Graphics + GPU", graficos], ["Media", media]
+    ["Graphics + GPU", graficos], ["Rendering", render], ["Media", media]
   ];
   async function rodar() {
     parar = false;
