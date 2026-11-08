@@ -94,11 +94,17 @@ function Write-Entry($e, $text) {
   try { $s.SetLength(0); $b = (New-Object Text.UTF8Encoding($false)).GetBytes($text); $s.Write($b, 0, $b.Length) } finally { $s.Dispose() }
 }
 
+# Opens a zip; if it is not a valid zip, closes the file again (otherwise it stays locked
+# and every later file fails with "access denied / in use").
+function Open-Zip($stream, $zmode) {
+  try { return New-Object IO.Compression.ZipArchive($stream, $zmode) } catch { $stream.Dispose(); throw }
+}
+
 # Cleans the Office zip at $path in place. Returns @{ Changed; Found }.
 function Clear-Ooxml($path) {
   $found = New-Object Collections.Generic.List[string]
   $cnt = @{ vba = 0; ext = 0; ole = 0 }
-  $zip = New-Object IO.Compression.ZipArchive([IO.File]::Open($path, 'Open', 'ReadWrite'), [IO.Compression.ZipArchiveMode]::Update)
+  $zip = Open-Zip ([IO.File]::Open($path, 'Open', 'ReadWrite')) ([IO.Compression.ZipArchiveMode]::Update)
   try {
     $entries = @($zip.Entries)
     $removed = @()
@@ -149,7 +155,7 @@ function Clear-Ooxml($path) {
   if ($ax) { $note += "ActiveX control(s): $ax (not removed)" }
   if ($dde) { $note += 'DDE field/link (not removed)' }
   # Check the result is still a readable Office package.
-  $z = New-Object IO.Compression.ZipArchive([IO.File]::OpenRead($path), [IO.Compression.ZipArchiveMode]::Read)
+  $z = Open-Zip ([IO.File]::OpenRead($path)) ([IO.Compression.ZipArchiveMode]::Read)
   try {
     if (-not ($z.Entries | Where-Object { $_.FullName -eq '[Content_Types].xml' })) { throw 'not an Office file (no [Content_Types].xml)' }
     foreach ($e in $z.Entries) { if ($e.FullName -match '\.rels$') { [void][xml](Read-Entry $e) } }
@@ -167,7 +173,7 @@ function Test-LegacyMacros($full) {
 function Get-ArchiveNames($full, $ext) {
   if ($ext -eq 'zip') {
     try {
-      $z = New-Object IO.Compression.ZipArchive([IO.File]::OpenRead((Get-LongPath $full)), [IO.Compression.ZipArchiveMode]::Read)
+      $z = Open-Zip ([IO.File]::OpenRead((Get-LongPath $full))) ([IO.Compression.ZipArchiveMode]::Read)
       try { return ,@($z.Entries | ForEach-Object { $_.FullName }) } finally { $z.Dispose() }
     } catch { if (-not $sevenZip) { throw "could not read zip: $($_.Exception.Message)" } }
   }
@@ -191,6 +197,7 @@ if ($retryCsv) {
 } else {
   Write-Host 'Listing files (nothing is downloaded yet)...'
   $files = Get-ChildItem -LiteralPath $src -Recurse -File -Force -ErrorAction SilentlyContinue |
+    Where-Object { -not $_.Name.StartsWith('._') } |   # macOS "._" metadata files, not real documents
     Where-Object { ($inPlace -or -not $_.FullName.StartsWith($dst, [StringComparison]::OrdinalIgnoreCase)) -and
       ($mode -eq 'loose' -or ($(if ($mode -eq 'office') { $ooxmlExt + $legacyExt } else { $archExt }) -contains (Get-Ext $_.Name))) }
 }
