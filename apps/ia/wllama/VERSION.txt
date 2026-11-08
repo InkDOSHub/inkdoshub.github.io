@@ -1,4 +1,5 @@
-wllama 3.8.1 (llama.cpp in WebAssembly)
+wllama 2.4.0 (llama.cpp in WebAssembly)
 https://github.com/ngxson/wllama
-npm @wllama/wllama 3.8.1, files esm/index.js and esm/wasm/wllama.wasm
+npm @wllama/wllama 2.4.0: esm/index.js, esm/single-thread/wllama.wasm, esm/multi-thread/wllama.wasm
+Kept on 2.x: wllama 3.x is built with Memory64, which Safari/WebKit does not support.
 License: MIT
