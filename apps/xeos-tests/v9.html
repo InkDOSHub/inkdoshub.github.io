@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head><script src="../../assets/endereco.js?v=2"></script>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
+<title>Browser tests · InkDOS Hub</title>
+<script src="../../assets/tema.js?v=1"></script>
+<link rel="stylesheet" href="../../assets/info.css?v=2">
+<link rel="stylesheet" href="../../assets/barra.css?v=5">
+<script src="../../assets/barra.js?v=5" defer></script>
+<script src="../../assets/icones.js?v=2" defer></script>
+<style>
+  [hidden]{display:none!important}
+  .ink-main{overflow:auto;padding:16px}
+  .box{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+  .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .acao{font-weight:600;background:#2563eb;border-color:#2563eb;color:#fff}
+  .nota{color:var(--muted);font-size:13px;margin:0}
+  textarea{font:inherit;width:100%;min-height:60px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit;padding:8px;box-sizing:border-box}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  td{border-bottom:1px solid var(--border);padding:4px 6px;vertical-align:top;word-break:break-word}
+  td:first-child{white-space:nowrap;font-family:ui-monospace,Consolas,monospace}
+  .abas{display:flex;gap:4px;padding:4px;border-radius:10px;background:var(--border);align-self:center}
+  .abas button{font:inherit;font-weight:600;border:0;border-radius:8px;padding:7px 18px;background:transparent;color:inherit;cursor:pointer}
+  .abas button[aria-selected=true]{background:var(--bg);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .aba{display:flex;flex-direction:column;gap:12px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+  .card{border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:5px}
+  .card.big{grid-column:1/-1}.card.big .card-t{font-size:15px}
+  .card-t{font-size:12px;font-weight:600;color:var(--muted)}
+  .barra{display:flex;align-items:center;gap:6px;height:16px}
+  .barra span{height:10px;border-radius:5px;min-width:2px}.barra b{font-size:13px}
+  .card.big .barra{height:22px}.card.big .barra span{height:14px}.card.big .barra b{font-size:18px}
+  .legenda{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:12px;font-size:13px}
+  .legenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+  th{text-align:left;font-size:12px;padding:4px 6px;border-bottom:2px solid var(--border)}
+  td.cat{font-weight:700;color:#2563eb;padding-top:12px;font-family:inherit}
+  #b-log{font:11px/1.4 ui-monospace,Consolas,monospace;color:var(--muted);white-space:pre-wrap;margin:0;max-height:7em;overflow:hidden}
+  input[type=text]{font:inherit;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit;padding:6px 8px;flex:1;min-width:180px}
+  .ok{color:#16a34a}.no{color:#dc2626}.na{color:var(--muted)}
+</style>
+</head>
+<body class="ink-app" data-simbolo="../../assets/inkdoshub-icone-32.png?v=8">
+<header class="ink-bar">
+  <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
+  <span class="ink-title">XeOS tests</span>
+  <span class="ink-spacer"></span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p><b>Full tests</b> checks what this browser (XeOS) can do: storage, files, media, pop-ups and other APIs. "Run all tests" runs every test in a row (about 12 minutes, memory limit last); every result is saved in the browser, so nothing is lost if the page reloads; "Stop" ends the test that is running and keeps the results so far. Tests that need a tap, may reload the page or need a second window stay as buttons below. "Download report" saves a numbered JSON file; "Upload to GitHub" opens the results folder, where you drop the file and click "Commit changes".</p><p><b>Benchmark</b> scores the browser like Geekbench (1000 = reference device). "Save PDF" keeps the charts and the data; on another platform, "Load PDF to compare" and "Save comparison PDF". If something fails, "Download log" and send the file.</p></div></details>
+</header>
+<main class="ink-main"><div class="box">
+  <div class="abas" role="tablist">
+    <button type="button" role="tab" data-aba="full" aria-selected="true">Full tests</button>
+    <button type="button" role="tab" data-aba="bench" aria-selected="false">Benchmark</button>
+  </div>
+  <section class="aba" id="aba-bench" hidden>
+    <p class="nota">Measures the browser on this device: CPU single and multi-core, memory, storage, JIT and WebAssembly, network, graphics, GPU, 3D and page rendering and video encoding (~1–2 minutes, keep the page open). Save the PDF on each platform, then load the other PDFs here to make a comparison PDF.</p>
+    <div class="linha">
+      <button class="ink-btn acao" id="b-rodar" type="button">Run benchmark</button>
+      <button class="ink-btn" id="b-stress" type="button">Stress test (5 min)</button>
+      <button class="ink-btn" id="b-parar" type="button" hidden>Stop</button>
+      <span class="nota" id="b-estado"></span>
+    </div>
+    <div class="linha"><input type="text" id="b-label" placeholder="Name of this platform (e.g. XeOS iPad)" aria-label="Platform name"></div>
+    <canvas id="b-tiles" width="320" height="240" hidden style="width:100%;max-width:640px;align-self:center;border-radius:10px;image-rendering:pixelated;background:#111"></canvas>
+    <canvas id="b-fur" width="1280" height="720" hidden style="width:100%;max-width:640px;align-self:center;border-radius:10px;background:#000"></canvas>
+    <div class="cards" id="b-cards"></div>
+    <div class="linha" id="b-saida" hidden>
+      <button class="ink-btn acao" id="b-pdf" type="button">Save PDF</button>
+      <label class="ink-btn" style="cursor:pointer">Load PDF to compare<input type="file" id="b-arquivo" accept=".pdf,.json,application/pdf,application/json" multiple hidden></label>
+      <button class="ink-btn acao" id="b-comp" type="button" hidden>Save comparison PDF</button>
+      <button class="ink-btn" id="b-limpar" type="button">Clear loaded</button>
+    </div>
+    <p class="nota" id="b-lista"></p>
+    <table id="b-tabela"></table>
+    <div class="linha">
+      <button class="ink-btn" id="b-logcopiar" type="button">Copy log</button>
+      <button class="ink-btn" id="b-logbaixar" type="button">Download log</button>
+    </div>
+    <pre id="b-log"></pre>
+  </section>
+  <section class="aba" id="aba-full">
+  <div class="linha">
+    <button class="ink-btn acao" id="rodar" type="button">Run all tests</button>
+    <button class="ink-btn" id="parar" type="button" hidden>Stop</button>
+    <span class="nota" id="estado"></span>
+  </div>
+  <div class="linha" id="extras" hidden>
+    <button class="ink-btn" type="button" data-t="camera">Camera + mic</button>
+    <button class="ink-btn" type="button" data-t="tela">Screen capture</button>
+    <button class="ink-btn" type="button" data-t="popup">Pop-up</button>
+    <button class="ink-btn" type="button" data-t="clipboard">Clipboard</button>
+    <button class="ink-btn" type="button" data-t="arquivo">Pick file</button>
+    <button class="ink-btn" type="button" data-t="download">Download</button>
+    <button class="ink-btn" type="button" data-t="salvar">Save file</button>
+    <button class="ink-btn" type="button" data-t="dialogos">confirm / alert</button>
+    <button class="ink-btn" type="button" data-t="camera4k">Camera 1080p / 4K</button>
+    <button class="ink-btn" type="button" data-t="persistir">Keep storage</button>
+    <button class="ink-btn" type="button" data-t="tela2">Fullscreen + wake lock</button>
+    <button class="ink-btn" type="button" data-t="bench">CPU + GPU + network benchmark (~1 min)</button>
+    <button class="ink-btn" type="button" data-t="reais">Real tasks: video, photo, GPU peak (~1 min)</button>
+    <button class="ink-btn" type="button" data-t="emu">Emulation + multithreading (~1 min)</button>
+    <button class="ink-btn" type="button" data-t="tresd">3D performance (~20 s)</button>
+    <button class="ink-btn" type="button" data-t="swap">Disk as memory (swap, ~30 s)</button>
+    <button class="ink-btn" type="button" data-t="gpumem">GPU memory limit (may reload)</button>
+    <button class="ink-btn" type="button" data-t="termico">Thermal: 5 min full load</button>
+    <button class="ink-btn" type="button" data-t="janelas">Talk to another window</button>
+    <button class="ink-btn" type="button" data-t="segurar">Hold 2 GB (for the 2-window test)</button>
+    <button class="ink-btn" type="button" data-t="memoria">Memory limit (may reload)</button>
+    <button class="ink-btn" type="button" data-t="fundo">Background (60 s, minimize it)</button>
+  </div>
+  <textarea id="notas" placeholder="Notes (optional): what you saw, XeOS version, device..." hidden></textarea>
+  <div class="linha" id="saida" hidden>
+    <button class="ink-btn acao" id="baixar" type="button">Download report</button>
+    <a class="ink-btn" id="github" style="text-decoration:none" target="_blank" rel="noopener" href="https://github.com/InkDOSHub/inkdoshub.github.io/upload/main/xeos-tests/results">Upload to GitHub</a>
+    <button class="ink-btn" id="copiar" type="button">Copy JSON</button>
+  </div>
+  <table id="tabela"></table>
+  </section>
+</div></main>
+<script src="app.js?v=15"></script>
+<script src="bench-v9.js?v=1"></script>
+<script src="abas.js?v=1"></script>
+</body>
+</html>
