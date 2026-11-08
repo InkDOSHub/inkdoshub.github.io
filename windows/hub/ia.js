@@ -48,7 +48,9 @@ async function garantirLlama(avisar) {
   let exe = acharServer(pasta);
   if (exe) return exe;
   avisar('Downloading llama.cpp…');
-  const rel = JSON.parse(await curl(['-fsSL', '-H', 'User-Agent: InkDOS-Hub', 'https://api.github.com/repos/ggml-org/llama.cpp/releases/latest'], 60000));
+  // the newest bNNNN build with Windows files ("latest" may point to another kind of release, e.g. v0.9.0)
+  const rels = JSON.parse(await curl(['-fsSL', '-H', 'User-Agent: InkDOS-Hub', 'https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=10'], 60000));
+  const rel = rels.find(r => (r.assets || []).some(x => /^llama-.*bin-win-cpu-x64\.zip$/.test(x.name))) || {};
   // NVIDIA → CUDA build (+ its runtime); other graphics card (Vulkan driver present) → Vulkan; no graphics card → CPU build
   const lista = rel.assets || [], nv = await temNvidia();
   const cudart = c => lista.find(x => x.name === 'cudart-' + c.name.replace(/^llama-b\d+-/, 'llama-'));
