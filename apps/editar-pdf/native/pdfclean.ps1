@@ -1,5 +1,5 @@
 # InkDOS PDF Clean - bulk-neutralize risky PDF features (Windows).
-# Run in PowerShell:  irm https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1 | iex
+# Run in PowerShell:  irm "https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1?$(Get-Random)" | iex
 #
 # Walks a folder (or external drive) recursively and writes a copy of every PDF
 # to a separate output folder, keeping the folder structure (originals untouched).
