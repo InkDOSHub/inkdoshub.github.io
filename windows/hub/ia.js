@@ -104,25 +104,36 @@ async function iniciar(id, avisar) {
   const arq = await garantirModelo(m, avisar);
   parar();
   avisar('Loading the model…');
+  // first on the graphics card; if llama-server dies while loading (an 8 GB PC died silently with the 7B on the
+  // integrated card), once more on the processor only, with a smaller context
+  const gpu = await subir(exe, arq, ['-c', '8192', '-ngl', '99']);
+  if (gpu === true) { modeloAtual = id; return true; }
+  avisar('Loading the model on the processor…');
+  const cpu = await subir(exe, arq, ['-c', '4096', '-ngl', '0', '--device', 'none']);
+  if (cpu === true) { modeloAtual = id; return true; }
+  throw new Error('llama-server stopped. Graphics card: ' + gpu + ' — Processor: ' + cpu + ' (log: ' + path.join(PASTA(), 'llama-server.log') + ')');
+}
+// starts llama-server; true when ready, otherwise the reason (lines that say why + exit code)
+async function subir(exe, arq, extra) {
   porta = await portaLivre();
-  let saida = '';
-  servidor = cp.spawn(exe, ['-m', arq, '--host', '127.0.0.1', '--port', String(porta), '-c', '8192', '-ngl', '99'], { windowsHide: true, cwd: path.dirname(exe) });
-  // whole log kept in ia\llama-server.log; on failure the lines that say why are shown
-  const log = path.join(PASTA(), 'llama-server.log');
+  let saida = '', codigo = null;
+  const p = cp.spawn(exe, ['-m', arq, '--host', '127.0.0.1', '--port', String(porta)].concat(extra), { windowsHide: true, cwd: path.dirname(exe) });
+  servidor = p;
   const anotar = d => { saida = (saida + d).slice(-200000); };
-  servidor.stderr.on('data', anotar); servidor.stdout.on('data', anotar);
-  servidor.on('exit', () => { servidor = null; modeloAtual = null; });
-  for (let i = 0; i < 600; i++) {
-    if (!servidor) {
-      await fsp.writeFile(log, saida).catch(() => {});
-      const motivo = saida.split('\n').filter(l => /error|fail|unable|cannot|out of memory|exceed|alloc/i.test(l) && !/cleaning up|exiting due to/i.test(l)).slice(-4).join(' | ');
-      throw new Error('llama-server stopped: ' + (motivo || saida.split('\n').filter(Boolean).slice(-3).join(' | ')) + ' (log: ' + log + ')');
+  p.stderr.on('data', anotar); p.stdout.on('data', anotar);
+  p.on('exit', c => { codigo = c; if (servidor === p) { servidor = null; modeloAtual = null; } });
+  for (let i = 0; i < 1200; i++) {
+    if (servidor !== p) {
+      await fsp.appendFile(path.join(PASTA(), 'llama-server.log'), '\n==== ' + extra.join(' ') + ' (exit ' + codigo + ')\n' + saida).catch(() => {});
+      const motivo = saida.split('\n').filter(l => /error|fail|unable|cannot|out of memory|exceed|alloc/i.test(l) && !/cleaning up|exiting due to/i.test(l)).slice(-3).join(' | ');
+      const hex = codigo != null && (codigo < 0 || codigo > 255) ? ' 0x' + (codigo >>> 0).toString(16) : '';
+      return (motivo || 'no error message') + ' [exit ' + codigo + hex + ']';
     }
-    if (await pronto(porta)) { modeloAtual = id; return true; }
+    if (await pronto(porta)) return true;
     await new Promise(r => setTimeout(r, 500));
   }
   parar();
-  throw new Error('llama-server did not start in time');
+  return 'did not start in 10 minutes';
 }
 
 // one chat answer, streamed (OpenAI-compatible endpoint of llama-server)
@@ -164,4 +175,4 @@ function registrar(doSite) {
   ipcMain.handle('hub:ia-parar', e => { const r = conversas.get(e.sender.id); if (r) r.destroy(); return true; });
   app.on('will-quit', parar);
 }
-module.exports = { registrar };
+module.exports = { registrar, _teste: { subir, acharServer, PASTA, parar } };
