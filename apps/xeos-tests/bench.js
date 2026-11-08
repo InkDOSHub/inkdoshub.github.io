@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 7;
+  var BENCH_VERSION = 8;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -493,7 +493,9 @@
     finally { ws.forEach(function (w) { w.terminate(); }); }
   }
   function furGL() {
-    var c = tela("b-fur", true), gl = c.getContext("webgl2", { antialias: true }); if (!gl) throw new Error("no WebGL 2");
+    // a fresh canvas every time: the old one keeps its lost WebGL context
+    var old = $("b-fur"), c = old.cloneNode(false); old.replaceWith(c); c.hidden = false;
+    var gl = c.getContext("webgl2", { antialias: true }); if (!gl) throw new Error("no WebGL 2");
     function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
     var p = gl.createProgram();
     gl.attachShader(p, sh(gl.VERTEX_SHADER, "#version 300 es\nin vec3 p;in vec3 n;in vec2 uv;uniform float sh;uniform float t;uniform float asp;out vec2 vu;out vec3 vn;out float vs;" +
@@ -517,14 +519,20 @@
     var ush = gl.getUniformLocation(p, "sh"), ut = gl.getUniformLocation(p, "t"), SHELLS = 64, t = 0;
     gl.uniform1f(gl.getUniformLocation(p, "asp"), c.width / c.height);
     gl.viewport(0, 0, c.width, c.height); gl.clearColor(0.05, 0.05, 0.08, 1);
+    var k = 1, prev = 0;
     return {
+      // draws as many frames per screen refresh as the GPU can, so the score is not capped at 60 fps
+      tick: function (now) { if (prev) { var dt = now - prev; if (dt < 20) k++; else if (dt > 34 && k > 1) k--; } prev = now; for (var q = 0; q < k; q++) this.frame(); return k; },
       frame: function () { gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.uniform1f(ut, t += 0.012); for (var s = 0; s < SHELLS; s++) { gl.uniform1f(ush, s / (SHELLS - 1)); gl.drawElements(gl.TRIANGLES, ib.length, gl.UNSIGNED_SHORT, 0); } },
       fim: function () { var l = gl.getExtension("WEBGL_lose_context"); if (l) l.loseContext(); tela("b-fur", false); }
     };
   }
+  function furFps(f, ms) {
+    return new Promise(function (ok) { var n = 0, t0 = 0; function go(now) { if (!t0) { t0 = now; f.tick(now); } else n += f.tick(now); if (now - t0 < ms) requestAnimationFrame(go); else ok(n / ((now - t0) / 1000)); } requestAnimationFrame(go); });
+  }
   async function furTest() {
     var f = furGL();
-    try { await frames(1000, f.frame); M("render.fur", await frames(8000, f.frame), "1280x720, MSAA, 64 shells x 16k triangles"); }
+    try { M("render.fur", await furFps(f, 8000), "frames rendered per second (not capped by the screen), 1280x720, MSAA, 64 shells x 16k triangles"); }
     finally { f.fim(); }
   }
   // Stress: tile render on every core + fur donut on the GPU for 5 minutes, sampled every 10 s
@@ -538,7 +546,7 @@
       for (var k = 0; k < n; k++) ws.push(await mkWorker());
       f = furGL();
       var cpuRun = renderTiles(ws, 300000, true, function (x) { am += x; });
-      (function loop() { if (!vivo) return; f.frame(); fr++; requestAnimationFrame(loop); })();
+      (function loop(now) { if (!vivo) return; if (now) fr += f.tick(now); requestAnimationFrame(loop); })();
       var t0 = performance.now(), last = t0;
       while (performance.now() - t0 < 300000 && !parar) {
         await sleep(10000 - ((performance.now() - t0) % 10000));
