@@ -45,7 +45,7 @@
         ],
         "application/vnd.apple.pages": [
           ".pages"
-        ],
+        ], "application/x-wordcraft": [".wordcraft"],
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
           ".xlsx"
         ],
@@ -75,7 +75,7 @@
         ],
         "application/vnd.apple.keynote": [
           ".key"
-        ],
+        ], "application/x-deckcraft": [".deckcraft"],
         "application/pdf": [
           ".pdf"
         ],
