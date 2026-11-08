@@ -12,7 +12,11 @@ const conversa = $("conversa"), estado = $("estado"), texto = $("texto"), enviar
 // while loading, the engine's last log line is shown, so a stall in XeOS shows where it stopped
 let mostrarLog = false;
 const registro = (...a) => { console.log(...a); if (mostrarLog) aviso("Loading the model… " + a.map(String).join(" ").slice(0, 160)); };
-const wllama = new Wllama({ default: new URL("./wllama/wllama.wasm", import.meta.url).href },
+// wllama 2.x on purpose: 3.x needs Memory64, which Safari does not have
+const wllama = new Wllama({
+  "single-thread/wllama.wasm": new URL("./wllama/single-thread/wllama.wasm", import.meta.url).href,
+  "multi-thread/wllama.wasm": new URL("./wllama/multi-thread/wllama.wasm", import.meta.url).href
+},
   { logger: { debug: registro, log: registro, warn: registro, error: registro } });
 let carregado = null, ocupado = false, parar = null;
 const historico = [{ role: "system", content: "You are a helpful assistant. Answer briefly, in the user's language." }];
@@ -73,10 +77,9 @@ $("form").addEventListener("submit", async (e) => {
     const saida = bolha("ia", "…");
     let r = "";
     parar = new AbortController();
-    await wllama.createChatCompletion({
-      messages: historico.slice(-13), max_tokens: 512, temperature: 0.7, top_p: 0.9,
-      stream: true, abortSignal: parar.signal,
-      onData: (c) => { const d = c.choices && c.choices[0] && c.choices[0].delta; if (d && d.content) { r += d.content; saida.textContent = r; conversa.scrollTop = conversa.scrollHeight; } }
+    await wllama.createChatCompletion(historico.slice(-13), {
+      nPredict: 512, sampling: { temp: 0.7, top_p: 0.9 }, abortSignal: parar.signal,
+      onNewToken: (_t, _p, atual) => { r = atual; saida.textContent = r; conversa.scrollTop = conversa.scrollHeight; }
     }).catch((err) => { if (!parar.signal.aborted) throw err; });
     historico.push({ role: "assistant", content: r || "…" });
   } catch (err) {
