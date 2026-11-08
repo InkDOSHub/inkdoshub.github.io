@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 4;
+  var BENCH_VERSION = 5;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -360,7 +360,8 @@
     ["Identify device", async function () { R.info = await identify(); R.label = R.label || autoLabel(R.info); $("b-label").value = R.label; Object.keys(R.info).forEach(function (k) { log("  " + k + ": " + R.info[k]); }); }],
     ["CPU single-core", function () { return cpu(1, "cpu1"); }],
     ["CPU multi-core", async function () {
-      var n = Math.min(Math.max(navigator.hardwareConcurrency || 4, 2), 16);
+      // Brave randomizes hardwareConcurrency (fingerprint protection), so it gets 16 workers to fill every core
+      var n = navigator.brave ? 16 : Math.min(Math.max(navigator.hardwareConcurrency || 4, 2), 16);
       await cpu(n, "cpuN");
       var a = KERNELS.map(function (k) { var s = R.metrics["cpu1." + k[0]], m = R.metrics["cpuN." + k[0]]; return s && m && s.v && m.v ? m.v / s.v : 0; });
       M("cpuN.speedup", geo(a.map(function (x) { return x * 1000; })) / 1000, n + " threads");
