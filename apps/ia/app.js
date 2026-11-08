@@ -44,7 +44,7 @@ async function carregar() {
       aviso("Downloading the model (only the first time)… " + (total ? Math.round(lidos / total * 100) + "%" : Math.round(lidos / 1048576) + " MB"));
     }
     blob = new Blob(partes);
-    if (cache) await cache.put(url, new Response(blob)).catch(() => {});
+    if (cache) cache.put(url, new Response(blob)).catch(() => {}); // not awaited: Safari can take long here
   }
   aviso("Loading the model…");
   await wllama.loadModel([blob], { n_ctx: 2048 });
