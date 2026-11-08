@@ -35,7 +35,7 @@ async function carregar() {
   if (blob && blob.size < 1e7) { blob = null; if (cache) await cache.delete(url).catch(() => {}); } // broken copy from an earlier try
   if (!blob) {
     // "inkoff": the site's service worker lets it pass straight to the network
-    r = await fetch(url + "?inkoff=1", { cache: "no-store" });
+    r = await fetch(url + "?inkoff=1");
     if (!r.ok) throw new Error("HTTP " + r.status);
     const total = +r.headers.get("content-length") || 0, partes = [], leitor = r.body.getReader();
     let lidos = 0;
@@ -47,7 +47,10 @@ async function carregar() {
     }
     blob = new Blob(partes);
     if (blob.size < 1e7) throw new Error("download incomplete (" + blob.size + " bytes)");
-    if (cache) cache.put(url, new Response(blob)).catch(() => {}); // not awaited: Safari can take long here
+    // not awaited (Safari takes long); Safari may keep an empty body for a big Blob, so check and drop it
+    const tam = blob.size;
+    if (cache) cache.put(url, new Response(blob)).then(() => cache.match(url)).then((c) => c && c.blob())
+      .then((b) => { if (b && b.size !== tam) cache.delete(url); }).catch(() => cache.delete(url).catch(() => {}));
   }
   aviso("Loading the model…");
   await wllama.loadModel([blob], { n_ctx: 2048 });
