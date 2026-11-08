@@ -145,6 +145,11 @@ foreach ($f in $files) {
     if (-not $inPlace -and [IO.File]::Exists((Get-LongPath $out))) { [IO.File]::Delete((Get-LongPath $out)) }
     Write-Host "FAILED   $rel  ->  $note" -ForegroundColor Red
   }
+  if ($wasCloud) {
+    # Put it back to online-only so the PC doesn't fill up (OneDrive frees it after syncing).
+    $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    try { & attrib.exe +U -P "$($f.FullName)" 2>&1 | Out-Null } finally { $ErrorActionPreference = $old }
+  }
   $report.Add([pscustomobject]@{ File = $rel; Status = $status; Found = $found; Note = $note; SizeKB = [int]($f.Length / 1KB); Root = $src })
 }
 Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
