@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('inkHubNativo', {
       ipcRenderer.on('hub:ia-texto', ouvir);
       return ipcRenderer.invoke('hub:ia-conversar', mensagens).finally(() => ipcRenderer.removeListener('hub:ia-texto', ouvir));
     },
+    site: url => ipcRenderer.invoke('hub:ia-site', url),
     parar: () => ipcRenderer.invoke('hub:ia-parar')
   },
   estado: () => ipcRenderer.invoke('hub:estado'),

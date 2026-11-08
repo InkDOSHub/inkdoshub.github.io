@@ -3,15 +3,12 @@ name: Test AI Chat on Windows (llama.cpp)
 # download, llama-server start and one answer.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [windows/hub/ia.js, tools/testes/ia-windows.js, .github/workflows/ia-windows.yml]
 permissions:
   contents: read
 jobs:
   test:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

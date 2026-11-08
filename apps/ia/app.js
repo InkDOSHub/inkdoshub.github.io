@@ -1,6 +1,7 @@
 // AI Chat (experimental): small GGUF models running on the device with wllama (llama.cpp in wasm).
 // The model comes from Hugging Face once, through the site's Worker (worker.js; Safari fails the direct download), and is kept as a file in the browser storage (OPFS).
 import { Wllama } from "./wllama/index.js";
+import { extrair, ehImagem } from "./extrair.js";
 
 const MODELOS = [
   { repo: "Qwen/Qwen2.5-0.5B-Instruct-GGUF", file: "qwen2.5-0.5b-instruct-q4_k_m.gguf" },
@@ -65,20 +66,84 @@ async function carregar() {
   const blob = arq;
   aviso("Loading the model… (" + Math.round(blob.size / 1048576) + " MB, " + (navigator.hardwareConcurrency || "?") + " cores)");
   mostrarLog = true;
-  try { await wllama.loadModel([blob], { n_ctx: 2048 }); } finally { mostrarLog = false; }
+  try { await wllama.loadModel([blob], { n_ctx: 4096 }); } finally { mostrarLog = false; }
   carregado = i;
   aviso(wllama.isMultithread() ? "Model ready." : "Model ready (single thread, slower).");
+}
+
+// attachments (+ button): text of files on every device; images and web pages only in the Windows app
+let anexos = [];
+const LIMITE = nativo ? 18000 : 8000;      // characters of attachments per message
+const ORCAMENTO = nativo ? 22000 : 11000;  // characters of conversation sent to the model (context 8192 / 4096 tokens)
+if (nativo) $("arquivo").accept += ",image/*";
+$("mais").addEventListener("click", () => $("arquivo").click());
+const dataUrl = (f) => new Promise((ok, falha) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => falha(r.error); r.readAsDataURL(f); });
+function mostrarAnexos() {
+  const box = $("anexos"); box.textContent = "";
+  anexos.forEach((x, i) => {
+    const c = document.createElement("div"); c.className = "anexo";
+    const n = document.createElement("span"); n.textContent = (x.imagem ? "🖼 " : "📄 ") + x.nome;
+    const b = document.createElement("button"); b.type = "button"; b.textContent = "✕"; b.setAttribute("aria-label", "Remove");
+    b.onclick = () => { anexos.splice(i, 1); mostrarAnexos(); };
+    c.append(n, b); box.appendChild(c);
+  });
+}
+$("arquivo").addEventListener("change", async () => {
+  for (const f of Array.from($("arquivo").files)) {
+    try {
+      if (ehImagem(f)) {
+        if (!nativo) throw new Error("images only in the Windows app");
+        anexos.push({ nome: f.name, imagem: await dataUrl(f) });
+      } else {
+        aviso("Reading " + f.name + "…");
+        anexos.push({ nome: f.name, texto: (await extrair(f)).trim() });
+        estado.remove();
+      }
+    } catch (err) { aviso("Could not read " + f.name + ": " + (err && err.message || err)); }
+  }
+  $("arquivo").value = ""; mostrarAnexos();
+});
+// what is sent: the newest messages that fit in the budget; images only in the last message
+const tamanho = (m) => (typeof m.content === "string" ? m.content : m.content[0].text).length;
+function montar() {
+  const out = []; let usado = 0;
+  for (let i = historico.length - 1; i > 0; i--) {
+    let m = historico[i];
+    if (out.length && typeof m.content !== "string") m = { role: m.role, content: m.content[0].text };
+    usado += tamanho(m);
+    if (out.length && usado > ORCAMENTO) break;
+    out.unshift(m);
+  }
+  return [historico[0]].concat(out);
 }
 
 $("form").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (ocupado) { if (parar) parar.abort(); return; }
   const t = texto.value.trim();
-  if (!t) return;
+  if (!t && !anexos.length) return;
   ocupado = true; enviar.textContent = "Stop"; texto.value = "";
-  bolha("eu", t);
-  historico.push({ role: "user", content: t });
+  const meus = anexos; anexos = []; mostrarAnexos();
+  bolha("eu", (t || "") + (meus.length ? (t ? "\n" : "") + meus.map((x) => (x.imagem ? "🖼 " : "📄 ") + x.nome).join("\n") : ""));
+  let user = null;
   try {
+    // Windows app: web pages whose address is in the message are read by the Hub
+    if (nativo && nativo.site) for (const url of (t.match(/https?:\/\/[^\s<>"']+/g) || []).slice(0, 3)) {
+      aviso("Reading " + url + "…");
+      try { const p = await nativo.site(url); meus.push({ nome: url, texto: (p.titulo ? p.titulo + "\n\n" : "") + p.texto }); }
+      catch (err) { meus.push({ nome: url, texto: "(could not open this page: " + (err && err.message || err) + ")" }); }
+    }
+    let corpo = t || "Analyze the attached content.", resta = LIMITE;
+    for (const x of meus.filter((y) => y.texto != null)) {
+      let tx = x.texto;
+      if (tx.length > resta) tx = tx.slice(0, Math.max(0, resta)) + "\n[… cut: only the first " + Math.max(0, resta) + " of " + x.texto.length + " characters fit]";
+      resta -= tx.length;
+      corpo += "\n\n[Attached: " + x.nome + "]\n" + tx;
+    }
+    const imagens = meus.filter((y) => y.imagem);
+    if (imagens.length && nativo && !/vl/.test(modelo.value)) { modelo.value = "qwenvl3b"; aviso("Images: using Qwen 2.5 VL 3B, which can see images."); }
+    user = { role: "user", content: imagens.length ? [{ type: "text", text: corpo }].concat(imagens.map((y) => ({ type: "image_url", image_url: { url: y.imagem } }))) : corpo };
+    historico.push(user);
     if (!nativo) await carregar();
     if (nativo) await nativo.iniciar(modelo.value, aviso);
     estado.remove();
@@ -86,20 +151,18 @@ $("form").addEventListener("submit", async (e) => {
     let r = "";
     if (nativo) {
       parar = { abort: () => nativo.parar(), signal: {} };
-      r = await nativo.conversar(historico.slice(-13), (t) => { saida.textContent = t; conversa.scrollTop = conversa.scrollHeight; });
+      r = await nativo.conversar(montar(), (x) => { saida.textContent = x; conversa.scrollTop = conversa.scrollHeight; });
       saida.textContent = r || "…";
-      historico.push({ role: "assistant", content: r || "…" });
-      ocupado = false; parar = null; enviar.textContent = "Send";
-      return;
+    } else {
+      parar = new AbortController();
+      await wllama.createChatCompletion(montar(), {
+        nPredict: 512, sampling: { temp: 0.7, top_p: 0.9 }, abortSignal: parar.signal,
+        onNewToken: (_t, _p, atual) => { r = atual; saida.textContent = r; conversa.scrollTop = conversa.scrollHeight; }
+      }).catch((err) => { if (!parar.signal.aborted) throw err; });
     }
-    parar = new AbortController();
-    await wllama.createChatCompletion(historico.slice(-13), {
-      nPredict: 512, sampling: { temp: 0.7, top_p: 0.9 }, abortSignal: parar.signal,
-      onNewToken: (_t, _p, atual) => { r = atual; saida.textContent = r; conversa.scrollTop = conversa.scrollHeight; }
-    }).catch((err) => { if (!parar.signal.aborted) throw err; });
     historico.push({ role: "assistant", content: r || "…" });
   } catch (err) {
-    historico.pop();
+    if (user && historico[historico.length - 1] === user) historico.pop();
     aviso("Error: " + (err && err.message || err) + (nativo ? "" : ". Try Qwen 0.5B."));
   }
   ocupado = false; parar = null; enviar.textContent = "Send";
