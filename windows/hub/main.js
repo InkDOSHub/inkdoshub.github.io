@@ -843,6 +843,26 @@ app.whenReady().then(async () => {
     return { usado, livre };
   });
   // Offline "Update" also checks for a new version of the app itself (the notice appears once the installer is downloaded)
+  // Native benchmark (tests page): runs the open script from the site (7-Zip, DiskSpd/dd, STREAM, smallpt...)
+  // in a hidden PowerShell or bash, streams its log lines to the page and returns the result JSON.
+  let bench = null;
+  ipcMain.handle('hub:bench-nativo', async (e, opcoes) => {
+    if (bench) return { erro: 'already running' };
+    const saida = await fsp.mkdtemp(path.join(app.getPath('temp'), 'inkbench-'));
+    const env = Object.assign({}, process.env, { INKBENCH_OUT: saida, OUT_DIR: saida, STRESS: opcoes && opcoes.stress ? '1' : '0' });
+    const url = SITE + 'apps/xeos-tests/native/' + (WIN ? 'inkbench.ps1' : 'inkbench.sh') + '?v=' + Date.now();
+    bench = WIN
+      ? cp.spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', "irm '" + url + "' | iex"], { env, windowsHide: true })
+      : cp.spawn('bash', ['-c', "curl -fsSL '" + url + "' | bash"], { env });
+    const linha = b => String(b).split(/\r?\n/).filter(Boolean).forEach(l => { if (!e.sender.isDestroyed()) e.sender.send('hub:bench-linha', l); });
+    bench.stdout.on('data', linha); bench.stderr.on('data', linha);
+    await new Promise(ok => { bench.on('close', ok); bench.on('error', err => { linha('ERROR ' + err.message); ok(); }); });
+    bench = null;
+    const arq = (await fsp.readdir(saida).catch(() => [])).find(n => n.endsWith('.json'));
+    if (!arq) return { erro: 'no result file (see the log)' };
+    try { return { resultado: JSON.parse((await fsp.readFile(path.join(saida, arq), 'utf8')).replace(/^﻿/, '')) }; } catch (err) { return { erro: err.message }; }
+  });
+  ipcMain.handle('hub:bench-parar', () => { if (bench) { try { WIN ? cp.execFile('taskkill', ['/pid', String(bench.pid), '/t', '/f']) : bench.kill(); } catch (_) {} } return true; });
   ipcMain.handle('hub:sincronizar', (e, ids) => { procurarVersaoNova(); return sincronizar(ids, p => { if (!e.sender.isDestroyed()) e.sender.send('hub:progresso', p); }); });
 
   // opened by a file (Open with / default app): only that file's app; otherwise, the home screen

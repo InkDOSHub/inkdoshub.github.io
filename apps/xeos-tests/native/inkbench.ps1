@@ -8,7 +8,7 @@ $ErrorActionPreference = "Continue"; $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $VER = 1
 $W = Join-Path $env:TEMP ("inkbench-" + [guid]::NewGuid().ToString("N").Substring(0, 6)); New-Item -ItemType Directory $W | Out-Null
-$OutDir = [Environment]::GetFolderPath("Desktop"); if (-not $OutDir) { $OutDir = $HOME }
+$OutDir = if ($env:INKBENCH_OUT) { $env:INKBENCH_OUT } else { [Environment]::GetFolderPath("Desktop") }; if (-not $OutDir) { $OutDir = $HOME }
 $LOG = New-Object System.Collections.Generic.List[string]; $T0 = Get-Date
 function Log($m) { $l = "[{0,7:N2}s] {1}" -f ((Get-Date) - $T0).TotalSeconds, $m; $LOG.Add($l); Write-Host $l }
 $MET = [ordered]@{}
