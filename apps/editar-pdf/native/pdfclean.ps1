@@ -2,7 +2,8 @@
 # Run in PowerShell:  irm https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1 | iex
 #
 # Walks a folder (or external drive) recursively and writes a copy of every PDF
-# to a separate output folder, keeping the folder structure. Originals are never touched.
+# to a separate output folder, keeping the folder structure (originals untouched).
+# Or answer R at the output prompt to overwrite risky PDFs in place (e.g. OneDrive folders).
 # Risky features (same list as the PDF security checker): JavaScript/JS, OpenAction, AA,
 # Launch, EmbeddedFiles, RichMedia, XFA, SubmitForm, ImportData, GoToR.
 # How: qpdf (portable, auto-downloaded) unpacks object streams, the risky names are renamed
@@ -39,11 +40,18 @@ $src = (Read-Host 'Folder or drive to scan (e.g. D:\ or C:\Users\you\Books)').Tr
 if (-not (Test-Path -LiteralPath $src -PathType Container)) { throw "Folder not found: $src" }
 $src = (Resolve-Path -LiteralPath $src).ProviderPath.TrimEnd('\') + '\'
 $defOut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'PDF-clean'
-$dst = (Read-Host "Output folder [Enter = $defOut]").Trim('"', ' ')
-if (-not $dst) { $dst = $defOut }
-New-Item -ItemType Directory -Force $dst | Out-Null
-$dst = (Resolve-Path -LiteralPath $dst).ProviderPath.TrimEnd('\') + '\'
-if ($dst.StartsWith($src, [StringComparison]::OrdinalIgnoreCase)) { Write-Host 'Note: output is inside the scanned folder; it will be skipped.' }
+$dst = (Read-Host "Output folder [Enter = $defOut, R = replace the originals in place]").Trim('"', ' ')
+$inPlace = $dst -eq 'R' -or $dst -eq 'r'
+if ($inPlace) {
+  Write-Host 'IN-PLACE MODE: risky PDFs will be overwritten with the cleaned version. Clean and failed PDFs are left untouched.' -ForegroundColor Yellow
+  if ((Read-Host 'Type YES to continue') -ne 'YES') { Write-Host 'Cancelled.'; return }
+  $dst = $src
+} else {
+  if (-not $dst) { $dst = $defOut }
+  New-Item -ItemType Directory -Force $dst | Out-Null
+  $dst = (Resolve-Path -LiteralPath $dst).ProviderPath.TrimEnd('\') + '\'
+  if ($dst.StartsWith($src, [StringComparison]::OrdinalIgnoreCase)) { Write-Host 'Note: output is inside the scanned folder; it will be skipped.' }
+}
 
 # Names to neutralize. Each is renamed to a name of the same length (last letter -> 'X'/'Z').
 $risky = 'JavaScript','JS','OpenAction','AA','Launch','EmbeddedFiles','RichMedia','XFA','SubmitForm','ImportData','GoToR'
@@ -54,7 +62,7 @@ New-Item -ItemType Directory -Force $tmpDir | Out-Null
 $tmpA = Join-Path $tmpDir 'a.pdf'; $tmpB = Join-Path $tmpDir 'b.pdf'
 
 $files = Get-ChildItem -LiteralPath $src -Recurse -File -Filter *.pdf -ErrorAction SilentlyContinue |
-  Where-Object { -not $_.FullName.StartsWith($dst, [StringComparison]::OrdinalIgnoreCase) }
+  Where-Object { $inPlace -or -not $_.FullName.StartsWith($dst, [StringComparison]::OrdinalIgnoreCase) }
 $total = @($files).Count
 Write-Host "$total PDF(s) found."
 $report = New-Object System.Collections.Generic.List[object]
@@ -64,8 +72,8 @@ foreach ($f in $files) {
   $i++
   $rel = $f.FullName.Substring($src.Length)
   Write-Progress -Activity 'Cleaning PDFs' -Status $rel -PercentComplete ([int](100 * $i / [Math]::Max($total,1)))
-  $out = Join-Path $dst $rel
-  New-Item -ItemType Directory -Force (Split-Path $out) | Out-Null
+  $out = if ($inPlace) { Join-Path $tmpDir 'c.pdf' } else { Join-Path $dst $rel }
+  if (-not $inPlace) { New-Item -ItemType Directory -Force (Split-Path $out) | Out-Null }
   $status = ''; $found = ''; $note = ''
   try {
     # 1) unpack: decrypt (no-password files), no object streams, classic xref, streams left as-is
@@ -83,19 +91,20 @@ foreach ($f in $files) {
       }
     }
     if ($hits.Count -eq 0) {
-      Copy-Item -LiteralPath $f.FullName -Destination $out -Force
-      $status = 'clean (copied unchanged)'; $nClean++
+      if (-not $inPlace) { Copy-Item -LiteralPath $f.FullName -Destination $out -Force }
+      $status = 'clean (unchanged)'; $nClean++
     } else {
       [IO.File]::WriteAllText($tmpB, $text, $latin1)
       # 2) repack: rebuild and recompress; also proves the result is a valid PDF
       & $qpdf --object-streams=generate --compress-streams=y -- "$tmpB" "$out" 2>$null | Out-Null
       if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { throw "rebuild failed, exit $LASTEXITCODE" }
+      if ($inPlace) { Copy-Item -LiteralPath $out -Destination $f.FullName -Force }
       $found = $hits -join ' '; $status = 'cleaned'; $nFixed++
       Write-Host "CLEANED  $rel  ->  $found" -ForegroundColor Yellow
     }
   } catch {
-    $status = 'FAILED (not copied)'; $note = $_.Exception.Message; $nFail++
-    if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Force }
+    $status = 'FAILED (left as is)'; $note = $_.Exception.Message; $nFail++
+    if (-not $inPlace -and (Test-Path -LiteralPath $out)) { Remove-Item -LiteralPath $out -Force }
     Write-Host "FAILED   $rel  ->  $note" -ForegroundColor Red
   }
   $report.Add([pscustomobject]@{ File = $rel; Status = $status; Found = $found; Note = $note; SizeKB = [int]($f.Length / 1KB) })
