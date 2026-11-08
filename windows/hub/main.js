@@ -454,7 +454,9 @@ async function abrirTransferir() {
 // package manager, which checks the publisher's hash). If winget fails, opens the official download page.
 // Games, ROMs, BIOS and system images are not included: the person uses their own.
 const ehWine = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/wine/'); } catch (_) { return false; } };
+const ehJogos = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/jogos/'); } catch (_) { return false; } };
 const EMULADORES = [
+  { g: 'jogo', nome: 'Games (InkDOS Hub)', web: true, pt: 'Emulador do próprio Hub, sem instalar: PS1, SNES, N64, NES e GBA.', en: 'The Hub\'s own emulator, nothing to install: PS1, SNES, N64, NES and GBA.' },
   { g: 'vm', nome: 'VirtualBox', id: 'Oracle.VirtualBox', pub: /^Oracle\./i, menu: 'VirtualBox', site: 'https://www.virtualbox.org/wiki/Downloads', pt: 'Máquina virtual fácil: Linux, Windows e outros sistemas, com várias configurações.', en: 'Easy virtual machine: Linux, Windows and other systems, with many settings.' },
   { g: 'vm', nome: 'QEMU', id: 'SoftwareFreedomConservancy.QEMU', pub: /^(SoftwareFreedomConservancy|QEMU)\./i, menu: 'QEMU', site: 'https://www.qemu.org/download/#windows', pt: 'Emula quase qualquer processador (x86, ARM, RISC-V…). Mais técnico, por linha de comando.', en: 'Emulates almost any processor (x86, ARM, RISC-V…). More technical, command line.' },
   { g: 'vm', nome: 'Linux do Windows (WSL)', nomeEn: 'Windows Linux (WSL)', wsl: true, pt: 'Linux da Microsoft com desempenho quase nativo. É o mesmo do app Terminal.', en: 'Microsoft Linux with near-native performance. Same as the Terminal app.' },
@@ -534,16 +536,21 @@ async function abrirQemu(pasta) {
   else if (iso) args.push('-cdrom', iso, '-boot', 'd');
   cp.spawn(exe, args, { cwd: pasta, detached: true, stdio: 'ignore' }).unref();
 }
-let janelaEmuladores = null;
-async function abrirEmuladores() {
-  if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + 'apps/wine/'); }
-  if (janelaEmuladores && !janelaEmuladores.isDestroyed()) return janelaEmuladores.focus();
+// Wine card: virtual machines and macOS (PC emulation); Games card: consoles
+const janelasEmuladores = {};
+function abrirJogosWeb() { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); w.loadURL(SITE + 'apps/jogos/'); }
+async function abrirEmuladores(jogos) {
+  if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + (jogos ? 'apps/jogos/' : 'apps/wine/')); }
+  const k = jogos ? 'jogo' : 'pc';
+  if (janelasEmuladores[k] && !janelasEmuladores[k].isDestroyed()) return janelasEmuladores[k].focus();
   const pt = /^pt/i.test(app.getLocale());
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const grupos = pt ? { vm: 'Máquinas virtuais (Linux, Windows e outros)', mac: 'macOS (por sua conta e risco)', jogo: 'Consoles' } : { vm: 'Virtual machines (Linux, Windows and others)', mac: 'macOS (at your own risk)', jogo: 'Consoles' };
+  if (jogos) { delete grupos.vm; delete grupos.mac; } else delete grupos.jogo;
+  const titulo = jogos ? (pt ? 'Jogos' : 'Games') : (pt ? 'Emuladores' : 'Emulators');
   const bt = 'padding:7px 14px;border-radius:8px;font-weight:600;text-decoration:none;white-space:nowrap;background:#0a84ff;color:#fff';
-  let html = '<!doctype html><meta charset="utf-8"><title>' + (pt ? 'Emuladores' : 'Emulators') + '</title><body style="font:14px -apple-system,Segoe UI,sans-serif;margin:0;padding:20px 22px;background:#f2f2f7;color:#1c1c1e">' +
-    '<h2 style="margin:0 0 4px">' + (pt ? 'Emuladores e máquinas virtuais' : 'Emulators and virtual machines') + '</h2>' +
+  let html = '<!doctype html><meta charset="utf-8"><title>' + titulo + '</title><body style="font:14px -apple-system,Segoe UI,sans-serif;margin:0;padding:20px 22px;background:#f2f2f7;color:#1c1c1e">' +
+    '<h2 style="margin:0 0 4px">' + (jogos ? (pt ? 'Emuladores de consoles' : 'Console emulators') : (pt ? 'Emuladores e máquinas virtuais' : 'Emulators and virtual machines')) + '</h2>' +
     '<p style="color:#636366;margin:0 0 6px">' + (pt ? 'Instalados da fonte oficial pelo winget do Windows. Jogos, ROMs, BIOS e imagens de sistema não vêm junto: use os seus.' : 'Installed from the official source by Windows winget. Games, ROMs, BIOS and system images are not included: use your own.') + '</p>';
   for (const g of Object.keys(grupos)) {
     html += '<h3 style="margin:18px 0 6px;font-size:13px;color:#636366;text-transform:uppercase">' + grupos[g] + '</h3><div style="background:#fff;border-radius:12px">';
@@ -555,7 +562,7 @@ async function abrirEmuladores() {
     html += '</div>';
   }
   html += '<p id="t" style="color:#636366;min-height:2em"></p></body>';
-  const w = janelaEmuladores = new BrowserWindow({ width: 620, height: 760, icon: ICONE, autoHideMenuBar: true, title: pt ? 'Emuladores' : 'Emulators', backgroundColor: '#f2f2f7', webPreferences: { sandbox: true, contextIsolation: true } });
+  const w = janelasEmuladores[k] = new BrowserWindow({ width: 620, height: 760, icon: ICONE, autoHideMenuBar: true, title: titulo, backgroundColor: '#f2f2f7', webPreferences: { sandbox: true, contextIsolation: true } });
   const js = c => (w.isDestroyed() ? Promise.resolve() : w.webContents.executeJavaScript(c).catch(() => {}));
   const dizer = txt => js('document.getElementById("t").textContent=' + JSON.stringify(txt));
   let menu = [], wl = '';
@@ -564,6 +571,8 @@ async function abrirEmuladores() {
     wl = (await winget(['list', '--source', 'winget', '--accept-source-agreements', '--disable-interactivity'])).saida.toLowerCase();
     const wsl = (await distrosWsl()).length > 0;
     EMULADORES.forEach((x, i) => {
+      if (x.g !== k && !(k === 'pc' && x.g !== 'jogo')) return;
+      if (x.web) return void js('var b=document.getElementById("b' + i + '");b.textContent=' + JSON.stringify(pt ? 'Abrir' : 'Open') + ';b.style.background="#34c759"');
       const tem = x.osxkvm ? fs.existsSync(OSXKVM) : x.wsl ? wsl : !!doMenu(menu, x) || (!!x.id && wl.includes(x.id.toLowerCase()));
       const rot = (tem ? (pt ? 'Abrir' : 'Open') : (pt ? 'Instalar' : 'Install'));
       js('var b=document.getElementById("b' + i + '");b.textContent=' + JSON.stringify(rot) + ';b.style.background=' + JSON.stringify(tem ? '#34c759' : '#0a84ff'));
@@ -574,6 +583,7 @@ async function abrirEmuladores() {
     e.preventDefault();
     const i = Number(new URL(url).searchParams.get('i')), x = EMULADORES[i];
     if (!x || ocupados.has(i)) return;
+    if (x.web) return void abrirJogosWeb();
     if (x.wsl) return void abrirTerminal();
     if (x.osxkvm) {
       if (fs.existsSync(OSXKVM)) return void shell.openPath(OSXKVM);
@@ -716,16 +726,17 @@ function cuidar(w) {
     if (ehCodigo(url)) { abrirCodigo(); return { action: 'deny' }; }
     if (ehTransferir(url)) { abrirTransferir(); return { action: 'deny' }; }
     if (ehWine(url)) { abrirEmuladores(); return { action: 'deny' }; }
+    if (ehJogos(url)) { abrirEmuladores(true); return { action: 'deny' }; }
     if (url === 'about:blank' || doSite(url)) return { action: 'allow', overrideBrowserWindowOptions: opcoes(1200, 820) };
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
   w.webContents.on('did-create-window', cuidar);
   w.webContents.on('will-navigate', (e, url) => {
-    if (!w.versaoDoSite && ((WIN && ehWebcam(url)) || ehTerminal(url) || ehCodigo(url) || ehTransferir(url) || ehWine(url))) {
+    if (!w.versaoDoSite && ((WIN && ehWebcam(url)) || ehTerminal(url) || ehCodigo(url) || ehTransferir(url) || ehWine(url) || ehJogos(url))) {
       e.preventDefault();
       if (WIN && ehWebcam(url)) abrirWebcam(); else if (ehTerminal(url)) abrirTerminal(); else if (ehCodigo(url)) abrirCodigo();
-      else if (ehTransferir(url)) abrirTransferir(); else abrirEmuladores();
+      else if (ehTransferir(url)) abrirTransferir(); else abrirEmuladores(ehJogos(url));
       // the home screen opens an empty window and then sends the address: that window closes
       const atual = w.webContents.getURL();
       if (w !== principal() && (!atual || atual === 'about:blank')) w.close();
