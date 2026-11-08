@@ -19,6 +19,7 @@ GRUPOS = [
     ("terminal", "Linux terminal", ["terminal"]),
     ("wine", "Wine", ["apps/wine"]),
     ("zip", "Zip", ["apps/zip"]),
+    ("jogos", "Games (PS1, SNES, N64, NES, GBA)", ["apps/jogos"]),
     ("ia", "AI Chat (experimental)", ["apps/ia"]),
     ("wasm", "Wasm Build", ["apps/wasm"]),
     ("foto", "Photos", ["apps/foto"]),
