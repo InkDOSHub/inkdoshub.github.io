@@ -8,3 +8,7 @@
 
 /apps/xeos-tests/native/*
   Content-Type: text/plain; charset=utf-8
+
+/apps/editar-pdf/native/*
+  Cache-Control: no-cache
+  Content-Type: text/plain; charset=utf-8
