@@ -391,9 +391,9 @@
   }
 
   // ---------- screen ----------
-  var OUTROS = [], CORES = ["#2563eb", "#f59e0b", "#16a34a", "#dc2626"];
+  var OUTROS = [], CORES = ["#2563eb", "#f59e0b", "#16a34a", "#dc2626", "#7c3aed", "#0891b2"];
   function fmt(v) { return v == null ? "n/a" : v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(1) : v.toFixed(2); }
-  function sets() { return (R && Object.keys(R.metrics).length ? [R] : []).concat(OUTROS).slice(0, 4); }
+  function sets() { return (R && Object.keys(R.metrics).length ? [R] : []).concat(OUTROS).slice(0, 6); }
   function desenhar() {
     var S = sets(), box = $("b-cards"), tb = $("b-tabela");
     box.textContent = ""; tb.textContent = "";
@@ -547,7 +547,7 @@
       else throw new Error("this file has no benchmark data (use a PDF saved by this page)");
       var lista = dados.sets || [dados];
       lista.forEach(function (x) { if (x && x.metrics) { x.label = x.label || f.name; OUTROS.push(x); log("  loaded set: " + x.label + " · " + x.date); } });
-      while (sets().length > 4) OUTROS.shift();
+      while (sets().length > 6) OUTROS.shift();
       desenhar(); $("b-estado").textContent = "Loaded " + lista.length + " result(s) from " + f.name;
     } catch (e) { log("Load failed: " + err(e)); $("b-estado").textContent = "Could not read " + f.name + ": " + e.message; }
   }
