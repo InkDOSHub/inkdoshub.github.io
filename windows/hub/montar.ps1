@@ -1,7 +1,7 @@
 # Builds InkDOS Hub for Windows from the official Electron, trimmed:
 # - the newest stable Electron (GitHub electron/electron), checked against the SHA-256 they publish;
 # - only the Chromium en-US locale (the Hub's 7 languages come from the site), no sample app and no SwiftShader/Vulkan;
-# - main.js, preload.js and the icon in resources\app; the .exe with InkDOS Hub name, icon and version.
+# - main.js, preload.js, ia.js and the icon in resources\app; the .exe with InkDOS Hub name, icon and version.
 # Usage (Windows, with Node): .\windows\hub\montar.ps1 -Saida saida   ->  saida\InkDOS Hub\InkDOS Hub.exe
 param([string]$Saida = 'saida', [string]$Versao = '')
 $ErrorActionPreference = 'Stop'
@@ -46,7 +46,7 @@ Rename-Item (Join-Path $app 'electron.exe') 'InkDOS Hub.exe'
 # o app
 $res = Join-Path $app 'resources\app'
 New-Item -ItemType Directory -Force -Path $res | Out-Null
-foreach ($f in @('main.js', 'preload.js', 'icone.ico')) { Copy-Item (Join-Path $aqui $f) $res }
+foreach ($f in @('main.js', 'preload.js', 'ia.js', 'icone.ico')) { Copy-Item (Join-Path $aqui $f) $res }
 $pacote = Get-Content (Join-Path $aqui 'package.json') -Raw | ConvertFrom-Json
 if ($Versao) { $pacote.version = $Versao }
 $versao = $pacote.version

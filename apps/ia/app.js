@@ -19,6 +19,13 @@ const wllama = new Wllama({
 },
   { logger: { debug: registro, log: registro, warn: registro, error: registro } });
 let carregado = null, ocupado = false, parar = null;
+// Windows app: every model, from the lightest to the heaviest, runs on native llama.cpp (windows/hub/ia.js)
+const nativo = window.inkHubNativo && window.inkHubNativo.ia;
+if (nativo) nativo.modelos().then((lista) => {
+  modelo.textContent = "";
+  for (const m of lista) modelo.add(new Option(m.nome + " (" + m.gb + " GB)", m.id));
+  modelo.value = "qwen7b";
+}).catch(() => {});
 const historico = [{ role: "system", content: "You are a helpful assistant. Answer briefly, in the user's language." }];
 
 function bolha(classe, t) {
@@ -72,10 +79,19 @@ $("form").addEventListener("submit", async (e) => {
   bolha("eu", t);
   historico.push({ role: "user", content: t });
   try {
-    await carregar();
+    if (!nativo) await carregar();
+    if (nativo) await nativo.iniciar(modelo.value, aviso);
     estado.remove();
     const saida = bolha("ia", "…");
     let r = "";
+    if (nativo) {
+      parar = { abort: () => nativo.parar(), signal: {} };
+      r = await nativo.conversar(historico.slice(-13), (t) => { saida.textContent = t; conversa.scrollTop = conversa.scrollHeight; });
+      saida.textContent = r || "…";
+      historico.push({ role: "assistant", content: r || "…" });
+      ocupado = false; parar = null; enviar.textContent = "Send";
+      return;
+    }
     parar = new AbortController();
     await wllama.createChatCompletion(historico.slice(-13), {
       nPredict: 512, sampling: { temp: 0.7, top_p: 0.9 }, abortSignal: parar.signal,
@@ -84,7 +100,7 @@ $("form").addEventListener("submit", async (e) => {
     historico.push({ role: "assistant", content: r || "…" });
   } catch (err) {
     historico.pop();
-    aviso("Error: " + (err && err.message || err) + ". Try Qwen 0.5B.");
+    aviso("Error: " + (err && err.message || err) + (nativo ? "" : ". Try Qwen 0.5B."));
   }
   ocupado = false; parar = null; enviar.textContent = "Send";
 });
