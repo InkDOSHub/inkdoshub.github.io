@@ -75,6 +75,8 @@ self.addEventListener("fetch", function (e) {
   // the Offline panel (data controls) always comes from the site when online, so a full or half-updated copy never hides it
   if (u.pathname === RAIZ + "inicio/offline.js" || u.pathname === RAIZ + "assets/home.css") { e.respondWith(daRedeOuCopia(req)); return; }
   if (u.searchParams.has("inkoff")) return; // offline copy download: always from the site
+  // the test/benchmark page always comes from the site when online, so results are never from an old version
+  if (u.pathname.indexOf(RAIZ + "apps/xeos-tests/") === 0) { e.respondWith(daRedeOuCopia(req).then(isolar)); return; }
 
   // the home screen (inicio/offline.js) offers to store the last opened app, if not stored yet
   if (req.mode === "navigate") {
