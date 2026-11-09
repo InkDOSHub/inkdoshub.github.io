@@ -27,20 +27,32 @@
     return new Response(ds.readable).arrayBuffer().then(function (b) { return new Uint8Array(b); });
   }
   // reads a ZIP's file list without loading it; entries point to slices of the original file
-  function lerZip(f) {
-    var cauda = Math.min(f.size, 65557);
-    return f.slice(f.size - cauda).arrayBuffer().then(function (b) {
+  function lerZip(f) { // ZIP and ZIP64 (over 4 GB)
+    var cauda = Math.min(f.size, 65557 + 20), M = 0xFFFFFFFF, base = f.size - cauda;
+    function u64(d, o) { return Number(d.getBigUint64(o, true)); }
+    return f.slice(base).arrayBuffer().then(function (b) {
       var d = new DataView(b), p = -1;
       for (var i = b.byteLength - 22; i >= 0; i--) if (d.getUint32(i, true) === 0x06054b50) { p = i; break; }
       if (p < 0) throw new Error("ZIP?");
       var n = d.getUint16(p + 10, true), tam = d.getUint32(p + 12, true), off = d.getUint32(p + 16, true);
-      if (off === 0xFFFFFFFF) throw new Error(T("ZIP grande demais (ZIP64)", "ZIP too large (ZIP64)"));
+      if (p >= 20 && d.getUint32(p - 20, true) === 0x07064b50) { // ZIP64 end record
+        var r64 = u64(d, p - 12);
+        return f.slice(r64, r64 + 56).arrayBuffer().then(function (eb) { var e = new DataView(eb); return [u64(e, 32), u64(e, 40), u64(e, 48)]; });
+      }
+      return [n, tam, off];
+    }).then(function (x) {
+      var n = x[0], tam = x[1], off = x[2];
       return f.slice(off, off + tam).arrayBuffer().then(function (cb) {
         var c = new DataView(cb), q = 0, ents = [], dec = new TextDecoder();
         for (var k = 0; k < n; k++) {
           var nl = c.getUint16(q + 28, true), el = c.getUint16(q + 30, true), cl = c.getUint16(q + 32, true);
-          ents.push({ dt: [c.getUint16(q + 12, true), c.getUint16(q + 14, true)], nome: dec.decode(new Uint8Array(cb, q + 46, nl)), m: c.getUint16(q + 10, true), crc: c.getUint32(q + 16, true), cs: c.getUint32(q + 20, true), us: c.getUint32(q + 24, true), lo: c.getUint32(q + 42, true) });
-          q += 46 + nl + el + cl;
+          var e = { dt: [c.getUint16(q + 12, true), c.getUint16(q + 14, true)], nome: dec.decode(new Uint8Array(cb, q + 46, nl)), m: c.getUint16(q + 10, true), crc: c.getUint32(q + 16, true), cs: c.getUint32(q + 20, true), us: c.getUint32(q + 24, true), lo: c.getUint32(q + 42, true) };
+          for (var x0 = q + 46 + nl, xf = x0 + el; x0 + 4 <= xf;) { // ZIP64 extra field: only the fields that were 0xFFFFFFFF
+            var id = c.getUint16(x0, true), sz = c.getUint16(x0 + 2, true), o = x0 + 4;
+            if (id === 1) { if (e.us === M) { e.us = u64(c, o); o += 8; } if (e.cs === M) { e.cs = u64(c, o); o += 8; } if (e.lo === M) { e.lo = u64(c, o); } }
+            x0 += 4 + sz;
+          }
+          ents.push(e); q += 46 + nl + el + cl;
         }
         ents = ents.filter(function (e) { return !/\/$/.test(e.nome) && !/^__MACOSX\//.test(e.nome) && !/(^|\/)\.DS_Store$/.test(e.nome); });
         return Promise.all(ents.map(function (e) {
@@ -213,18 +225,34 @@
   var CRC = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
   function crc32(u) { var c = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
   function dosData(ms) { var d = new Date(ms || Date.now()); return [(d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), ((Math.max(d.getFullYear(), 1980) - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()]; }
-  function zip(itens) { // store-only ZIP; names in UTF-8
-    var partes = [], central = [], off = 0, enc = new TextEncoder();
+  function zip(itens) { // store-only ZIP, ZIP64 when over 4 GB; names in UTF-8
+    var partes = [], central = [], off = 0, enc = new TextEncoder(), M = 0xFFFFFFFF;
+    function n32(v) { return v >= M ? M : v; }
     itens.forEach(function (it) {
-      var nm = enc.encode(it.nome), c = it.crc, L = new DataView(new ArrayBuffer(30)), C = new DataView(new ArrayBuffer(46)), s = it.tam, us = it.us == null ? s : it.us, m = it.m || 0, dt = it.dt || dosData(Date.now());
-      L.setUint32(0, 0x04034b50, true); L.setUint16(4, 20, true); L.setUint16(6, 0x0800, true); L.setUint16(8, m, true); L.setUint16(10, dt[0], true); L.setUint16(12, dt[1], true); L.setUint32(14, c, true); L.setUint32(18, s, true); L.setUint32(22, us, true); L.setUint16(26, nm.length, true);
-      C.setUint32(0, 0x02014b50, true); C.setUint16(4, 20, true); C.setUint16(6, 20, true); C.setUint16(8, 0x0800, true); C.setUint16(10, m, true); C.setUint16(12, dt[0], true); C.setUint16(14, dt[1], true); C.setUint32(16, c, true); C.setUint32(20, s, true); C.setUint32(24, us, true); C.setUint16(28, nm.length, true); C.setUint32(42, off, true);
-      partes.push(L.buffer, nm, it.dados); central.push(C.buffer, nm); off += 30 + nm.length + s;
+      var nm = enc.encode(it.nome), c = it.crc, s = it.tam, us = it.us == null ? s : it.us, m = it.m || 0, dt = it.dt || dosData(Date.now());
+      var big = s >= M || us >= M, cx = [];
+      if (us >= M) cx.push(us); if (s >= M) cx.push(s); if (off >= M) cx.push(off);
+      var L = new DataView(new ArrayBuffer(30 + (big ? 20 : 0))), C = new DataView(new ArrayBuffer(46 + (cx.length ? 4 + 8 * cx.length : 0))), v = big || cx.length ? 45 : 20;
+      L.setUint32(0, 0x04034b50, true); L.setUint16(4, v, true); L.setUint16(6, 0x0800, true); L.setUint16(8, m, true); L.setUint16(10, dt[0], true); L.setUint16(12, dt[1], true); L.setUint32(14, c, true); L.setUint32(18, big ? M : s, true); L.setUint32(22, big ? M : us, true); L.setUint16(26, nm.length, true);
+      if (big) { L.setUint16(28, 20, true); L.setUint16(30, 1, true); L.setUint16(32, 16, true); L.setBigUint64(34, BigInt(us), true); L.setBigUint64(42, BigInt(s), true); }
+      C.setUint32(0, 0x02014b50, true); C.setUint16(4, v, true); C.setUint16(6, v, true); C.setUint16(8, 0x0800, true); C.setUint16(10, m, true); C.setUint16(12, dt[0], true); C.setUint16(14, dt[1], true); C.setUint32(16, c, true); C.setUint32(20, n32(s), true); C.setUint32(24, n32(us), true); C.setUint16(28, nm.length, true); C.setUint32(42, n32(off), true);
+      if (cx.length) { C.setUint16(30, 4 + 8 * cx.length, true); C.setUint16(46, 1, true); C.setUint16(48, 8 * cx.length, true); cx.forEach(function (x, i) { C.setBigUint64(50 + 8 * i, BigInt(x), true); }); }
+      var cb = new Uint8Array(C.buffer), lb = new Uint8Array(L.buffer);
+      // name goes between the fixed header and the extra field
+      partes.push(lb.subarray(0, 30), nm, lb.subarray(30), it.dados); central.push(cb.subarray(0, 46), nm, cb.subarray(46)); off += 30 + nm.length + (big ? 20 : 0) + s;
     });
-    var tam = central.reduce(function (a, b) { return a + b.byteLength; }, 0), E = new DataView(new ArrayBuffer(22));
-    E.setUint32(0, 0x06054b50, true); E.setUint16(8, itens.length, true); E.setUint16(10, itens.length, true); E.setUint32(12, tam, true); E.setUint32(16, off, true);
-    return new Blob(partes.concat(central, [E.buffer]), { type: "application/zip" });
+    var tam = central.reduce(function (a, b) { return a + b.byteLength; }, 0), n = itens.length, fim = [];
+    if (off >= M || tam >= M || n >= 0xFFFF) {
+      var Z = new DataView(new ArrayBuffer(76));
+      Z.setUint32(0, 0x06064b50, true); Z.setBigUint64(4, 44n, true); Z.setUint16(12, 45, true); Z.setUint16(14, 45, true); Z.setBigUint64(24, BigInt(n), true); Z.setBigUint64(32, BigInt(n), true); Z.setBigUint64(40, BigInt(tam), true); Z.setBigUint64(48, BigInt(off), true);
+      Z.setUint32(56, 0x07064b50, true); Z.setBigUint64(64, BigInt(off + tam), true); Z.setUint32(72, 1, true);
+      fim.push(Z.buffer);
+    }
+    var E = new DataView(new ArrayBuffer(22));
+    E.setUint32(0, 0x06054b50, true); E.setUint16(8, Math.min(n, 0xFFFF), true); E.setUint16(10, Math.min(n, 0xFFFF), true); E.setUint32(12, n32(tam), true); E.setUint32(16, n32(off), true);
+    return new Blob(partes.concat(central, fim, [E.buffer]), { type: "application/zip" });
   }
+
   // byte-level clean (no big strings, so large PDFs fit in memory): same renames as the single-file tool, all except links
   var DELIM = {}; [0, 9, 10, 12, 13, 32, 40, 41, 60, 62, 91, 93, 123, 125, 47, 37].forEach(function (c) { DELIM[c] = 1; });
   function nomeEm(u8, j, nm) { // end index if name nm starts at j (allowing #xx), else -1
