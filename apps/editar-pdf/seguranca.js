@@ -21,6 +21,37 @@
   function latin1(u8) { var s = "", i, n = 0x8000; for (i = 0; i < u8.length; i += n) s += String.fromCharCode.apply(null, u8.subarray(i, i + n)); return s; }
   // PDF names may hide letters as #xx (e.g. /J#61vaScript)
   function normNomes(s) { return s.replace(/\/[^\s\/<>\[\]()%{}]*#[0-9A-Fa-f]{2}[^\s\/<>\[\]()%{}]*/g, function (m) { return m.replace(/#([0-9A-Fa-f]{2})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); }); }); }
+  function inflarU8(bytes, fmt) { // whole stream, no size cap
+    var ds = new DecompressionStream(fmt), w = ds.writable.getWriter();
+    w.write(bytes).catch(function () {}); w.close().catch(function () {});
+    return new Response(ds.readable).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+  }
+  // reads a ZIP's file list without loading it; entries point to slices of the original file
+  function lerZip(f) {
+    var cauda = Math.min(f.size, 65557);
+    return f.slice(f.size - cauda).arrayBuffer().then(function (b) {
+      var d = new DataView(b), p = -1;
+      for (var i = b.byteLength - 22; i >= 0; i--) if (d.getUint32(i, true) === 0x06054b50) { p = i; break; }
+      if (p < 0) throw new Error("ZIP?");
+      var n = d.getUint16(p + 10, true), tam = d.getUint32(p + 12, true), off = d.getUint32(p + 16, true);
+      if (off === 0xFFFFFFFF) throw new Error(T("ZIP grande demais (ZIP64)", "ZIP too large (ZIP64)"));
+      return f.slice(off, off + tam).arrayBuffer().then(function (cb) {
+        var c = new DataView(cb), q = 0, ents = [], dec = new TextDecoder();
+        for (var k = 0; k < n; k++) {
+          var nl = c.getUint16(q + 28, true), el = c.getUint16(q + 30, true), cl = c.getUint16(q + 32, true);
+          ents.push({ nome: dec.decode(new Uint8Array(cb, q + 46, nl)), m: c.getUint16(q + 10, true), crc: c.getUint32(q + 16, true), cs: c.getUint32(q + 20, true), us: c.getUint32(q + 24, true), lo: c.getUint32(q + 42, true) });
+          q += 46 + nl + el + cl;
+        }
+        ents = ents.filter(function (e) { return !/\/$/.test(e.nome) && !/^__MACOSX\//.test(e.nome) && !/(^|\/)\.DS_Store$/.test(e.nome); });
+        return Promise.all(ents.map(function (e) {
+          return f.slice(e.lo, e.lo + 30).arrayBuffer().then(function (lb) {
+            var l = new DataView(lb), ini = e.lo + 30 + l.getUint16(26, true) + l.getUint16(28, true);
+            e.blob = f.slice(ini, ini + e.cs); return e;
+          });
+        }));
+      });
+    });
+  }
   function inflar(bytes) {
     if (!window.DecompressionStream) return Promise.resolve(null);
     try {
@@ -184,9 +215,9 @@
   function zip(itens) { // store-only ZIP; names in UTF-8
     var partes = [], central = [], off = 0, enc = new TextEncoder();
     itens.forEach(function (it) {
-      var nm = enc.encode(it.nome), c = it.crc, L = new DataView(new ArrayBuffer(30)), C = new DataView(new ArrayBuffer(46)), s = it.tam;
-      L.setUint32(0, 0x04034b50, true); L.setUint16(4, 20, true); L.setUint16(6, 0x0800, true); L.setUint32(14, c, true); L.setUint32(18, s, true); L.setUint32(22, s, true); L.setUint16(26, nm.length, true);
-      C.setUint32(0, 0x02014b50, true); C.setUint16(4, 20, true); C.setUint16(6, 20, true); C.setUint16(8, 0x0800, true); C.setUint32(16, c, true); C.setUint32(20, s, true); C.setUint32(24, s, true); C.setUint16(28, nm.length, true); C.setUint32(42, off, true);
+      var nm = enc.encode(it.nome), c = it.crc, L = new DataView(new ArrayBuffer(30)), C = new DataView(new ArrayBuffer(46)), s = it.tam, us = it.us == null ? s : it.us, m = it.m || 0;
+      L.setUint32(0, 0x04034b50, true); L.setUint16(4, 20, true); L.setUint16(6, 0x0800, true); L.setUint16(8, m, true); L.setUint32(14, c, true); L.setUint32(18, s, true); L.setUint32(22, us, true); L.setUint16(26, nm.length, true);
+      C.setUint32(0, 0x02014b50, true); C.setUint16(4, 20, true); C.setUint16(6, 20, true); C.setUint16(8, 0x0800, true); C.setUint16(10, m, true); C.setUint32(16, c, true); C.setUint32(20, s, true); C.setUint32(24, us, true); C.setUint16(28, nm.length, true); C.setUint32(42, off, true);
       partes.push(L.buffer, nm, it.dados); central.push(C.buffer, nm); off += 30 + nm.length + s;
     });
     var tam = central.reduce(function (a, b) { return a + b.byteLength; }, 0), E = new DataView(new ArrayBuffer(22));
@@ -210,17 +241,23 @@
     document.getElementById("lote-t").textContent = T("Limpeza em lote", "Batch clean");
     document.getElementById("lote-zip").hidden = document.getElementById("lote-log").hidden = true;
     function linha(t, d) { var li = document.createElement("li"), b = document.createElement("b"), sm = document.createElement("small"); b.textContent = t; sm.textContent = d; li.appendChild(b); li.appendChild(sm); ul.appendChild(li); }
+    var ents = [], nZip = 0;
+    st.textContent = T("Lendo…", "Reading…");
+    Promise.all(fs.map(function (f) {
+      if (/\.zip$/i.test(f.name)) return lerZip(f).then(function (es) { nZip++; return es; });
+      return [{ nome: f.webkitRelativePath || f.name, blob: f, m: -1 }];
+    })).then(function (ls) { ls.forEach(function (l) { ents = ents.concat(l); }); fs = ents; prox(); }).catch(function (e) { st.textContent = String(e); });
     function prox() {
       if (i >= fs.length) return fim();
-      var f = fs[i++], nome = f.webkitRelativePath || f.name;
+      var e = fs[i++], f = e.blob, nome = e.nome, pdf = /\.pdf$/i.test(nome);
       st.textContent = i + " / " + fs.length + " · " + nome;
-      f.arrayBuffer().then(function (buf) {
-        var u8 = new Uint8Array(buf);
-        if (!/\.pdf$/i.test(f.name) || latin1(u8.subarray(0, 1024)).indexOf("%PDF-") < 0) { itens.push({ nome: nome, dados: f, crc: crc32(u8), tam: u8.length }); return; }
+      if (e.m >= 0 && !pdf) { itens.push({ nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m }); return setTimeout(prox, 0); } // copied from the ZIP as it is
+      (e.m === 8 ? f.arrayBuffer().then(function (b) { return inflarU8(new Uint8Array(b), "deflate-raw"); }) : f.arrayBuffer().then(function (b) { return new Uint8Array(b); })).then(function (u8) {
+        if (!pdf || latin1(u8.subarray(0, 1024)).indexOf("%PDF-") < 0) { itens.push(e.m === 0 ? { nome: nome, dados: f, crc: e.crc, tam: e.cs } : { nome: nome, dados: e.m === 8 ? u8 : f, crc: crc32(u8), tam: u8.length }); return; }
         var r = limparBytes(u8);
         return compactado(r.u8, r.s).then(function (d) {
           var nd = normNomes(d), comp = REM.some(function (c) { return c.id !== "links" && c.nomes.some(function (nm) { return new RegExp("\\/" + nm + "\\b").test(nd); }); });
-          itens.push(r.feitos.length ? { nome: nome, dados: r.u8, crc: crc32(r.u8), tam: r.u8.length } : { nome: nome, dados: f, crc: crc32(u8), tam: u8.length });
+          itens.push(r.feitos.length || e.m === 8 ? { nome: nome, dados: r.u8, crc: crc32(r.u8), tam: r.u8.length } : { nome: nome, dados: f, crc: crc32(u8), tam: u8.length });
           var txt = (r.feitos.length ? T("Limpo: ", "Cleaned: ") + r.feitos.join(", ") : T("Nada perigoso", "Nothing dangerous")) + (comp ? T(" · ATENÇÃO: perigo em parte compactada, use Higienizar PDF", " · WARNING: danger in a compressed part, use Sanitize PDF") : "");
           if (r.feitos.length) nLimpos++; if (comp) nComp++;
           if (r.feitos.length || comp) linha(nome, txt);
@@ -236,7 +273,6 @@
       var z = document.getElementById("lote-zip"); z.hidden = false; z.textContent = T("Salvar ZIP", "Save ZIP");
       var l = document.getElementById("lote-log"); l.hidden = false; l.textContent = T("Salvar relatório", "Save report");
     }
-    prox();
   }
   document.getElementById("lote-zip").onclick = function () {
     var nome = T("pdfs-limpos.zip", "clean-pdfs.zip");
