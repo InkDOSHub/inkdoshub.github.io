@@ -71,10 +71,10 @@ def clean(path, lf):
     if uniq:
         with open(path, "r+b") as fh:
             for a, t in uniq:
-                fh.seek(a); 
+                fh.seek(a)
                 if fh.read(len(t)) != t: continue
+                lf.write("PATCH\t%s\t%d\t%s\n" % (path, a, t.decode("latin-1"))); lf.flush()
                 fh.seek(a); fh.write(b"/" + b"x" * (len(t) - 1))
-                lf.write("PATCH\t%s\t%d\t%s\n" % (path, a, t.decode("latin-1")))
         lf.flush()
     names = sorted(set(t.decode("latin-1") for _, t in uniq))
     if uniq: log(lf, "CLEANED  %s  (%s)" % (path, ", ".join(names)))
@@ -84,7 +84,7 @@ def clean(path, lf):
 
 def undo():
     n = 0
-    for line in open(LOG, encoding="latin-1"):
+    for line in open(LOG, encoding="utf-8", errors="surrogateescape"):
         p = line.rstrip("\n").split("\t")
         if p[0] != "PATCH" or not os.path.exists(p[1]): continue
         t = p[3].encode("latin-1")
@@ -97,7 +97,7 @@ def undo():
 def main():
     if "--undo" in sys.argv: return undo()
     t0, n, nc, nf, ne, cloud = time.time(), 0, 0, 0, 0, 0
-    with open(LOG, "a", encoding="latin-1") as lf:
+    with open(LOG, "a", encoding="utf-8", errors="surrogateescape") as lf:
         log(lf, "=== inkclean %s in %s ===" % (time.strftime("%Y-%m-%d %H:%M"), os.getcwd()))
         for root, dirs, files in os.walk("."):
             dirs[:] = [d for d in dirs if not d.startswith(".Trash")]
