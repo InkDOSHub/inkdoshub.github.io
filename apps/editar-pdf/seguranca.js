@@ -8,6 +8,8 @@
     document.getElementById("sobre").textContent = "Analisa o PDF em busca de recursos de risco: JavaScript, ações automáticas, abertura de programas, arquivos embutidos, formulários que enviam dados, links externos, conteúdo oculto ou disfarçado e criptografia. O arquivo não sai deste aparelho. Um relatório limpo reduz o risco, mas não é garantia.";
     document.getElementById("dica").textContent = "Solte um PDF aqui";
     document.getElementById("escolher").textContent = "Escolher PDF";
+    document.getElementById("lote-arq").textContent = "Limpar vários arquivos";
+    document.getElementById("lote-pasta").textContent = "Limpar uma pasta";
   }
   var arq = document.getElementById("arq"), solta = document.getElementById("solta");
   document.getElementById("escolher").onclick = function (e) { e.preventDefault(); arq.click(); };
@@ -31,19 +33,22 @@
   }
   function conta(s, re) { var m = s.match(re); return m ? m.length : 0; }
 
+  // decompress object streams (where names are often hidden)
+  function compactado(u8, raw) {
+    var tarefas = [], rs = /stream\r?\n/g, m, n = 0;
+    while ((m = rs.exec(raw)) && n < 400) {
+      var ini = m.index + m[0].length, dic = raw.slice(Math.max(0, m.index - 600), m.index);
+      dic = dic.slice(dic.lastIndexOf("obj") + 3);
+      if (!/FlateDecode/.test(dic) || !/\/ObjStm\b/.test(normNomes(dic))) continue;
+      var fim = raw.indexOf("endstream", ini); if (fim < 0) break;
+      tarefas.push(inflar(u8.subarray(ini, fim))); n++; rs.lastIndex = fim;
+    }
+    return Promise.all(tarefas).then(function (txts) { return txts.filter(Boolean).join("\n"); });
+  }
   function analisar(f) {
     f.arrayBuffer().then(function (buf) {
       var u8 = new Uint8Array(buf), raw = latin1(u8);
-      // decompress object streams (where names are often hidden) and embedded file streams
-      var tarefas = [], rs = /stream\r?\n/g, m, n = 0;
-      while ((m = rs.exec(raw)) && n < 400) {
-        var ini = m.index + m[0].length, dic = raw.slice(Math.max(0, m.index - 600), m.index);
-        dic = dic.slice(dic.lastIndexOf("obj") + 3);
-        if (!/FlateDecode/.test(dic) || !/\/ObjStm\b/.test(normNomes(dic))) continue;
-        var fim = raw.indexOf("endstream", ini); if (fim < 0) break;
-        tarefas.push(inflar(u8.subarray(ini, fim))); n++; rs.lastIndex = fim;
-      }
-      return Promise.all(tarefas).then(function (txts) { relatorio(f, u8, raw, txts.filter(Boolean).join("\n")); });
+      return compactado(u8, raw).then(function (d) { relatorio(f, u8, raw, d); });
     }).catch(function (e) { mostrar([{ n: "alto", t: T("Não foi possível ler o arquivo", "Could not read the file"), d: String(e) }], f, [], []); });
   }
 
@@ -173,6 +178,72 @@
   document.getElementById("log-cop").onclick = function () { var b = this; textoLog().then(function (t) { return navigator.clipboard.writeText(t); }).then(function () { b.textContent = T("Copiado ✓", "Copied ✓"); }).catch(function () {}); };
   document.getElementById("log-sal").onclick = function () { textoLog().then(function (t) { baixar(new Blob([t], { type: "text/plain" }), ultimo.f.name.replace(/\.pdf$/i, "") + "-security-log.txt"); }); };
   document.getElementById("log-env").onclick = function () { textoLog().then(function (t) { return navigator.share({ title: "PDF security log", text: t }); }).catch(function () {}); };
+  // ---- batch: clean many files / a folder into one ZIP (non-PDF files copied as they are)
+  var CRC = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u) { var c = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zip(itens) { // store-only ZIP; names in UTF-8
+    var partes = [], central = [], off = 0, enc = new TextEncoder();
+    itens.forEach(function (it) {
+      var nm = enc.encode(it.nome), c = it.crc, L = new DataView(new ArrayBuffer(30)), C = new DataView(new ArrayBuffer(46)), s = it.tam;
+      L.setUint32(0, 0x04034b50, true); L.setUint16(4, 20, true); L.setUint16(6, 0x0800, true); L.setUint32(14, c, true); L.setUint32(18, s, true); L.setUint32(22, s, true); L.setUint16(26, nm.length, true);
+      C.setUint32(0, 0x02014b50, true); C.setUint16(4, 20, true); C.setUint16(6, 20, true); C.setUint16(8, 0x0800, true); C.setUint32(16, c, true); C.setUint32(20, s, true); C.setUint32(24, s, true); C.setUint16(28, nm.length, true); C.setUint32(42, off, true);
+      partes.push(L.buffer, nm, it.dados); central.push(C.buffer, nm); off += 30 + nm.length + s;
+    });
+    var tam = central.reduce(function (a, b) { return a + b.byteLength; }, 0), E = new DataView(new ArrayBuffer(22));
+    E.setUint32(0, 0x06054b50, true); E.setUint16(8, itens.length, true); E.setUint16(10, itens.length, true); E.setUint32(12, tam, true); E.setUint32(16, off, true);
+    return new Blob(partes.concat(central, [E.buffer]), { type: "application/zip" });
+  }
+  function limparBytes(u8) { // same renames as the single-file tool, all except links
+    var s = latin1(u8), feitos = [];
+    REM.forEach(function (c) { if (c.id === "links") return; var k = 0; c.nomes.forEach(function (nm) { s = s.replace(reNome(nm), function (m) { k++; return "/" + new Array(m.length).join("x"); }); }); if (k) feitos.push(T(c.p, c.e) + ": " + k); });
+    if (!feitos.length) return { u8: u8, feitos: feitos, s: s };
+    var out = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+    return { u8: out, feitos: feitos, s: s };
+  }
+  var lote = null;
+  document.getElementById("lote-arq").onclick = function () { document.getElementById("lote-in").click(); };
+  document.getElementById("lote-pasta").onclick = function () { document.getElementById("lote-dir").click(); };
+  document.getElementById("lote-in").onchange = document.getElementById("lote-dir").onchange = function () { var fs = Array.prototype.slice.call(this.files); this.value = ""; if (fs.length) limparLote(fs); };
+  function limparLote(fs) {
+    var ul = document.getElementById("lote-lista"), st = document.getElementById("lote-st"), itens = [], log = [], nLimpos = 0, nComp = 0, i = 0;
+    ul.textContent = ""; document.getElementById("lote").hidden = false; document.getElementById("res").hidden = true;
+    document.getElementById("lote-t").textContent = T("Limpeza em lote", "Batch clean");
+    document.getElementById("lote-zip").hidden = document.getElementById("lote-log").hidden = true;
+    function linha(t, d) { var li = document.createElement("li"), b = document.createElement("b"), sm = document.createElement("small"); b.textContent = t; sm.textContent = d; li.appendChild(b); li.appendChild(sm); ul.appendChild(li); }
+    function prox() {
+      if (i >= fs.length) return fim();
+      var f = fs[i++], nome = f.webkitRelativePath || f.name;
+      st.textContent = i + " / " + fs.length + " · " + nome;
+      f.arrayBuffer().then(function (buf) {
+        var u8 = new Uint8Array(buf);
+        if (!/\.pdf$/i.test(f.name) || latin1(u8.subarray(0, 1024)).indexOf("%PDF-") < 0) { itens.push({ nome: nome, dados: f, crc: crc32(u8), tam: u8.length }); return; }
+        var r = limparBytes(u8);
+        return compactado(r.u8, r.s).then(function (d) {
+          var nd = normNomes(d), comp = REM.some(function (c) { return c.id !== "links" && c.nomes.some(function (nm) { return new RegExp("\\/" + nm + "\\b").test(nd); }); });
+          itens.push(r.feitos.length ? { nome: nome, dados: r.u8, crc: crc32(r.u8), tam: r.u8.length } : { nome: nome, dados: f, crc: crc32(u8), tam: u8.length });
+          var txt = (r.feitos.length ? T("Limpo: ", "Cleaned: ") + r.feitos.join(", ") : T("Nada perigoso", "Nothing dangerous")) + (comp ? T(" · ATENÇÃO: perigo em parte compactada, use Higienizar PDF", " · WARNING: danger in a compressed part, use Sanitize PDF") : "");
+          if (r.feitos.length) nLimpos++; if (comp) nComp++;
+          if (r.feitos.length || comp) linha(nome, txt);
+          log.push(nome + " — " + txt);
+        });
+      }).catch(function (e) { log.push(nome + " — " + T("erro: ", "error: ") + e); linha(nome, String(e)); }).then(function () { setTimeout(prox, 0); });
+    }
+    function fim() {
+      var pdfs = log.length;
+      st.textContent = fs.length + T(" arquivos · ", " files · ") + pdfs + " PDF · " + nLimpos + T(" limpos", " cleaned") + (nComp ? " · " + nComp + T(" precisam de Higienizar", " need Sanitize") : "");
+      if (!nLimpos && !nComp) linha(T("Tudo limpo", "All clean"), T("Nenhum PDF tinha partes perigosas.", "No PDF had dangerous parts."));
+      lote = { blob: zip(itens), log: ["InkDOS Hub · " + T("Limpeza de PDFs em lote", "Batch PDF clean"), new Date().toISOString(), st.textContent, ""].concat(log).join("\n") };
+      var z = document.getElementById("lote-zip"); z.hidden = false; z.textContent = T("Salvar ZIP", "Save ZIP");
+      var l = document.getElementById("lote-log"); l.hidden = false; l.textContent = T("Salvar relatório", "Save report");
+    }
+    prox();
+  }
+  document.getElementById("lote-zip").onclick = function () {
+    var nome = T("pdfs-limpos.zip", "clean-pdfs.zip");
+    if (window.showSaveFilePicker) window.showSaveFilePicker({ suggestedName: nome }).then(function (h) { return h.createWritable(); }).then(function (w) { return w.write(lote.blob).then(function () { return w.close(); }); }).catch(function () { baixar(lote.blob, nome); });
+    else baixar(lote.blob, nome);
+  };
+  document.getElementById("lote-log").onclick = function () { baixar(new Blob([lote.log], { type: "text/plain" }), T("pdfs-limpos-relatorio.txt", "clean-pdfs-report.txt")); };
   function mostrar(A, f, links, det) {
     var ordem = { alto: 0, medio: 1, baixo: 2, info: 3 };
     A.sort(function (a, b) { return ordem[a.n] - ordem[b.n]; });
