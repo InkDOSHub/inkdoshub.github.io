@@ -38,6 +38,9 @@
 </header>
 <main><div class="w">
   <label class="solta" id="solta"><span id="dica">Drop a PDF here</span><button type="button" id="escolher">Choose PDF</button><input type="file" id="arq" accept="application/pdf,.pdf" hidden></label>
+  <p style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0"><button type="button" id="lote-arq" style="height:40px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-weight:600">Clean many files</button><button type="button" id="lote-pasta" style="height:40px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-weight:600">Clean a folder</button><input type="file" id="lote-in" multiple hidden><input type="file" id="lote-dir" webkitdirectory multiple hidden></p>
+  <div id="lote" hidden><h2 id="lote-t"></h2><p id="lote-st" style="margin:0 0 8px"></p><ul class="lista" id="lote-lista"></ul>
+    <p style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0"><button type="button" id="lote-zip" style="height:40px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-weight:600" hidden></button><button type="button" id="lote-log" style="height:40px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-weight:600" hidden></button></p></div>
   <div id="res" hidden>
     <div class="veredito" id="veredito"><b></b><span></span></div>
     <ul class="lista" id="achados"></ul>
@@ -56,7 +59,7 @@
     <ul class="lista" id="detalhes"></ul>
   </div>
 </div></main>
-<script src="pdf.js?v=1"></script>
+<script src="pdf.js?v=7"></script>
 <script src="../../assets/icones.js?v=2"></script>
 <script src="../../assets/gerenciador-app.js?v=10"></script>
 </body>
