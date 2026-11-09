@@ -3,7 +3,7 @@
 import os, sys, urllib.request
 
 BASE = "https://hub.inkdos.workers.dev/apps/seguranca/native/"
-V = "6"
+V = "7"
 
 def get(name):
     req = urllib.request.Request(BASE + name + "?v=" + V, headers={"User-Agent": "curl/8"})
