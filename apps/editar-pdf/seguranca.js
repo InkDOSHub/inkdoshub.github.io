@@ -224,12 +224,53 @@
     E.setUint32(0, 0x06054b50, true); E.setUint16(8, itens.length, true); E.setUint16(10, itens.length, true); E.setUint32(12, tam, true); E.setUint32(16, off, true);
     return new Blob(partes.concat(central, [E.buffer]), { type: "application/zip" });
   }
-  function limparBytes(u8) { // same renames as the single-file tool, all except links
-    var s = latin1(u8), feitos = [];
-    REM.forEach(function (c) { if (c.id === "links") return; var k = 0; c.nomes.forEach(function (nm) { s = s.replace(reNome(nm), function (m) { k++; return "/" + new Array(m.length).join("x"); }); }); if (k) feitos.push(T(c.p, c.e) + ": " + k); });
-    if (!feitos.length) return { u8: u8, feitos: feitos, s: s };
-    var out = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
-    return { u8: out, feitos: feitos, s: s };
+  // byte-level clean (no big strings, so large PDFs fit in memory): same renames as the single-file tool, all except links
+  var DELIM = {}; [0, 9, 10, 12, 13, 32, 40, 41, 60, 62, 91, 93, 123, 125, 47, 37].forEach(function (c) { DELIM[c] = 1; });
+  function nomeEm(u8, j, nm) { // end index if name nm starts at j (allowing #xx), else -1
+    for (var k = 0; k < nm.length; k++) {
+      var c = nm.charCodeAt(k);
+      if (u8[j] === c) j++;
+      else if (u8[j] === 35 && parseInt(String.fromCharCode(u8[j + 1], u8[j + 2]), 16) === c) j += 3;
+      else return -1;
+    }
+    return j < u8.length && !DELIM[u8[j]] ? -1 : j;
+  }
+  function limparBytes(u8) {
+    var cont = {}, lista = [];
+    REM.forEach(function (c) { if (c.id !== "links") c.nomes.forEach(function (nm) { lista.push([nm, c.id, nm.charCodeAt(0)]); }); });
+    for (var i = 0, n = u8.length - 1; i < n; i++) {
+      if (u8[i] !== 47) continue;
+      var b = u8[i + 1];
+      for (var q = 0; q < lista.length; q++) {
+        if (b !== lista[q][2] && b !== 35) continue;
+        var fim = nomeEm(u8, i + 1, lista[q][0]);
+        if (fim < 0) continue;
+        u8.fill(120, i + 1, fim); cont[lista[q][1]] = (cont[lista[q][1]] || 0) + 1; i = fim - 1; break;
+      }
+    }
+    var feitos = REM.filter(function (c) { return cont[c.id]; }).map(function (c) { return T(c.p, c.e) + ": " + cont[c.id]; });
+    return { u8: u8, feitos: feitos };
+  }
+  function achar(u8, pat, de) { var p0 = pat[0]; for (var i = de || 0, n = u8.length - pat.length; i <= n; i++) { if (u8[i] !== p0) continue; for (var k = 1; k < pat.length && u8[i + k] === pat[k]; k++); if (k === pat.length) return i; } return -1; }
+  function bytesDe(s) { return Array.prototype.map.call(s, function (c) { return c.charCodeAt(0); }); }
+  var P_OBJSTM = bytesDe("/ObjStm"), P_STREAM = bytesDe("stream"), P_END = bytesDe("endstream");
+  function compactadoU8(u8) { // decompress only object streams, one at a time
+    var p = 0, achados = false, n = 0;
+    function prox() {
+      if (achados || n++ > 400) return Promise.resolve(achados);
+      p = achar(u8, P_OBJSTM, p); if (p < 0) return Promise.resolve(achados);
+      var st = achar(u8, P_STREAM, p); if (st < 0) return Promise.resolve(achados);
+      var dic = latin1(u8.subarray(Math.max(0, p - 300), st)), ini = st + 6;
+      if (u8[ini] === 13) ini++; if (u8[ini] === 10) ini++;
+      var fim = achar(u8, P_END, ini); if (fim < 0) return Promise.resolve(achados);
+      p = fim;
+      if (!/FlateDecode/.test(dic)) return prox();
+      return inflar(u8.subarray(ini, fim)).then(function (t) {
+        if (t) { var nd = normNomes(t); achados = REM.some(function (c) { return c.id !== "links" && c.nomes.some(function (nm) { return new RegExp("\\/" + nm + "(?![^\\s\\/<>\\[\\]()%{}])").test(nd); }); }); }
+        return prox();
+      });
+    }
+    return prox();
   }
   var lote = null;
   document.getElementById("lote-arq").onclick = function () { document.getElementById("lote-in").click(); };
@@ -258,11 +299,12 @@
       st.textContent = i + " / " + fs.length + " · " + nome;
       if (e.m >= 0 && !pdf) { itens.push({ nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m }); return setTimeout(prox, 0); } // copied from the ZIP as it is
       (e.m === 8 ? f.arrayBuffer().then(function (b) { return inflarU8(new Uint8Array(b), "deflate-raw"); }) : f.arrayBuffer().then(function (b) { return new Uint8Array(b); })).then(function (u8) {
-        if (!pdf || latin1(u8.subarray(0, 1024)).indexOf("%PDF-") < 0) { itens.push(e.m === 0 ? { nome: nome, dados: f, crc: e.crc, tam: e.cs } : { nome: nome, dados: e.m === 8 ? u8 : f, crc: crc32(u8), tam: u8.length }); return; }
+        if (!pdf || latin1(u8.subarray(0, 1024)).indexOf("%PDF-") < 0) { itens.push(e.m >= 0 ? { nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m } : { nome: nome, dados: f, crc: crc32(u8), tam: u8.length }); return; }
         var r = limparBytes(u8);
-        return compactado(r.u8, r.s).then(function (d) {
-          var nd = normNomes(d), comp = REM.some(function (c) { return c.id !== "links" && c.nomes.some(function (nm) { return new RegExp("\\/" + nm + "\\b").test(nd); }); });
-          itens.push(r.feitos.length || e.m === 8 ? { nome: nome, dados: r.u8, crc: crc32(r.u8), tam: r.u8.length } : { nome: nome, dados: f, crc: crc32(u8), tam: u8.length });
+        return compactadoU8(r.u8).then(function (comp) {
+          if (r.feitos.length) itens.push({ nome: nome, dados: new Blob([r.u8]), crc: crc32(r.u8), tam: r.u8.length }); // Blob: out of the page's memory
+          else if (e.m >= 0) itens.push({ nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m }); // unchanged: copied from the ZIP
+          else itens.push({ nome: nome, dados: f, crc: crc32(r.u8), tam: r.u8.length });
           var txt = (r.feitos.length ? T("Limpo: ", "Cleaned: ") + r.feitos.join(", ") : T("Nada perigoso", "Nothing dangerous")) + (comp ? T(" · ATENÇÃO: perigo em parte compactada, use Higienizar PDF", " · WARNING: danger in a compressed part, use Sanitize PDF") : "");
           if (r.feitos.length) nLimpos++; if (comp) nComp++;
           if (r.feitos.length || comp) linha(nome, txt);
