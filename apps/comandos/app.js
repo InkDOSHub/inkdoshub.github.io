@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  var BASE = new URL("../seguranca/native/", location.href).href;
+  var BASE = "https://inkdoshub.github.io/apps/seguranca/native/"; // scripts come from GitHub Pages (always current)
   var V = "8";
   // field: [id, label, type, default, options]
   var CARDS = [
