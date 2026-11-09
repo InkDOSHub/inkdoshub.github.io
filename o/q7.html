@@ -15,10 +15,16 @@
 </head>
 <body>
 <button id="c" type="button">Copy</button><button id="s" type="button">Save .txt</button>
+<div><select id="d" style="height:36px;margin:0 8px 12px 0;font:inherit"><option value="10">10 min</option><option value="30" selected>30 min</option><option value="60">60 min</option><option value="0">until stop</option></select><button id="m" type="button">Watch</button><span id="st" style="opacity:.7"></span></div>
 <div id="o"></div>
 <script>
 (function () {
-  var out = [], box = document.getElementById("o");
+  var out = [], box = document.getElementById("o"), ev = [], t0 = Date.now(), vendo = false;
+  function hh() { var d = new Date(); return d.toTimeString().slice(0, 8); }
+  function reg(tipo, txt) { ev.push(hh() + "  " + tipo + "  " + txt); var e = document.getElementById("st"); if (e && vendo) e.textContent = " " + ev.length + " events"; }
+  function resumo(m) { var j; try { j = JSON.stringify(m); } catch (_) { return typeof m; } if (j && j.length > 400) { var k = m && typeof m === "object" ? Object.keys(m).join(",") : ""; return "[" + j.length + " chars] keys: " + k + " | " + j.slice(0, 300) + "…"; } return j; }
+  // messages that page-world scripts send to the app (native bridge)
+  try { var UMH = window.UserMessageHandler; if (UMH && UMH.prototype && UMH.prototype.postMessage) { var pm = UMH.prototype.postMessage; UMH.prototype.postMessage = function (m) { reg("bridge", resumo(m)); return pm.apply(this, arguments); }; } } catch (_) {}
   function sec(t, txt) { out.push("### " + t + "\n" + txt); var h = document.createElement("h2"); h.textContent = t; var p = document.createElement("pre"); p.textContent = txt; box.appendChild(h); box.appendChild(p); }
   function src(f) { try { return Function.prototype.toString.call(f); } catch (e) { return "(unreadable: " + e + ")"; } }
   function nat(f) { return /\{\s*\[native code\]\s*\}\s*$/.test(src(f)); }
@@ -68,9 +74,39 @@
     var mais = Object.getOwnPropertyNames(window).filter(function (k) { return !ref[k] && !proprios[k] && extra.indexOf(k) < 0; });
     sec("Globals added after 3 s (" + mais.length + ")", mais.map(function (k) { var v = window[k]; return k + (typeof v === "function" ? " = " + src(v) : ""); }).join("\n\n") || "-");
   }, 3000);
+  // ---- continuous watch: this tab only ----
+  var base = {}; Object.getOwnPropertyNames(window).forEach(function (k) { base[k] = 1; });
+  var natAntes = {}; alvos.forEach(function (a) { natAntes[a[0]] = true; }); troc.forEach(function (k) { natAntes[k] = false; });
+  try { new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { reg("request", (e.initiatorType || "") + " " + e.name.slice(0, 200)); }); }).observe({ type: "resource", buffered: true }); } catch (_) {}
+  try { new MutationObserver(function (ms) { ms.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1 && /^(SCRIPT|STYLE|IFRAME|LINK)$/.test(n.tagName)) reg("element", n.tagName + (n.id ? " #" + n.id : "") + (n.src || n.href ? " " + (n.src || n.href) : "") + " len=" + (n.textContent || "").length + (n.tagName === "SCRIPT" && !n.src ? "\n" + n.textContent.slice(0, 4000) : "")); }); }); }).observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
+  ["visibilitychange", "pagehide", "pageshow", "focus", "blur"].forEach(function (t) { (t === "visibilitychange" ? document : window).addEventListener(t, function () { reg("page", t + (t === "visibilitychange" ? " " + document.visibilityState : "")); }); });
+  // test data so a storage backup has something to copy (changes every tick so it is not skipped as "same")
+  function idb(v) { try { var r = indexedDB.open("notes-test", 1); r.onupgradeneeded = function () { r.result.createObjectStore("k"); }; r.onsuccess = function () { var tx = r.result.transaction("k", "readwrite"); tx.objectStore("k").put({ marker: "notes-test-" + v, at: Date.now() }, "x"); tx.oncomplete = function () { r.result.close(); }; }; } catch (_) {} }
+  idb(0);
+  function tick() {
+    var agora = Object.getOwnPropertyNames(window).filter(function (k) { return !base[k]; });
+    agora.forEach(function (k) { base[k] = 1; var v; try { v = window[k]; } catch (_) {} reg("new global", k + (typeof v === "function" ? " = " + src(v).slice(0, 3000) : "")); });
+    alvos.forEach(function (a) {
+      var f; if (a[0] === "document.cookie (setter)") { var d = Object.getOwnPropertyDescriptor(Document.prototype, "cookie"); f = d && d.set; } else { try { f = a[1] && a[1][a[2]]; } catch (_) {} }
+      if (typeof f !== "function") return; var n = nat(f);
+      if (natAntes[a[0]] !== n) { reg("replaced", a[0] + (n ? " (back to native)" : " = " + src(f).slice(0, 3000))); natAntes[a[0]] = n; }
+    });
+    idb(Date.now());
+  }
+  var timer = null, fimEm = 0;
+  document.getElementById("m").onclick = function () {
+    var b = this;
+    if (vendo) { parar("stopped"); return; }
+    var min = +document.getElementById("d").value; vendo = true; ev.push(hh() + "  ---- watch start (" + (min ? min + " min" : "until stop") + ")"); b.textContent = "Stop";
+    fimEm = min ? Date.now() + min * 60000 : 0;
+    timer = setInterval(function () { tick(); if (fimEm && Date.now() > fimEm) parar("time up"); else document.getElementById("st").textContent = " " + ev.length + " events" + (fimEm ? " · " + Math.ceil((fimEm - Date.now()) / 60000) + " min left" : ""); }, 30000);
+    tick();
+  };
+  function parar(por) { clearInterval(timer); vendo = false; ev.push(hh() + "  ---- watch end (" + por + ")"); document.getElementById("m").textContent = "Watch"; document.getElementById("st").textContent = " done: " + ev.length + " events · tap Save .txt"; }
+  function tudo() { return out.join("\n\n") + "\n\n### Events (since page load " + new Date(t0).toTimeString().slice(0, 8) + ")\n" + (ev.join("\n") || "-"); }
   sec("Page", location.href + "\n" + navigator.userAgent + "\n" + new Date().toISOString());
-  document.getElementById("c").onclick = function () { navigator.clipboard.writeText(out.join("\n\n")).then(function () { document.getElementById("c").textContent = "Copied"; }, function () {}); };
-  document.getElementById("s").onclick = function () { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([out.join("\n\n")], { type: "text/plain" })); a.download = "notes.txt"; document.body.appendChild(a); a.click(); a.remove(); };
+  document.getElementById("c").onclick = function () { navigator.clipboard.writeText(tudo()).then(function () { document.getElementById("c").textContent = "Copied"; }, function () {}); };
+  document.getElementById("s").onclick = function () { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([tudo()], { type: "text/plain" })); a.download = "notes.txt"; document.body.appendChild(a); a.click(); a.remove(); };
 })();
 </script>
 </body>
