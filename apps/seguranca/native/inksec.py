@@ -13,11 +13,16 @@ office  removes VBA macros, points external links (not hyperlinks) to about:blan
 archive lists .zip (and .rar/.7z with 7z/7zz installed) and reports executables, scripts, shortcuts,
         disk images and double extensions. Report only.
 loose   reports loose .exe/.lnk/.js/.vbs/.bat/.hta/.sh/.command/.app... files. Report only.
+a-Shell (iPad/iPhone): cd into the folder, then  python3 inksec.py all  (office + archive + loose, no questions;
+        Office files are cleaned in place, originals of changed files kept in ~/Documents/inkdos-backup).
 Env (used by the retry line saved next to the report): INKSEC_RETRY = report CSV, INKSEC_OUT = R or folder.
 """
 import csv, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 
 MODE = (sys.argv[1] if len(sys.argv) > 1 else "office").lower()
+ASHELL = "/Containers/Data/Application/" in os.path.expanduser("~")
+MODES = ["office", "archive", "loose"] if MODE == "all" else [MODE]
+MODE = MODES[0]
 TAG = {"pdf": "pdfclean", "office": "officeclean", "archive": "archivescan", "loose": "riskyfiles"}.get(MODE)
 if not TAG:
     sys.exit("Unknown mode: " + MODE)
@@ -65,7 +70,9 @@ def is_cloud(p):
 
 def evict(p):
     # put it back to online-only (iCloud Drive); other providers ignore it
-    subprocess.run(["brctl", "evict", p], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if ASHELL: return
+    try: subprocess.run(["brctl", "evict", p], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception: pass
 
 # ---------- PDF ----------
 QPDF = shutil.which("qpdf") if MODE == "pdf" else None
@@ -164,7 +171,7 @@ def legacy_macros(path):
         return "_VBA_PROJECT".encode("utf-16-le") in f.read()
 
 # ---------- Archives ----------
-SEVEN = shutil.which("7zz") or shutil.which("7z") or shutil.which("7za")
+SEVEN = None if ASHELL else shutil.which("7zz") or shutil.which("7z") or shutil.which("7za")
 
 def archive_names(path, e):
     if e == "zip":
@@ -186,7 +193,9 @@ def main():
     print("InkDOS Security: " + TAG)
     retry = os.environ.pop("INKSEC_RETRY", ""); out_pre = os.environ.pop("INKSEC_OUT", "")
     src = ""
-    if not retry:
+    if ASHELL:
+        src, out_pre = os.getcwd(), "R"
+    elif not retry:
         a = os.path.expanduser(ask("Folder or drive to scan (or a %s report .csv to retry only its failed files): " % TAG))
         if a.lower().endswith(".csv"): retry = a
         else: src = a
@@ -216,7 +225,7 @@ def main():
         else:
             dst = os.path.expanduser(dst or defo)
     else:
-        dst = os.path.join(desk, "InkDOS-security")
+        dst = src if ASHELL else os.path.join(desk, "InkDOS-security")
     os.makedirs(dst, exist_ok=True)
     dst = os.path.join(os.path.realpath(dst), "")
 
@@ -267,6 +276,9 @@ def main():
                 target = p if in_place else os.path.join(dst, rel)
                 if not in_place: os.makedirs(os.path.dirname(target), exist_ok=True)
                 if res:
+                    if ASHELL:
+                        bk = os.path.join(os.path.expanduser("~/Documents/inkdos-backup"), rel)
+                        os.makedirs(os.path.dirname(bk), exist_ok=True); shutil.copyfile(p, bk)
                     shutil.copyfile(res, target)
                     row.update(Status="CLEANED", Found=found); n_fix += 1
                     print("CLEANED  %s  ->  %s" % (rel, found))
@@ -285,7 +297,7 @@ def main():
                 if cloud and size > BIG_CLOUD: row.update(Status="skipped", Note="online-only and over 500 MB (not downloaded)")
                 else:
                     names = archive_names(p, e)
-                    if names is None: row.update(Status="skipped", Note="needs 7-Zip (" + ("brew install sevenzip" if IS_MAC else "sudo apt install 7zip") + ")")
+                    if names is None: row.update(Status="skipped", Note=("not checkable on iPad (only .zip)" if ASHELL else "needs 7-Zip (" + ("brew install sevenzip" if IS_MAC else "sudo apt install 7zip") + ")"))
                     else:
                         bad = ["%s [%s]" % (n, risk_of(n)) for n in names if risk_of(n)]
                         if bad:
@@ -306,11 +318,13 @@ def main():
     if cleaner: print("Done. %d file(s): %d cleaned, %d flagged for you to check, %d failed." % (total, n_fix, n_flag, n_fail))
     else: print("Done. %d file(s) looked at: %d flagged for you to check, %d failed. Nothing was changed." % (total, n_flag, n_fail))
     print("Output: " + dst); print("Report: " + rep)
-    if n_fail:
+    if n_fail and not ASHELL:
         q = lambda v: "'" + v.replace("'", "'\\''") + "'"
         cmd = 'curl -fsSL "%s%s.sh?$RANDOM" | INKSEC_RETRY=%s INKSEC_OUT=%s bash' % (BASE, TAG, q(rep), q("R" if in_place else dst))
         txt = os.path.join(dst, "%s-retry%s.txt" % (TAG, stamp))
         open(txt, "w").write("Retry only the %d failed file(s): paste this line into the terminal\n\n%s\n" % (n_fail, cmd))
         print("Failed files were NOT changed. Retry command saved to: " + txt)
 
-main()
+for MODE in MODES:
+    TAG = {"office": "officeclean", "archive": "archivescan", "loose": "riskyfiles"}.get(MODE, TAG)
+    main(); print()
