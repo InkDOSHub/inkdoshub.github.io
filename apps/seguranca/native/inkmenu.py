@@ -177,7 +177,8 @@ OFFICE = [
 FILES = [
     ("See folder sizes", lambda: run("inkfinder.py", ["sizes"])),
     ("Find files by size, date or type", job_search),
-    ("Find duplicate files", lambda: run("inkfinder.py", ["dupes"])),
+    ("Duplicate files (find and remove)", lambda: run("inkfinder.py", ["dupes", ask("What to do with duplicates:", [
+        ("Only list them", "list"), ("Remove all automatically (keeps the oldest copy)", "auto"), ("Decide one by one", "one")])])),
     ("Merge two folders", job_merge),
     ("Rename many files at once", job_rename),
     ("Copy new and changed files to another folder", job_sync),

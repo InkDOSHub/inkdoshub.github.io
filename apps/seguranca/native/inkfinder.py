@@ -309,21 +309,57 @@ def cmd_search():
         n += 1; say("%10s  %s  %s" % (human(st.st_size), time.strftime("%Y-%m-%d", time.localtime(st.st_mtime)), rel(p, HERE)))
     say("%d file(s) found." % n)
 
+DUP = "Duplicates removed"
+
 def cmd_dupes():
+    # dupes [list|auto|one]: list only, keep one of each automatically, or decide group by group.
+    # Removed copies go to the folder DUP (same sub-paths), so nothing is lost until it is emptied.
+    mode = ARGS[1] if len(ARGS) > 1 else "list"
+    box = os.path.join(HERE, DUP)
+    if os.path.isdir(box):
+        old = [p for p in files_in(box)]
+        size = sum(os.path.getsize(p) for p in old)
+        say("The folder '%s' from an earlier run holds %d file(s), %s." % (DUP, len(old), human(size)))
+        try: a = input("Delete it PERMANENTLY now? This cannot be undone. Type yes to delete, or Enter to keep it: ").strip().lower()
+        except EOFError: a = ""
+        if a == "yes":
+            shutil.rmtree(box); say("Deleted '%s' permanently (%s freed)." % (DUP, human(size)))
+        else: say("Kept '%s'." % DUP)
     by = {}
     for p in files_in(HERE):
-        if mine(p): by.setdefault(os.path.getsize(p), []).append(p)
-    g = 0; waste = 0
+        if mine(p) and not os.path.realpath(p).startswith(os.path.realpath(box) + os.sep): by.setdefault(os.path.getsize(p), []).append(p)
+    groups = []
     for size, ps in sorted(by.items(), reverse=True):
         if len(ps) < 2 or size == 0: continue
         hs = {}
         for p in ps: hs.setdefault(digest(p), []).append(p)
-        for same in hs.values():
-            if len(same) > 1:
-                g += 1; waste += size * (len(same) - 1)
-                say("Group %d (%s each):" % (g, human(size)))
-                for p in same: say("   " + rel(p, HERE))
-    say("%d group(s), %s could be freed. Nothing was deleted." % (g, human(waste)))
+        groups += [(size, sorted(same, key=lambda p: (os.path.getmtime(p), len(p)))) for same in hs.values() if len(same) > 1]
+    waste = sum(size * (len(ps) - 1) for size, ps in groups)
+    say("%d group(s) of duplicates, %s could be freed." % (len(groups), human(waste)))
+    if not groups: return
+    def move(p):
+        t = os.path.join(box, rel(p, HERE)); os.makedirs(os.path.dirname(t), exist_ok=True)
+        if os.path.exists(t): t = os.path.splitext(t)[0] + " (%d)" % int(time.time()) + os.path.splitext(t)[1]
+        shutil.move(p, t); say("   moved  " + rel(p, HERE))
+    moved = freed = 0
+    for g, (size, ps) in enumerate(groups, 1):
+        print("\nGroup %d of %d (%s each):" % (g, len(groups), human(size)))
+        for i, p in enumerate(ps, 1):
+            print("  %d  %s   %s" % (i, rel(p, HERE), time.strftime("%Y-%m-%d", time.localtime(os.path.getmtime(p)))))
+        if mode == "list": continue
+        keep = 1
+        if mode == "one":
+            try: a = input("Number to KEEP (the others are moved), Enter = skip, 0 = stop: ").strip()
+            except EOFError: a = "0"
+            if a == "0": break
+            if not a.isdigit() or not 1 <= int(a) <= len(ps): print("  skipped"); continue
+            keep = int(a)
+        say("   keep   " + rel(ps[keep - 1], HERE))
+        for i, p in enumerate(ps, 1):
+            if i != keep: move(p); moved += 1; freed += size
+    if mode != "list":
+        say("\n%d file(s) moved to '%s' (%s). Check it in the Files app; run this again to delete it permanently." % (moved, DUP, human(freed)))
+    else: say("Nothing was changed.")
 
 def cmd_merge():
     rule = ARGS[2] if len(ARGS) > 2 else "skip"
