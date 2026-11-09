@@ -305,6 +305,8 @@
   document.getElementById("lote-arq").onclick = function () { document.getElementById("lote-in").click(); };
   document.getElementById("lote-pasta").onclick = function () { document.getElementById("lote-dir").click(); };
   document.getElementById("lote-in").onchange = document.getElementById("lote-dir").onchange = function () { var fs = Array.prototype.slice.call(this.files); this.value = ""; if (fs.length) limparLote(fs); };
+  var PARTE = 2e9; // max ZIP part size, like Google Drive downloads
+  function gb(b) { return b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : Math.ceil(b / 1e6) + " MB"; }
   function limparLote(fs) {
     // the ZIP gets the source's name (ZIP or top folder), so unzipping recreates the same folder
     var raiz = fs.length === 1 && /\.zip$/i.test(fs[0].name) ? fs[0].name.replace(/\.zip$/i, "") : ((fs[0].webkitRelativePath || "").split("/")[0] || "");
@@ -323,7 +325,17 @@
       ls.forEach(function (l) { ents = ents.concat(l); });
       // no folder paths came with the files: the ZIP would be flat, so stop and point to the ZIP route
       if (!nZip && ents.length > 1 && !ents.some(function (e) { return e.nome.indexOf("/") >= 0; })) linha(T("Sem estrutura de pastas", "No folder structure"), T("Este aparelho não informou as pastas. Para manter as subpastas: no Arquivos, toque e segure a pasta › Comprimir, e escolha o .zip aqui.", "This device didn't pass the folders. To keep subfolders: in Files, long-press the folder › Compress, then pick that .zip here."));
-      fs = ents; prox();
+      fs = ents;
+      // read the total size first and say how many 2 GB parts it will make before starting
+      var tot = 0, grandes = [];
+      ents.forEach(function (e) { var t = e.m >= 0 ? (/\.pdf$/i.test(e.nome) ? e.us : e.cs) : e.blob.size; tot += t; if (t > PARTE) grandes.push(e.nome); });
+      var np = Math.max(1, Math.ceil(tot / PARTE));
+      st.textContent = ents.length + T(" arquivos · ", " files · ") + gb(tot) + " → " + np + T(" parte(s) ZIP de até 2 GB", " ZIP part(s) of up to 2 GB");
+      if (grandes.length) linha(T("Arquivos maiores que 2 GB", "Files over 2 GB"), T("Cada um vai sozinho numa parte maior, que pode falhar no download do Safari: ", "Each goes alone in a larger part, which Safari may fail to download: ") + grandes.slice(0, 5).join(", "));
+      if (np > 1) linha(T("Como fica", "How it works"), T("Como no Google Drive: cada parte tem os caminhos originais (", "Like Google Drive: every part keeps the original paths (") + (ents[0].nome.split("/")[0]) + T("/…). Descompacte todas no mesmo lugar e as pastas se juntam.", "/…). Unzip them all in the same place and the folders come together."));
+      var ini = document.createElement("button"); ini.type = "button"; ini.className = "parte"; ini.style.cssText = document.getElementById("lote-zip").style.cssText; ini.textContent = T("Começar", "Start");
+      ini.onclick = function () { ini.remove(); prox(); };
+      st.parentNode.insertBefore(ini, st.nextSibling);
     }).catch(function (e) { st.textContent = String(e); });
     function prox() {
       if (i >= fs.length) return fim();
@@ -349,22 +361,18 @@
       st.textContent = fs.length + T(" arquivos · ", " files · ") + pdfs + " PDF · " + nLimpos + T(" limpos", " cleaned") + (nComp ? " · " + nComp + T(" precisam de Higienizar", " need Sanitize") : "");
       if (!nLimpos && !nComp) linha(T("Tudo limpo", "All clean"), T("Nenhum PDF tinha partes perigosas.", "No PDF had dangerous parts."));
       lote = { nome: (raiz || T("pdfs-limpos", "clean-pdfs")) + ".zip", blob: zip(itens), log: ["InkDOS Hub · " + T("Limpeza de PDFs em lote", "Batch PDF clean"), new Date().toISOString(), st.textContent, ""].concat(log).join("\n") };
-      var z = document.getElementById("lote-zip"); z.hidden = false; z.textContent = T("Salvar ZIP inteiro", "Save whole ZIP");
-      // one ZIP per main subfolder: smaller downloads, and each unzips to a folder that replaces its twin in iCloud
-      var bar = z.parentNode; ul.parentNode.insertBefore(bar, ul);
+      // split into parts of up to 2 GB, in order, every entry keeping its full original path
+      var z = document.getElementById("lote-zip"), bar = z.parentNode; z.hidden = true; ul.parentNode.insertBefore(bar, ul);
       Array.prototype.slice.call(bar.querySelectorAll(".parte")).forEach(function (b) { b.remove(); });
-      var r0 = itens.length ? itens[0].nome.split("/")[0] + "/" : "", pre = itens.every(function (it) { return it.nome.indexOf(r0) === 0 && it.nome.length > r0.length; }) ? r0 : "", grupos = {}, ordem = [];
-      itens.forEach(function (it) {
-        var rel = pre && it.nome.indexOf(pre) === 0 ? it.nome.slice(pre.length) : it.nome, k = rel.indexOf("/") > 0 ? rel.split("/")[0] : "";
-        if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
-        grupos[k].push(Object.assign({}, it, { nome: k ? rel : rel }));
-      });
-      if (ordem.length > 1) ordem.forEach(function (k) {
-        var g = grupos[k], gb = g.reduce(function (a, it) { return a + it.tam; }, 0), nome = (k || (raiz || "files") + T("-arquivos-soltos", "-loose-files")) + ".zip";
+      var partes = [[]], acc = 0;
+      itens.forEach(function (it) { if (acc > 0 && acc + it.tam > PARTE) { partes.push([]); acc = 0; } partes[partes.length - 1].push(it); acc += it.tam; });
+      var base = (raiz || T("pdfs-limpos", "clean-pdfs"));
+      partes.forEach(function (g, k) {
+        var nome = partes.length > 1 ? base + "-" + ("00" + (k + 1)).slice(-3) + ".zip" : base + ".zip", tam = g.reduce(function (a, it) { return a + it.tam; }, 0);
         var b = document.createElement("button"); b.type = "button"; b.className = "parte"; b.style.cssText = z.style.cssText;
-        b.textContent = nome + " · " + (gb / 1073741824 >= 1 ? (gb / 1073741824).toFixed(1) + " GB" : Math.ceil(gb / 1048576) + " MB");
+        b.textContent = (partes.length > 1 ? T("Salvar parte ", "Save part ") + (k + 1) + "/" + partes.length : T("Salvar ZIP", "Save ZIP")) + " · " + gb(tam);
         b.onclick = function () { salvar(zip(g), nome); b.style.opacity = ".5"; };
-        bar.appendChild(b);
+        bar.insertBefore(b, document.getElementById("lote-log"));
       });
       var l = document.getElementById("lote-log"); l.hidden = false; l.textContent = T("Salvar relatório", "Save report");
     }
