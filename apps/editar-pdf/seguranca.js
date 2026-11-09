@@ -349,9 +349,29 @@
       st.textContent = fs.length + T(" arquivos · ", " files · ") + pdfs + " PDF · " + nLimpos + T(" limpos", " cleaned") + (nComp ? " · " + nComp + T(" precisam de Higienizar", " need Sanitize") : "");
       if (!nLimpos && !nComp) linha(T("Tudo limpo", "All clean"), T("Nenhum PDF tinha partes perigosas.", "No PDF had dangerous parts."));
       lote = { nome: (raiz || T("pdfs-limpos", "clean-pdfs")) + ".zip", blob: zip(itens), log: ["InkDOS Hub · " + T("Limpeza de PDFs em lote", "Batch PDF clean"), new Date().toISOString(), st.textContent, ""].concat(log).join("\n") };
-      var z = document.getElementById("lote-zip"); z.hidden = false; z.textContent = T("Salvar ZIP", "Save ZIP");
+      var z = document.getElementById("lote-zip"); z.hidden = false; z.textContent = T("Salvar ZIP inteiro", "Save whole ZIP");
+      // one ZIP per main subfolder: smaller downloads, and each unzips to a folder that replaces its twin in iCloud
+      var bar = z.parentNode; ul.parentNode.insertBefore(bar, ul);
+      Array.prototype.slice.call(bar.querySelectorAll(".parte")).forEach(function (b) { b.remove(); });
+      var r0 = itens.length ? itens[0].nome.split("/")[0] + "/" : "", pre = itens.every(function (it) { return it.nome.indexOf(r0) === 0 && it.nome.length > r0.length; }) ? r0 : "", grupos = {}, ordem = [];
+      itens.forEach(function (it) {
+        var rel = pre && it.nome.indexOf(pre) === 0 ? it.nome.slice(pre.length) : it.nome, k = rel.indexOf("/") > 0 ? rel.split("/")[0] : "";
+        if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
+        grupos[k].push(Object.assign({}, it, { nome: k ? rel : rel }));
+      });
+      if (ordem.length > 1) ordem.forEach(function (k) {
+        var g = grupos[k], gb = g.reduce(function (a, it) { return a + it.tam; }, 0), nome = (k || (raiz || "files") + T("-arquivos-soltos", "-loose-files")) + ".zip";
+        var b = document.createElement("button"); b.type = "button"; b.className = "parte"; b.style.cssText = z.style.cssText;
+        b.textContent = nome + " · " + (gb / 1073741824 >= 1 ? (gb / 1073741824).toFixed(1) + " GB" : Math.ceil(gb / 1048576) + " MB");
+        b.onclick = function () { salvar(zip(g), nome); b.style.opacity = ".5"; };
+        bar.appendChild(b);
+      });
       var l = document.getElementById("lote-log"); l.hidden = false; l.textContent = T("Salvar relatório", "Save report");
     }
+  }
+  function salvar(blob, nome) {
+    if (window.showSaveFilePicker) window.showSaveFilePicker({ suggestedName: nome }).then(function (h) { return h.createWritable(); }).then(function (w) { return w.write(blob).then(function () { return w.close(); }); }).catch(function () { baixar(blob, nome); });
+    else baixar(blob, nome);
   }
   document.getElementById("lote-zip").onclick = function () {
     var nome = lote.nome;
