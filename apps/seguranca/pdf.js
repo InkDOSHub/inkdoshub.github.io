@@ -202,7 +202,7 @@
   }
   function baixar(blob, nome) {
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    a.remove(); // blob URL kept alive: Safari may start a big download minutes later
   }
   function sha256(u8) { return crypto.subtle ? crypto.subtle.digest("SHA-256", u8).then(function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); }) : Promise.resolve("?"); }
   function textoLog() {
