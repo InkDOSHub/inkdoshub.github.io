@@ -1,7 +1,7 @@
 (function () {
   "use strict";
   var BASE = new URL("../seguranca/native/", location.href).href;
-  var V = "2";
+  var V = "3";
   // field: [id, label, type, default, options]
   var CARDS = [
     ["Safety"],
