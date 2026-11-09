@@ -10,9 +10,10 @@ NAMES = ["JavaScript", "JS", "OpenAction", "AA", "Launch", "EmbeddedFiles",
          "EmbeddedFile", "RichMedia", "Flash", "Movie", "Sound", "XFA",
          "ImportData", "GoToE", "SubmitForm", "GoToR"]
 def name_re(n):
-    return b"".join(b"(?:" + re.escape(c.encode()) + b"|#" + b"%02x" % ord(c) + b")" for c in n)
+    # PDF names are case-sensitive; only the #xx hex digits may vary in case
+    return b"".join(b"(?:" + re.escape(c.encode()) + b"|#(?i:" + b"%02x" % ord(c) + b"))" for c in n)
 DELIM = rb"(?=[\s/<>\[\]()%{}]|$)"
-RX = re.compile(rb"/(?:" + b"|".join(name_re(n) for n in NAMES) + rb")" + DELIM, re.I)
+RX = re.compile(rb"/(?:" + b"|".join(name_re(n) for n in NAMES) + rb")" + DELIM)
 RX_OBJSTM = re.compile(rb"/ObjStm" + DELIM)
 CHUNK, OVER = 1 << 20, 64
 LOG = "inkclean-log.txt"
@@ -82,23 +83,31 @@ def clean(path, lf):
     if objstm and enc: log(lf, "FLAGGED  %s  (encrypted, compressed parts not checked)" % path)
     return bool(uniq), hidden or (objstm and enc)
 
-def undo():
+def real_name(t):
+    return re.sub(r"#([0-9a-fA-F]{2})", lambda m: chr(int(m.group(1), 16)), t)[1:] in NAMES
+
+def undo(only_wrong_case=False):
     n = 0
+    if not os.path.exists(LOG): return 0
     for line in open(LOG, encoding="utf-8", errors="surrogateescape"):
         p = line.rstrip("\n").split("\t")
         if p[0] != "PATCH" or not os.path.exists(p[1]): continue
+        if only_wrong_case and real_name(p[3]): continue
         t = p[3].encode("latin-1")
         with open(p[1], "r+b") as fh:
             fh.seek(int(p[2]))
             if fh.read(len(t)) == b"/" + b"x" * (len(t) - 1):
                 fh.seek(int(p[2])); fh.write(t); n += 1
-    print("Undo done: %d change(s) restored." % n)
+    if not only_wrong_case: print("Undo done: %d change(s) restored." % n)
+    return n
 
 def main():
     if "--undo" in sys.argv: return undo()
     t0, n, nc, nf, ne, cloud = time.time(), 0, 0, 0, 0, 0
     with open(LOG, "a", encoding="utf-8", errors="surrogateescape") as lf:
         log(lf, "=== inkclean %s in %s ===" % (time.strftime("%Y-%m-%d %H:%M"), os.getcwd()))
+        lf.flush(); r = undo(True)
+        if r: log(lf, "Restored %d harmless lowercase name(s) changed by the first version (e.g. /aa, /js)." % r)
         for root, dirs, files in os.walk("."):
             dirs[:] = [d for d in dirs if not d.startswith(".Trash")]
             for f in sorted(files):
