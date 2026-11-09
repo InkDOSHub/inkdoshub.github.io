@@ -12,3 +12,9 @@ document.querySelectorAll("details.so").forEach(function (d) {
     if (d.open) document.querySelectorAll("details.so").forEach(function (o) { if (o !== d) o.open = false; });
   });
 });
+// PDF tools opened from here return to Security, not to the PDF app.
+document.querySelectorAll('a[href*="/bentopdf/"]').forEach(function (a) {
+  a.addEventListener("click", function () {
+    try { sessionStorage.setItem("inkdos-return", location.href); sessionStorage.removeItem("inkdoshub-pdf-nome"); sessionStorage.setItem("inkdoshub-pdf-volta", "seguranca"); } catch (_) {}
+  });
+});
