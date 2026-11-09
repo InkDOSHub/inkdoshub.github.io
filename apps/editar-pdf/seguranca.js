@@ -39,7 +39,7 @@
         var c = new DataView(cb), q = 0, ents = [], dec = new TextDecoder();
         for (var k = 0; k < n; k++) {
           var nl = c.getUint16(q + 28, true), el = c.getUint16(q + 30, true), cl = c.getUint16(q + 32, true);
-          ents.push({ nome: dec.decode(new Uint8Array(cb, q + 46, nl)), m: c.getUint16(q + 10, true), crc: c.getUint32(q + 16, true), cs: c.getUint32(q + 20, true), us: c.getUint32(q + 24, true), lo: c.getUint32(q + 42, true) });
+          ents.push({ dt: [c.getUint16(q + 12, true), c.getUint16(q + 14, true)], nome: dec.decode(new Uint8Array(cb, q + 46, nl)), m: c.getUint16(q + 10, true), crc: c.getUint32(q + 16, true), cs: c.getUint32(q + 20, true), us: c.getUint32(q + 24, true), lo: c.getUint32(q + 42, true) });
           q += 46 + nl + el + cl;
         }
         ents = ents.filter(function (e) { return !/\/$/.test(e.nome) && !/^__MACOSX\//.test(e.nome) && !/(^|\/)\.DS_Store$/.test(e.nome); });
@@ -212,12 +212,13 @@
   // ---- batch: clean many files / a folder into one ZIP (non-PDF files copied as they are)
   var CRC = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
   function crc32(u) { var c = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function dosData(ms) { var d = new Date(ms || Date.now()); return [(d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), ((Math.max(d.getFullYear(), 1980) - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()]; }
   function zip(itens) { // store-only ZIP; names in UTF-8
     var partes = [], central = [], off = 0, enc = new TextEncoder();
     itens.forEach(function (it) {
-      var nm = enc.encode(it.nome), c = it.crc, L = new DataView(new ArrayBuffer(30)), C = new DataView(new ArrayBuffer(46)), s = it.tam, us = it.us == null ? s : it.us, m = it.m || 0;
-      L.setUint32(0, 0x04034b50, true); L.setUint16(4, 20, true); L.setUint16(6, 0x0800, true); L.setUint16(8, m, true); L.setUint32(14, c, true); L.setUint32(18, s, true); L.setUint32(22, us, true); L.setUint16(26, nm.length, true);
-      C.setUint32(0, 0x02014b50, true); C.setUint16(4, 20, true); C.setUint16(6, 20, true); C.setUint16(8, 0x0800, true); C.setUint16(10, m, true); C.setUint32(16, c, true); C.setUint32(20, s, true); C.setUint32(24, us, true); C.setUint16(28, nm.length, true); C.setUint32(42, off, true);
+      var nm = enc.encode(it.nome), c = it.crc, L = new DataView(new ArrayBuffer(30)), C = new DataView(new ArrayBuffer(46)), s = it.tam, us = it.us == null ? s : it.us, m = it.m || 0, dt = it.dt || dosData(Date.now());
+      L.setUint32(0, 0x04034b50, true); L.setUint16(4, 20, true); L.setUint16(6, 0x0800, true); L.setUint16(8, m, true); L.setUint16(10, dt[0], true); L.setUint16(12, dt[1], true); L.setUint32(14, c, true); L.setUint32(18, s, true); L.setUint32(22, us, true); L.setUint16(26, nm.length, true);
+      C.setUint32(0, 0x02014b50, true); C.setUint16(4, 20, true); C.setUint16(6, 20, true); C.setUint16(8, 0x0800, true); C.setUint16(10, m, true); C.setUint16(12, dt[0], true); C.setUint16(14, dt[1], true); C.setUint32(16, c, true); C.setUint32(20, s, true); C.setUint32(24, us, true); C.setUint16(28, nm.length, true); C.setUint32(42, off, true);
       partes.push(L.buffer, nm, it.dados); central.push(C.buffer, nm); off += 30 + nm.length + s;
     });
     var tam = central.reduce(function (a, b) { return a + b.byteLength; }, 0), E = new DataView(new ArrayBuffer(22));
@@ -277,6 +278,9 @@
   document.getElementById("lote-pasta").onclick = function () { document.getElementById("lote-dir").click(); };
   document.getElementById("lote-in").onchange = document.getElementById("lote-dir").onchange = function () { var fs = Array.prototype.slice.call(this.files); this.value = ""; if (fs.length) limparLote(fs); };
   function limparLote(fs) {
+    // the ZIP gets the source's name (ZIP or top folder), so unzipping recreates the same folder
+    var raiz = fs.length === 1 && /\.zip$/i.test(fs[0].name) ? fs[0].name.replace(/\.zip$/i, "") : ((fs[0].webkitRelativePath || "").split("/")[0] || "");
+    function add(e, o) { o.dt = e.dt; itens.push(o); }
     var ul = document.getElementById("lote-lista"), st = document.getElementById("lote-st"), itens = [], log = [], nLimpos = 0, nComp = 0, i = 0;
     ul.textContent = ""; document.getElementById("lote").hidden = false; document.getElementById("res").hidden = true;
     document.getElementById("lote-t").textContent = T("Limpeza em lote", "Batch clean");
@@ -286,7 +290,7 @@
     st.textContent = T("Lendo…", "Reading…");
     Promise.all(fs.map(function (f) {
       if (/\.zip$/i.test(f.name)) return lerZip(f).then(function (es) { nZip++; return es; });
-      return [{ nome: f.webkitRelativePath || f.name, blob: f, m: -1 }];
+      return [{ nome: f.webkitRelativePath || f.name, blob: f, m: -1, dt: dosData(f.lastModified) }];
     })).then(function (ls) {
       ls.forEach(function (l) { ents = ents.concat(l); });
       // no folder paths came with the files: the ZIP would be flat, so stop and point to the ZIP route
@@ -297,14 +301,14 @@
       if (i >= fs.length) return fim();
       var e = fs[i++], f = e.blob, nome = e.nome, pdf = /\.pdf$/i.test(nome);
       st.textContent = i + " / " + fs.length + " · " + nome;
-      if (e.m >= 0 && !pdf) { itens.push({ nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m }); return setTimeout(prox, 0); } // copied from the ZIP as it is
+      if (e.m >= 0 && !pdf) { add(e, { nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m }); return setTimeout(prox, 0); } // copied from the ZIP as it is
       (e.m === 8 ? f.arrayBuffer().then(function (b) { return inflarU8(new Uint8Array(b), "deflate-raw"); }) : f.arrayBuffer().then(function (b) { return new Uint8Array(b); })).then(function (u8) {
-        if (!pdf || latin1(u8.subarray(0, 1024)).indexOf("%PDF-") < 0) { itens.push(e.m >= 0 ? { nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m } : { nome: nome, dados: f, crc: crc32(u8), tam: u8.length }); return; }
+        if (!pdf || latin1(u8.subarray(0, 1024)).indexOf("%PDF-") < 0) { add(e, e.m >= 0 ? { nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m } : { nome: nome, dados: f, crc: crc32(u8), tam: u8.length }); return; }
         var r = limparBytes(u8);
         return compactadoU8(r.u8).then(function (comp) {
-          if (r.feitos.length) itens.push({ nome: nome, dados: new Blob([r.u8]), crc: crc32(r.u8), tam: r.u8.length }); // Blob: out of the page's memory
-          else if (e.m >= 0) itens.push({ nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m }); // unchanged: copied from the ZIP
-          else itens.push({ nome: nome, dados: f, crc: crc32(r.u8), tam: r.u8.length });
+          if (r.feitos.length) add(e, { nome: nome, dados: new Blob([r.u8]), crc: crc32(r.u8), tam: r.u8.length }); // Blob: out of the page's memory
+          else if (e.m >= 0) add(e, { nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m }); // unchanged: copied from the ZIP
+          else add(e, { nome: nome, dados: f, crc: crc32(r.u8), tam: r.u8.length });
           var txt = (r.feitos.length ? T("Limpo: ", "Cleaned: ") + r.feitos.join(", ") : T("Nada perigoso", "Nothing dangerous")) + (comp ? T(" · ATENÇÃO: perigo em parte compactada, use Higienizar PDF", " · WARNING: danger in a compressed part, use Sanitize PDF") : "");
           if (r.feitos.length) nLimpos++; if (comp) nComp++;
           if (r.feitos.length || comp) linha(nome, txt);
@@ -316,13 +320,13 @@
       var pdfs = log.length;
       st.textContent = fs.length + T(" arquivos · ", " files · ") + pdfs + " PDF · " + nLimpos + T(" limpos", " cleaned") + (nComp ? " · " + nComp + T(" precisam de Higienizar", " need Sanitize") : "");
       if (!nLimpos && !nComp) linha(T("Tudo limpo", "All clean"), T("Nenhum PDF tinha partes perigosas.", "No PDF had dangerous parts."));
-      lote = { blob: zip(itens), log: ["InkDOS Hub · " + T("Limpeza de PDFs em lote", "Batch PDF clean"), new Date().toISOString(), st.textContent, ""].concat(log).join("\n") };
+      lote = { nome: (raiz || T("pdfs-limpos", "clean-pdfs")) + ".zip", blob: zip(itens), log: ["InkDOS Hub · " + T("Limpeza de PDFs em lote", "Batch PDF clean"), new Date().toISOString(), st.textContent, ""].concat(log).join("\n") };
       var z = document.getElementById("lote-zip"); z.hidden = false; z.textContent = T("Salvar ZIP", "Save ZIP");
       var l = document.getElementById("lote-log"); l.hidden = false; l.textContent = T("Salvar relatório", "Save report");
     }
   }
   document.getElementById("lote-zip").onclick = function () {
-    var nome = T("pdfs-limpos.zip", "clean-pdfs.zip");
+    var nome = lote.nome;
     if (window.showSaveFilePicker) window.showSaveFilePicker({ suggestedName: nome }).then(function (h) { return h.createWritable(); }).then(function (w) { return w.write(lote.blob).then(function () { return w.close(); }); }).catch(function () { baixar(lote.blob, nome); });
     else baixar(lote.blob, nome);
   };
