@@ -112,7 +112,9 @@ def pypdf():
     if ASH: os.system("pip install --quiet pypdf")
     else:
         import subprocess
-        subprocess.call([sys.executable, "-m", "pip", "install", "--quiet", "--user", "pypdf"])
+        cmd = [sys.executable, "-m", "pip", "install", "--quiet", "--user", "pypdf"]
+        if subprocess.call(cmd) != 0:  # Alpine/Debian block pip on the system Python (PEP 668)
+            subprocess.call(cmd + ["--break-system-packages"])
     import importlib, site
     try: sys.path.append(site.getusersitepackages())
     except Exception: pass
