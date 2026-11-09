@@ -22,13 +22,18 @@
   try {
     if (!localStorage.getItem("inkdoshub-padrao-v2")) {
       var celular = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent);
-      var base = ["terminal", "webcam", "codigo", "ia", "wine", "jogos"];
+      var base = ["terminal", "webcam", "codigo", "ia", "wine", "jogos", "wasm"];
       escondidos = window.inkHubNativo ? [] : celular ? base.concat(["wordcraft", "gridcraft", "deckcraft", "quadro"])
         : base.concat(["documentos", "planilhas", "apresentacoes"]);
       salvar(K_ESC, escondidos);
       localStorage.removeItem("inkdoshub-ordem");
       localStorage.setItem("inkdoshub-padrao-office", "1");
       localStorage.setItem("inkdoshub-padrao-v2", "1");
+    }
+    // v3: Wasm Build hidden too (not in the Windows/Linux app); keeps the person's other choices.
+    if (!localStorage.getItem("inkdoshub-padrao-v3")) {
+      if (!window.inkHubNativo && escondidos.indexOf("wasm") < 0) { escondidos.push("wasm"); salvar(K_ESC, escondidos); }
+      localStorage.setItem("inkdoshub-padrao-v3", "1");
     }
   } catch (_) {}
   var meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });
