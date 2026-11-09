@@ -326,6 +326,21 @@ def main():
         open(txt, "w").write("Retry only the %d failed file(s): paste this line into the terminal\n\n%s\n" % (n_fail, cmd))
         print("Failed files were NOT changed. Retry command saved to: " + txt)
 
+def ashell_pick():
+    # a-Shell: if no folder was chosen yet (still in Documents), open the Apple folder menu.
+    home = os.path.expanduser("~")
+    if "/Containers/Data/Application/" not in home: return
+    cwd = os.path.realpath(os.getcwd())
+    if cwd not in (os.path.realpath(home), os.path.realpath(os.path.join(home, "Documents"))): return
+    print("Choose the folder in the menu that opens...", flush=True)
+    try: os.system("pickFolder")
+    except Exception: pass
+    if os.path.realpath(os.getcwd()) == cwd:
+        print("No folder chosen. Type pickFolder, choose the folder, then paste the command again.")
+        sys.exit(1)
+    print("Folder: " + os.path.basename(os.getcwd()), flush=True)
+
+if ASHELL: ashell_pick()
 for MODE in MODES:
     TAG = {"office": "officeclean", "archive": "archivescan", "loose": "riskyfiles"}.get(MODE, TAG)
     main(); print()

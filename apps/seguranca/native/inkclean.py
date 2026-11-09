@@ -101,7 +101,22 @@ def undo(only_wrong_case=False):
     if not only_wrong_case: print("Undo done: %d change(s) restored." % n)
     return n
 
+def ashell_pick():
+    # a-Shell: if no folder was chosen yet (still in Documents), open the Apple folder menu.
+    home = os.path.expanduser("~")
+    if "/Containers/Data/Application/" not in home: return
+    cwd = os.path.realpath(os.getcwd())
+    if cwd not in (os.path.realpath(home), os.path.realpath(os.path.join(home, "Documents"))): return
+    print("Choose the folder in the menu that opens...", flush=True)
+    try: os.system("pickFolder")
+    except Exception: pass
+    if os.path.realpath(os.getcwd()) == cwd:
+        print("No folder chosen. Type pickFolder, choose the folder, then paste the command again.")
+        sys.exit(1)
+    print("Folder: " + os.path.basename(os.getcwd()), flush=True)
+
 def main():
+    ashell_pick()
     if "--undo" in sys.argv: return undo()
     t0, n, nc, nf, ne, cloud = time.time(), 0, 0, 0, 0, 0
     with open(LOG, "a", encoding="utf-8", errors="surrogateescape") as lf:

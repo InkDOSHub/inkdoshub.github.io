@@ -230,9 +230,25 @@ def test_main():
         shutil.rmtree(WORK, ignore_errors=True); log("Test files removed (add --keep to keep them).")
 
 # ---------- real-use commands ----------
-HERE = os.getcwd()
+
+def ashell_pick():
+    # a-Shell: if no folder was chosen yet (still in Documents), open the Apple folder menu.
+    home = os.path.expanduser("~")
+    if "/Containers/Data/Application/" not in home: return
+    cwd = os.path.realpath(os.getcwd())
+    if cwd not in (os.path.realpath(home), os.path.realpath(os.path.join(home, "Documents"))): return
+    print("Choose the folder in the menu that opens...", flush=True)
+    try: os.system("pickFolder")
+    except Exception: pass
+    if os.path.realpath(os.getcwd()) == cwd:
+        print("No folder chosen. Type pickFolder, choose the folder, then paste the command again.")
+        sys.exit(1)
+    print("Folder: " + os.path.basename(os.getcwd()), flush=True)
+
 PREVIEW = "preview" in sys.argv
 ARGS = [a for a in sys.argv[1:] if a != "preview"]
+if ARGS and ARGS[0] != "test": ashell_pick()
+HERE = os.getcwd()
 
 def say(msg):
     print(msg, flush=True)
