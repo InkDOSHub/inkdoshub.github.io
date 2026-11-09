@@ -19,6 +19,41 @@ Env (used by the retry line saved next to the report): INKSEC_RETRY = report CSV
 """
 import csv, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 
+# ---------- choose the folder (a-Shell: Apple menu; terminal: drag the folder in) ----------
+ASH = "/Containers/Data/Application/" in os.path.expanduser("~")
+def pick(what="folder", stay=True):
+    before = os.getcwd()
+    if ASH:
+        print("Choose the %s in the menu that opens..." % what, flush=True)
+        try: os.system("pickFolder")
+        except Exception: pass
+        p = os.getcwd()
+        home = os.path.realpath(os.path.expanduser("~"))
+        if os.path.realpath(p) == os.path.realpath(before) and os.path.realpath(p) in (home, os.path.join(home, "Documents")):
+            print("No folder chosen. Paste the command again and choose a folder."); sys.exit(1)
+    else:
+        try: p = input("Drag the %s here (or type its path) and press Enter. Enter alone = %s: " % (what, before))
+        except EOFError: p = ""
+        p = p.strip().strip("'\"").replace("\\ ", " ")
+        p = os.path.abspath(os.path.expanduser(p)) if p else before
+        if not os.path.isdir(p): print("Folder not found: " + p); sys.exit(1)
+    os.chdir(p if stay else before)
+    print("%s: %s" % (what[0].upper() + what[1:], p), flush=True)
+    return p
+
+def pick_file(exts, what="file"):
+    fs = sorted(f for f in os.listdir(".") if os.path.isfile(f) and f.lower().endswith(tuple(exts)))
+    if not fs: print("No %s here (%s)." % (what, ", ".join(exts))); sys.exit(1)
+    if len(fs) == 1: print("File: " + fs[0]); return fs[0]
+    for i, f in enumerate(fs, 1): print("%3d  %s" % (i, f))
+    try: n = int(input("Number of the %s: " % what))
+    except (ValueError, EOFError): n = 0
+    if not 1 <= n <= len(fs): print("Invalid number."); sys.exit(1)
+    return fs[n - 1]
+
+CHOSEN = "--in" in sys.argv  # the Hub page already set the folder
+if CHOSEN: sys.argv.remove("--in")
+
 MODE = (sys.argv[1] if len(sys.argv) > 1 else "office").lower()
 ASHELL = "/Containers/Data/Application/" in os.path.expanduser("~")
 HERE_MODE = ASHELL or "--here" in sys.argv  # no questions: this folder, clean in place with backup
@@ -326,21 +361,7 @@ def main():
         open(txt, "w").write("Retry only the %d failed file(s): paste this line into the terminal\n\n%s\n" % (n_fail, cmd))
         print("Failed files were NOT changed. Retry command saved to: " + txt)
 
-def ashell_pick():
-    # a-Shell: if no folder was chosen yet (still in Documents), open the Apple folder menu.
-    home = os.path.expanduser("~")
-    if "/Containers/Data/Application/" not in home: return
-    cwd = os.path.realpath(os.getcwd())
-    if cwd not in (os.path.realpath(home), os.path.realpath(os.path.join(home, "Documents"))): return
-    print("Choose the folder in the menu that opens...", flush=True)
-    try: os.system("pickFolder")
-    except Exception: pass
-    if os.path.realpath(os.getcwd()) == cwd:
-        print("No folder chosen. Type pickFolder, choose the folder, then paste the command again.")
-        sys.exit(1)
-    print("Folder: " + os.path.basename(os.getcwd()), flush=True)
-
-if ASHELL: ashell_pick()
+if HERE_MODE and not CHOSEN: pick()
 for MODE in MODES:
     TAG = {"office": "officeclean", "archive": "archivescan", "loose": "riskyfiles"}.get(MODE, TAG)
     main(); print()

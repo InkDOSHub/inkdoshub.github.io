@@ -1,7 +1,7 @@
 (function () {
   "use strict";
   var BASE = new URL("../seguranca/native/", location.href).href;
-  var V = "3";
+  var V = "4";
   // field: [id, label, type, default, options]
   var CARDS = [
     ["Safety"],
@@ -13,18 +13,20 @@
       f: [["mb", "Over (MB)", "number", "0"], ["days", "Changed in last days", "number", "0"], ["ext", "Extension", "text", "0"]] },
     { t: "Duplicates", d: "Files with the same content (same size, then same hash). Nothing is deleted.", s: "inkfinder.py", a: ["dupes"] },
     ["Organise"],
-    { t: "Merge another folder into this one", d: "Copies everything from the other folder, choosing what to do when a file already exists.", s: "inkfinder.py", a: ["merge", "{src}", "{rule}", "{prev}"],
-      f: [["src", "Other folder path", "text", ""], ["rule", "When it exists", "select", "keep", ["keep", "replace", "skip"]], ["prev", "Preview only", "check", true]] },
+    { t: "Merge another folder into this one", d: "Asks for this folder, then for the other one, and copies everything from the other folder, choosing what to do when a file already exists.", s: "inkfinder.py", a: ["merge", "-", "{rule}", "{prev}"],
+      f: [["rule", "When it exists", "select", "keep", ["keep", "replace", "skip"]], ["prev", "Preview only", "check", true]] },
     { t: "Batch rename", d: "Renames the files in this folder (not subfolders): replace text, add numbers and/or the file date.", s: "inkfinder.py", a: ["rename", "{find}", "{to}", "{num}", "{date}", "{prev}"],
       f: [["find", "Find", "text", ""], ["to", "Replace with / new name", "text", ""], ["num", "Add 001, 002…", "check", false], ["date", "Add date", "check", false], ["prev", "Preview only", "check", true]] },
-    { t: "Sync to another folder", d: "Copies new and changed files from this folder to the other one. Nothing is deleted.", s: "inkfinder.py", a: ["sync", "{dst}", "{prev}"],
-      f: [["dst", "Destination folder path", "text", ""], ["prev", "Preview only", "check", true]] },
+    { t: "Sync to another folder", d: "Asks for this folder, then for the destination, and copies new and changed files. Nothing is deleted.", s: "inkfinder.py", a: ["sync", "{prev}"],
+      f: [["prev", "Preview only", "check", true]] },
     ["Archives"],
     { t: "Zip this folder", d: "Creates NAME.zip next to the folder, a file at a time.", s: "inkfinder.py", a: ["zip", "{name}"], f: [["name", "Zip name", "text", "archive"]] },
-    { t: "Unzip", d: "Extracts a .zip into a folder with the same name.", s: "inkfinder.py", a: ["unzip", "{zip}"], f: [["zip", "Zip file path or name", "text", "archive.zip"]] },
+    { t: "Unzip", d: "Asks for the folder, lists its .zip files to pick from and extracts into a folder with the same name.", s: "inkfinder.py", a: ["unzip"] },
     ["Convert"],
-    { t: "Video or audio", d: "Needs ffmpeg in the terminal (a-Shell: check with help -l). Examples: mkv to mp4, or audio only with .mp3.", raw: "ffmpeg -i \"{in}\" \"{out}\"", f: [["in", "Input file", "text", "video.mkv"], ["out", "Output file", "text", "video.mp4"]] },
-    { t: "Images in batch", d: "Needs ImageMagick (a-Shell: check with help -l). Converts every image of one type in this folder.", raw: "magick mogrify -format {to} *.{from}", f: [["from", "From", "text", "heic"], ["to", "To", "text", "jpg"]] },
+    { t: "Video or audio", d: "Asks for the folder, lists its videos and audio files to pick from and converts it. Uses ffmpeg (built into a-Shell; on a computer install it first).", s: "inkfinder.py", a: ["video", "{to}"],
+      f: [["to", "Convert to", "select", "mp4", ["mp4", "mov", "mkv", "webm", "gif", "mp3", "m4a", "wav", "flac"]]] },
+    { t: "Images in batch", d: "Asks for the folder and converts every image of one type in it. Originals are kept.", s: "inkfinder.py", a: ["images", "{from}", "{to}"],
+      f: [["from", "From", "select", "heic", ["heic", "png", "jpg", "webp", "tiff", "gif", "bmp"]], ["to", "To", "select", "jpg", ["jpg", "png", "webp", "tiff", "gif", "bmp", "pdf"]]] },
     ["Test"],
     { t: "Self-test", d: "Creates its own sample files, runs every job above and writes a log with time and memory. Needs about 1.5 GB free for a moment.", s: "inkfinder.py", a: ["test"] }
   ];
@@ -47,6 +49,7 @@
     });
     var pasta = limpa(document.getElementById("pasta").value);
     var ch = pasta ? "import os;os.chdir(" + q(pasta) + ");" : "";
+    if (pasta) args.push("--in");
     return document.getElementById("py").value + " -c \"" + ch + "import sys,urllib.request as u;sys.argv=['x'" +
       args.map(function (a) { return "," + q(a); }).join("") + "];exec(u.urlopen(u.Request('" + BASE + c.s + "?v=" + V +
       "',headers={'User-Agent':'curl/8'})).read())\"";

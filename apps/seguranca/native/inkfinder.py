@@ -14,6 +14,41 @@
 # Every command writes inkfinder-log.txt in the folder.
 import os, sys, time, shutil, hashlib, zipfile, tarfile, random, traceback
 
+# ---------- choose the folder (a-Shell: Apple menu; terminal: drag the folder in) ----------
+ASH = "/Containers/Data/Application/" in os.path.expanduser("~")
+def pick(what="folder", stay=True):
+    before = os.getcwd()
+    if ASH:
+        print("Choose the %s in the menu that opens..." % what, flush=True)
+        try: os.system("pickFolder")
+        except Exception: pass
+        p = os.getcwd()
+        home = os.path.realpath(os.path.expanduser("~"))
+        if os.path.realpath(p) == os.path.realpath(before) and os.path.realpath(p) in (home, os.path.join(home, "Documents")):
+            print("No folder chosen. Paste the command again and choose a folder."); sys.exit(1)
+    else:
+        try: p = input("Drag the %s here (or type its path) and press Enter. Enter alone = %s: " % (what, before))
+        except EOFError: p = ""
+        p = p.strip().strip("'\"").replace("\\ ", " ")
+        p = os.path.abspath(os.path.expanduser(p)) if p else before
+        if not os.path.isdir(p): print("Folder not found: " + p); sys.exit(1)
+    os.chdir(p if stay else before)
+    print("%s: %s" % (what[0].upper() + what[1:], p), flush=True)
+    return p
+
+def pick_file(exts, what="file"):
+    fs = sorted(f for f in os.listdir(".") if os.path.isfile(f) and f.lower().endswith(tuple(exts)))
+    if not fs: print("No %s here (%s)." % (what, ", ".join(exts))); sys.exit(1)
+    if len(fs) == 1: print("File: " + fs[0]); return fs[0]
+    for i, f in enumerate(fs, 1): print("%3d  %s" % (i, f))
+    try: n = int(input("Number of the %s: " % what))
+    except (ValueError, EOFError): n = 0
+    if not 1 <= n <= len(fs): print("Invalid number."); sys.exit(1)
+    return fs[n - 1]
+
+CHOSEN = "--in" in sys.argv  # the Hub page already set the folder
+if CHOSEN: sys.argv.remove("--in")
+
 ROOT = os.path.expanduser("~/Documents/teste")
 WORK = os.path.join(ROOT, "work")
 LOG = os.path.join(ROOT, "inkfinder-log.txt")
@@ -231,23 +266,9 @@ def test_main():
 
 # ---------- real-use commands ----------
 
-def ashell_pick():
-    # a-Shell: if no folder was chosen yet (still in Documents), open the Apple folder menu.
-    home = os.path.expanduser("~")
-    if "/Containers/Data/Application/" not in home: return
-    cwd = os.path.realpath(os.getcwd())
-    if cwd not in (os.path.realpath(home), os.path.realpath(os.path.join(home, "Documents"))): return
-    print("Choose the folder in the menu that opens...", flush=True)
-    try: os.system("pickFolder")
-    except Exception: pass
-    if os.path.realpath(os.getcwd()) == cwd:
-        print("No folder chosen. Type pickFolder, choose the folder, then paste the command again.")
-        sys.exit(1)
-    print("Folder: " + os.path.basename(os.getcwd()), flush=True)
-
 PREVIEW = "preview" in sys.argv
 ARGS = [a for a in sys.argv[1:] if a != "preview"]
-if ARGS and ARGS[0] != "test": ashell_pick()
+if ARGS and ARGS[0] != "test" and not CHOSEN: pick()
 HERE = os.getcwd()
 
 def say(msg):
@@ -298,8 +319,10 @@ def cmd_dupes():
     say("%d group(s), %s could be freed. Nothing was deleted." % (g, human(waste)))
 
 def cmd_merge():
-    src, rule = os.path.abspath(os.path.expanduser(ARGS[1])), (ARGS[2] if len(ARGS) > 2 else "skip")
+    rule = ARGS[2] if len(ARGS) > 2 else "skip"
+    src = os.path.abspath(os.path.expanduser(ARGS[1])) if len(ARGS) > 1 and ARGS[1] not in ("", "-") else pick("folder to copy from", stay=False)
     assert os.path.isdir(src), "folder not found: " + src
+    assert os.path.realpath(src) != os.path.realpath(HERE), "choose a different folder to copy from"
     if PREVIEW:
         n = {"new": 0, "exists": 0}
         for p in files_in(src): n["new" if not os.path.exists(os.path.join(HERE, rel(p, src))) else "exists"] += 1
@@ -325,7 +348,8 @@ def cmd_rename():
     say("%d file(s) %s." % (len(plan), "would be renamed (preview)" if PREVIEW else "renamed"))
 
 def cmd_sync():
-    dst = os.path.abspath(os.path.expanduser(ARGS[1])); os.makedirs(dst, exist_ok=True)
+    dst = os.path.abspath(os.path.expanduser(ARGS[1])) if len(ARGS) > 1 and ARGS[1] else pick("destination folder", stay=False)
+    os.makedirs(dst, exist_ok=True)
     new = changed = same = 0
     for p in files_in(HERE):
         if not mine(p): continue
@@ -348,7 +372,7 @@ def cmd_zip():
     say("%d file(s) -> %s (%s)" % (n, out, human(os.path.getsize(out))))
 
 def cmd_unzip():
-    src = os.path.abspath(os.path.expanduser(ARGS[1])); X = os.path.splitext(src)[0]
+    src = os.path.abspath(os.path.expanduser(ARGS[1] if len(ARGS) > 1 and ARGS[1] else pick_file([".zip"], "zip"))); X = os.path.splitext(src)[0]
     n = 0
     with zipfile.ZipFile(src) as z:
         for i in z.infolist():
@@ -360,8 +384,48 @@ def cmd_unzip():
             n += 1
     say("%d file(s) extracted to %s" % (n, X))
 
+VIDEO_IN = [".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi", ".wmv", ".flv", ".3gp", ".mts", ".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".opus", ".wma", ".aiff"]
+IMAGE_IN = [".heic", ".heif", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".tif", ".tiff", ".bmp", ".avif"]
+
+def run(cmd):
+    print("$ " + cmd, flush=True)
+    return os.system(cmd)
+
+def q(p): return "'" + p.replace("'", "'\\''") + "'"
+
+def cmd_video():
+    to = (ARGS[1] if len(ARGS) > 1 else "mp4").lower().lstrip(".")
+    f = pick_file(VIDEO_IN, "video or audio file")
+    out = os.path.splitext(f)[0] + "." + to
+    if os.path.exists(out): out = os.path.splitext(f)[0] + " (converted)." + to
+    r = run("ffmpeg -hide_banner -loglevel error -i %s %s" % (q(f), q(out)))
+    say(("%s -> %s (%s)" % (f, out, human(os.path.getsize(out)))) if r == 0 and os.path.exists(out) else "STOPPED: ffmpeg failed (code %s). In a-Shell check it exists with: help -l" % r)
+
+def cmd_images():
+    fr = (ARGS[1] if len(ARGS) > 1 else "heic").lower().lstrip("."); to = (ARGS[2] if len(ARGS) > 2 else "jpg").lower().lstrip(".")
+    exts = (".jpg", ".jpeg") if fr in ("jpg", "jpeg") else (".heic", ".heif") if fr in ("heic", "heif") else (".tif", ".tiff") if fr in ("tif", "tiff") else ("." + fr,)
+    fs = sorted(f for f in os.listdir(".") if os.path.isfile(f) and f.lower().endswith(exts))
+    if not fs: say("No .%s images in this folder." % fr); return
+    try: from PIL import Image
+    except ImportError: Image = None
+    ok = bad = 0
+    for f in fs:
+        out = os.path.splitext(f)[0] + "." + to
+        if os.path.exists(out): out = os.path.splitext(f)[0] + " (converted)." + to
+        done = False
+        if Image and fr not in ("heic", "heif", "avif"):
+            try:
+                im = Image.open(f)
+                if to in ("jpg", "jpeg", "bmp") and im.mode not in ("RGB", "L"): im = im.convert("RGB")
+                im.save(out); done = True
+            except Exception: done = False
+        if not done: done = run("magick %s %s" % (q(f), q(out))) == 0 and os.path.exists(out)
+        if done: ok += 1; say("%s -> %s" % (f, out))
+        else: bad += 1; say("FAILED   " + f)
+    say("%d converted, %d failed. Originals kept." % (ok, bad))
+
 CMDS = {"sizes": cmd_sizes, "search": cmd_search, "dupes": cmd_dupes, "merge": cmd_merge, "rename": cmd_rename,
-        "sync": cmd_sync, "zip": cmd_zip, "unzip": cmd_unzip}
+        "sync": cmd_sync, "zip": cmd_zip, "unzip": cmd_unzip, "video": cmd_video, "images": cmd_images}
 if not ARGS or ARGS[0] == "test":
     test_main()
 elif ARGS[0] in CMDS:
