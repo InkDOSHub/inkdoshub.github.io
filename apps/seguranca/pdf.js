@@ -387,13 +387,35 @@
         var b = document.createElement("button"); b.type = "button"; b.className = "parte"; b.style.cssText = z.style.cssText;
         b.textContent = (partes.length > 1 ? T("Salvar parte ", "Save part ") + (k + 1) + "/" + partes.length : T("Salvar ZIP", "Save ZIP")) + " · " + gb(tam);
         if (partes.length > 1) b.textContent += " → " + (p.dest ? p.dest.replace(/\/$/, "") : T("(raiz)", "(top level)"));
-        b.onclick = function () { salvar(zip(g), nome); b.style.opacity = ".5"; };
+        var rot = b.textContent;
+        b.onclick = function () { salvarParte(zip(g), nome, b, rot); };
         bar.insertBefore(b, document.getElementById("lote-log"));
       });
       if (partes.length > 1) lote.log += "\n\n" + T("Partes:", "Parts:") + "\n" + partes.map(function (p, k) { return "  " + (k + 1) + " → " + (p.dest || T("(raiz)", "(top level)")); }).join("\n");
       var l = document.getElementById("lote-log"); l.hidden = false; l.textContent = T("Salvar relatório", "Save report");
     }
   }
+  // big parts: write to private storage first, then download that file (Safari fails on big in-memory downloads)
+  var ocupado = false;
+  function salvarParte(blob, nome, b, rot) {
+    if (ocupado) return;
+    if (window.showSaveFilePicker || !(navigator.storage && navigator.storage.getDirectory && window.Worker)) { salvar(blob, nome); b.textContent = "✓ " + rot; return; }
+    ocupado = true;
+    var w = new Worker("seguranca-opfs.js?v=1");
+    w.onmessage = function (ev) {
+      var d = ev.data;
+      if (d.p != null) b.textContent = T("Preparando… ", "Preparing… ") + Math.round(d.p * 100) + "%";
+      else if (d.ok) {
+        w.terminate();
+        navigator.storage.getDirectory().then(function (dir) { return dir.getFileHandle(nome); }).then(function (h) { return h.getFile(); }).then(function (f) {
+          baixar(f, nome); b.textContent = "✓ " + rot + T(" (toque de novo se falhar)", " (tap again if it fails)"); ocupado = false;
+        }).catch(function (e) { b.textContent = rot + " · " + T("erro: ", "error: ") + e; ocupado = false; });
+      } else { w.terminate(); b.textContent = rot + " · " + T("erro: ", "error: ") + d.erro; ocupado = false; }
+    };
+    w.postMessage({ nome: nome, blob: blob });
+  }
+  function limparOpfs() { try { navigator.storage.getDirectory().then(function (dir) { return dir.removeEntry ? Promise.all([]).then(async function () { for await (var k of dir.keys()) if (/\.zip$/i.test(k)) await dir.removeEntry(k); }) : 0; }).catch(function () {}); } catch (_) {} }
+  limparOpfs(); // parts from earlier runs
   function salvar(blob, nome) {
     if (window.showSaveFilePicker) window.showSaveFilePicker({ suggestedName: nome }).then(function (h) { return h.createWritable(); }).then(function (w) { return w.write(blob).then(function () { return w.close(); }); }).catch(function () { baixar(blob, nome); });
     else baixar(blob, nome);
