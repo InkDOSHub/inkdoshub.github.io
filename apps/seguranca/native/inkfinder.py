@@ -418,7 +418,7 @@ def cmd_video():
     for f in pick_some(fs, "video/audio files"):
         out = os.path.splitext(f)[0] + "." + to
         if os.path.exists(out): out = os.path.splitext(f)[0] + " (converted)." + to
-        r = run("ffmpeg -hide_banner -loglevel error -i %s %s" % (q(f), q(out)))
+        r = run("ffmpeg -nostdin -hide_banner -loglevel error -i %s %s" % (q(f), q(out)))
         say(("%s -> %s (%s)" % (f, out, human(os.path.getsize(out)))) if r == 0 and os.path.exists(out) else "FAILED   %s (ffmpeg code %s)" % (f, r))
 
 def cmd_images():
