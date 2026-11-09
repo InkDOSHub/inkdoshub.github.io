@@ -400,19 +400,33 @@ def run(cmd):
 
 def q(p): return "'" + p.replace("'", "'\\''") + "'"
 
+def pick_some(fs, what):
+    # One file or all of them, chosen from a numbered list.
+    if len(fs) == 1: print("File: " + fs[0]); return fs
+    print("\n   0  ALL %d %s in this folder" % (len(fs), what))
+    for i, f in enumerate(fs, 1): print("%4d  %s" % (i, f))
+    try: a = input("Type a number (0 = all) and press Enter: ").strip()
+    except EOFError: a = ""
+    if a == "0": return fs
+    if a.isdigit() and 1 <= int(a) <= len(fs): return [fs[int(a) - 1]]
+    print("Invalid number."); sys.exit(1)
+
 def cmd_video():
     to = (ARGS[1] if len(ARGS) > 1 else "mp4").lower().lstrip(".")
-    f = pick_file(VIDEO_IN, "video or audio file")
-    out = os.path.splitext(f)[0] + "." + to
-    if os.path.exists(out): out = os.path.splitext(f)[0] + " (converted)." + to
-    r = run("ffmpeg -hide_banner -loglevel error -i %s %s" % (q(f), q(out)))
-    say(("%s -> %s (%s)" % (f, out, human(os.path.getsize(out)))) if r == 0 and os.path.exists(out) else "STOPPED: ffmpeg failed (code %s). In a-Shell check it exists with: help -l" % r)
+    fs = sorted(f for f in os.listdir(".") if os.path.isfile(f) and f.lower().endswith(tuple(VIDEO_IN)))
+    if not fs: say("No video or audio files in this folder."); return
+    for f in pick_some(fs, "video/audio files"):
+        out = os.path.splitext(f)[0] + "." + to
+        if os.path.exists(out): out = os.path.splitext(f)[0] + " (converted)." + to
+        r = run("ffmpeg -hide_banner -loglevel error -i %s %s" % (q(f), q(out)))
+        say(("%s -> %s (%s)" % (f, out, human(os.path.getsize(out)))) if r == 0 and os.path.exists(out) else "FAILED   %s (ffmpeg code %s)" % (f, r))
 
 def cmd_images():
     fr = (ARGS[1] if len(ARGS) > 1 else "heic").lower().lstrip("."); to = (ARGS[2] if len(ARGS) > 2 else "jpg").lower().lstrip(".")
     exts = (".jpg", ".jpeg") if fr in ("jpg", "jpeg") else (".heic", ".heif") if fr in ("heic", "heif") else (".tif", ".tiff") if fr in ("tif", "tiff") else ("." + fr,)
     fs = sorted(f for f in os.listdir(".") if os.path.isfile(f) and f.lower().endswith(exts))
     if not fs: say("No .%s images in this folder." % fr); return
+    fs = pick_some(fs, ".%s images" % fr)
     try: from PIL import Image
     except ImportError: Image = None
     ok = bad = 0
