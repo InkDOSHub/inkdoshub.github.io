@@ -12,3 +12,13 @@
 /apps/editar-pdf/native/*
   Cache-Control: no-cache
   Content-Type: text/plain; charset=utf-8
+
+# ArtCraft: file names carry a content hash, so the browser can keep them for good (no reload on every visit).
+/artcraft/*.wasm
+  Cache-Control: public, max-age=31536000, immutable
+
+/artcraft/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/artcraft/*.ico
+  Cache-Control: public, max-age=31536000, immutable

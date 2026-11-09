@@ -101,7 +101,7 @@ html.abrindo-arquivo .home-shell{visibility:hidden}
 /* Footer */
 .home-footer{margin-top:auto;padding-top:42px;display:flex;flex-direction:column;align-items:center;gap:14px;color:var(--footer);font-size:12px;text-align:center}
 .home-footer p{margin:0}
-.home-banner{padding:10px 16px;border-radius:12px;background:var(--card);border:1px solid var(--border);color:var(--muted);max-width:640px;line-height:1.5}
+.home-banner{padding:8px 14px;border-radius:10px;background:var(--text);color:var(--bg);font-size:11px;max-width:560px;line-height:1.45}
 .home-footer nav{display:flex;gap:22px;flex-wrap:wrap;justify-content:center}
 .home-footer nav a{color:inherit;text-decoration:underline;text-underline-offset:3px}
 
