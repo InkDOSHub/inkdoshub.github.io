@@ -1,9 +1,11 @@
 (function () {
   "use strict";
   var BASE = new URL("../seguranca/native/", location.href).href;
-  var V = "4";
+  var V = "5";
   // field: [id, label, type, default, options]
   var CARDS = [
+    ["Easiest"],
+    { t: "All tools in one menu", d: "Recommended. Paste this one command, then just type the number of what you want. It asks for the folder and every option from a list.", s: "inkmenu.py", a: [] },
     ["Safety"],
     { t: "Clean PDFs", d: "Neutralises JavaScript, auto actions, launch actions and embedded files in every PDF, in place. Same-size change, undo log included.", s: "inkclean.py", a: [] },
     { t: "Clean Office, check ZIPs and risky files", d: "Removes macros, external links and embedded objects from Word, Excel and PowerPoint (backup of each changed file), lists risky items inside ZIPs and loose executables.", s: "inksec.py", a: ["all", "--here"] },
