@@ -2,7 +2,7 @@
 # Every job asks for the folder when it runs. Nothing to type except numbers (and text for rename).
 import os, sys, urllib.request
 
-BASE = "https://hub.inkdos.workers.dev/apps/seguranca/native/"
+BASE = "https://inkdoshub.github.io/apps/seguranca/native/"
 V = "8"
 
 def get(name):
