@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>notes</title>
+<style>
+  :root{color-scheme:light dark}
+  body{margin:0;padding:16px;font:14px/1.45 -apple-system,system-ui,sans-serif;background:Canvas;color:CanvasText}
+  button{height:36px;padding:0 14px;margin:0 8px 12px 0;font:inherit;font-weight:600;border-radius:8px;border:1px solid GrayText;background:Canvas;color:CanvasText}
+  h2{font-size:13px;margin:18px 0 6px;opacity:.7}
+  pre{white-space:pre-wrap;word-break:break-all;font:12px/1.4 ui-monospace,Menlo,monospace;margin:0 0 10px;padding:8px;border:1px solid GrayText;border-radius:8px;max-height:60vh;overflow:auto}
+</style>
+</head>
+<body>
+<button id="c" type="button">Copy</button><button id="s" type="button">Save .txt</button>
+<div id="o"></div>
+<script>
+(function () {
+  var out = [], box = document.getElementById("o");
+  function sec(t, txt) { out.push("### " + t + "\n" + txt); var h = document.createElement("h2"); h.textContent = t; var p = document.createElement("pre"); p.textContent = txt; box.appendChild(h); box.appendChild(p); }
+  function src(f) { try { return Function.prototype.toString.call(f); } catch (e) { return "(unreadable: " + e + ")"; } }
+  function nat(f) { return /\{\s*\[native code\]\s*\}\s*$/.test(src(f)); }
+  // 1) globals that a clean frame does not have
+  var ref = {};
+  try { var fr = document.createElement("iframe"); fr.style.display = "none"; document.body.appendChild(fr); Object.getOwnPropertyNames(fr.contentWindow).forEach(function (k) { ref[k] = 1; }); fr.remove(); } catch (_) {}
+  var proprios = { out: 1 };
+  var extra = Object.getOwnPropertyNames(window).filter(function (k) { return !ref[k] && !proprios[k]; });
+  sec("Extra globals (" + extra.length + ")", extra.join("\n") || "-");
+  extra.forEach(function (k) {
+    var v; try { v = window[k]; } catch (e) { return sec(k, "(unreadable)"); }
+    if (typeof v === "function") return sec(k + " (function)", src(v));
+    if (v && typeof v === "object") {
+      var t = [];
+      try { Object.getOwnPropertyNames(v).forEach(function (m) { var x; try { x = v[m]; } catch (_) { t.push(m + ": (unreadable)"); return; } t.push(typeof x === "function" ? m + " = " + src(x) : m + ": " + (function () { try { return JSON.stringify(x).slice(0, 400); } catch (_) { return typeof x; } })()); }); } catch (_) {}
+      return sec(k + " (object)", t.join("\n\n") || "(empty)");
+    }
+    sec(k, String(v).slice(0, 400));
+  });
+  // 2) built-in functions that were replaced (no longer native)
+  var alvos = [
+    ["fetch", window, "fetch"], ["XMLHttpRequest.open", XMLHttpRequest.prototype, "open"], ["XMLHttpRequest.send", XMLHttpRequest.prototype, "send"],
+    ["WebSocket", window, "WebSocket"], ["navigator.sendBeacon", navigator, "sendBeacon"], ["EventTarget.addEventListener", EventTarget.prototype, "addEventListener"],
+    ["console.log", console, "log"], ["console.error", console, "error"], ["history.pushState", History.prototype, "pushState"],
+    ["localStorage.setItem", Storage.prototype, "setItem"], ["indexedDB.open", window.indexedDB, "open"], ["document.cookie (setter)", null, "cookie"],
+    ["getUserMedia", navigator.mediaDevices, "getUserMedia"], ["getDisplayMedia", navigator.mediaDevices, "getDisplayMedia"], ["enumerateDevices", navigator.mediaDevices, "enumerateDevices"],
+    ["showOpenFilePicker", window, "showOpenFilePicker"], ["showSaveFilePicker", window, "showSaveFilePicker"], ["showDirectoryPicker", window, "showDirectoryPicker"],
+    ["clipboard.writeText", navigator.clipboard, "writeText"], ["clipboard.readText", navigator.clipboard, "readText"], ["window.open", window, "open"],
+    ["alert", window, "alert"], ["confirm", window, "confirm"], ["HTMLInputElement.click", HTMLElement.prototype, "click"], ["URL.createObjectURL", URL, "createObjectURL"],
+    ["Element.requestFullscreen", Element.prototype, "requestFullscreen"], ["geolocation.getCurrentPosition", navigator.geolocation, "getCurrentPosition"], ["Notification", window, "Notification"]
+  ];
+  var troc = [];
+  alvos.forEach(function (a) {
+    var f;
+    if (a[0] === "document.cookie (setter)") { var d = Object.getOwnPropertyDescriptor(Document.prototype, "cookie"); f = d && d.set; }
+    else { try { f = a[1] && a[1][a[2]]; } catch (_) {} }
+    if (typeof f !== "function") return;
+    if (!nat(f)) { troc.push(a[0]); sec("Replaced: " + a[0], src(f)); }
+  });
+  sec("Replaced built-ins (" + troc.length + ")", troc.join("\n") || "none found");
+  // 3) script elements and inline code not written by this page
+  var meus = document.scripts.length;
+  var sc = Array.prototype.map.call(document.querySelectorAll("script"), function (s, i) { return "#" + i + " src=" + (s.src || "(inline)") + "\n" + (s.src ? "" : s.textContent.slice(0, 20000)); });
+  sec("Script elements (" + sc.length + ")", sc.join("\n\n"));
+  // 4) the same, a few seconds later (code injected after load)
+  setTimeout(function () {
+    var mais = Object.getOwnPropertyNames(window).filter(function (k) { return !ref[k] && !proprios[k] && extra.indexOf(k) < 0; });
+    sec("Globals added after 3 s (" + mais.length + ")", mais.map(function (k) { var v = window[k]; return k + (typeof v === "function" ? " = " + src(v) : ""); }).join("\n\n") || "-");
+  }, 3000);
+  sec("Page", location.href + "\n" + navigator.userAgent + "\n" + new Date().toISOString());
+  document.getElementById("c").onclick = function () { navigator.clipboard.writeText(out.join("\n\n")).then(function () { document.getElementById("c").textContent = "Copied"; }, function () {}); };
+  document.getElementById("s").onclick = function () { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([out.join("\n\n")], { type: "text/plain" })); a.download = "notes.txt"; document.body.appendChild(a); a.click(); a.remove(); };
+})();
+</script>
+</body>
+</html>
