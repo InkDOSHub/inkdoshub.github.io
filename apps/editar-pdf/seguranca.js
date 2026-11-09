@@ -406,6 +406,24 @@
       bz.textContent = T("Salvar só os alterados (ZIP, caminhos originais) · ", "Save changed only (ZIP, original paths) · ") + gb(gz);
       bz.onclick = function () { salvar(zip(lim), nz); bz.textContent = "✓ " + bz.textContent.replace(/^✓ /, ""); };
       box.appendChild(bz);
+      // guide: putting the changed PDFs back over the originals
+      var gd = document.createElement("details"); gd.style.cssText = "margin:0 0 12px;font-size:14px";
+      var gs = document.createElement("summary"); gs.style.cssText = "cursor:pointer;font-weight:600"; gs.textContent = T("Como devolver os arquivos para o lugar", "How to put the files back"); gd.appendChild(gs);
+      var ol = document.createElement("ol"); ol.style.cssText = "margin:8px 0 0;padding-left:20px;color:var(--muted)";
+      (pt ? [
+        "Toque em “Salvar só os alterados”. O ZIP tem só os PDFs limpos, cada um no caminho original.",
+        "XeOS: no gerenciador de arquivos, extraia o ZIP por cima da pasta de origem no iCloud e escolha substituir. Se ele criar uma cópia em vez de juntar as pastas, apague a cópia e use o Windows.",
+        "Windows: mande o ZIP pelo app Transferir. No PC, botão direito › Extrair tudo › escolha a pasta de origem dentro do iCloud Drive › Substituir os arquivos no destino.",
+        "O iCloud sobe só esses arquivos; não precisa baixar o resto. Espere terminar (✓ na nuvem) antes de mexer neles em outro aparelho.",
+        "Sem computador: use “Salvar” em cada arquivo da lista abaixo › Salvar em Arquivos › pasta indicada › Substituir."
+      ] : [
+        "Tap “Save changed only”. The ZIP holds only the cleaned PDFs, each at its original path.",
+        "XeOS: in the file manager, extract the ZIP over the source folder in iCloud and choose replace. If it makes a copy instead of merging folders, delete the copy and use Windows.",
+        "Windows: send the ZIP with the Transfer app. On the PC, right-click › Extract All › pick the source folder inside iCloud Drive › Replace the files in the destination.",
+        "iCloud uploads only these files; nothing else needs downloading. Wait until it finishes (✓ on the cloud icon) before touching them on another device.",
+        "No computer: use “Save” on each file in the list below › Save to Files › the folder shown › Replace."
+      ]).forEach(function (t) { var li = document.createElement("li"); li.style.margin = "4px 0"; li.textContent = t; ol.appendChild(li); });
+      gd.appendChild(ol); box.appendChild(gd);
       var lu = document.createElement("ul"); lu.className = "lista"; box.appendChild(lu);
       lim.forEach(function (it) {
         var i0 = it.nome.lastIndexOf("/"), pasta = i0 >= 0 ? it.nome.slice(0, i0) : T("(raiz)", "(top level)"), arq = it.nome.slice(i0 + 1);
