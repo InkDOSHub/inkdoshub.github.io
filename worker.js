@@ -25,7 +25,7 @@ const ISOLAR = {
   "Cross-Origin-Embedder-Policy": "require-corp",
   "Cross-Origin-Resource-Policy": "cross-origin",
 };
-const ORIGENS_OK = /^https:\/\/(inkdoshub\.github\.io|inkdoshub-github-io\.vfydr2m9wk\.workers\.dev)$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const ORIGENS_OK = /^https:\/\/(hub\.inkdos\.workers\.dev|inkdoshub\.github\.io|inkdoshub-github-io\.vfydr2m9wk\.workers\.dev)$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const DOH = "https://cloudflare-dns.com/dns-query";
 const PORTAS_BLOQUEADAS = new Set([25, 465, 587]); // no e-mail sending
 
