@@ -122,17 +122,10 @@ PDF = [
     ("Images to PDF", lambda: media("pdf", "fromimg")),
     ("Save the images inside a PDF", lambda: media("pdf", "images")),
     ("PDF to text (.txt)", lambda: media("pdf", "text")),
-    ("PDF to Word, text only (.docx)", lambda: media("pdf", "word")),
+    ("PDF to Word (.docx: text, headings, bold and pictures)", lambda: media("pdf", "word")),
+    ("PDF to Excel (.xlsx: one sheet per page, columns from the layout)", lambda: media("pdf", "excel")),
+    ("PDF pages to JPG (scanned PDFs)", lambda: media("pdf", "jpg")),
     ("Clean risky content (scripts, auto actions)", lambda: run("inkclean.py", [])),
-    ("PDF to JPG or PNG (opens the Hub)", lambda: hub("visualizadores/bentopdf/pdf-to-jpg.html", "PDF to images")),
-    ("PDF to Word keeping the layout (opens the Hub)", lambda: hub("visualizadores/bentopdf/pdf-to-docx.html", "PDF to Word")),
-    ("PDF to Excel (opens the Hub)", lambda: hub("visualizadores/bentopdf/pdf-to-excel.html", "PDF to Excel")),
-    ("Make a scanned PDF searchable, OCR (opens the Hub)", lambda: hub("visualizadores/bentopdf/ocr-pdf.html", "OCR")),
-    ("Sign a PDF (opens the Hub)", lambda: hub("visualizadores/bentopdf/sign-pdf.html", "Signing")),
-    ("Page numbers (opens the Hub)", lambda: hub("visualizadores/bentopdf/page-numbers.html", "Page numbers")),
-    ("Watermark (opens the Hub)", lambda: hub("visualizadores/bentopdf/add-watermark.html", "Watermark")),
-    ("Fill a form (opens the Hub)", lambda: hub("visualizadores/bentopdf/form-filler.html", "Form filling")),
-    ("Edit text and annotate (opens the Hub)", lambda: hub("apps/editar-pdf/", "Editing")),
 ]
 
 def img_convert():
@@ -148,10 +141,8 @@ IMAGES = [
     ("Resize", lambda: media("img", "resize", ask("Longest side:", [("3000 px (print)", "3000"), ("2000 px", "2000"),
                                                                     ("1280 px (web, e-mail)", "1280"), ("800 px (small)", "800")], 3))),
     ("Make smaller (compress to JPG)", lambda: media("img", "compress", ask("Quality:", [("High (85)", "85"), ("Medium (70)", "70"), ("Low (50)", "50")], 2))),
-    ("Rotate", lambda: media("img", "rotate", ask("Turn:", [("Right (90)", "90"), ("Upside down (180)", "180"), ("Left (270)", "270")]))),
     ("Remove location and camera data", lambda: media("img", "strip")),
     ("Combine images into one PDF", lambda: media("pdf", "fromimg")),
-    ("Edit, crop or draw (opens the Hub)", lambda: hub("apps/foto/", "Photo editing")),
 ]
 
 def vid_convert():
@@ -163,22 +154,16 @@ VIDEO = [
     ("Convert", vid_convert),
     ("Make smaller", lambda: media("video", "small", ask("How small:", [("A bit smaller, same size on screen", "4M"),
                                                                        ("Smaller, 720p", "2M"), ("Much smaller, 720p", "1M")], 2))),
-    ("Cut (keep from a start to an end time)", lambda: media("video", "cut")),
     ("Save only the audio", lambda: media("video", "audio", ask("Audio type:", [("M4A (Apple)", "m4a"), ("MP3", "mp3"), ("WAV", "wav")]))),
-    ("Make a GIF (first 15 seconds)", lambda: media("video", "gif")),
     ("Remove the sound", lambda: media("video", "mute")),
-    ("Rotate", lambda: media("video", "rotate", ask("Turn:", [("Right (90)", "90"), ("Upside down (180)", "180"), ("Left (270)", "270")]))),
-    ("Edit or record (opens the Hub)", lambda: hub("apps/video/", "Video editing")),
 ]
 
 AUDIO = [
     ("Convert", lambda: media("audio", "convert", ask("Convert to:", [("MP3", "mp3"), ("M4A (Apple)", "m4a"), ("WAV", "wav"),
                                                                       ("FLAC (lossless)", "flac"), ("OGG", "ogg")]))),
-    ("Cut (keep from a start to an end time)", lambda: media("audio", "cut")),
     ("Change the volume", lambda: media("audio", "volume", ask("Volume:", [("Even it out (normalise)", "even"), ("Louder (x1.5)", "1.5"),
                                                                            ("Much louder (x2)", "2"), ("Quieter (x0.6)", "0.6")]))),
     ("Join tracks into one", lambda: media("audio", "join")),
-    ("Edit or record (opens the Hub)", lambda: hub("apps/musica/", "Audio editing")),
 ]
 
 OFFICE = [
@@ -187,9 +172,6 @@ OFFICE = [
     ("CSV to Excel", lambda: media("office", "xlsx")),
     ("Word, PowerPoint or Excel to text", lambda: media("office", "text")),
     ("Save the images inside a document", lambda: media("office", "images")),
-    ("Word to PDF (opens the Hub)", lambda: hub("visualizadores/bentopdf/word-to-pdf.html", "Word to PDF")),
-    ("Excel to PDF (opens the Hub)", lambda: hub("visualizadores/bentopdf/excel-to-pdf.html", "Excel to PDF")),
-    ("PowerPoint to PDF (opens the Hub)", lambda: hub("visualizadores/bentopdf/powerpoint-to-pdf.html", "PowerPoint to PDF")),
 ]
 
 FILES = [

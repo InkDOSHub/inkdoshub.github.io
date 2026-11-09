@@ -265,6 +265,150 @@ def make_docx(pages, out):
         z.writestr("_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="r1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
         z.writestr("word/document.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document %s><w:body>%s</w:body></w:document>' % (W, "".join(body)))
 
+# ---------- PDF to Word / Excel / JPG (pure Python on top of pypdf) ----------
+def page_lines(p):
+    # Text pieces with position and size -> lines [(y, size, bold, text)] in reading order.
+    chunks = []
+    def vis(text, cm, tm, font, size):
+        if not text: return
+        y = tm[4] * cm[1] + tm[5] * cm[3] + cm[5]
+        sc = (abs(tm[3]) or abs(tm[0]) or 1) * (abs(cm[3]) or 1)
+        name = str((font or {}).get("/BaseFont", "")) if hasattr(font, "get") else ""
+        chunks.append((y, (size or 10) * sc, bool(re.search(r"Bold|Black|Heavy|Semibold", name)), text))
+    try: p.extract_text(visitor_text=vis)
+    except Exception: chunks = []
+    lines, cur = [], None
+    for y, size, bold, t in chunks:
+        part = t.replace("\n", " ")
+        if not part.strip(): continue
+        if cur is None or abs(y - cur[0]) > max(2, 0.5 * size):
+            if cur and cur[3].strip(): lines.append(cur)
+            cur = [y, size, bold, part]; continue
+        sep = "" if cur[3].endswith(" ") or part.startswith(" ") else " "
+        cur[3] += sep + part; cur[1] = max(cur[1], size); cur[2] = cur[2] and bold
+    if cur and cur[3].strip(): lines.append(cur)
+    return lines
+
+def page_paragraphs(lines, body):
+    # Lines join into one paragraph only when the line before is nearly full (it wrapped); short lines,
+    # like table rows or list items, stay on their own.
+    paras, last = [], None
+    full = 0.6 * max([len(re.sub(r"\s+", " ", l[3]).strip()) for l in lines] or [1])
+    for y, size, bold, t in lines:
+        t = re.sub(r"\s+", " ", t).strip()
+        head = size >= body * 1.25 and len(t) < 150
+        if last and not head and not last["head"] and last["len"] >= full and abs(last["y"] - y) <= body * 1.9 and abs(last["size"] - size) < 1.5:
+            last["text"] = (last["text"][:-1] if last["text"].endswith("-") else last["text"] + " ") + t
+            last["bold"] = last["bold"] and bold; last["y"] = y; last["len"] = len(t)
+        else:
+            last = {"text": t, "size": size, "bold": bold, "head": head, "y": y, "len": len(t)}; paras.append(last)
+    return paras
+
+def img_bytes(im):
+    # (data, ext, w, h) in a format Word opens (png/jpeg); converts others with Pillow.
+    data, ext = im.data, os.path.splitext(im.name)[1].lower()
+    try:
+        from PIL import Image
+        pi = Image.open(io.BytesIO(data)); w, h = pi.size
+        if ext not in (".png", ".jpg", ".jpeg"):
+            b = io.BytesIO(); (pi.convert("RGB") if pi.mode not in ("RGB", "L", "RGBA") else pi).save(b, "PNG"); data, ext = b.getvalue(), ".png"
+        return data, (".jpeg" if ext == ".jpg" else ext), w, h
+    except Exception:
+        return (data, ext, 600, 400) if ext in (".png", ".jpg", ".jpeg") else None
+
+def pdf_to_word(P):
+    for f in choose(PDF, "PDFs"):
+        r = reader(f, P); pages = []
+        sizes = []
+        for p in r.pages:
+            ls = page_lines(p); pages.append((p, ls)); sizes += [round(l[1]) for l in ls]
+        body = max(set(sizes), key=sizes.count) if sizes else 11
+        doc, media = [], []
+        for n, (p, ls) in enumerate(pages):
+            if n: doc.append('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
+            for para in page_paragraphs(ls, body):
+                pt = max(8, min(36, round(para["size"] * (11.0 / body)))) if para["head"] else 11
+                rpr = ("<w:b/>" if para["bold"] or para["head"] else "") + '<w:sz w:val="%d"/>' % (pt * 2)
+                doc.append('<w:p><w:r><w:rPr>%s</w:rPr><w:t xml:space="preserve">%s</w:t></w:r></w:p>' % (rpr, escape(re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", para["text"]))))
+            try: ims = list(p.images)
+            except Exception: ims = []
+            for im in ims:
+                b = img_bytes(im)
+                if not b or len(b[0]) < 300: continue
+                media.append(b); k = len(media)
+                cx = min(5486400, b[2] * 9525); cy = int(cx * b[3] / max(1, b[2]))
+                doc.append('<w:p><w:r><w:drawing><wp:inline><wp:extent cx="%d" cy="%d"/><wp:docPr id="%d" name="Picture %d"/>'
+                           '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="%d" name="img%d"/><pic:cNvPicPr/></pic:nvPicPr>'
+                           '<pic:blipFill><a:blip r:embed="img%d"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="%d" cy="%d"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>'
+                           % (cx, cy, k, k, k, k, k, cx, cy))
+        if not any("<w:t" in d for d in doc) and not media: print("  %s: no text or pictures found." % f); continue
+        out = out_name(f, "", ".docx"); write_docx(doc, media, out); done(f, out)
+
+def write_docx(doc, media, out):
+    NS = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+          'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+          'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"')
+    rels = "".join('<Relationship Id="img%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image%d%s"/>' % (k, k, m[1]) for k, m in enumerate(media, 1))
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+        z.writestr("_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="r1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
+        z.writestr("word/_rels/document.xml.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">%s</Relationships>' % rels)
+        for k, m in enumerate(media, 1): z.writestr("word/media/image%d%s" % (k, m[1]), m[0])
+        z.writestr("word/document.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document %s><w:body>%s<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:body></w:document>' % (NS, "".join(doc)))
+
+def num_cell(v):
+    t = v.strip()
+    if re.fullmatch(r"-?\d+(\.\d+)?", t): return t
+    if re.fullmatch(r"-?\d{1,3}(\.\d{3})*(,\d+)?|-?\d+,\d+", t): return t.replace(".", "").replace(",", ".")
+    return None
+
+def write_xlsx(sheets, out):
+    M = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'; R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>%s</Types>'
+                   % "".join('<Override PartName="/xl/worksheets/sheet%d.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' % i for i in range(1, len(sheets) + 1)))
+        z.writestr("_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="r1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
+        z.writestr("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8"?><workbook %s %s><sheets>%s</sheets></workbook>' % (M, R, "".join('<sheet name="%s" sheetId="%d" r:id="rId%d"/>' % (escape(n[:31]), i, i) for i, (n, _) in enumerate(sheets, 1))))
+        z.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">%s</Relationships>' % "".join('<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet%d.xml"/>' % (i, i) for i in range(1, len(sheets) + 1)))
+        for i, (_, rows) in enumerate(sheets, 1):
+            xr = []
+            for ri, r in enumerate(rows, 1):
+                cs = []
+                for ci, v in enumerate(r, 1):
+                    ref = "%s%d" % (col(ci), ri); n = num_cell(v)
+                    if n is not None: cs.append('<c r="%s"><v>%s</v></c>' % (ref, n))
+                    elif v.strip(): cs.append('<c r="%s" t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>' % (ref, escape(re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", v.strip()))))
+                xr.append('<row r="%d">%s</row>' % (ri, "".join(cs)))
+            z.writestr("xl/worksheets/sheet%d.xml" % i, '<?xml version="1.0" encoding="UTF-8"?><worksheet %s><sheetData>%s</sheetData></worksheet>' % (M, "".join(xr)))
+
+def pdf_to_excel(P):
+    for f in choose(PDF, "PDFs"):
+        r = reader(f, P); sheets = []
+        for n, p in enumerate(r.pages, 1):
+            try: t = p.extract_text(extraction_mode="layout")
+            except Exception: t = p.extract_text() or ""
+            rows = [re.split(r"\s{2,}", l.strip()) for l in t.splitlines() if l.strip()]
+            if rows: sheets.append(("Page %d" % n, rows))
+        if not sheets: print("  %s: no text found (scanned PDF)." % f); continue
+        out = out_name(f, "", ".xlsx"); write_xlsx(sheets, out); done(f, out)
+
+def pdf_to_jpg(P):
+    try: from PIL import Image
+    except ImportError: Image = None
+    for f in choose(PDF, "PDFs"):
+        r = reader(f, P); d = os.path.splitext(f)[0] + " (JPG)"; n = 0; vector = 0
+        for i, p in enumerate(r.pages, 1):
+            try: ims = list(p.images)
+            except Exception: ims = []
+            if not ims: vector += 1; continue
+            big = max(ims, key=lambda im: len(im.data)); os.makedirs(d, exist_ok=True); o = os.path.join(d, "page %03d.jpg" % i)
+            try:
+                pi = Image.open(io.BytesIO(big.data)); pi.convert("RGB").save(o, quality=90)
+            except Exception:
+                with open(os.path.splitext(o)[0] + os.path.splitext(big.name)[1], "wb") as fh: fh.write(big.data)
+            n += 1
+        print("  %s -> %d page(s) in '%s'%s" % (f, n, d, ("; %d page(s) are text/drawings, not photos: those need a renderer and were skipped" % vector) if vector else ""))
+
 # ---------- images (Pillow; HEIC through magick) ----------
 def pil():
     try:
@@ -477,7 +621,7 @@ try:
              "delete": lambda: pdf_extract(P, False), "rotate": lambda: pdf_rotate(P, O or "90"), "reorder": lambda: pdf_reorder(P),
              "compress": lambda: pdf_compress(P), "protect": lambda: pdf_protect(P), "unlock": lambda: pdf_unlock(P),
              "meta": lambda: pdf_meta(P), "images": lambda: pdf_images(P), "text": lambda: pdf_text(P),
-             "word": lambda: pdf_text(P, True)}[J]()
+             "word": lambda: pdf_to_word(P), "excel": lambda: pdf_to_excel(P), "jpg": lambda: pdf_to_jpg(P)}[J]()
     elif G == "img": img_job(J, O)
     elif G in ("video", "audio"): media_job(G, J, O)
     elif G == "office": {"text": office_text, "csv": xlsx_to_csv, "xlsx": csv_to_xlsx, "images": office_images}[J]()
