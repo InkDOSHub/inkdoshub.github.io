@@ -183,7 +183,7 @@
     var ok = document.getElementById("rem-ok"); ok.hidden = !ids.length; ok.textContent = T("Remover e salvar cópia limpa", "Remove and save clean copy"); ok.onclick = remover;
     var av = document.getElementById("rem-aviso"); av.hidden = !ultimo.soComp;
     av.innerHTML = ""; av.appendChild(document.createTextNode(T("Parte do conteúdo perigoso está compactada e não pode ser removida aqui. Use ", "Some dangerous content is compressed and can't be removed here. Use ")));
-    var a = document.createElement("a"); a.href = "../../visualizadores/bentopdf/sanitize-pdf.html"; a.textContent = T("Higienizar PDF", "Sanitize PDF"); av.appendChild(a); av.appendChild(document.createTextNode("."));
+    var a = document.createElement("a"); a.href = "../../visualizadores/bentopdf/sanitize-pdf.html"; a.textContent = T("Higienizar PDF", "Sanitize PDF"); a.onclick = function () { try { sessionStorage.setItem("inkdos-return", location.href); sessionStorage.setItem("inkdoshub-pdf-volta", "seguranca"); } catch (_) {} }; av.appendChild(a); av.appendChild(document.createTextNode("."));
   }
   function remover() {
     var sel = Array.prototype.map.call(document.querySelectorAll("#rem-lista input:checked"), function (x) { return x.value; });
@@ -500,7 +500,7 @@
     lista("achados", A, true);
     var lp = document.getElementById("limpar-p"), lk = document.getElementById("limpar");
     lp.hidden = !(pior === "alto" || pior === "medio"); lk.textContent = T("Remover ameaças (cópia limpa)", "Remove threats (clean copy)");
-    lk.onclick = function () { try { sessionStorage.setItem("inkdos-return", location.href); } catch (_) {} };
+    lk.onclick = function () { try { sessionStorage.setItem("inkdos-return", location.href); sessionStorage.setItem("inkdoshub-pdf-volta", "seguranca"); } catch (_) {} };
     lista("links", links.map(function (u) { return { t: u.length > 80 ? u.slice(0, 80) + "…" : u, d: "" }; }), false);
     var tl = document.getElementById("t-links"); tl.hidden = !links.length; tl.textContent = T("Links encontrados", "Links found");
     document.getElementById("t-det").textContent = T("Detalhes", "Details");
