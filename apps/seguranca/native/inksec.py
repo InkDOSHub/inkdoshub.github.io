@@ -24,13 +24,16 @@ ASH = "/Containers/Data/Application/" in os.path.expanduser("~")
 def pick(what="folder", stay=True):
     before = os.getcwd()
     if ASH:
-        print("Choose the %s in the menu that opens..." % what, flush=True)
-        try: os.system("pickFolder")
-        except Exception: pass
-        p = os.getcwd()
         home = os.path.realpath(os.path.expanduser("~"))
-        if os.path.realpath(p) == os.path.realpath(before) and os.path.realpath(p) in (home, os.path.join(home, "Documents")):
-            print("No folder chosen. Paste the command again and choose a folder."); sys.exit(1)
+        while True:
+            print("Choose the %s in the menu that opens..." % what, flush=True)
+            try: os.system("pickFolder")
+            except Exception: pass
+            p = os.getcwd()
+            if not (os.path.realpath(p) == os.path.realpath(before) and os.path.realpath(p) in (home, os.path.join(home, "Documents"))): break
+            try: a = input("No folder was chosen. Press Enter to open the menu again, or type 0 to go back: ").strip()
+            except EOFError: a = "0"
+            if a == "0": sys.exit(1)
     else:
         try: p = input("Drag the %s here (or type its path) and press Enter. Enter alone = %s: " % (what, before))
         except EOFError: p = ""
@@ -38,7 +41,11 @@ def pick(what="folder", stay=True):
         p = os.path.abspath(os.path.expanduser(p)) if p else before
         if not os.path.isdir(p): print("Folder not found: " + p); sys.exit(1)
     os.chdir(p if stay else before)
-    print("%s: %s" % (what[0].upper() + what[1:], p), flush=True)
+    show = p
+    if "com~apple~CloudDocs" in p: show = "iCloud Drive" + p.split("com~apple~CloudDocs", 1)[1]
+    elif "File Provider Storage" in p: show = "On My iPhone/iPad" + p.split("File Provider Storage", 1)[1]
+    elif ASH and p.startswith(os.path.expanduser("~")): show = "a-Shell" + p[len(os.path.expanduser("~")):]
+    print("%s: %s" % (what[0].upper() + what[1:], show), flush=True)
     return p
 
 def pick_file(exts, what="file"):
