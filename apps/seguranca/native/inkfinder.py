@@ -1,8 +1,17 @@
-# inkfinder.py - tests Finder-style file jobs on iPad/iPhone (a-Shell), pure Python.
-# Creates its own test files in ~/Documents/teste/work (Files app: On My iPad > a-Shell > teste),
-# runs every job, checks the result and writes ~/Documents/teste/inkfinder-log.txt.
-# Jobs: sizes, search, merge (replace / keep both / skip), batch rename, compare + copy changes,
-# duplicates, streaming ZIP and TAR (create + extract), with time and peak memory for each.
+# inkfinder.py - Finder-style file jobs for any terminal (Windows, Linux, macOS) and a-Shell (iPhone/iPad).
+# Pure Python, standard library only. Works on the current folder; reads files in 1 MB blocks.
+# Commands (first argument):
+#   test                      self-test in ~/Documents/teste with its own sample files (default)
+#   sizes                     size of every folder, biggest first
+#   search [min_MB] [days] [ext]   files over min_MB, changed in the last days, with that extension (0 = any)
+#   dupes                     duplicate files (same size, then same hash)
+#   merge SRC RULE            copy SRC into this folder; RULE = replace | keep | skip
+#   rename FIND TO [number] [date]   in this folder: replace text in names; "number" adds 001, 002...; "date" adds the file date
+#   sync DEST                 copy new and changed files from this folder to DEST (nothing is deleted)
+#   zip NAME                  compress this folder into NAME.zip (next to it)
+#   unzip FILE                extract FILE.zip into a folder with the same name
+# Add "preview" to merge, rename or sync to see what would happen without changing anything.
+# Every command writes inkfinder-log.txt in the folder.
 import os, sys, time, shutil, hashlib, zipfile, tarfile, random, traceback
 
 ROOT = os.path.expanduser("~/Documents/teste")
@@ -211,7 +220,7 @@ def tars():
     assert not bad, "%d files differ" % len(bad)
     return "tar.gz %.0f MB, all files identical" % (os.path.getsize(T) / 1e6)
 
-def main():
+def test_main():
     os.makedirs(ROOT, exist_ok=True)
     log("=== inkfinder %s | Python %s | %s ===" % (time.strftime("%Y-%m-%d %H:%M"), sys.version.split()[0], sys.platform))
     for f in (setup, sizes, search, merges, rename, compare, dupes, zips, tars): f()
@@ -220,4 +229,130 @@ def main():
     if "--keep" not in sys.argv:
         shutil.rmtree(WORK, ignore_errors=True); log("Test files removed (add --keep to keep them).")
 
-main()
+# ---------- real-use commands ----------
+HERE = os.getcwd()
+PREVIEW = "preview" in sys.argv
+ARGS = [a for a in sys.argv[1:] if a != "preview"]
+
+def say(msg):
+    print(msg, flush=True)
+    try:
+        with open(os.path.join(HERE, "inkfinder-log.txt"), "a", encoding="utf-8") as f: f.write(msg + "\n")
+    except OSError: pass
+
+def human(n):
+    for u in ("B", "KB", "MB", "GB"):
+        if n < 1024: return "%.0f %s" % (n, u) if u == "B" else "%.1f %s" % (n, u)
+        n /= 1024
+    return "%.1f TB" % n
+
+def mine(p): return os.path.basename(p) != "inkfinder-log.txt"
+
+def cmd_sizes():
+    s = folder_sizes(HERE)
+    top = sorted(((v, k) for k, v in s.items()), reverse=True)[:40]
+    for v, k in top: say("%10s  %s" % (human(v), rel(k, HERE)))
+
+def cmd_search():
+    mn = float(ARGS[1]) if len(ARGS) > 1 else 0; days = float(ARGS[2]) if len(ARGS) > 2 else 0
+    ext = ARGS[3].lower().lstrip(".") if len(ARGS) > 3 and ARGS[3] != "0" else ""
+    n = 0
+    for p in files_in(HERE):
+        st = os.stat(p)
+        if mn and st.st_size < mn * 1e6: continue
+        if days and st.st_mtime < time.time() - days * 86400: continue
+        if ext and not p.lower().endswith("." + ext): continue
+        n += 1; say("%10s  %s  %s" % (human(st.st_size), time.strftime("%Y-%m-%d", time.localtime(st.st_mtime)), rel(p, HERE)))
+    say("%d file(s) found." % n)
+
+def cmd_dupes():
+    by = {}
+    for p in files_in(HERE):
+        if mine(p): by.setdefault(os.path.getsize(p), []).append(p)
+    g = 0; waste = 0
+    for size, ps in sorted(by.items(), reverse=True):
+        if len(ps) < 2 or size == 0: continue
+        hs = {}
+        for p in ps: hs.setdefault(digest(p), []).append(p)
+        for same in hs.values():
+            if len(same) > 1:
+                g += 1; waste += size * (len(same) - 1)
+                say("Group %d (%s each):" % (g, human(size)))
+                for p in same: say("   " + rel(p, HERE))
+    say("%d group(s), %s could be freed. Nothing was deleted." % (g, human(waste)))
+
+def cmd_merge():
+    src, rule = os.path.abspath(os.path.expanduser(ARGS[1])), (ARGS[2] if len(ARGS) > 2 else "skip")
+    assert os.path.isdir(src), "folder not found: " + src
+    if PREVIEW:
+        n = {"new": 0, "exists": 0}
+        for p in files_in(src): n["new" if not os.path.exists(os.path.join(HERE, rel(p, src))) else "exists"] += 1
+        say("Preview: %d new file(s), %d already here (rule: %s). Nothing changed." % (n["new"], n["exists"], rule)); return
+    say("Merged: %s" % merge(src, HERE, rule))
+
+def cmd_rename():
+    find, to = (ARGS[1] if len(ARGS) > 1 else ""), (ARGS[2] if len(ARGS) > 2 else "")
+    fs = sorted(f for f in os.listdir(HERE) if os.path.isfile(os.path.join(HERE, f)) and f != "inkfinder-log.txt")
+    plan = []
+    for i, f in enumerate(fs, 1):
+        b, e = os.path.splitext(f)
+        nb = b.replace(find, to) if find else b
+        if "number" in ARGS[3:]: nb = "%s %03d" % (nb if find else (to or nb), i) if (find or to) else "%03d %s" % (i, nb)
+        if "date" in ARGS[3:]: nb = time.strftime("%Y-%m-%d ", time.localtime(os.path.getmtime(os.path.join(HERE, f)))) + nb
+        if nb + e != f: plan.append((f, nb + e))
+    news = [b for _, b in plan]
+    clash = [b for b in news if news.count(b) > 1 or (os.path.exists(os.path.join(HERE, b)) and b not in [a for a, _ in plan])]
+    assert not clash, "names would clash: " + ", ".join(sorted(set(clash))[:5])
+    for a, b in plan:
+        say("%s -> %s" % (a, b))
+        if not PREVIEW: os.rename(os.path.join(HERE, a), os.path.join(HERE, b))
+    say("%d file(s) %s." % (len(plan), "would be renamed (preview)" if PREVIEW else "renamed"))
+
+def cmd_sync():
+    dst = os.path.abspath(os.path.expanduser(ARGS[1])); os.makedirs(dst, exist_ok=True)
+    new = changed = same = 0
+    for p in files_in(HERE):
+        if not mine(p): continue
+        t = os.path.join(dst, rel(p, HERE))
+        if not os.path.exists(t): new += 1; act = True
+        elif os.path.getsize(p) != os.path.getsize(t) or digest(p) != digest(t): changed += 1; act = True
+        else: same += 1; act = False
+        if act:
+            say(("NEW      " if not os.path.exists(t) else "CHANGED  ") + rel(p, HERE))
+            if not PREVIEW: os.makedirs(os.path.dirname(t), exist_ok=True); shutil.copyfile(p, t)
+    say("%d new, %d changed, %d same.%s" % (new, changed, same, " Preview: nothing copied." if PREVIEW else ""))
+
+def cmd_zip():
+    out = os.path.join(os.path.dirname(HERE), (ARGS[1] if len(ARGS) > 1 else os.path.basename(HERE)).removesuffix(".zip") + ".zip")
+    n = 0
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+        for p in files_in(HERE):
+            if mine(p): z.write(p, rel(p, HERE)); n += 1
+            if n % 200 == 0 and n: print("  ... %d" % n, flush=True)
+    say("%d file(s) -> %s (%s)" % (n, out, human(os.path.getsize(out))))
+
+def cmd_unzip():
+    src = os.path.abspath(os.path.expanduser(ARGS[1])); X = os.path.splitext(src)[0]
+    n = 0
+    with zipfile.ZipFile(src) as z:
+        for i in z.infolist():
+            t = os.path.realpath(os.path.join(X, i.filename))
+            assert t.startswith(os.path.realpath(X)), "unsafe path in zip: " + i.filename
+            if i.is_dir(): os.makedirs(t, exist_ok=True); continue
+            os.makedirs(os.path.dirname(t), exist_ok=True)
+            with z.open(i) as s, open(t, "wb") as d: shutil.copyfileobj(s, d, CHUNK)
+            n += 1
+    say("%d file(s) extracted to %s" % (n, X))
+
+CMDS = {"sizes": cmd_sizes, "search": cmd_search, "dupes": cmd_dupes, "merge": cmd_merge, "rename": cmd_rename,
+        "sync": cmd_sync, "zip": cmd_zip, "unzip": cmd_unzip}
+if not ARGS or ARGS[0] == "test":
+    test_main()
+elif ARGS[0] in CMDS:
+    say("=== inkfinder %s %s in %s ===" % (" ".join(ARGS), "(preview)" if PREVIEW else "", HERE))
+    t0 = time.time()
+    try: CMDS[ARGS[0]]()
+    except (AssertionError, IndexError, OSError, zipfile.BadZipFile) as e: say("STOPPED: %s" % (e or "missing argument"))
+    say("Done in %.1fs, peak memory %.0f MB." % (time.time() - t0, peak_mb()))
+else:
+    print("Unknown command. Use: test, " + ", ".join(CMDS))

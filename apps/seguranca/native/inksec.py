@@ -21,6 +21,7 @@ import csv, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 
 MODE = (sys.argv[1] if len(sys.argv) > 1 else "office").lower()
 ASHELL = "/Containers/Data/Application/" in os.path.expanduser("~")
+HERE_MODE = ASHELL or "--here" in sys.argv  # no questions: this folder, clean in place with backup
 MODES = ["office", "archive", "loose"] if MODE == "all" else [MODE]
 MODE = MODES[0]
 TAG = {"pdf": "pdfclean", "office": "officeclean", "archive": "archivescan", "loose": "riskyfiles"}.get(MODE)
@@ -193,7 +194,7 @@ def main():
     print("InkDOS Security: " + TAG)
     retry = os.environ.pop("INKSEC_RETRY", ""); out_pre = os.environ.pop("INKSEC_OUT", "")
     src = ""
-    if ASHELL:
+    if HERE_MODE:
         src, out_pre = os.getcwd(), "R"
     elif not retry:
         a = os.path.expanduser(ask("Folder or drive to scan (or a %s report .csv to retry only its failed files): " % TAG))
@@ -225,7 +226,7 @@ def main():
         else:
             dst = os.path.expanduser(dst or defo)
     else:
-        dst = src if ASHELL else os.path.join(desk, "InkDOS-security")
+        dst = src if HERE_MODE else os.path.join(desk, "InkDOS-security")
     os.makedirs(dst, exist_ok=True)
     dst = os.path.join(os.path.realpath(dst), "")
 
@@ -276,8 +277,8 @@ def main():
                 target = p if in_place else os.path.join(dst, rel)
                 if not in_place: os.makedirs(os.path.dirname(target), exist_ok=True)
                 if res:
-                    if ASHELL:
-                        bk = os.path.join(os.path.expanduser("~/Documents/inkdos-backup"), rel)
+                    if HERE_MODE:
+                        bk = os.path.join(os.path.expanduser("~/Documents" if os.path.isdir(os.path.expanduser("~/Documents")) else "~"), "inkdos-backup", rel)
                         os.makedirs(os.path.dirname(bk), exist_ok=True); shutil.copyfile(p, bk)
                     shutil.copyfile(res, target)
                     row.update(Status="CLEANED", Found=found); n_fix += 1
@@ -318,7 +319,7 @@ def main():
     if cleaner: print("Done. %d file(s): %d cleaned, %d flagged for you to check, %d failed." % (total, n_fix, n_flag, n_fail))
     else: print("Done. %d file(s) looked at: %d flagged for you to check, %d failed. Nothing was changed." % (total, n_flag, n_fail))
     print("Output: " + dst); print("Report: " + rep)
-    if n_fail and not ASHELL:
+    if n_fail and not HERE_MODE:
         q = lambda v: "'" + v.replace("'", "'\\''") + "'"
         cmd = 'curl -fsSL "%s%s.sh?$RANDOM" | INKSEC_RETRY=%s INKSEC_OUT=%s bash' % (BASE, TAG, q(rep), q("R" if in_place else dst))
         txt = os.path.join(dst, "%s-retry%s.txt" % (TAG, stamp))
