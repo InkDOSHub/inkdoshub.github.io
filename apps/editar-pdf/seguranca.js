@@ -246,7 +246,12 @@
     Promise.all(fs.map(function (f) {
       if (/\.zip$/i.test(f.name)) return lerZip(f).then(function (es) { nZip++; return es; });
       return [{ nome: f.webkitRelativePath || f.name, blob: f, m: -1 }];
-    })).then(function (ls) { ls.forEach(function (l) { ents = ents.concat(l); }); fs = ents; prox(); }).catch(function (e) { st.textContent = String(e); });
+    })).then(function (ls) {
+      ls.forEach(function (l) { ents = ents.concat(l); });
+      // no folder paths came with the files: the ZIP would be flat, so stop and point to the ZIP route
+      if (!nZip && ents.length > 1 && !ents.some(function (e) { return e.nome.indexOf("/") >= 0; })) linha(T("Sem estrutura de pastas", "No folder structure"), T("Este aparelho não informou as pastas. Para manter as subpastas: no Arquivos, toque e segure a pasta › Comprimir, e escolha o .zip aqui.", "This device didn't pass the folders. To keep subfolders: in Files, long-press the folder › Compress, then pick that .zip here."));
+      fs = ents; prox();
+    }).catch(function (e) { st.textContent = String(e); });
     function prox() {
       if (i >= fs.length) return fim();
       var e = fs[i++], f = e.blob, nome = e.nome, pdf = /\.pdf$/i.test(nome);
