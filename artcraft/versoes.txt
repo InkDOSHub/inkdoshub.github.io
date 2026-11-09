@@ -1,9 +1,3 @@
-<<<<<<< HEAD
 deckcraft v0.17.0
 gridcraft v0.18.0
 wordcraft v0.17.0
-=======
-deckcraft v0.14.1
-gridcraft v0.15.0
-wordcraft v0.14.0
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))

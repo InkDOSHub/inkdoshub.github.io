@@ -124,11 +124,7 @@ Every screenshot below is WordCraft itself, rendered offscreen by its own UI tes
 | **References** | Table of contents, footnotes and endnotes, citations and bibliography (APA, MLA, Chicago, IEEE), captions, table of figures, cross-references, index, table of authorities |
 | **Review** | Spelling and grammar with suggestions (English and Polish, by each run's language), thesaurus, word count, comments in margin balloons or a pane, track changes, accept/reject, compare documents, restrict editing, accessibility checker, document inspector |
 | **Mailings** | Mail merge from CSV, merge fields, address block, greeting line, rules, preview, finish to a document; envelopes and labels |
-<<<<<<< HEAD
 | **View** | Print layout, web layout, draft, read mode, focus, zoom, one/multiple pages, page width, Navigation pane, rulers, gridlines, dark mode; interface in English, 简体中文, 繁體中文, 日本語, Português (Brasil), Español, Українська, Српски / Srpski, Eesti, Türkçe, Русский, Italiano, Deutsch, Polski, Čeština, Magyar, Français, Български, Tiếng Việt, 한국어, Svenska, Hrvatski, Nederlands, Dansk, Română, العربية (mirrored) or Slovenščina (follows the system language by default) |
-=======
-| **View** | Print layout, web layout, draft, read mode, focus, zoom, one/multiple pages, page width, Navigation pane, rulers, gridlines, dark mode; interface in English, 简体中文, 繁體中文, 日本語, Português (Brasil), Español, Українська, Српски / Srpski, Eesti, Türkçe, Русский, Italiano, Deutsch, Polski, Čeština, Magyar, Français, Български, Tiếng Việt, 한국어, Svenska, Hrvatski or Slovenščina (follows the system language by default) |
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 | **Files** | .docx read/write, legacy 97-2003 .doc import, PDF export, .odt, .rtf, .html, .md, .tex, .txt import/export, page images |
 
 The honest picture, area by area, is in [ROADMAP.md](ROADMAP.md), the
@@ -144,7 +140,6 @@ cargo run --release -p wordcraft -- --sample        # the desktop app with the s
 cargo run --release -p wordcraft -- report.docx     # open a document
 ```
 
-<<<<<<< HEAD
 The interface translations and the spelling and hyphenation data come from
 [craft-i18n](https://github.com/storytold/craft-i18n), an optional build input. To build with them,
 check it out at the commit in `craft-i18n.rev` and point `CRAFT_I18N_DIR` at it (an absolute
@@ -158,8 +153,6 @@ git -C ../craft-i18n checkout "$(cat craft-i18n.rev)"
 CRAFT_I18N_DIR="$PWD/../craft-i18n" cargo run --release -p wordcraft -- --sample
 ```
 
-=======
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 Command line:
 
 ```sh
@@ -214,11 +207,7 @@ covers every target starting with it (`wordcraft*=debug`). The logger is
 | Layer | Crate | Job |
 |---|---|---|
 | L0 | `wordcraft-geom` | units and measurements |
-<<<<<<< HEAD
 | L1 | `wordcraft-doc`, `wordcraft-fonts`, `wordcraft-proof` ([`craft-proof`](https://github.com/storytold/craft-libs/tree/main/crates/proof) from craft-libs) | document model and editing; fonts and shaping; spelling, grammar, hyphenation (data: craft-i18n `language-data/`, `CRAFT_I18N_DIR`) |
-=======
-| L1 | `wordcraft-doc`, `wordcraft-fonts`, `wordcraft-proof` | document model and editing; fonts and shaping; spelling, grammar, hyphenation |
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 | L2 | `wordcraft-layout`, `wordcraft-docx`, `wordcraft-formats` | line breaking, pagination, tables, notes, hit testing; OOXML; ODT/RTF/HTML/Markdown/TXT |
 | L3 | `wordcraft-render`, `wordcraft-pdf` | rasteriser (vello_cpu); PDF ([craft-pdf](docs/shared-pdf.md), Krilla) |
 | L4 | `wordcraft-engine` | session, undo, 422 commands, document feature catalog |
@@ -310,7 +299,6 @@ adapter. The log file records the choice (lines starting with
 RISC-V (riscv64): `wordcraft-<ver>-linux-riscv64.tar.gz`, a tarball cross-compiled for glibc 2.39+
 (Ubuntu 24.04, Debian 13 and newer).
 
-<<<<<<< HEAD
 **Read Aloud** (Review › Read Aloud) speaks through a speech program installed on the system: it
 tries `espeak-ng`, then `espeak`, and when neither is installed it talks to Speech Dispatcher.
 The `.rpm` package recommends `espeak-ng`; the `.deb` recommends `espeak-ng` or
@@ -326,12 +314,6 @@ of file drag-and-drop), choose **File › Options › Advanced › Linux display
 applies the next time WordCraft starts, and **X11 (XWayland)** or **Automatic** switches back. The
 `WORDCRAFT_WAYLAND` environment variable overrides the setting: `1` for native Wayland, `0` for
 XWayland:
-=======
-**Wayland:** on a Wayland desktop the app runs through XWayland when it is available, because
-winit (the windowing library) supports dragging files into the window only on X11. To use the
-native Wayland backend instead (for example for sharper text with fractional scaling, at the cost
-of file drag-and-drop), start it with `WORDCRAFT_WAYLAND=1`:
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 
 ```sh
 WORDCRAFT_WAYLAND=1 wordcraft

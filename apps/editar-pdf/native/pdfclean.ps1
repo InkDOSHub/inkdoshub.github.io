@@ -1,9 +1,5 @@
 # InkDOS PDF Clean - bulk-neutralize risky PDF features (Windows).
-<<<<<<< HEAD
 # Run in PowerShell:  irm "https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1?$(Get-Random)" | iex
-=======
-# Run in PowerShell:  irm https://hub.inkdos.workers.dev/apps/editar-pdf/native/pdfclean.ps1 | iex
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 #
 # Walks a folder (or external drive) recursively and writes a copy of every PDF
 # to a separate output folder, keeping the folder structure (originals untouched).
@@ -40,7 +36,6 @@ function Get-Qpdf {
 $qpdf = Get-Qpdf
 Write-Host "Using $qpdf"
 
-<<<<<<< HEAD
 # Optional, for the retry command written to pdfclean-retry.txt:
 #   $env:PDFCLEAN_RETRY = a pdfclean-report*.csv (only its FAILED files are processed)
 #   $env:PDFCLEAN_OUT   = 'R' (in place) or an output folder
@@ -69,17 +64,6 @@ $inPlace = $dst -eq 'R' -or $dst -eq 'r'
 if ($inPlace) {
   Write-Host 'IN-PLACE MODE: risky PDFs will be overwritten with the cleaned version. Clean and failed PDFs are left untouched.' -ForegroundColor Yellow
   if (-not $outPre -and (Read-Host 'Type YES to continue') -ne 'YES') { Write-Host 'Cancelled.'; return }
-=======
-$src = (Read-Host 'Folder or drive to scan (e.g. D:\ or C:\Users\you\Books)').Trim('"', ' ')
-if (-not (Test-Path -LiteralPath $src -PathType Container)) { throw "Folder not found: $src" }
-$src = (Resolve-Path -LiteralPath $src).ProviderPath.TrimEnd('\') + '\'
-$defOut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'PDF-clean'
-$dst = (Read-Host "Output folder [Enter = $defOut, R = replace the originals in place]").Trim('"', ' ')
-$inPlace = $dst -eq 'R' -or $dst -eq 'r'
-if ($inPlace) {
-  Write-Host 'IN-PLACE MODE: risky PDFs will be overwritten with the cleaned version. Clean and failed PDFs are left untouched.' -ForegroundColor Yellow
-  if ((Read-Host 'Type YES to continue') -ne 'YES') { Write-Host 'Cancelled.'; return }
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   $dst = $src
 } else {
   if (-not $dst) { $dst = $defOut }
@@ -92,11 +76,7 @@ if ($inPlace) {
 $risky = 'JavaScript','JS','OpenAction','AA','Launch','EmbeddedFiles','RichMedia','XFA','SubmitForm','ImportData','GoToR'
 $delim = '(?=[\s/<>\[\]\(\)%{}]|$)'
 $latin1 = [Text.Encoding]::GetEncoding(28591)   # byte-for-byte
-<<<<<<< HEAD
 $tmpDir = Join-Path $env:TEMP "inkdos-pdfclean-$PID"  # per window, so several can run at once
-=======
-$tmpDir = Join-Path $env:TEMP 'inkdos-pdfclean'
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 New-Item -ItemType Directory -Force $tmpDir | Out-Null
 $tmpA = Join-Path $tmpDir 'a.pdf'; $tmpB = Join-Path $tmpDir 'b.pdf'; $tmpS = Join-Path $tmpDir 's.pdf'
 # Long paths (over 260 chars) need the \\?\ prefix for .NET file calls.
@@ -105,7 +85,6 @@ function Get-LongPath($p) { if ($p.StartsWith('\\')) { $p } else { '\\?\' + $p }
 # otherwise Windows PowerShell turns any stderr text into a failure.
 function Invoke-Qpdf {
   $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-<<<<<<< HEAD
   try { $script:qpdfMsg = (& $qpdf @args 2>&1 | ForEach-Object { "$_" } | Where-Object { $_ -match 'qpdf|error|password' } | Select-Object -Last 1) } finally { $ErrorActionPreference = $old }
   return $LASTEXITCODE
 }
@@ -120,14 +99,6 @@ if ($retryCsv) {
   $files = Get-ChildItem -LiteralPath $src -Recurse -File -Filter *.pdf -ErrorAction SilentlyContinue |
     Where-Object { $inPlace -or -not $_.FullName.StartsWith($dst, [StringComparison]::OrdinalIgnoreCase) }
 }
-=======
-  try { & $qpdf @args 2>&1 | Out-Null } finally { $ErrorActionPreference = $old }
-  return $LASTEXITCODE
-}
-
-$files = Get-ChildItem -LiteralPath $src -Recurse -File -Filter *.pdf -ErrorAction SilentlyContinue |
-  Where-Object { $inPlace -or -not $_.FullName.StartsWith($dst, [StringComparison]::OrdinalIgnoreCase) }
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 $total = @($files).Count
 Write-Host "$total PDF(s) found."
 $report = New-Object System.Collections.Generic.List[object]
@@ -139,21 +110,14 @@ foreach ($f in $files) {
   Write-Progress -Activity 'Cleaning PDFs' -Status $rel -PercentComplete ([int](100 * $i / [Math]::Max($total,1)))
   $out = Join-Path $dst $rel
   if (-not $inPlace) { [IO.Directory]::CreateDirectory((Get-LongPath (Split-Path $out))) | Out-Null }
-<<<<<<< HEAD
   $wasCloud = $false   # OneDrive/iCloud online-only (Offline | RecallOnOpen | RecallOnDataAccess)
   try { $wasCloud = (([int][IO.File]::GetAttributes((Get-LongPath $f.FullName))) -band 0x441000) -ne 0 } catch {}
-=======
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   $status = ''; $found = ''; $note = ''
   try {
     # 1) unpack: decrypt (no-password files), no object streams, classic xref, streams left as-is
     [IO.File]::Copy((Get-LongPath $f.FullName), $tmpS, $true)
     $code = Invoke-Qpdf --decrypt --object-streams=disable --stream-data=preserve --no-original-object-ids -- $tmpS $tmpA
-<<<<<<< HEAD
     if ($code -ne 0 -and $code -ne 3) { throw "qpdf could not read it (password-protected or badly damaged), exit $($code): $($script:qpdfMsg -replace [regex]::Escape($tmpS), 'file')" }
-=======
-    if ($code -ne 0 -and $code -ne 3) { throw "qpdf could not read it (password-protected or badly damaged), exit $code" }
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
     $text = [IO.File]::ReadAllText($tmpA, $latin1)
     $hits = @()
     foreach ($n in $risky) {
@@ -183,7 +147,6 @@ foreach ($f in $files) {
     if (-not $inPlace -and [IO.File]::Exists((Get-LongPath $out))) { [IO.File]::Delete((Get-LongPath $out)) }
     Write-Host "FAILED   $rel  ->  $note" -ForegroundColor Red
   }
-<<<<<<< HEAD
   if ($wasCloud) {
     # Put it back to online-only so the PC doesn't fill up (OneDrive frees it after syncing).
     $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
@@ -193,18 +156,11 @@ foreach ($f in $files) {
 }
 Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
 $csv = Join-Path $dst $(if ($retryCsv) { 'pdfclean-report-retry.csv' } else { 'pdfclean-report.csv' })
-=======
-  $report.Add([pscustomobject]@{ File = $rel; Status = $status; Found = $found; Note = $note; SizeKB = [int]($f.Length / 1KB) })
-}
-Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
-$csv = Join-Path $dst 'pdfclean-report.csv'
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 $report | Export-Csv -LiteralPath $csv -NoTypeInformation -Encoding UTF8
 Write-Host ''
 Write-Host "Done. $total PDF(s): $nClean already clean, $nFixed cleaned, $nFail failed." -ForegroundColor Green
 Write-Host "Output: $dst"
 Write-Host "Report: $csv"
-<<<<<<< HEAD
 if ($nFail -gt 0) {
   Write-Host 'Failed files were NOT copied/changed; check the report (usually password-protected or damaged PDFs).'
   $q = { param($v) "'" + ($v -replace "'", "''") + "'" }
@@ -214,6 +170,3 @@ if ($nFail -gt 0) {
   [IO.File]::WriteAllText($txt, "Retry only the $nFail failed file(s): paste this line into PowerShell`r`n`r`n$cmd`r`n", [Text.Encoding]::UTF8)
   Write-Host "Retry command saved to: $txt"
 }
-=======
-if ($nFail -gt 0) { Write-Host 'Failed files were NOT copied; check the report (usually password-protected or damaged PDFs).' }
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))

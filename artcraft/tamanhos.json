@@ -1,6 +1,5 @@
 {
  "deckcraft": {
-<<<<<<< HEAD
   "wasm": "deckcraft-web-a2bd294f193b235a_bg.wasm",
   "bytes": 32955240
  },
@@ -11,17 +10,5 @@
  "wordcraft": {
   "wasm": "wordcraft-web-d5f8e062bd3e686e_bg.wasm",
   "bytes": 60340672
-=======
-  "wasm": "deckcraft-web-1736dda13a1b2e0f_bg.wasm",
-  "bytes": 32260126
- },
- "gridcraft": {
-  "wasm": "gridcraft-web-7d721fa0754b75b9_bg.wasm",
-  "bytes": 22895249
- },
- "wordcraft": {
-  "wasm": "wordcraft-web-a75a8b404d46b7ab_bg.wasm",
-  "bytes": 50434398
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
  }
 }

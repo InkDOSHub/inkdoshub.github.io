@@ -73,7 +73,6 @@ Local test: `python3 -m http.server 8765` inside the folder, then open http://lo
   downloads) are blocked.
 - Don't send `X-Frame-Options: DENY` or a `frame-ancestors` CSP that excludes the embedding page.
 
-<<<<<<< HEAD
 ## The parent bridge (`?host=parent`)
 
 A page framing WordCraft in a **same-origin** iframe can add `?host=parent` to the iframe's URL
@@ -172,8 +171,6 @@ const { data } = await wordcraft.screenshot();            // the canvas as PNG (
 
 The API is there in every mode, with or without a host. Opening a file, handing a saved or exported file to the page, the file name and the unsaved flag stay with the host messages above.
 
-=======
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 ## Renderer selection and fallback flags
 
 WordCraft renders with wgpu. It uses **WebGPU** when the browser has it and falls back to

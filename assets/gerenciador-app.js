@@ -29,10 +29,7 @@
     { id: "apresentacoes", nome: "Presentations", url: "inkdos/apps/presentations/index.html?suite=1" },
     { id: "pdf", nome: "PDF", url: "inkdos/apps/pdf/index.html?suite=1" },
     { id: "editar-pdf", nome: "Edit PDF", url: "apps/editar-pdf/" },
-<<<<<<< HEAD
     { id: "seguranca", nome: "Security", url: "apps/seguranca/" },
-=======
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
     { id: "texto", nome: "Plain text", url: "inkdos/apps/txt/index.html?suite=1" },
     { id: "epub", nome: "EPUB reader", url: "inkdos/apps/epub/index.html?suite=1" },
     // ArtCraft editors (artcraft/, pages in apps/*craft/), also opened by "Edit with ArtCraft" in the InkDOS apps

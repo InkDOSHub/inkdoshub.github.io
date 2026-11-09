@@ -78,14 +78,11 @@ self.addEventListener("fetch", function (e) {
   // the test/benchmark page always comes from the site when online, so results are never from an old version
   if (u.pathname.indexOf(RAIZ + "apps/xeos-tests/") === 0) { e.respondWith(daRedeOuCopia(req).then(isolar)); return; }
 
-<<<<<<< HEAD
   // ArtCraft engine files (name carries a content hash): kept in their own cache after the first load,
   // so the editors open without downloading ~30 MB again; a new version has new names
   if (u.pathname.indexOf(RAIZ + "artcraft/") === 0 && /-[0-9a-f]{16}(_bg)?\.(js|wasm|ico)$|\/snippets\//.test(u.pathname)) {
     e.respondWith(daArtcraft(req).then(isolar)); return;
   }
-=======
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
   // the home screen (inicio/offline.js) offers to store the last opened app, if not stored yet
   if (req.mode === "navigate") {
     var caminho = chave(req.url).slice((self.location.origin + RAIZ).length);
@@ -96,7 +93,6 @@ self.addEventListener("fetch", function (e) {
   e.respondWith(inicio ? daCopiaOuRede(req) : daCopiaOuRede(req).then(isolar));
 });
 
-<<<<<<< HEAD
 var CACHE_AC = "inkdoshub-artcraft";
 function daArtcraft(req) {
   var k = chave(req.url);
@@ -117,8 +113,6 @@ function daArtcraft(req) {
   }).catch(function () { return daRedeOuCopia(req); });
 }
 
-=======
->>>>>>> a1587cc (pdfclean: rename LP helper (lp is a built-in alias for Out-Printer) (#70))
 /* Compatibility layer for GitHub Pages, which cannot send headers: adds the same isolation headers as the
    fast address (_headers), so the page gets SharedArrayBuffer and the multithread builds turn on. */
 function isolar(r) {
