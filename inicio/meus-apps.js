@@ -15,16 +15,20 @@
 
   var grade = document.querySelector(".workspace-grid");
   var escondidos = ler(K_ESC);
-  /* Device default (once): on iPhone the InkDOS editors stay and ArtCraft is hidden;
-     on iPad, computer and XeOS it is the opposite. Later the person changes it in Customize. */
+  /* Device default (once, v2 of 2026-11-09). Later the person changes it in Customize.
+     iPhone: InkDOS editors; ArtCraft, Whiteboard, Linux terminal, Webcam, Code, AI Chat, Wine and Games hidden.
+     iPad, computer browser and XeOS: the same, but ArtCraft instead of the InkDOS editors and Whiteboard shown.
+     Windows/Linux app: everything shown (native apps, fast). The main order comes back too. */
   try {
-    if (!localStorage.getItem("inkdoshub-padrao-office")) {
+    if (!localStorage.getItem("inkdoshub-padrao-v2")) {
       var celular = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent);
-      (celular ? ["wordcraft", "gridcraft", "deckcraft"] : ["documentos", "planilhas", "apresentacoes"]).forEach(function (id) {
-        if (escondidos.indexOf(id) < 0) escondidos.push(id);
-      });
+      var base = ["terminal", "webcam", "codigo", "ia", "wine", "jogos"];
+      escondidos = window.inkHubNativo ? [] : celular ? base.concat(["wordcraft", "gridcraft", "deckcraft", "quadro"])
+        : base.concat(["documentos", "planilhas", "apresentacoes"]);
       salvar(K_ESC, escondidos);
+      localStorage.removeItem("inkdoshub-ordem");
       localStorage.setItem("inkdoshub-padrao-office", "1");
+      localStorage.setItem("inkdoshub-padrao-v2", "1");
     }
   } catch (_) {}
   var meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });

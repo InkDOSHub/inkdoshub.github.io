@@ -78,6 +78,11 @@ self.addEventListener("fetch", function (e) {
   // the test/benchmark page always comes from the site when online, so results are never from an old version
   if (u.pathname.indexOf(RAIZ + "apps/xeos-tests/") === 0) { e.respondWith(daRedeOuCopia(req).then(isolar)); return; }
 
+  // ArtCraft engine files (name carries a content hash): kept in their own cache after the first load,
+  // so the editors open without downloading ~30 MB again; a new version has new names
+  if (u.pathname.indexOf(RAIZ + "artcraft/") === 0 && /-[0-9a-f]{16}(_bg)?\.(js|wasm|ico)$|\/snippets\//.test(u.pathname)) {
+    e.respondWith(daArtcraft(req).then(isolar)); return;
+  }
   // the home screen (inicio/offline.js) offers to store the last opened app, if not stored yet
   if (req.mode === "navigate") {
     var caminho = chave(req.url).slice((self.location.origin + RAIZ).length);
@@ -87,6 +92,26 @@ self.addEventListener("fetch", function (e) {
   var inicio = u.pathname === RAIZ || u.pathname === RAIZ + "index.html";
   e.respondWith(inicio ? daCopiaOuRede(req) : daCopiaOuRede(req).then(isolar));
 });
+
+var CACHE_AC = "inkdoshub-artcraft";
+function daArtcraft(req) {
+  var k = chave(req.url);
+  return caches.open(CACHE_AC).then(function (c) {
+    return c.match(k).then(function (r) {
+      if (r) return r;
+      return daCopiaOuRede(req).then(function (resp) {
+        if (resp && resp.ok && resp.type === "basic") {
+          var copia = resp.clone();
+          // drop older versions of the same file (same folder and name before the hash)
+          var pre = k.replace(/-[0-9a-f]{16}(_bg)?\.(js|wasm|ico)$/, "-");
+          c.keys().then(function (ks) { ks.forEach(function (q) { if (q.url !== k && pre !== k && q.url.indexOf(pre) === 0 && q.url.slice(pre.length).indexOf("/") < 0) c.delete(q); }); });
+          c.put(k, copia);
+        }
+        return resp;
+      });
+    });
+  }).catch(function () { return daRedeOuCopia(req); });
+}
 
 /* Compatibility layer for GitHub Pages, which cannot send headers: adds the same isolation headers as the
    fast address (_headers), so the page gets SharedArrayBuffer and the multithread builds turn on. */
