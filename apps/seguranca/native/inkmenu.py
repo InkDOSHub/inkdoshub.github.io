@@ -175,21 +175,22 @@ OFFICE = [
 ]
 
 FILES = [
-    ("See folder sizes", lambda: run("inkfinder.py", ["sizes"])),
-    ("Find files by size, date or type", job_search),
-    ("Duplicate files (find and remove)", lambda: run("inkfinder.py", ["dupes", ask("What to do with duplicates:", [
+    ("See folder sizes  [names only]", lambda: run("inkfinder.py", ["sizes"])),
+    ("Find files by size, date or type  [names only]", job_search),
+    ("Duplicate files (find and remove)  [reads contents]", lambda: run("inkfinder.py", ["dupes", ask("What to do with duplicates:", [
         ("Only list them", "list"), ("Remove all automatically (keeps the oldest copy)", "auto"), ("Decide one by one", "one")])])),
-    ("Hidden files (find, show, clean Mac leftovers)", lambda: run("inkfinder.py", ["hidden", ask("What to do with hidden files:", [
+    ("Hidden files (find, show, clean Mac leftovers)  [names only]", lambda: run("inkfinder.py", ["hidden", ask("What to do with hidden files:", [
         ("Only list them", "list"), ("Make some visible (asks one by one)", "show"), ("Delete Mac leftovers (._ files and .DS_Store)", "junk")])])),
-    ("Merge two folders", job_merge),
-    ("Rename many files at once", job_rename),
-    ("Copy new and changed files to another folder", job_sync),
-    ("Make a ZIP of a folder", lambda: run("inkfinder.py", ["zip"])),
-    ("Open (extract) a ZIP", lambda: run("inkfinder.py", ["unzip"])),
-    ("Check ZIPs and risky files (report only)", lambda: run("inksec.py", ["archive", "--here"])),
+    ("Merge two folders  [reads contents]", job_merge),
+    ("Rename many files at once  [names only]", job_rename),
+    ("Copy new and changed files to another folder  [reads contents]", job_sync),
+    ("Make a ZIP of a folder  [reads contents]", lambda: run("inkfinder.py", ["zip"])),
+    ("Open (extract) a ZIP  [reads contents]", lambda: run("inkfinder.py", ["unzip"])),
+    ("Check ZIPs and risky files (report only)  [reads contents]", lambda: run("inksec.py", ["archive", "--here"])),
     ("Self-test (checks everything works on this device)", lambda: run("inkfinder.py", ["test"])),
 ]
 
+# PDF, Images, Video, Music and Office jobs all read the files themselves.
 GROUPS = [("PDF", PDF), ("Images", IMAGES), ("Video", VIDEO), ("Music and audio", AUDIO), ("Office documents", OFFICE), ("Files and folders", FILES)]
 
 def number(prompt, n):
@@ -210,6 +211,8 @@ while True:
     title, jobs = GROUPS[g - 1]
     while True:
         print("\n%s: what do you want to do?" % title)
+        print("   [names only] works on iCloud files without downloading them. Every other tool reads the contents:")
+        print("   files still in iCloud are skipped (download them first: Files app > long-press the folder > Download Now).")
         for i, (t, _) in enumerate(jobs, 1): print("  %2d  %s" % (i, t))
         print("   0  Back")
         j = number("Type a number and press Enter: ", len(jobs))

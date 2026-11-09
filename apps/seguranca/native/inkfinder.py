@@ -86,9 +86,25 @@ def digest(path):
         for b in iter(lambda: f.read(CHUNK), b""): h.update(b)
     return h.hexdigest()
 
+SKIPPED = [0]  # iCloud files not downloaded (placeholders), skipped by tools that read contents
+
+def is_stub(name): return name.startswith(".") and name.endswith(".icloud")
+
+def stub_info(p):
+    # iCloud placeholder ".name.ext.icloud" (a small plist) -> (real name, real size), without downloading.
+    name, size = os.path.basename(p)[1:-7], 0
+    try:
+        import plistlib
+        with open(p, "rb") as f: d = plistlib.load(f)
+        name, size = d.get("NSURLNameKey", name), int(d.get("NSURLFileSizeKey", 0))
+    except Exception: pass
+    return name, size
+
 def files_in(d):
     for r, _, fs in os.walk(d):
-        for f in fs: yield os.path.join(r, f)
+        for f in fs:
+            if is_stub(f): SKIPPED[0] += 1; continue
+            yield os.path.join(r, f)
 
 def rel(p, base): return os.path.relpath(p, base)
 
@@ -292,22 +308,38 @@ def human(n):
 
 def mine(p): return os.path.basename(p) != "inkfinder-log.txt"
 
+def real_entries(d):
+    # (path shown, real name, size, mtime, downloaded?) for every file, iCloud placeholders included.
+    for r, _, fs in os.walk(d):
+        for f in fs:
+            p = os.path.join(r, f)
+            if f == "inkfinder-log.txt": continue
+            if is_stub(f):
+                n, size = stub_info(p); yield os.path.join(r, n), n, size, os.path.getmtime(p), False
+            else: yield p, f, os.path.getsize(p), os.path.getmtime(p), True
+
 def cmd_sizes():
-    s = folder_sizes(HERE)
+    s = {}
+    for p, n, size, mt, dl in real_entries(HERE):
+        r = os.path.dirname(p)
+        while True:
+            s[r] = s.get(r, 0) + size
+            if r == HERE or len(r) <= len(HERE): break
+            r = os.path.dirname(r)
     top = sorted(((v, k) for k, v in s.items()), reverse=True)[:40]
     for v, k in top: say("%10s  %s" % (human(v), rel(k, HERE)))
 
 def cmd_search():
     mn = float(ARGS[1]) if len(ARGS) > 1 else 0; days = float(ARGS[2]) if len(ARGS) > 2 else 0
     ext = ARGS[3].lower().lstrip(".") if len(ARGS) > 3 and ARGS[3] != "0" else ""
-    n = 0
-    for p in files_in(HERE):
-        st = os.stat(p)
-        if mn and st.st_size < mn * 1e6: continue
-        if days and st.st_mtime < time.time() - days * 86400: continue
-        if ext and not p.lower().endswith("." + ext): continue
-        n += 1; say("%10s  %s  %s" % (human(st.st_size), time.strftime("%Y-%m-%d", time.localtime(st.st_mtime)), rel(p, HERE)))
-    say("%d file(s) found." % n)
+    n = cloud = 0
+    for p, name, size, mt, dl in real_entries(HERE):
+        if mn and size < mn * 1e6: continue
+        if days and mt < time.time() - days * 86400: continue
+        if ext and not name.lower().endswith("." + ext): continue
+        n += 1; cloud += not dl
+        say("%10s  %s  %s%s" % (human(size), time.strftime("%Y-%m-%d", time.localtime(mt)), rel(p, HERE), "" if dl else "  (in iCloud, not downloaded)"))
+    say("%d file(s) found%s." % (n, (", %d of them only in iCloud" % cloud) if cloud else ""))
 
 DUP = "Duplicates removed"
 
@@ -371,7 +403,7 @@ def cmd_hidden():
             p = os.path.join(r, d); items.append((p, sum(os.path.getsize(x) for x in files_in(p)), True))
         ds[:] = [d for d in ds if not d.startswith(".")]
         for f in fs:
-            if f.startswith(".") and f != "inkfinder-log.txt": p = os.path.join(r, f); items.append((p, os.path.getsize(p), False))
+            if f.startswith(".") and not is_stub(f): p = os.path.join(r, f); items.append((p, os.path.getsize(p), False))
     junk = [x for x in items if not x[2] and (os.path.basename(x[0]).startswith("._") or os.path.basename(x[0]) == ".DS_Store")]
     say("%d hidden item(s), %s. Of these, %d are Mac leftovers (._ files and .DS_Store), %s." % (
         len(items), human(sum(x[1] for x in items)), len(junk), human(sum(x[1] for x in junk))))
@@ -410,7 +442,8 @@ def cmd_merge():
 
 def cmd_rename():
     find, to = (ARGS[1] if len(ARGS) > 1 else ""), (ARGS[2] if len(ARGS) > 2 else "")
-    fs = sorted(f for f in os.listdir(HERE) if os.path.isfile(os.path.join(HERE, f)) and f != "inkfinder-log.txt")
+    fs = sorted(f for f in os.listdir(HERE) if os.path.isfile(os.path.join(HERE, f)) and f != "inkfinder-log.txt" and not is_stub(f))
+    SKIPPED[0] += sum(1 for f in os.listdir(HERE) if is_stub(f))
     plan = []
     for i, f in enumerate(fs, 1):
         b, e = os.path.splitext(f)
@@ -526,6 +559,7 @@ elif ARGS[0] in CMDS:
     t0 = time.time()
     try: CMDS[ARGS[0]]()
     except (AssertionError, IndexError, OSError, zipfile.BadZipFile) as e: say("STOPPED: %s" % (e or "missing argument"))
+    if SKIPPED[0]: say("Note: %d file(s) are in iCloud but not downloaded, so they were skipped. To include them: Files app > long-press the folder > Download Now, then run again." % SKIPPED[0])
     say("Done in %.1fs, peak memory %.0f MB." % (time.time() - t0, peak_mb()))
 else:
     print("Unknown command. Use: test, " + ", ".join(CMDS))

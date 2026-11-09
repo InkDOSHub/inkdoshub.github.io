@@ -65,6 +65,8 @@ def parse_list(a, n):
     return [i - 1 for i in out]
 
 def files(exts):
+    cloud = [f for f in os.listdir(".") if f.startswith(".") and f.endswith(".icloud") and f[1:-7].lower().endswith(tuple(exts))]
+    if cloud: print("Note: %d matching file(s) are in iCloud but not downloaded and will be skipped (Files app > long-press > Download Now)." % len(cloud))
     return sorted((f for f in os.listdir(".") if os.path.isfile(f) and f.lower().endswith(tuple(exts)) and not f.startswith(".")), key=str.lower)
 
 def choose(exts, what, many=True):
