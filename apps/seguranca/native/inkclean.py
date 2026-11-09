@@ -6,6 +6,41 @@
 # Log: inkclean-log.txt in the folder. Undo: python inkclean.py --undo
 import os, re, sys, zlib, time
 
+# ---------- choose the folder (a-Shell: Apple menu; terminal: drag the folder in) ----------
+ASH = "/Containers/Data/Application/" in os.path.expanduser("~")
+def pick(what="folder", stay=True):
+    before = os.getcwd()
+    if ASH:
+        print("Choose the %s in the menu that opens..." % what, flush=True)
+        try: os.system("pickFolder")
+        except Exception: pass
+        p = os.getcwd()
+        home = os.path.realpath(os.path.expanduser("~"))
+        if os.path.realpath(p) == os.path.realpath(before) and os.path.realpath(p) in (home, os.path.join(home, "Documents")):
+            print("No folder chosen. Paste the command again and choose a folder."); sys.exit(1)
+    else:
+        try: p = input("Drag the %s here (or type its path) and press Enter. Enter alone = %s: " % (what, before))
+        except EOFError: p = ""
+        p = p.strip().strip("'\"").replace("\\ ", " ")
+        p = os.path.abspath(os.path.expanduser(p)) if p else before
+        if not os.path.isdir(p): print("Folder not found: " + p); sys.exit(1)
+    os.chdir(p if stay else before)
+    print("%s: %s" % (what[0].upper() + what[1:], p), flush=True)
+    return p
+
+def pick_file(exts, what="file"):
+    fs = sorted(f for f in os.listdir(".") if os.path.isfile(f) and f.lower().endswith(tuple(exts)))
+    if not fs: print("No %s here (%s)." % (what, ", ".join(exts))); sys.exit(1)
+    if len(fs) == 1: print("File: " + fs[0]); return fs[0]
+    for i, f in enumerate(fs, 1): print("%3d  %s" % (i, f))
+    try: n = int(input("Number of the %s: " % what))
+    except (ValueError, EOFError): n = 0
+    if not 1 <= n <= len(fs): print("Invalid number."); sys.exit(1)
+    return fs[n - 1]
+
+CHOSEN = "--in" in sys.argv  # the Hub page already set the folder
+if CHOSEN: sys.argv.remove("--in")
+
 NAMES = ["JavaScript", "JS", "OpenAction", "AA", "Launch", "EmbeddedFiles",
          "EmbeddedFile", "RichMedia", "Flash", "Movie", "Sound", "XFA",
          "ImportData", "GoToE", "SubmitForm", "GoToR"]
@@ -101,22 +136,8 @@ def undo(only_wrong_case=False):
     if not only_wrong_case: print("Undo done: %d change(s) restored." % n)
     return n
 
-def ashell_pick():
-    # a-Shell: if no folder was chosen yet (still in Documents), open the Apple folder menu.
-    home = os.path.expanduser("~")
-    if "/Containers/Data/Application/" not in home: return
-    cwd = os.path.realpath(os.getcwd())
-    if cwd not in (os.path.realpath(home), os.path.realpath(os.path.join(home, "Documents"))): return
-    print("Choose the folder in the menu that opens...", flush=True)
-    try: os.system("pickFolder")
-    except Exception: pass
-    if os.path.realpath(os.getcwd()) == cwd:
-        print("No folder chosen. Type pickFolder, choose the folder, then paste the command again.")
-        sys.exit(1)
-    print("Folder: " + os.path.basename(os.getcwd()), flush=True)
-
 def main():
-    ashell_pick()
+    if not CHOSEN: pick()
     if "--undo" in sys.argv: return undo()
     t0, n, nc, nf, ne, cloud = time.time(), 0, 0, 0, 0, 0
     with open(LOG, "a", encoding="utf-8", errors="surrogateescape") as lf:
