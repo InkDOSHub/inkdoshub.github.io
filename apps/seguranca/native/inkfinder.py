@@ -361,6 +361,42 @@ def cmd_dupes():
         say("\n%d file(s) moved to '%s' (%s). Check it in the Files app; run this again to delete it permanently." % (moved, DUP, human(freed)))
     else: say("Nothing was changed.")
 
+def cmd_hidden():
+    # hidden [list|show|junk]: list hidden files (names starting with a dot), make chosen ones visible,
+    # or delete the Mac leftovers ("._name" and .DS_Store) permanently.
+    mode = ARGS[1] if len(ARGS) > 1 else "list"
+    items = []
+    for r, ds, fs in os.walk(HERE):
+        for d in [d for d in ds if d.startswith(".")]:
+            p = os.path.join(r, d); items.append((p, sum(os.path.getsize(x) for x in files_in(p)), True))
+        ds[:] = [d for d in ds if not d.startswith(".")]
+        for f in fs:
+            if f.startswith(".") and f != "inkfinder-log.txt": p = os.path.join(r, f); items.append((p, os.path.getsize(p), False))
+    junk = [x for x in items if not x[2] and (os.path.basename(x[0]).startswith("._") or os.path.basename(x[0]) == ".DS_Store")]
+    say("%d hidden item(s), %s. Of these, %d are Mac leftovers (._ files and .DS_Store), %s." % (
+        len(items), human(sum(x[1] for x in items)), len(junk), human(sum(x[1] for x in junk))))
+    for p, size, isdir in items: print("  %10s  %s%s" % (human(size), rel(p, HERE), "/  (folder)" if isdir else ""))
+    if mode == "junk":
+        if not junk: return
+        try: a = input("Delete the %d Mac leftover(s) PERMANENTLY? This cannot be undone. Type yes to delete: " % len(junk)).strip().lower()
+        except EOFError: a = ""
+        if a != "yes": say("Nothing deleted."); return
+        for p, _, _ in junk: os.remove(p)
+        say("%d Mac leftover(s) deleted." % len(junk))
+    elif mode == "show":
+        n = 0
+        for p, size, isdir in items:
+            if (p, size, isdir) in junk: continue
+            try: a = input("Make visible: %s ? y = yes, Enter = no, 0 = stop: " % rel(p, HERE)).strip().lower()
+            except EOFError: a = "0"
+            if a == "0": break
+            if a != "y": continue
+            t = os.path.join(os.path.dirname(p), os.path.basename(p).lstrip(".") or "unnamed")
+            while os.path.exists(t): t = os.path.join(os.path.dirname(t), "visible " + os.path.basename(t))
+            os.rename(p, t); n += 1; say("   %s -> %s" % (rel(p, HERE), rel(t, HERE)))
+        say("%d item(s) made visible." % n)
+    else: say("Nothing was changed.")
+
 def cmd_merge():
     rule = ARGS[2] if len(ARGS) > 2 else "skip"
     src = os.path.abspath(os.path.expanduser(ARGS[1])) if len(ARGS) > 1 and ARGS[1] not in ("", "-") else pick("folder to copy from", stay=False)
@@ -481,7 +517,7 @@ def cmd_images():
         else: bad += 1; say("FAILED   " + f)
     say("%d converted, %d failed. Originals kept." % (ok, bad))
 
-CMDS = {"sizes": cmd_sizes, "search": cmd_search, "dupes": cmd_dupes, "merge": cmd_merge, "rename": cmd_rename,
+CMDS = {"sizes": cmd_sizes, "search": cmd_search, "dupes": cmd_dupes, "hidden": cmd_hidden, "merge": cmd_merge, "rename": cmd_rename,
         "sync": cmd_sync, "zip": cmd_zip, "unzip": cmd_unzip, "video": cmd_video, "images": cmd_images}
 if not ARGS or ARGS[0] == "test":
     test_main()
