@@ -332,7 +332,7 @@
       var np = Math.max(1, Math.ceil(tot / PARTE));
       st.textContent = ents.length + T(" arquivos · ", " files · ") + gb(tot) + " → " + np + T(" parte(s) ZIP de até 2 GB", " ZIP part(s) of up to 2 GB");
       if (grandes.length) linha(T("Arquivos maiores que 2 GB", "Files over 2 GB"), T("Cada um vai sozinho numa parte maior, que pode falhar no download do Safari: ", "Each goes alone in a larger part, which Safari may fail to download: ") + grandes.slice(0, 5).join(", "));
-      if (np > 1) linha(T("Como fica", "How it works"), T("Como no Google Drive: cada parte tem os caminhos originais (", "Like Google Drive: every part keeps the original paths (") + (ents[0].nome.split("/")[0]) + T("/…). Descompacte todas no mesmo lugar e as pastas se juntam.", "/…). Unzip them all in the same place and the folders come together."));
+      if (np > 1) linha(T("Como fica", "How it works"), T("Cada parte leva pastas principais inteiras. No iPad: descompacte a parte, selecione tudo dentro, mova para a pasta original e toque em Substituir.", "Each part holds whole main folders. On iPad: unzip a part, select everything inside, move it into the original folder and tap Replace."));
       var ini = document.createElement("button"); ini.type = "button"; ini.className = "parte"; ini.style.cssText = document.getElementById("lote-zip").style.cssText; ini.textContent = T("Começar", "Start");
       ini.onclick = function () { ini.remove(); prox(); };
       st.parentNode.insertBefore(ini, st.nextSibling);
@@ -364,8 +364,17 @@
       // split into parts of up to 2 GB, in order, every entry keeping its full original path
       var z = document.getElementById("lote-zip"), bar = z.parentNode; z.hidden = true; ul.parentNode.insertBefore(bar, ul);
       Array.prototype.slice.call(bar.querySelectorAll(".parte")).forEach(function (b) { b.remove(); });
+      // iPad Files can't merge folders, so a main folder is never split across parts and paths start below the common root
+      var r0 = itens.length ? itens[0].nome.split("/")[0] + "/" : "", pre = itens.every(function (it) { return it.nome.indexOf(r0) === 0 && it.nome.length > r0.length; }) ? r0 : "";
+      var grupos = {}, ordem = [];
+      itens.forEach(function (it) { var rel = it.nome.slice(pre.length), k = rel.indexOf("/") > 0 ? rel.split("/")[0] : ""; if (!grupos[k]) { grupos[k] = []; ordem.push(k); } grupos[k].push(it); });
       var partes = [[]], acc = 0;
-      itens.forEach(function (it) { if (acc > 0 && acc + it.tam > PARTE) { partes.push([]); acc = 0; } partes[partes.length - 1].push(it); acc += it.tam; });
+      ordem.forEach(function (k) {
+        var g = grupos[k], t = g.reduce(function (a, it) { return a + it.tam; }, 0);
+        if (acc > 0 && acc + t > PARTE) { partes.push([]); acc = 0; }
+        partes[partes.length - 1].push.apply(partes[partes.length - 1], g); acc += t;
+      });
+      if (partes.length > 1) partes = partes.map(function (g) { return g.map(function (it) { return Object.assign({}, it, { nome: it.nome.slice(pre.length) }); }); });
       var base = (raiz || T("pdfs-limpos", "clean-pdfs"));
       partes.forEach(function (g, k) {
         var nome = partes.length > 1 ? base + "-" + ("00" + (k + 1)).slice(-3) + ".zip" : base + ".zip", tam = g.reduce(function (a, it) { return a + it.tam; }, 0);
