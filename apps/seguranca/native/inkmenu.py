@@ -5,7 +5,7 @@ import os, sys, urllib.request
 # Public: the Cloudflare site. "dev" in the command loads from GitHub Pages (updates faster, for testing).
 DEV = "dev" in sys.argv[1:]
 BASE = ("https://inkdoshub.github.io/" if DEV else "https://hub.inkdos.workers.dev/") + "apps/seguranca/native/"
-V = "8"
+V = "10"
 
 def get(name):
     req = urllib.request.Request(BASE + name + "?v=" + V, headers={"User-Agent": "curl/8"})
