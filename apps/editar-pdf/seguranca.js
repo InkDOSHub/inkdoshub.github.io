@@ -346,7 +346,7 @@
         if (!pdf || latin1(u8.subarray(0, 1024)).indexOf("%PDF-") < 0) { add(e, e.m >= 0 ? { nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m } : { nome: nome, dados: f, crc: crc32(u8), tam: u8.length }); return; }
         var r = limparBytes(u8);
         return compactadoU8(r.u8).then(function (comp) {
-          if (r.feitos.length) add(e, { nome: nome, dados: new Blob([r.u8]), crc: crc32(r.u8), tam: r.u8.length }); // Blob: out of the page's memory
+          if (r.feitos.length) add(e, { nome: nome, dados: new Blob([r.u8], { type: "application/pdf" }), crc: crc32(r.u8), tam: r.u8.length, limpo: 1 }); // Blob: out of the page's memory
           else if (e.m >= 0) add(e, { nome: nome, dados: f, crc: e.crc, tam: e.cs, us: e.us, m: e.m }); // unchanged: copied from the ZIP
           else add(e, { nome: nome, dados: f, crc: crc32(r.u8), tam: r.u8.length });
           var txt = (r.feitos.length ? T("Limpo: ", "Cleaned: ") + r.feitos.join(", ") : T("Nada perigoso", "Nothing dangerous")) + (comp ? T(" · ATENÇÃO: perigo em parte compactada, use Higienizar PDF", " · WARNING: danger in a compressed part, use Sanitize PDF") : "");
@@ -392,6 +392,31 @@
         bar.insertBefore(b, document.getElementById("lote-log"));
       });
       if (partes.length > 1) lote.log += "\n\n" + T("Partes:", "Parts:") + "\n" + partes.map(function (p, k) { return "  " + (k + 1) + " → " + (p.dest || T("(raiz)", "(top level)")); }).join("\n");
+      // changed PDFs one by one: each saved straight over its original (folder path shown)
+      var lim = itens.filter(function (it) { return it.limpo; });
+      var velho = document.getElementById("alterados"); if (velho) velho.remove();
+      var box = document.createElement("div"); box.id = "alterados";
+      var h = document.createElement("h2"); h.textContent = T("Arquivos alterados: ", "Changed files: ") + lim.length + T(" — salve cada um por cima do original", " — save each one over its original"); box.appendChild(h);
+      var dica = document.createElement("p"); dica.style.cssText = "color:var(--muted);font-size:13px;margin:0 0 8px";
+      dica.textContent = window.showSaveFilePicker ? T("Toque em Salvar, abra a pasta indicada e confirme Substituir.", "Tap Save, open the folder shown and confirm Replace.") : T("Toque em Salvar › Salvar em Arquivos › abra a pasta indicada › Salvar › Substituir.", "Tap Save › Save to Files › open the folder shown › Save › Replace.");
+      box.appendChild(dica);
+      var lu = document.createElement("ul"); lu.className = "lista"; box.appendChild(lu);
+      lim.forEach(function (it) {
+        var i0 = it.nome.lastIndexOf("/"), pasta = i0 >= 0 ? it.nome.slice(0, i0) : T("(raiz)", "(top level)"), arq = it.nome.slice(i0 + 1);
+        var file = new File([it.dados], arq, { type: "application/pdf" });
+        var li = document.createElement("li"); li.style.cssText = "display:flex;align-items:center;gap:10px";
+        var tx = document.createElement("div"); tx.style.cssText = "flex:1;min-width:0";
+        var b1 = document.createElement("b"), s1 = document.createElement("small"); b1.textContent = arq; s1.textContent = "→ " + pasta; tx.appendChild(b1); tx.appendChild(s1);
+        var bt = document.createElement("button"); bt.type = "button"; bt.style.cssText = document.getElementById("lote-zip").style.cssText + ";flex:0 0 auto"; bt.textContent = T("Salvar", "Save");
+        bt.onclick = function () { salvarUm(file, function () { bt.textContent = "✓"; li.style.opacity = ".55"; }); };
+        li.appendChild(tx); li.appendChild(bt); lu.appendChild(li);
+      });
+      // full copy in ZIP parts stays available, folded away
+      var dz = document.getElementById("copia-zip");
+      if (!dz) { dz = document.createElement("details"); dz.id = "copia-zip"; var sm = document.createElement("summary"); sm.textContent = T("Cópia completa em partes ZIP", "Full copy in ZIP parts"); sm.style.cssText = "cursor:pointer;font-weight:600;margin:14px 0 8px"; dz.appendChild(sm); }
+      ul.parentNode.insertBefore(dz, ul); dz.appendChild(bar);
+      if (lim.length) ul.parentNode.insertBefore(box, dz);
+      var lg = document.getElementById("lote-log"); box.insertBefore(lg, lu);
       var l = document.getElementById("lote-log"); l.hidden = false; l.textContent = T("Salvar relatório", "Save report");
     }
   }
@@ -416,6 +441,11 @@
   }
   function limparOpfs() { try { navigator.storage.getDirectory().then(function (dir) { return dir.removeEntry ? Promise.all([]).then(async function () { for await (var k of dir.keys()) if (/\.zip$/i.test(k)) await dir.removeEntry(k); }) : 0; }).catch(function () {}); } catch (_) {} }
   limparOpfs(); // parts from earlier runs
+  function salvarUm(file, ok) { // XeOS: save window picks the folder; Safari: share sheet › Save to Files
+    if (window.showSaveFilePicker) return window.showSaveFilePicker({ suggestedName: file.name }).then(function (h) { return h.createWritable(); }).then(function (w) { return w.write(file).then(function () { return w.close(); }); }).then(ok).catch(function () {});
+    if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file] }).then(ok).catch(function () {});
+    baixar(file, file.name); ok();
+  }
   function salvar(blob, nome) {
     if (window.showSaveFilePicker) window.showSaveFilePicker({ suggestedName: nome }).then(function (h) { return h.createWritable(); }).then(function (w) { return w.write(blob).then(function () { return w.close(); }); }).catch(function () { baixar(blob, nome); });
     else baixar(blob, nome);
