@@ -400,6 +400,12 @@
       var dica = document.createElement("p"); dica.style.cssText = "color:var(--muted);font-size:13px;margin:0 0 8px";
       dica.textContent = window.showSaveFilePicker ? T("Toque em Salvar, abra a pasta indicada e confirme Substituir.", "Tap Save, open the folder shown and confirm Replace.") : T("Toque em Salvar › Salvar em Arquivos › abra a pasta indicada › Salvar › Substituir.", "Tap Save › Save to Files › open the folder shown › Save › Replace.");
       box.appendChild(dica);
+      // all changed PDFs in one small ZIP with their full original paths: for a file manager that merges (XeOS, a PC)
+      var bz = document.createElement("button"); bz.type = "button"; bz.style.cssText = document.getElementById("lote-zip").style.cssText + ";margin:0 0 10px";
+      var nz = (raiz || T("pdfs-limpos", "clean-pdfs")) + T("-so-alterados.zip", "-changed-only.zip"), gz = tamDe(lim);
+      bz.textContent = T("Salvar só os alterados (ZIP, caminhos originais) · ", "Save changed only (ZIP, original paths) · ") + gb(gz);
+      bz.onclick = function () { salvar(zip(lim), nz); bz.textContent = "✓ " + bz.textContent.replace(/^✓ /, ""); };
+      box.appendChild(bz);
       var lu = document.createElement("ul"); lu.className = "lista"; box.appendChild(lu);
       lim.forEach(function (it) {
         var i0 = it.nome.lastIndexOf("/"), pasta = i0 >= 0 ? it.nome.slice(0, i0) : T("(raiz)", "(top level)"), arq = it.nome.slice(i0 + 1);
