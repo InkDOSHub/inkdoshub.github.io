@@ -269,13 +269,28 @@
     return N.atualizarApp(function () {}).catch(function () { return null; });
   }
   var aviso = null;
+  // Windows/Linux app: a single "Update" button. Older apps add their own "New app version · Restart" button;
+  // it is swapped for this one, which updates the stored apps and the app itself together.
+  if (N && window.MutationObserver) new MutationObserver(function () {
+    var velho = document.getElementById("hub-app-novo");
+    if (!velho || velho.textContent === t("Update")) return;
+    velho.remove();
+    if (aviso || document.querySelector(".aviso-atualizar")) return;
+    aviso = el("button", "aviso-atualizar", t("Update")); aviso.type = "button";
+    aviso.addEventListener("click", function () {
+      aviso.disabled = true; aviso.textContent = "…";
+      estado().then(function (m) { var quer = guardados(m); quer.__base = 1; return sincronizar(quer, function (p) { aviso.textContent = t("Update") + " " + p + "%"; }); })
+        .then(appTambem).then(function (r) { if (r !== "pronto") location.reload(); }, function () { aviso.disabled = false; aviso.textContent = t("Failed, try again"); });
+    });
+    document.body.appendChild(aviso);
+  }).observe(document.body, { childList: true });
   estado().then(function (m) {
     btn.setAttribute("aria-pressed", m ? "true" : "false");
     if (!m) return;
     site().then(function (n) {
       if (n.versao === m.versao || !mudou(m, n) || document.querySelector(".aviso-atualizar")) return;
       info.textContent = t("Update available");
-      aviso = el("button", "aviso-atualizar", t("Update available") + " · " + t("Update")); aviso.type = "button";
+      aviso = el("button", "aviso-atualizar", N ? t("Update") : t("Update available") + " · " + t("Update")); aviso.type = "button";
       aviso.addEventListener("click", function () {
         aviso.disabled = true; aviso.textContent = "…";
         var quer = guardados(m); quer.__base = 1;
