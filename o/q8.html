@@ -10,85 +10,108 @@
   body{margin:0;padding:16px;font:14px/1.45 -apple-system,system-ui,sans-serif;background:Canvas;color:CanvasText}
   button{height:36px;padding:0 14px;margin:0 8px 12px 0;font:inherit;font-weight:600;border-radius:8px;border:1px solid GrayText;background:Canvas;color:CanvasText}
   h2{font-size:13px;margin:18px 0 6px;opacity:.7}
-  pre{white-space:pre-wrap;word-break:break-all;font:12px/1.4 ui-monospace,Menlo,monospace;margin:0 0 10px;padding:8px;border:1px solid GrayText;border-radius:8px;max-height:60vh;overflow:auto}
-  table{border-collapse:collapse;width:100%;font:12px/1.4 ui-monospace,Menlo,monospace;margin:0 0 10px}
-  td,th{border:1px solid GrayText;padding:4px 6px;text-align:left}
+  pre{white-space:pre-wrap;word-break:break-all;font:12px/1.4 ui-monospace,Menlo,monospace;margin:0 0 10px;padding:8px;border:1px solid GrayText;border-radius:8px;max-height:50vh;overflow:auto}
+  #env{font-weight:700;margin:0 0 12px}
 </style>
 </head>
 <body>
-<button id="c" type="button">Copy</button><button id="s" type="button">Save .txt</button><button id="r" type="button">Run timing</button>
+<div id="env">Checking…</div>
+<button id="c" type="button">Copy</button><button id="s" type="button">Save .txt</button><button id="r" type="button">Run timing</button><span id="st" style="opacity:.7"></span>
 <div id="o"></div>
 <script>
 (function () {
-  var out = [], box = document.getElementById("o");
-  function sec(t, html, isTable) { var h = document.createElement("h2"); h.textContent = t; box.appendChild(h);
-    if (isTable) { box.appendChild(html); }
-    else { var p = document.createElement("pre"); p.textContent = html; box.appendChild(p); }
-  }
-  function src(f) { try { return Function.prototype.toString.call(f); } catch (e) { return "(unreadable: " + e + ")"; } }
+  var T0 = performance.now(), box = document.getElementById("o"), sections = {};
+  function sec(t) { if (!sections[t]) { var h = document.createElement("h2"); h.textContent = t; var p = document.createElement("pre"); box.appendChild(h); box.appendChild(p); sections[t] = { h: h, p: p, txt: "" }; } return sections[t]; }
+  function put(t, txt) { var s = sec(t); s.txt = txt; s.p.textContent = txt; }
+  function sec_s() { return ((performance.now() - T0) / 1000).toFixed(1) + "s"; }
+  function src(f) { try { return Function.prototype.toString.call(f); } catch (e) { return ""; } }
   function nat(f) { return /\{\s*\[native code\]\s*\}\s*$/.test(src(f)); }
-  function get(path) {
-    try {
-      var parts = path.split("."), v = window;
-      for (var i = 0; i < parts.length; i++) { if (v == null) return undefined; v = v[parts[i]]; }
-      return v;
-    } catch (_) { return undefined; }
-  }
+  function get(path) { try { var v = window, p = path.split("."); for (var i = 0; i < p.length; i++) { if (v == null) return undefined; v = v[p[i]]; } return v; } catch (_) { return undefined; } }
 
-  // ---- 1) bridge map: known handlers/paths seen on this app, existence + whether native or replaced ----
-  var known = [
-    "__edbFileAccess", "__edbStorageBackup", "__edbFillCredential", "__edbAutofillMenu",
-    "__edbNetLog", "__edbPerf", "__edbViewportGen", "__edbErrors",
-    "launchQueue", "savePicker", "showOpenFilePicker", "showSaveFilePicker", "showDirectoryPicker",
-    "navigator.mediaDevices.getUserMedia", "navigator.mediaDevices.enumerateDevices",
-    "navigator.geolocation.getCurrentPosition", "Readability", "AirDatepicker",
-    "UserMessageHandler"
-  ];
-  var tbl = document.createElement("table");
-  tbl.innerHTML = "<tr><th>name</th><th>present</th><th>kind</th></tr>";
-  var mapLines = [];
-  known.forEach(function (name) {
-    var v = get(name);
-    var present = v !== undefined;
-    var kind = "-";
-    if (present) {
-      if (typeof v === "function") kind = nat(v) ? "native" : "replaced/injected";
-      else kind = typeof v;
+  // ---- passive bridge capture: record every message any script on this page sends to the app ----
+  // (read-only: logs and passes the message through unchanged; this page never sends its own)
+  var msgs = [], byKind = {};
+  try {
+    var UMH = window.UserMessageHandler;
+    if (UMH && UMH.prototype && UMH.prototype.postMessage) {
+      var pm = UMH.prototype.postMessage;
+      UMH.prototype.postMessage = function (m) {
+        var name = "?";
+        try { var mh = window.webkit && window.webkit.messageHandlers; if (mh) for (var i = 0; i < HANDLERS.length; i++) { if (mh[HANDLERS[i]] === this) { name = HANDLERS[i]; break; } } } catch (_) {}
+        var keys = ""; try { keys = m && typeof m === "object" ? Object.keys(m).join(",") : typeof m; } catch (_) {}
+        var kind = name + " {" + keys + "}";
+        byKind[kind] = (byKind[kind] || 0) + 1;
+        if (msgs.length < 300) { var j = ""; try { j = JSON.stringify(m); } catch (_) {} msgs.push(sec_s() + "  " + kind + (j ? "  " + j.slice(0, 160) : "")); }
+        return pm.apply(this, arguments);
+      };
     }
-    var tr = document.createElement("tr");
-    tr.innerHTML = "<td>" + name + "</td><td>" + present + "</td><td>" + kind + "</td>";
-    tbl.appendChild(tr);
-    mapLines.push(name + "\tpresent=" + present + "\tkind=" + kind);
-  });
-  sec("Bridge map (" + known.length + " known names)", tbl, true);
-  out.push("### Bridge map\n" + mapLines.join("\n"));
+  } catch (_) {}
 
-  // ---- 2) timing: console.error only (confirmed safe: app's own logging path, built to take repeats) ----
-  var timingResult = "(not run yet — tap \"Run timing\")";
-  function runTiming() {
-    var N = 200, i, t;
-    var realErr = console.error;
-    var t0 = performance.now();
-    for (i = 0; i < N; i++) { try { realErr.call(console, "bridge-timing-ping", i); } catch (_) {} }
-    t = performance.now() - t0;
-    var avg = t / N, perSec = N / (t / 1000);
-    timingResult = "console.error x" + N + "\ntotal: " + t.toFixed(1) + " ms\navg: " + avg.toFixed(3) + " ms/call\nthroughput: " + perSec.toFixed(0) + " calls/s\n(JS-side send time only — no native round-trip signal is visible from the page)";
-    renderTiming();
-  }
-  var timingBox;
-  function renderTiming() {
-    if (!timingBox) { timingBox = document.createElement("pre"); box.appendChild(timingBox); }
-    timingBox.textContent = timingResult;
-  }
-  sec("Timing (safe calls only)", "", false);
-  renderTiming();
-  document.getElementById("r").onclick = function () { runTiming(); };
+  // handler names seen or guessed on this app; probing webkit.messageHandlers[name] only reads, never sends
+  var HANDLERS = ["consoleLog", "passwordAutofill", "savePicker", "openPicker", "filePicker", "fileAccess", "storageBackup", "idbSnapshot", "netLog", "perf", "viewport", "geolocation", "camera", "fullscreen", "reader", "download", "share", "clipboard", "notification", "launchQueue"];
+  var KNOWN = ["__edbFileAccess", "__edbStorageBackup", "__edbFillCredential", "__edbAutofillMenu", "__edbNetLog", "__edbPerf", "__edbViewportGen", "__edbErrors",
+    "launchQueue", "showOpenFilePicker", "showSaveFilePicker", "showDirectoryPicker", "Readability", "AirDatepicker",
+    "navigator.mediaDevices.getUserMedia", "navigator.mediaDevices.enumerateDevices", "navigator.geolocation.getCurrentPosition",
+    "URL.createObjectURL", "Element.prototype.requestFullscreen", "EventTarget.prototype.addEventListener", "console.error", "console.log"];
 
-  function tudo() {
-    return out.join("\n\n") + "\n\n### Timing\n" + timingResult + "\n\n### Page\n" + location.href + "\n" + navigator.userAgent + "\n" + new Date().toISOString();
+  // clean reference: globals a fresh frame has, so anything extra was added by the app (catches unknown names too)
+  var ref = {};
+  try { var fr = document.createElement("iframe"); fr.style.display = "none"; document.documentElement.appendChild(fr); Object.getOwnPropertyNames(fr.contentWindow).forEach(function (k) { ref[k] = 1; }); fr.remove(); } catch (_) {}
+  var mine = { HANDLERS: 1, KNOWN: 1 };
+
+  var firstSeen = {}, handlersSeen = {}, extraSeen = {};
+  function scan() {
+    var t = sec_s();
+    KNOWN.forEach(function (n) { var v = get(n); if (v === undefined || firstSeen[n]) return; firstSeen[n] = { at: t, kind: typeof v === "function" ? (nat(v) ? "native" : "injected") : typeof v }; });
+    try { var mh = window.webkit && window.webkit.messageHandlers; if (mh) HANDLERS.forEach(function (h) { if (!handlersSeen[h] && mh[h]) handlersSeen[h] = t; }); } catch (_) {}
+    Object.getOwnPropertyNames(window).forEach(function (k) { if (!ref[k] && !mine[k] && !extraSeen[k]) extraSeen[k] = t; });
+    render();
   }
-  document.getElementById("c").onclick = function () { navigator.clipboard.writeText(tudo()).then(function () { document.getElementById("c").textContent = "Copied"; }, function () {}); };
-  document.getElementById("s").onclick = function () { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([tudo()], { type: "text/plain" })); a.download = "notes2.txt"; document.body.appendChild(a); a.click(); a.remove(); };
+
+  function env() {
+    var hasMH = false; try { hasMH = !!(window.webkit && window.webkit.messageHandlers); } catch (_) {}
+    var edb = Object.keys(extraSeen).some(function (k) { return k.indexOf("__edb") === 0; });
+    var nHand = Object.keys(handlersSeen).length;
+    if (edb || nHand) return "App web view detected (" + (edb ? "__edb globals" : "") + (edb && nHand ? " + " : "") + (nHand ? nHand + " named handlers" : "") + ")";
+    if (hasMH) return "In-app web view (messageHandlers present) but no app markers yet";
+    return "Plain browser (no app markers): open this link inside the app.";
+  }
+
+  function render() {
+    document.getElementById("env").textContent = env();
+    var rows = KNOWN.map(function (n) { var f = firstSeen[n]; return (f ? "YES  " + f.kind + " @" + f.at : "no   -") + "   " + n; });
+    put("Known names (first seen)", rows.join("\n"));
+    var hs = HANDLERS.filter(function (h) { return handlersSeen[h]; }).map(function (h) { return h + " @" + handlersSeen[h]; });
+    put("Native handlers found (webkit.messageHandlers, probed by name, nothing sent)", hs.join("\n") || "none of the guessed names");
+    var ex = Object.keys(extraSeen).map(function (k) { var v; try { v = window[k]; } catch (_) {} return k + "  (" + typeof v + ") @" + extraSeen[k]; });
+    put("All extra globals vs a clean frame (" + ex.length + ")", ex.join("\n") || "-");
+    var bk = Object.keys(byKind).map(function (k) { return byKind[k] + "x  " + k; });
+    put("Bridge messages sent by the app's own scripts (" + msgs.length + ")", (bk.join("\n") || "none yet") + (msgs.length ? "\n\n" + msgs.slice(-40).join("\n") : ""));
+  }
+
+  // scan several times: the app injects some things after load
+  [0, 500, 1500, 3000, 6000, 10000, 20000].forEach(function (ms) { setTimeout(scan, ms); });
+  var left = 20; var cd = setInterval(function () { left--; document.getElementById("st").textContent = left > 0 ? " scanning… " + left + "s" : " scan done"; if (left <= 0) clearInterval(cd); }, 1000);
+  setInterval(render, 5000);
+
+  // ---- timing: console.error only (the app's own logging path, made for repeats) ----
+  var timing = "(tap \"Run timing\")";
+  document.getElementById("r").onclick = function () {
+    var N = 200, f = console.error, a = performance.now();
+    for (var i = 0; i < N; i++) { try { f.call(console, "timing-ping", i); } catch (_) {} }
+    var t = performance.now() - a;
+    timing = "console.error " + (nat(f) ? "(native)" : "(app-wrapped)") + " x" + N + "\ntotal " + t.toFixed(1) + " ms · avg " + (t / N).toFixed(3) + " ms/call · " + (N / (t / 1000)).toFixed(0) + " calls/s\n(page-side send time only; the app's reply time is not visible)";
+    put("Timing", timing);
+  };
+
+  function all() {
+    var o = ["### Environment\n" + env()];
+    Object.keys(sections).forEach(function (k) { o.push("### " + k + "\n" + sections[k].txt); });
+    o.push("### Page\n" + location.href + "\n" + navigator.userAgent + "\n" + new Date().toISOString() + "\nscanned for " + sec_s());
+    return o.join("\n\n");
+  }
+  document.getElementById("c").onclick = function () { navigator.clipboard.writeText(all()).then(function () { document.getElementById("c").textContent = "Copied"; }, function () {}); };
+  document.getElementById("s").onclick = function () { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([all()], { type: "text/plain" })); a.download = "notes2.txt"; document.body.appendChild(a); a.click(); a.remove(); };
 })();
 </script>
 </body>
