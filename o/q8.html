@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>notes 2</title>
+<style>
+  :root{color-scheme:light dark}
+  body{margin:0;padding:16px;font:14px/1.45 -apple-system,system-ui,sans-serif;background:Canvas;color:CanvasText}
+  button{height:36px;padding:0 14px;margin:0 8px 12px 0;font:inherit;font-weight:600;border-radius:8px;border:1px solid GrayText;background:Canvas;color:CanvasText}
+  h2{font-size:13px;margin:18px 0 6px;opacity:.7}
+  pre{white-space:pre-wrap;word-break:break-all;font:12px/1.4 ui-monospace,Menlo,monospace;margin:0 0 10px;padding:8px;border:1px solid GrayText;border-radius:8px;max-height:60vh;overflow:auto}
+  table{border-collapse:collapse;width:100%;font:12px/1.4 ui-monospace,Menlo,monospace;margin:0 0 10px}
+  td,th{border:1px solid GrayText;padding:4px 6px;text-align:left}
+</style>
+</head>
+<body>
+<button id="c" type="button">Copy</button><button id="s" type="button">Save .txt</button><button id="r" type="button">Run timing</button>
+<div id="o"></div>
+<script>
+(function () {
+  var out = [], box = document.getElementById("o");
+  function sec(t, html, isTable) { var h = document.createElement("h2"); h.textContent = t; box.appendChild(h);
+    if (isTable) { box.appendChild(html); }
+    else { var p = document.createElement("pre"); p.textContent = html; box.appendChild(p); }
+  }
+  function src(f) { try { return Function.prototype.toString.call(f); } catch (e) { return "(unreadable: " + e + ")"; } }
+  function nat(f) { return /\{\s*\[native code\]\s*\}\s*$/.test(src(f)); }
+  function get(path) {
+    try {
+      var parts = path.split("."), v = window;
+      for (var i = 0; i < parts.length; i++) { if (v == null) return undefined; v = v[parts[i]]; }
+      return v;
+    } catch (_) { return undefined; }
+  }
+
+  // ---- 1) bridge map: known handlers/paths seen on this app, existence + whether native or replaced ----
+  var known = [
+    "__edbFileAccess", "__edbStorageBackup", "__edbFillCredential", "__edbAutofillMenu",
+    "__edbNetLog", "__edbPerf", "__edbViewportGen", "__edbErrors",
+    "launchQueue", "savePicker", "showOpenFilePicker", "showSaveFilePicker", "showDirectoryPicker",
+    "navigator.mediaDevices.getUserMedia", "navigator.mediaDevices.enumerateDevices",
+    "navigator.geolocation.getCurrentPosition", "Readability", "AirDatepicker",
+    "UserMessageHandler"
+  ];
+  var tbl = document.createElement("table");
+  tbl.innerHTML = "<tr><th>name</th><th>present</th><th>kind</th></tr>";
+  var mapLines = [];
+  known.forEach(function (name) {
+    var v = get(name);
+    var present = v !== undefined;
+    var kind = "-";
+    if (present) {
+      if (typeof v === "function") kind = nat(v) ? "native" : "replaced/injected";
+      else kind = typeof v;
+    }
+    var tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + name + "</td><td>" + present + "</td><td>" + kind + "</td>";
+    tbl.appendChild(tr);
+    mapLines.push(name + "\tpresent=" + present + "\tkind=" + kind);
+  });
+  sec("Bridge map (" + known.length + " known names)", tbl, true);
+  out.push("### Bridge map\n" + mapLines.join("\n"));
+
+  // ---- 2) timing: console.error only (confirmed safe: app's own logging path, built to take repeats) ----
+  var timingResult = "(not run yet — tap \"Run timing\")";
+  function runTiming() {
+    var N = 200, i, t;
+    var realErr = console.error;
+    var t0 = performance.now();
+    for (i = 0; i < N; i++) { try { realErr.call(console, "bridge-timing-ping", i); } catch (_) {} }
+    t = performance.now() - t0;
+    var avg = t / N, perSec = N / (t / 1000);
+    timingResult = "console.error x" + N + "\ntotal: " + t.toFixed(1) + " ms\navg: " + avg.toFixed(3) + " ms/call\nthroughput: " + perSec.toFixed(0) + " calls/s\n(JS-side send time only — no native round-trip signal is visible from the page)";
+    renderTiming();
+  }
+  var timingBox;
+  function renderTiming() {
+    if (!timingBox) { timingBox = document.createElement("pre"); box.appendChild(timingBox); }
+    timingBox.textContent = timingResult;
+  }
+  sec("Timing (safe calls only)", "", false);
+  renderTiming();
+  document.getElementById("r").onclick = function () { runTiming(); };
+
+  function tudo() {
+    return out.join("\n\n") + "\n\n### Timing\n" + timingResult + "\n\n### Page\n" + location.href + "\n" + navigator.userAgent + "\n" + new Date().toISOString();
+  }
+  document.getElementById("c").onclick = function () { navigator.clipboard.writeText(tudo()).then(function () { document.getElementById("c").textContent = "Copied"; }, function () {}); };
+  document.getElementById("s").onclick = function () { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([tudo()], { type: "text/plain" })); a.download = "notes2.txt"; document.body.appendChild(a); a.click(); a.remove(); };
+})();
+</script>
+</body>
+</html>
