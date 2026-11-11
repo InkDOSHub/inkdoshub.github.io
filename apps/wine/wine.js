@@ -314,3 +314,39 @@ $("cache-arquivo").onchange = function () {
   gravarCache(f).then(function () { estado("Code cache imported (" + mb(f) + "). It is used from the next start."); },
     function (e) { estado("Could not import: " + e.message); });
 };
+
+// --- Diagnostics (Log): every 5 s, the engine's own multi-core JIT counters, to see where the time goes ---
+var diagTimer = 0, diagErros = 0;
+var errAntes = Module.printErr;
+Module.printErr = function (t) { if (/error|fail|exception/i.test(String(t))) diagErros++; errAntes.apply(this, arguments); };
+function diagnostico() {
+  var t0 = performance.now(), linha = ["[Diag] " + new Date().toLocaleTimeString() + " engine=" + MOTOR.replace("/", "") +
+    " cores=" + (navigator.hardwareConcurrency || "?") + " isolated=" + self.crossOriginIsolated + " errors=" + diagErros];
+  try {
+    if (typeof PThread !== "undefined") linha.push("workers running=" + Object.keys(PThread.pthreads || {}).length +
+      " idle=" + ((PThread.unusedWorkers || []).length));
+  } catch (e) {}
+  if (performance.memory) linha.push("jsHeap=" + Math.round(performance.memory.usedJSHeapSize / 1048576) + "MB");
+  try { if (typeof wasmMemory !== "undefined") linha.push("wasmMemory=" + Math.round(wasmMemory.buffer.byteLength / 1048576) + "MB"); } catch (e) {}
+  if (!Module.getWasmJitMtRuntimeBatchStats) { registra(linha.join(" ") + " (one-core engine: no multi-core counters)"); return; }
+  try {
+    var b = Module.getWasmJitMtRuntimeBatchStats();
+    linha.push("batch: translated=" + (b.translatedFileBacked + b.translatedAnonymous) + " pending=" + b.pendingEntries +
+      " groups=" + b.groupedModules + " fn/group=" + b.averageFunctionsPerGroup.toFixed(1) + " build ok/try=" + b.constructionSuccesses + "/" + b.constructionAttempts +
+      " failures=" + b.permanentFailures + " oom=" + b.groupedOomBlocks + " cancelled=" + b.cancelledEntries +
+      " urgent=" + b.urgentFlushes + " instances new/reused=" + b.groupInstanceCreations + "/" + b.groupInstanceReuses);
+  } catch (e) { linha.push("batch: " + e.message); }
+  registra(linha.join(" "));
+  if (!Module.getWasmJitModuleBrokerStats) return;
+  Module.getWasmJitModuleBrokerStats().then(function (s) {
+    registra("[Diag] broker: localCompiles=" + s.localCompiles + " brokerHits=" + s.brokerHits + " published=" + s.firstPublications +
+      " duplicates=" + s.duplicatePublications + " received=" + s.receivedCacheEntries + " deliveryFailures=" + s.deliveryFailures +
+      " ownershipErrors=" + s.ownershipErrors + " liveWorkerCopies=" + s.liveWorkerCacheModules + " liveMain=" + s.liveMainRegistryModules +
+      " preload sent/fail=" + s.preloadSent + "/" + s.preloadFailures + " workers replied=" + s.workerStatsReplied + "/" + s.workerStatsExpected +
+      " (" + Math.round(performance.now() - t0) + " ms)");
+  }, function (e) { registra("[Diag] broker: " + e.message); });
+}
+$("btn-diag").onclick = function () {
+  if (diagTimer) { clearInterval(diagTimer); diagTimer = 0; this.textContent = "Diagnostics"; return; }
+  $("log").open = true; diagnostico(); diagTimer = setInterval(diagnostico, 5000); this.textContent = "Stop diagnostics";
+};
