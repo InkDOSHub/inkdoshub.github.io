@@ -339,7 +339,7 @@ function diagnostico() {
   } catch (e) {}
   if (performance.memory) linha.push("jsHeap=" + Math.round(performance.memory.usedJSHeapSize / 1048576) + "MB");
   try { if (typeof wasmMemory !== "undefined") linha.push("wasmMemory=" + Math.round(wasmMemory.buffer.byteLength / 1048576) + "MB"); } catch (e) {}
-  linha.push("wineZip=" + (wineDisco ? "disk(read " + Math.round(wineLidos / 1048576) + "MB)" : "RAM"));
+  linha.push("wineZip=" + (wineDisco ? "disk(read " + Math.round(wineLidos / 1048576) + "MB, distinct " + wineUnicos.size + "MB, cache " + PEDACOS_MAX + "MB)" : "RAM"));
   try { if (typeof wasmTable !== "undefined") linha.push("jitFunctions=" + wasmTable.length); } catch (e) {}
   if (typeof wasmMemory === "undefined") { registra(linha.join(" ") + " (Windows not started yet: tap Start)"); return; }
   if (!Module.getWasmJitMtRuntimeBatchStats) { registra(linha.join(" ") + " (one-core engine: no multi-core counters)"); return; }
@@ -369,7 +369,7 @@ $("btn-diag").onclick = function () {
 // The engine normally downloads wine11.zip (about 100 MB) and keeps all of it in memory. Here it is saved once
 // in the browser's private disk (OPFS) and the engine reads only the 1 MB pieces it needs, with a small cache.
 var WINE_ZIP = "wine11.zip", WINE_VER = "wine11-v1", wineDisco = null, wineLidos = 0;
-var PEDACO = 1 << 20, PEDACOS_MAX = 24;
+var PEDACO = 1 << 20, PEDACOS_MAX = 48, wineUnicos = new Set();
 async function wineNoDisco(url) {
   var raiz = await navigator.storage.getDirectory(), h = await raiz.getFileHandle(WINE_ZIP, { create: true });
   var f = await h.getFile();
@@ -409,7 +409,7 @@ function wineArquivoPreguicoso(dir, nome, file) {
     URL.revokeObjectURL(u);
     var s = x.responseText; d = new Uint8Array(s.length);
     for (var i = 0; i < s.length; i++) d[i] = s.charCodeAt(i) & 255;
-    wineLidos += d.length;
+    wineLidos += d.length; wineUnicos.add(n);
     guardados.set(n, d);
     if (guardados.size > PEDACOS_MAX) guardados.delete(guardados.keys().next().value);
     return d;
