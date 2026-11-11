@@ -49,8 +49,9 @@
   <button class="ink-btn" id="btn-abrir" type="button" hidden>Open file</button>
   <button class="ink-btn" id="btn-teste" type="button" hidden>CPU test (to D:)</button>
   <button class="ink-btn" id="btn-cheia" type="button" hidden>Full screen</button>
+  <button class="ink-btn" id="btn-cache" type="button" hidden>Save cache</button>
   <button class="ink-btn" id="btn-desktop" type="button" hidden>Restart Windows</button>
-  <details class="i solto menu-inicio"><summary title="Startup" aria-label="Startup">⚙</summary><div class="pop"><p><strong>Startup</strong></p><div id="inicio-opcoes"></div><p class="nota" id="inicio-aviso" hidden>Applies from the next start (Restart Windows).</p><p>Fewer services make Windows start faster. Turn on what a program needs.</p></div></details>
+  <details class="i solto menu-inicio"><summary title="Startup" aria-label="Startup">⚙</summary><div class="pop"><p><strong>Startup</strong></p><div id="inicio-opcoes"></div><p class="nota" id="inicio-aviso" hidden>Applies from the next start (Restart Windows).</p><p>Fewer services make Windows start faster. Turn on what a program needs.</p><p>Code cache: use Windows and your program for a while, then tap Save cache. The next starts load the translated code instead of translating it again. The cache can be moved to another device as a .boxedwine file (single-core and multi-core caches are separate).</p><div class="linha"><button class="ink-btn" id="cache-exportar" type="button">Export cache</button><button class="ink-btn" id="cache-importar" type="button">Import cache</button></div><input id="cache-arquivo" type="file" accept=".boxedwine,.zip" hidden></div></details>
   <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop"><p><strong>Experimental.</strong> Light programs work best; heavy programs and games may be slow or not run, especially on x64.</p><p>Windows (Wine 11) running inside the page with Boxedwine (open source, GPL). The x86 code is translated to WebAssembly while it runs (JIT). </p><p>Multi-core (⚙) is off by default and should stay off on iPad and iPhone: Safari/WebKit (and XeOS, which uses it) runs the multi-core engine about 60 times slower, and Wine itself barely uses more than one core. One core reached 5,171 MIPS in XeOS on an iPad (A16).</p><p>Open file: pick a 32-bit program (.exe) or a .zip from Files. It is copied to drive D: (a .zip becomes a folder) without restarting Windows; open it in the file manager. Drive D: and what you install stay saved in this browser. 64-bit programs do not run yet. Memory: up to 3 GB. Internet goes through the Hub tunnel.</p><p>First start downloads about 100 MB. Source: github.com/danoon2/Boxedwine. Wallpaper: "Altai" by Alesya Khoteeva (KDE), CC BY-SA 4.0.</p></div></details>
 </header>
 <main class="ink-main">
@@ -83,6 +84,6 @@
 <script src="engine/jszip.min.js?v=1"></script>
 <script src="jit/fsfs.js?v=1"></script>
 <script src="jit/boxedwine-shell.js?v=1"></script>
-<script src="wine.js?v=35"></script>
+<script src="wine.js?v=36"></script>
 </body>
 </html>

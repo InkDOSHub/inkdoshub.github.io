@@ -39,6 +39,9 @@ var SERVICOS = [
   { id: "disp", nome: "Game controllers, USB and Bluetooth", nomes: ["winebus", "winehid", "winebth"], liga: 3, padrao: false },
   { id: "log", nome: "Event log", nomes: ["Eventlog"], liga: 2, padrao: false }
 ];
+// Code cache (Boxedwine's own WASM JIT cache): while it is on, the engine records the code it translates;
+// "Save cache" keeps it in this browser and the next starts load it instead of translating again.
+var CACHE = { id: "cache", nome: "Code cache (experimental): reuse translated code on the next starts", padrao: false };
 var ATALHOS = { id: "menu", nome: "Start menu shortcuts made by installers", padrao: false };
 function ligado(o) {
   try { var v = localStorage.getItem("wine-inicio-" + o.id); if (v !== null) return v === "1"; } catch (e) {}
@@ -46,7 +49,7 @@ function ligado(o) {
 }
 (function () {
   var caixa = $("inicio-opcoes");
-  [MULTI].concat(SERVICOS, [ATALHOS]).forEach(function (o) {
+  [MULTI, CACHE].concat(SERVICOS, [ATALHOS]).forEach(function (o) {
     var l = document.createElement("label"), c = document.createElement("input");
     c.type = "checkbox"; c.checked = ligado(o);
     c.onchange = function () {
@@ -87,6 +90,7 @@ function iniciar() {
     set: function (v) { dllBase = v || ""; } });
   Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&overlay=visual&overlayBase=visual%2F&storageKey=default" +
     "&auto=true&resolution=" + TELA + (ligado(SERVICOS[0]) ? NET : "") +
+    (ligado(CACHE) ? "&jit-record=true" : "") +
     "&p=explorer&args=" + encodeURIComponent("/desktop=shell," + TELA + " winefile.exe D:\\");
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");
@@ -120,6 +124,7 @@ function ligar() {
   TELA = $("tela").value; LARG = +TELA.split("x")[0]; ALT = +TELA.split("x")[1];
   $("comecar").hidden = true; $("dropzone").hidden = false;
   ["btn-abrir", "btn-teste", "btn-cheia", "btn-desktop"].forEach(function (id) { $(id).hidden = false; });
+  $("btn-cache").hidden = !ligado(CACHE);
   // one emulator at a time: the lock is held while this page is open
   if (navigator.locks) {
     navigator.locks.request("inkdoshub-emulador", { ifAvailable: true }, function (lock) {
@@ -253,3 +258,59 @@ var esperaWin = setInterval(function () {
   estado(s < 20 ? "Windows is starting… " + s + " s" : "");
   if (s >= 20) { clearInterval(esperaWin); try { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-reg", REG_CHAVE); } catch (e) {} }
 }, 1000);
+
+// --- code cache: kept per engine (jit/ or mtjit/) in IndexedDB; .boxedwine = the same zip as a file ---
+function cacheDb(modo, fn) {
+  return new Promise(function (ok, erro) {
+    var r = indexedDB.open("inkdoshub-wine-cache", 1);
+    r.onupgradeneeded = function () { r.result.createObjectStore("zips"); };
+    r.onerror = function () { erro(r.error); };
+    r.onsuccess = function () {
+      var tx = r.result.transaction("zips", modo), q = fn(tx.objectStore("zips"));
+      tx.oncomplete = function () { ok(q && q.result); };
+      tx.onerror = function () { erro(tx.error); };
+    };
+  });
+}
+function lerCache() { return cacheDb("readonly", function (s) { return s.get(MOTOR); }); }
+function gravarCache(b) { return cacheDb("readwrite", function (s) { s.put(b, MOTOR); }); }
+var mb = function (b) { return (b.size / 1048576).toFixed(1) + " MB"; };
+// the engine asks the server for "wasm-jit-modules.zip": answer with the saved cache (or "none" without going online)
+var fetchOrig = window.fetch.bind(window);
+window.fetch = function (u) {
+  if (typeof u === "string" && /wasm-jit-modules\.zip$/.test(u)) {
+    var nada = function () { return new Response(null, { status: 404 }); };
+    if (!ligado(CACHE)) return Promise.resolve(nada());
+    return lerCache().then(function (b) {
+      if (!b) return nada();
+      registra("[Hub] code cache loaded: " + mb(b));
+      return new Response(b);
+    }, nada);
+  }
+  return fetchOrig.apply(window, arguments);
+};
+// "Save cache" uses the engine's export; its download goes to IndexedDB instead
+var baixarOrig = window.downloadBlob;
+window.downloadBlob = function (blob, nome) {
+  if (!/jit-modules\.zip$/.test(nome)) return baixarOrig(blob, nome);
+  gravarCache(blob).then(function () { estado("Code cache saved (" + mb(blob) + "). The next start of Windows uses it."); },
+    function (e) { estado("Could not save the code cache: " + e.message); });
+};
+$("btn-cache").onclick = function () {
+  if (!isRunning) { estado("Wait for Windows to start."); return; }
+  estado("Saving the code cache…");
+  saveJitModules();
+};
+$("cache-exportar").onclick = function () {
+  lerCache().then(function (b) {
+    if (b) baixarOrig(b, "wine-cache-" + MOTOR.replace("/", "") + ".boxedwine");
+    else estado("No code cache saved yet: turn it on in ⚙, use Windows, then tap Save cache.");
+  });
+};
+$("cache-importar").onclick = function () { $("cache-arquivo").click(); };
+$("cache-arquivo").onchange = function () {
+  var f = this.files[0]; if (!f) return;
+  this.value = "";
+  gravarCache(f).then(function () { estado("Code cache imported (" + mb(f) + "). It is used from the next start."); },
+    function (e) { estado("Could not import: " + e.message); });
+};

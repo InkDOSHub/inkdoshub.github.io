@@ -1,5 +1,6 @@
 name: Build Boxedwine JIT
-# Builds the current Boxedwine (GPL-2, github.com/danoon2/Boxedwine) with its WASM JIT
+# Builds Boxedwine (GPL-2) from the Hub's fork github.com/vfydr2m9wk-ops/Boxedwine (branch "hub" = our
+# changes on top of upstream danoon2/Boxedwine) with its WASM JIT
 # (x86 code translated to WebAssembly, then compiled by the browser's own JIT).
 # Two builds: jit (single thread) and mtjit (multithread, needs cross-origin isolation).
 # Output goes to apps/wine/jit/ and apps/wine/mtjit/ together with the source commit.
@@ -8,6 +9,10 @@ name: Build Boxedwine JIT
 # engine files in apps/wine stay as they are until a new build is checked by hand.
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Fork branch or commit to build
+        default: hub
 permissions:
   contents: write
 concurrency:
@@ -23,7 +28,8 @@ jobs:
         id: up
         run: |
           set -euo pipefail
-          c=$(git ls-remote https://github.com/danoon2/Boxedwine HEAD | head -1 | cut -c1-40)
+          c=$(git ls-remote https://github.com/vfydr2m9wk-ops/Boxedwine "${{ inputs.ref || 'hub' }}" | head -1 | cut -c1-40)
+          test -n "$c" || c="${{ inputs.ref }}"
           echo "commit=$c" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = "schedule" ] && grep -qs "$c" apps/wine/jit/VERSION.txt; then
             echo "skip=1" >> "$GITHUB_OUTPUT"; echo "already built: $c"
@@ -37,7 +43,7 @@ jobs:
         if: steps.up.outputs.skip != '1'
         run: |
           set -euo pipefail
-          git clone -q https://github.com/danoon2/Boxedwine "$RUNNER_TEMP/bw"
+          git clone -q https://github.com/vfydr2m9wk-ops/Boxedwine "$RUNNER_TEMP/bw"
           cd "$RUNNER_TEMP/bw" && git checkout -q ${{ steps.up.outputs.commit }}
           source "$HOME/emsdk/emsdk_env.sh"
           cd project/emscripten
@@ -54,7 +60,7 @@ jobs:
             test -f "$src/$1/boxedwine.wasm"
             rm -rf "apps/wine/$2"; mkdir -p "apps/wine/$2"
             cp "$src/$1"/boxedwine.html "$src/$1"/*.js "$src/$1"/*.wasm "$src/$1"/*.css "apps/wine/$2/"
-            printf 'Boxedwine %s\nhttps://github.com/danoon2/Boxedwine/tree/%s\nEmscripten 5.0.7, make %s (multithread: 12 prestarted threads)\n' \
+            printf 'Boxedwine %s\nhttps://github.com/vfydr2m9wk-ops/Boxedwine/tree/%s\nEmscripten 5.0.7, make %s (multithread: 12 prestarted threads)\n' \
               "${{ steps.up.outputs.commit }}" "${{ steps.up.outputs.commit }}" "$1" > "apps/wine/$2/VERSION.txt"
           done
           # Cloudflare assets are limited to 25 MB: bigger files are served through worker.js.
