@@ -225,6 +225,22 @@ $("btn-copiar").onclick = function () {
 
 // feedback: download progress, Wine messages in the Log, and a hint while Windows starts
 var linhasLog = [];
+// Diagnostics: count every Worker the engine creates and log the details when one fails
+var workersCriados = 0;
+(function () {
+  var W = window.Worker; if (!W) return;
+  var Novo = function (u, o) {
+    var w = new W(u, o), id = ++workersCriados, t0 = Date.now();
+    w.addEventListener("error", function (e) {
+      registra("[Diag] worker #" + id + " (of " + workersCriados + " created) failed " + Math.round((Date.now() - t0) / 1000) + " s after start: message=" +
+        (e.message || "none") + " at " + (e.filename || "?") + ":" + (e.lineno || "?") + " jsHeap=" + (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) + "MB" : "?"));
+    });
+    w.addEventListener("messageerror", function () { registra("[Diag] worker #" + id + " could not read a message (messageerror)"); });
+    return w;
+  };
+  Novo.prototype = W.prototype;
+  window.Worker = Novo;
+})();
 function registra(t) {
   linhasLog.push(String(t)); if (linhasLog.length > 400) linhasLog.shift();
   $("log-txt").textContent = linhasLog.join("\n");
@@ -339,6 +355,7 @@ function diagnostico() {
   } catch (e) {}
   if (performance.memory) linha.push("jsHeap=" + Math.round(performance.memory.usedJSHeapSize / 1048576) + "MB");
   try { if (typeof wasmMemory !== "undefined") linha.push("wasmMemory=" + Math.round(wasmMemory.buffer.byteLength / 1048576) + "MB"); } catch (e) {}
+  linha.push("workersCreated=" + workersCriados);
   linha.push("wineZip=" + (wineDisco ? "disk(read " + Math.round(wineLidos / 1048576) + "MB, distinct " + wineUnicos.size + "MB, cache " + PEDACOS_MAX + "MB)" : "RAM"));
   try { if (typeof wasmTable !== "undefined") linha.push("jitFunctions=" + wasmTable.length); } catch (e) {}
   if (typeof wasmMemory === "undefined") { registra(linha.join(" ") + " (Windows not started yet: tap Start)"); return; }
