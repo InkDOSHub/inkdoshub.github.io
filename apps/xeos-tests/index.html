@@ -59,6 +59,7 @@
     <div class="linha">
       <button class="ink-btn acao" id="b-rodar" type="button">Run benchmark</button>
       <button class="ink-btn" id="b-stress" type="button">Stress test (5 min)</button>
+      <button class="ink-btn" id="b-reco" type="button" title="Open-source tests: WebGL Aquarium (Google, BSD) and MotionMark (WebKit, BSD)">Aquarium + MotionMark (~6 min)</button>
       <button class="ink-btn" id="b-nativo" type="button" hidden>Native benchmark (this PC)</button>
       <label class="nota" id="b-nat-op" hidden><input type="checkbox" id="b-nat-stress"> native stress 5 min</label>
       <button class="ink-btn" id="b-parar" type="button" hidden>Stop</button>
@@ -67,6 +68,7 @@
     <div class="linha"><input type="text" id="b-label" placeholder="Name of this platform (e.g. XeOS iPad)" aria-label="Platform name"></div>
     <canvas id="b-tiles" width="320" height="240" hidden style="width:100%;max-width:640px;align-self:center;border-radius:10px;image-rendering:pixelated;background:#111"></canvas>
     <canvas id="b-fur" width="1280" height="720" hidden style="width:100%;max-width:640px;align-self:center;border-radius:10px;background:#000"></canvas>
+    <div id="b-quadro" hidden style="width:100%;max-width:960px;align-self:center;overflow:hidden;border-radius:10px;background:#000"></div>
     <p class="nota"><b>Browser performance:</b> what web and WebAssembly apps (like the Hub apps) get on this device. Native apps are usually about 1.5–2.5× faster; the native benchmark below measures that.</p>
     <div class="cards" id="b-cards"></div>
     <div class="linha" id="b-saida" hidden>
@@ -128,7 +130,7 @@
   </section>
 </div></main>
 <script src="app.js?v=15"></script>
-<script src="bench.js?v=13"></script>
+<script src="bench.js?v=14"></script>
 <script src="abas.js?v=1"></script>
 </body>
 </html>

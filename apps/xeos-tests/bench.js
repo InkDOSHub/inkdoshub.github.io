@@ -4,7 +4,7 @@
 // to build a comparison PDF. Everything that happens goes to a log the user can copy or save.
 (function () {
   "use strict";
-  var BENCH_VERSION = 13;
+  var BENCH_VERSION = 14;
   var $ = function (id) { return document.getElementById(id); };
   var t00 = performance.now(), LOG = [];
   function log(m) {
@@ -22,7 +22,7 @@
   // ---------- metric definitions (ref = value that scores 1000; lower = smaller is better) ----------
   var CATS = [
     ["cpu1", "CPU single-core"], ["cpuN", "CPU multi-core"], ["mem", "Memory"], ["disk", "Storage (disk)"],
-    ["jit", "JIT + WebAssembly"], ["net", "Network"], ["gfx", "Graphics + GPU"], ["render", "Rendering"], ["media", "Media"], ["stress", "Sustained load (5 min)"]
+    ["jit", "JIT + WebAssembly"], ["net", "Network"], ["gfx", "Graphics + GPU"], ["render", "Rendering"], ["media", "Media"], ["stress", "Sustained load (5 min)"], ["reco", "Aquarium + MotionMark"]
   ];
   var KERNELS = [
     ["int", "Integer (JS)", "Mops/s", 500], ["float", "Floating point (JS)", "Mops/s", 200],
@@ -76,6 +76,11 @@
   def("disk.seqRead", "disk", "Sequential read 1 MB (native)", "MB/s", 1000);
   def("gfx.glmark2", "gfx", "glmark2 score (native)", "points", 1000);
   def("gfx.winsat", "gfx", "WinSAT Direct3D (native)", "fps", 60);
+  // recognized open-source tests, run in a frame (not part of the overall score)
+  def("reco.aq5k", "reco", "WebGL Aquarium, 5,000 fish (1080p)", "fps", 60);
+  def("reco.aq15k", "reco", "WebGL Aquarium, 15,000 fish (1080p)", "fps", 60);
+  def("reco.aq30k", "reco", "WebGL Aquarium, 30,000 fish (1080p)", "fps", 60);
+  def("reco.motionmark", "reco", "MotionMark score", "points", 1000);
   def("media.encode", "media", "Video encode 1080p (WebCodecs)", "fps", 60);
 
   // ---------- worker with the CPU and memory kernels ----------
@@ -600,6 +605,64 @@
     M("media.encode", N / secs, cfg.codec + " · " + outN + " chunks");
   }
 
+
+  // ---------- recognized open-source tests (self-hosted copies, run in a 1280x720 frame) ----------
+  function quadro(src) {
+    var box = $("b-quadro"); box.hidden = false; box.innerHTML = "";
+    var f = document.createElement("iframe"), esc = Math.min(1, (box.clientWidth || 640) / 1280);
+    f.style.cssText = "width:1280px;height:720px;border:0;transform-origin:0 0;transform:scale(" + esc + ")"; box.style.height = Math.round(720 * esc) + "px";
+    var ok = new Promise(function (res, no) { f.onload = function () { res(f); }; setTimeout(function () { no(new Error("page did not load: " + src)); }, 60000); });
+    f.src = src; box.appendChild(f); return ok;
+  }
+  function fecharQuadro() { var b = $("b-quadro"); b.innerHTML = ""; b.hidden = true; }
+  async function aquario() {
+    var f = await quadro("aquarium/aquarium/aquarium.html?canvasWidth=1920&canvasHeight=1080&fitWindow=false");
+    var w = f.contentWindow, n = 0, raf = w.requestAnimationFrame.bind(w), t0 = performance.now();
+    w.requestAnimationFrame = function (cb) { n++; return raf(cb); };
+    try {
+      while (!(w.setSetting && w.document.getElementById("setSetting9")) || n < 20) { if (performance.now() - t0 > 90000) throw new Error("Aquarium did not start (frames " + n + ")"); await sleep(250); }
+      log("  Aquarium loaded in " + ((performance.now() - t0) / 1000).toFixed(1) + " s");
+      var passos = [[4, 5000, "reco.aq5k"], [6, 15000, "reco.aq15k"], [9, 30000, "reco.aq30k"]];
+      for (var i = 0; i < passos.length && !parar; i++) {
+        w.setSetting(w.document.getElementById("setSetting" + passos[i][0]), passos[i][0]);
+        await sleep(2000); n = 0; var a = performance.now(); await sleep(6000);
+        M(passos[i][2], n / ((performance.now() - a) / 1000), passos[i][1] + " fish, 1920x1080 (capped by the screen refresh)");
+      }
+    } finally { fecharQuadro(); }
+  }
+  async function motionmark() {
+    var f = await quadro("motionmark/index.html"), w = f.contentWindow, t0 = performance.now();
+    while (!(w.benchmarkController && w.Suites && w.Strings)) { if (performance.now() - t0 > 30000) throw new Error("MotionMark did not load"); await sleep(200); }
+    try {
+      var fim = new Promise(function (ok) { var orig = w.benchmarkController.showResults; w.benchmarkController.showResults = function () { try { orig.apply(this, arguments); } catch (e) { log("  MotionMark results page: " + err(e)); } ok(); }; });
+      log("  MotionMark " + w.Strings.version + ": " + w.Suites.map(function (s) { return s.tests.length; }).reduce(function (a, b) { return a + b; }, 0) + " tests x 30 s");
+      w.benchmarkController.startBenchmark();
+      await Promise.race([fim, new Promise(function (_, no) {
+        var iv = setInterval(function () { if (parar) { clearInterval(iv); no(new Error("stopped by the user")); } }, 500);
+        setTimeout(function () { clearInterval(iv); no(new Error("timeout 15 min")); }, 900000);
+      })]);
+      var d = w.benchmarkRunnerClient.results, it = (d.results || [])[0] || {}, tr = it.testsResults || {};
+      Object.keys(tr).forEach(function (su) { Object.keys(tr[su]).forEach(function (t) { log("  MotionMark " + t + " = " + (+tr[su][t].score).toFixed(2)); }); });
+      var conf = d.scoreLowerBound && d.score ? " ±" + ((d.scoreUpperBound - d.scoreLowerBound) / 2 / d.score * 100).toFixed(1) + "%" : "";
+      M("reco.motionmark", d.score, "MotionMark " + w.Strings.version + conf);
+    } finally { fecharQuadro(); }
+  }
+  async function reconhecidos() {
+    if (!R) R = { kind: "inkbench", version: BENCH_VERSION, date: new Date().toISOString(), label: $("b-label").value.trim(), info: {}, metrics: {}, log: [] };
+    if (!R.info || !R.info.browser) { R.info = await identify(); R.label = R.label || autoLabel(R.info); $("b-label").value = R.label; }
+    parar = false; $("b-rodar").disabled = $("b-stress").disabled = $("b-reco").disabled = true; $("b-parar").hidden = false;
+    try {
+      log("== WebGL Aquarium (Google, open source)"); $("b-estado").textContent = "⏳ WebGL Aquarium (~40 s)";
+      try { await aquario(); } catch (e) { log("ERROR in Aquarium: " + err(e)); }
+      if (!parar) {
+        log("== MotionMark (WebKit, open source)"); $("b-estado").textContent = "⏳ MotionMark (~5 min, keep the page in front)";
+        try { await motionmark(); } catch (e) { log("ERROR in MotionMark: " + err(e)); }
+      }
+      R.scores = scores(R); R.log = LOG.slice(); guardar(); log("Scores " + JSON.stringify(R.scores));
+      $("b-estado").textContent = parar ? "Stopped." : "✓ Aquarium + MotionMark done.";
+    } finally { parar = false; $("b-rodar").disabled = $("b-stress").disabled = $("b-reco").disabled = false; $("b-parar").hidden = true; desenhar(); }
+  }
+
   var PASSOS = [
     ["Identify device", async function () { R.info = await identify(); R.label = R.label || autoLabel(R.info); $("b-label").value = R.label; Object.keys(R.info).forEach(function (k) { log("  " + k + ": " + R.info[k]); }); }],
     ["CPU single-core", function () { return cpu(1, "cpu1"); }],
@@ -817,6 +880,7 @@
   // ---------- wiring ----------
   $("b-rodar").addEventListener("click", function () { rodar().catch(function (e) { log("FATAL " + err(e)); $("b-rodar").disabled = false; }); });
   $("b-stress").addEventListener("click", function () { stress(); });
+  $("b-reco").addEventListener("click", function () { reconhecidos().catch(function (e) { log("FATAL " + err(e)); }); });
   // InkDOS Hub app (Windows / Linux): native benchmark of this PC, shown next to the browser result
   var NAT = window.inkHubNativo && window.inkHubNativo.bench;
   if (NAT) {

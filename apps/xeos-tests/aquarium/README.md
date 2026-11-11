@@ -1,0 +1,1 @@
+Self-hosted copy of the WebGL Aquarium (https://github.com/WebGLSamples/WebGLSamples.github.io, BSD 3-clause, see LICENSE.md), used by the Benchmark tab. Only change: VR disabled in aquarium/aquarium-config.js. The 52 MB source_assets folder is left out.
