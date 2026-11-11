@@ -339,6 +339,8 @@ function diagnostico() {
   } catch (e) {}
   if (performance.memory) linha.push("jsHeap=" + Math.round(performance.memory.usedJSHeapSize / 1048576) + "MB");
   try { if (typeof wasmMemory !== "undefined") linha.push("wasmMemory=" + Math.round(wasmMemory.buffer.byteLength / 1048576) + "MB"); } catch (e) {}
+  linha.push("wineZip=" + (wineDisco ? "disk(read " + Math.round(wineLidos / 1048576) + "MB)" : "RAM"));
+  try { if (typeof wasmTable !== "undefined") linha.push("jitFunctions=" + wasmTable.length); } catch (e) {}
   if (typeof wasmMemory === "undefined") { registra(linha.join(" ") + " (Windows not started yet: tap Start)"); return; }
   if (!Module.getWasmJitMtRuntimeBatchStats) { registra(linha.join(" ") + " (one-core engine: no multi-core counters)"); return; }
   try {
@@ -362,3 +364,93 @@ $("btn-diag").onclick = function () {
   if (diagTimer) { clearInterval(diagTimer); diagTimer = 0; this.textContent = "Diagnostics"; return; }
   $("log").open = true; diagnostico(); diagTimer = setInterval(diagnostico, 5000); this.textContent = "Stop diagnostics";
 };
+
+// --- Wine on disk (OPFS) instead of RAM ---
+// The engine normally downloads wine11.zip (about 100 MB) and keeps all of it in memory. Here it is saved once
+// in the browser's private disk (OPFS) and the engine reads only the 1 MB pieces it needs, with a small cache.
+var WINE_ZIP = "wine11.zip", WINE_VER = "wine11-v1", wineDisco = null, wineLidos = 0;
+var PEDACO = 1 << 20, PEDACOS_MAX = 24;
+async function wineNoDisco(url) {
+  var raiz = await navigator.storage.getDirectory(), h = await raiz.getFileHandle(WINE_ZIP, { create: true });
+  var f = await h.getFile();
+  try { if (f.size > 0 && localStorage.getItem("wine-opfs") === WINE_VER + ":" + f.size) return f; } catch (e) {}
+  var r = await fetchOrig(url);
+  if (!r.ok || !r.body) throw new Error("download " + r.status);
+  var total = +r.headers.get("content-length") || 0, feito = 0, leitor = r.body.getReader();
+  var mostra = function () { estado("Saving Wine to this device's storage (once): " + (total ? Math.round(feito / total * 100) + "%" : Math.round(feito / 1048576) + " MB")); };
+  if (h.createWritable) {
+    var w = await h.createWritable();
+    for (;;) { var p = await leitor.read(); if (p.done) break; await w.write(p.value); feito += p.value.length; mostra(); }
+    await w.close();
+  } else {
+    // Safari without createWritable: a small worker writes with the synchronous access handle
+    var cod = "onmessage=async function(e){var d=e.data;if(d.abrir){var r=await navigator.storage.getDirectory();var h=await r.getFileHandle(d.abrir,{create:true});self.a=await h.createSyncAccessHandle();self.a.truncate(0);self.p=0;postMessage(1);return}" +
+      "if(d.fim){self.a.flush();self.a.close();postMessage(1);return}self.p+=self.a.write(d.b,{at:self.p});postMessage(1)}";
+    var wk = new Worker(URL.createObjectURL(new Blob([cod], { type: "text/javascript" })));
+    var manda = function (m, tr) { return new Promise(function (ok) { wk.onmessage = ok; wk.postMessage(m, tr || []); }); };
+    await manda({ abrir: WINE_ZIP });
+    for (;;) { var q = await leitor.read(); if (q.done) break; feito += q.value.length; await manda({ b: q.value }, [q.value.buffer]); mostra(); }
+    await manda({ fim: 1 }); wk.terminate();
+  }
+  f = await h.getFile();
+  if (total && f.size !== total) throw new Error("incomplete download");
+  try { localStorage.setItem("wine-opfs", WINE_VER + ":" + f.size); } catch (e) {}
+  return f;
+}
+// a file in the emulator's file system whose bytes come from the OPFS file, 1 MB at a time
+function wineArquivoPreguicoso(dir, nome, file) {
+  var guardados = new Map();
+  function pedaco(n) {
+    var d = guardados.get(n);
+    if (d) { guardados.delete(n); guardados.set(n, d); return d; }
+    var u = URL.createObjectURL(file.slice(n * PEDACO, Math.min(file.size, (n + 1) * PEDACO)));
+    var x = new XMLHttpRequest();
+    x.open("GET", u, false); x.overrideMimeType("text/plain; charset=x-user-defined"); x.send(null);
+    URL.revokeObjectURL(u);
+    var s = x.responseText; d = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) d[i] = s.charCodeAt(i) & 255;
+    wineLidos += d.length;
+    guardados.set(n, d);
+    if (guardados.size > PEDACOS_MAX) guardados.delete(guardados.keys().next().value);
+    return d;
+  }
+  var conteudo = { length: file.size, get: function (i) { var n = i / PEDACO | 0; return pedaco(n)[i - n * PEDACO]; } };
+  var node = FS.createFile(dir, nome, { isDevice: false, contents: conteudo }, true, false);
+  node.contents = conteudo;
+  Object.defineProperty(node, "usedBytes", { get: function () { return file.size; } });
+  function copia(destino, ofs, tam, pos) {
+    if (pos >= file.size) return 0;
+    var n = Math.min(file.size - pos, tam), feito = 0;
+    while (feito < n) {
+      var p = (pos + feito) / PEDACO | 0, ini = pos + feito - p * PEDACO, d = pedaco(p), k = Math.min(d.length - ini, n - feito);
+      destino.set(d.subarray(ini, ini + k), ofs + feito); feito += k;
+    }
+    return n;
+  }
+  var ops = {};
+  for (var k in node.stream_ops) ops[k] = node.stream_ops[k];
+  ops.read = function (stream, buffer, offset, length, position) { return copia(buffer, offset, length, position); };
+  ops.mmap = function (stream, length, position) {
+    var ptr = mmapAlloc(length); if (!ptr) throw new FS.ErrnoError(48);
+    copia(HEAP8, ptr, length, position); return { ptr: ptr, allocated: true };
+  };
+  node.stream_ops = ops;
+  return node;
+}
+var criarOrig = window.createFile;
+window.createFile = function (dir, nome, buf) {
+  if (nome === WINE_ZIP && wineDisco) { registra("[Hub] " + WINE_ZIP + " read from disk (OPFS), " + Math.round(wineDisco.size / 1048576) + " MB, not kept in memory"); return wineArquivoPreguicoso(dir, nome, wineDisco); }
+  return criarOrig(dir, nome, buf);
+};
+(function () {
+  var antes = window.fetch;
+  window.fetch = function (u) {
+    if (typeof u === "string" && u.split("?")[0].slice(-WINE_ZIP.length - 1) === "/" + WINE_ZIP && navigator.storage && navigator.storage.getDirectory) {
+      return wineNoDisco(u).then(function (f) {
+        // the engine gets a 1-byte placeholder; createFile above uses the disk file instead
+        wineDisco = f; return new Response(new Uint8Array(1));
+      }, function (e) { registra("[Hub] OPFS not used (" + e.message + "): Wine stays in memory"); return antes.apply(window, [u]); });
+    }
+    return antes.apply(window, arguments);
+  };
+})();
