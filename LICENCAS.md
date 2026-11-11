@@ -13,6 +13,8 @@ This is not legal advice. For a paid product, check with a lawyer, especially th
 | mediainfo.js (video metadata) | BSD-2-Clause | |
 | InkDOS apps (`inkdos/`) | MIT | bundled libraries have their licenses in `inkdos/licenses/`. The "Edit with ArtCraft" button opens the editors in `artcraft/` |
 | v86 (terminal emulator) | BSD-2-Clause | |
+| WebGL Aquarium (benchmark, `apps/xeos-tests/aquarium/`) | BSD-3-Clause (Google) | `apps/xeos-tests/aquarium/LICENSE.md` |
+| MotionMark (benchmark, `apps/xeos-tests/motionmark/`) | BSD-2-Clause (Apple / WebKit) | license in each file |
 | xterm.js | MIT | |
 
 ## Can be used, with extra obligations (copyleft)
