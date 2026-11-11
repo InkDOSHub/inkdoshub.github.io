@@ -228,7 +228,18 @@ var linhasLog = [];
 function registra(t) {
   linhasLog.push(String(t)); if (linhasLog.length > 400) linhasLog.shift();
   $("log-txt").textContent = linhasLog.join("\n");
+  // keep the end of the log in this browser, so it survives a crash or reload of the tab
+  if (!registra.salvar) registra.salvar = setTimeout(function () {
+    registra.salvar = 0;
+    try { localStorage.setItem("wine-log-anterior", new Date().toLocaleTimeString() + "\n" + linhasLog.slice(-150).join("\n")); } catch (e) {}
+  }, 2000);
 }
+// log of the previous session (shown when the tab crashed or was reloaded)
+(function () {
+  var ant = null;
+  try { ant = localStorage.getItem("wine-log-anterior"); localStorage.removeItem("wine-log-anterior"); } catch (e) {}
+  if (ant) { linhasLog.push("----- previous session (until " + ant.replace("\n", ") -----\n")); linhasLog.push("----- this session -----"); $("log-txt").textContent = linhasLog.join("\n"); }
+})();
 var printOrig = Module.print, errOrig = Module.printErr, statusOrig = Module.setStatus;
 Module.print = function (t) { registra(t); printOrig.apply(this, arguments); };
 Module.printErr = function (t) {
