@@ -17,6 +17,11 @@ try {
   if (localStorage.getItem("wine-mt-tentando")) { localStorage.removeItem("wine-mt-tentando"); localStorage.setItem("wine-inicio-multi", "0"); }
 } catch (e) {}
 var MOTOR = self.crossOriginIsolated && ligado(MULTI) ? "mtjit/" : "jit/";
+// Multi-core test knobs (address ?pool=N&preload=N): workers started up front (default 12) and compiled
+// code modules handed to each new worker before it runs (default 64; 0 = only what it runs).
+var PARAM = new URLSearchParams(location.search);
+if (/^\d+$/.test(PARAM.get("pool") || "")) Module.bwPoolSize = Math.max(1, +PARAM.get("pool"));
+if (/^\d+$/.test(PARAM.get("preload") || "")) Module.bwJitPreloadLimit = +PARAM.get("preload");
 // Wine 11 (about 100 MB) is not in the repository: the Cloudflare copy serves it from boxedwine.org
 var FS_BASE = /workers\.dev$/.test(location.hostname) || /^(localhost|127\.)/.test(location.hostname)
   ? "fs/" : "https://hub.inkdos.workers.dev/apps/wine/fs/";
@@ -358,6 +363,8 @@ function diagnostico() {
   if (performance.memory) linha.push("jsHeap=" + Math.round(performance.memory.usedJSHeapSize / 1048576) + "MB");
   try { if (typeof wasmMemory !== "undefined") linha.push("wasmMemory=" + Math.round(wasmMemory.buffer.byteLength / 1048576) + "MB"); } catch (e) {}
   linha.push("workersCreated=" + workersCriados);
+  if (MOTOR === "mtjit/") linha.push("pool=" + (Module.bwPoolSize || "12(default)") + " preload=" + (Module.bwJitPreloadLimit != null ? Module.bwJitPreloadLimit : "64(default)"));
+  medirMemoria();
   linha.push("wineZip=" + (wineDisco ? "disk(read " + Math.round(wineLidos / 1048576) + "MB, distinct " + wineUnicos.size + "MB, cache " + PEDACOS_MAX + "MB)" : "RAM"));
   try { if (typeof wasmTable !== "undefined") linha.push("jitFunctions=" + wasmTable.length); } catch (e) {}
   if (typeof wasmMemory === "undefined") { registra(linha.join(" ") + " (Windows not started yet: tap Start)"); return; }
@@ -378,6 +385,23 @@ function diagnostico() {
       " preload sent/fail=" + s.preloadSent + "/" + s.preloadFailures + " workers replied=" + s.workerStatsReplied + "/" + s.workerStatsExpected +
       " (" + Math.round(performance.now() - t0) + " ms)");
   }, function (e) { registra("[Diag] broker: " + e.message); });
+}
+// Chromium only: the browser's own memory count, split into the page and each worker (shows what one worker costs)
+var memUltima = 0;
+function medirMemoria() {
+  if (!performance.measureUserAgentSpecificMemory || !self.crossOriginIsolated || Date.now() - memUltima < 20000) return;
+  memUltima = Date.now();
+  performance.measureUserAgentSpecificMemory().then(function (m) {
+    var pagina = 0, workers = [];
+    m.breakdown.forEach(function (b) {
+      var w = b.attribution.some(function (a) { return a.scope === "DedicatedWorkerGlobalScope"; });
+      if (w) workers.push(b.bytes); else pagina += b.bytes;
+    });
+    workers.sort(function (a, b) { return b - a; });
+    var soma = workers.reduce(function (a, b) { return a + b; }, 0), M = function (x) { return Math.round(x / 1048576); };
+    registra("[Diag] memory (browser count): total=" + M(m.bytes) + "MB page=" + M(pagina) + "MB workers=" + workers.length +
+      " (" + M(soma) + "MB, average " + (workers.length ? M(soma / workers.length) : 0) + "MB, biggest " + workers.slice(0, 3).map(M).join("/") + "MB)");
+  }, function (e) { registra("[Diag] memory: " + e.message); });
 }
 $("btn-diag").onclick = function () {
   if (diagTimer) { clearInterval(diagTimer); diagTimer = 0; this.textContent = "Diagnostics"; return; }

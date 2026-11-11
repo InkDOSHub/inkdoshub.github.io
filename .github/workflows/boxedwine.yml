@@ -48,7 +48,7 @@ jobs:
           source "$HOME/emsdk/emsdk_env.sh"
           cd project/emscripten
           make jit
-          make multiThreadedJit PTHREAD_POOL_SIZE=12
+          make multiThreadedJit PTHREAD_POOL_SIZE="'(Module.bwPoolSize||12)'"
           ls -la Build/Jit Build/MultiThreadedJit
       - name: Copy into the site
         if: steps.up.outputs.skip != '1'
@@ -60,7 +60,7 @@ jobs:
             test -f "$src/$1/boxedwine.wasm"
             rm -rf "apps/wine/$2"; mkdir -p "apps/wine/$2"
             cp "$src/$1"/boxedwine.html "$src/$1"/*.js "$src/$1"/*.wasm "$src/$1"/*.css "apps/wine/$2/"
-            printf 'Boxedwine %s\nhttps://github.com/vfydr2m9wk-ops/Boxedwine/tree/%s\nEmscripten 5.0.7, make %s (multithread: 12 prestarted threads)\n' \
+            printf 'Boxedwine %s\nhttps://github.com/vfydr2m9wk-ops/Boxedwine/tree/%s\nEmscripten 5.0.7, make %s (multithread: prestarted threads = Module.bwPoolSize, default 12)\n' \
               "${{ steps.up.outputs.commit }}" "${{ steps.up.outputs.commit }}" "$1" > "apps/wine/$2/VERSION.txt"
           done
           # Cloudflare assets are limited to 25 MB: bigger files are served through worker.js.
