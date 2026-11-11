@@ -96,7 +96,7 @@ function iniciar() {
   Config.urlParams = "root=wine11&rootBase=" + encodeURIComponent(FS_BASE) + "&overlay=visual&overlayBase=visual%2F&storageKey=default" +
     "&auto=true&resolution=" + TELA + (ligado(SERVICOS[0]) ? NET : "") +
     (ligado(CACHE) ? "&jit-record=true" : "") +
-    "&p=explorer&args=" + encodeURIComponent("/desktop=shell," + TELA + " winefile.exe D:\\");
+    (ABRIR ? "&p=" + encodeURIComponent(ABRIR) : "&p=explorer&args=" + encodeURIComponent("/desktop=shell," + TELA + " winefile.exe D:\\"));
   estado("Loading Wine 11 (about 100 MB the first time)…");
   var s = document.createElement("script");
   if (MOTOR === "mtjit/") try { localStorage.setItem("wine-mt-tentando", "1"); } catch (e) {}
@@ -124,10 +124,22 @@ function isolar() {
   return true;
 }
 var RAPIDO = "https://hub.inkdos.workers.dev/apps/wine/";
+// What opens: the Windows desktop, or only one program (no desktop, taskbar or file manager: fewer Wine
+// threads, less memory, faster start). Test program: Minesweeper, which comes with Wine.
+var ABRIR = "";
+function opcoesAbrir() {
+  var sel = $("abrir"), ultimo = "", escolha = "";
+  try { ultimo = localStorage.getItem("wine-ultimo-exe") || ""; escolha = localStorage.getItem("wine-abrir") || ""; } catch (e) {}
+  sel.innerHTML = "";
+  [["", "Windows desktop"], ["winemine", "Only a program: Minesweeper (test)"]].concat(ultimo ? [["D:\\" + ultimo, "Only a program: D:\\" + ultimo]] : [])
+    .forEach(function (o) { var e = document.createElement("option"); e.value = o[0]; e.textContent = o[1]; sel.appendChild(e); });
+  sel.value = escolha; if (sel.value !== escolha) sel.value = "";
+}
 
 // The engine only starts when the person taps Start (or right after "Restart Windows").
 function ligar() {
-  try { localStorage.setItem("wine-tela", $("tela").value); } catch (e) {}
+  ABRIR = $("abrir").value;
+  try { localStorage.setItem("wine-tela", $("tela").value); localStorage.setItem("wine-abrir", ABRIR); } catch (e) {}
   TELA = $("tela").value; LARG = +TELA.split("x")[0]; ALT = +TELA.split("x")[1];
   $("comecar").hidden = true; $("dropzone").hidden = false;
   ["btn-abrir", "btn-teste", "btn-cheia", "btn-desktop"].forEach(function (id) { $(id).hidden = false; });
@@ -142,6 +154,7 @@ function ligar() {
   } else iniciar();
 }
 (function () {
+  opcoesAbrir();
   var sel = $("tela");
   TELAS.forEach(function (t) { var o = document.createElement("option"); o.value = t; o.textContent = t.replace("x", " × ") + (t === "1280x720" ? " (recommended)" : ""); sel.appendChild(o); });
   sel.value = TELA;
@@ -149,7 +162,7 @@ function ligar() {
   try { maq = localStorage.getItem("wine-maquina") === "x64" ? "x64" : "x32"; $("nucleos").value = localStorage.getItem("wine-x64-nucleos") || "1"; } catch (e) {}
   function escolher() {
     maq = document.querySelector('input[name=maquina]:checked').value;
-    $("campo-tela").hidden = maq !== "x32"; $("campo-nucleos").hidden = maq !== "x64";
+    $("campo-tela").hidden = $("campo-abrir").hidden = maq !== "x32"; $("campo-nucleos").hidden = maq !== "x64";
     try { localStorage.setItem("wine-maquina", maq); } catch (e) {}
   }
   document.querySelector('input[name=maquina][value=' + maq + ']').checked = true; escolher();
@@ -193,7 +206,8 @@ function copiarParaD(dados, nomeOriginal) {
     } else {
       if (e64(dados)) aviso = " This is a 64-bit program: it will not run yet (look for the 32-bit download).";
       escreverD(nome, dados);
-      estado("Copied to D:\\" + nome + ". Open it in the file manager (drive D:, press F5 to refresh)." + aviso);
+      if (/\.exe$/i.test(nome)) try { localStorage.setItem("wine-ultimo-exe", nome); } catch (e) {}
+      estado("Copied to D:\\" + nome + ". Open it in the file manager (drive D:, press F5 to refresh), or restart and pick it in Open to run only this program." + aviso);
     }
   } catch (err) { estado("Could not copy this file: " + err.message); }
 }
