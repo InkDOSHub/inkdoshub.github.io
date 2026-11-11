@@ -1,3 +1,3 @@
-Boxedwine 9c64b2820477b3f11c95ea9b59ef99ecc1bbb763
-https://github.com/danoon2/Boxedwine/tree/9c64b2820477b3f11c95ea9b59ef99ecc1bbb763
-Emscripten 5.0.7, make MultiThreadedJit (multithread: 12 prestarted threads)
+Boxedwine 3d1436185290df97b26f143e5383fd9b0b760f86
+https://github.com/vfydr2m9wk-ops/Boxedwine/tree/3d1436185290df97b26f143e5383fd9b0b760f86
+Emscripten 5.0.7, make MultiThreadedJit (multithread: prestarted threads = Module.bwPoolSize, default 12)
