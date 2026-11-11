@@ -209,6 +209,15 @@
         ],
         "application/x-xz": [
           ".xz"
+        ],
+        "text/vtt": [
+          ".vtt"
+        ],
+        "application/x-subrip": [
+          ".srt"
+        ],
+        "text/x-env": [
+          ".env"
         ]
       }
     }
