@@ -107,13 +107,15 @@ function isolar() {
   var tentou = false;
   try { tentou = sessionStorage.getItem("wine-isolar") === "1"; sessionStorage.setItem("wine-isolar", "1"); } catch (e) {}
   try { tentou = tentou || Date.now() - (+localStorage.getItem("wine-isolar") || 0) < 120000; localStorage.setItem("wine-isolar", String(Date.now())); } catch (e) {}
-  if (tentou) return false;
+  if (tentou) { registra("[Hub] multi-core: the page did not become isolated after the reload; running on one core"); return false; }
+  var dev = false; try { dev = localStorage.getItem("inkdoshub-dev") === "1"; } catch (e) {}
   if ("serviceWorker" in navigator) {
     estado("Turning on multi-core mode…");
     navigator.serviceWorker.register("../../sw-portal.js", { scope: "../../" })
       .then(function () { return navigator.serviceWorker.ready; })
-      .then(function () { location.reload(); }, function () { location.replace(RAPIDO + location.search); });
-  } else location.replace(RAPIDO + location.search);
+      .then(function () { location.reload(); }, function () { if (dev) { location.reload(); } else location.replace(RAPIDO + location.search); });
+  } else if (dev) { registra("[Hub] multi-core: no service worker here (test mode stays on GitHub Pages)"); return false; }
+  else location.replace(RAPIDO + location.search);
   return true;
 }
 var RAPIDO = "https://hub.inkdos.workers.dev/apps/wine/";
@@ -359,7 +361,7 @@ function diagnostico() {
   linha.push("wineZip=" + (wineDisco ? "disk(read " + Math.round(wineLidos / 1048576) + "MB, distinct " + wineUnicos.size + "MB, cache " + PEDACOS_MAX + "MB)" : "RAM"));
   try { if (typeof wasmTable !== "undefined") linha.push("jitFunctions=" + wasmTable.length); } catch (e) {}
   if (typeof wasmMemory === "undefined") { registra(linha.join(" ") + " (Windows not started yet: tap Start)"); return; }
-  if (!Module.getWasmJitMtRuntimeBatchStats) { registra(linha.join(" ") + " (one-core engine: no multi-core counters)"); return; }
+  if (!Module.getWasmJitMtRuntimeBatchStats) { registra(linha.join(" ") + (ligado(MULTI) ? " (MULTI-CORE IS ON BUT THE PAGE IS NOT ISOLATED, so it fell back to one core)" : " (one-core engine: no multi-core counters)")); return; }
   try {
     var b = Module.getWasmJitMtRuntimeBatchStats();
     linha.push("batch: translated=" + (b.translatedFileBacked + b.translatedAnonymous) + " pending=" + b.pendingEntries +
