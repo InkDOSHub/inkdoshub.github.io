@@ -21,10 +21,15 @@ async function openSwap(name) {
 async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
   const swap = await openSwap('inksoc-swap.bin');
   const ram = new Map();
-  let mem, swapMs = 0;
+  let mem, swapMs = 0, outBytes = 0, tooMuch = false;
   const view = (p) => new Uint8Array(mem.buffer, p, PAGE);
   const env = {
-    host_console: (p, n) => post('log', { text: new TextDecoder().decode(new Uint8Array(mem.buffer, p, n).slice()) }),
+    host_console: (p, n) => {
+      // a program stuck printing (e.g. asking a question nobody can answer) would fill the page and crash the tab
+      outBytes += n;
+      if (outBytes > 1 << 20) { tooMuch = true; return; }
+      post('log', { text: new TextDecoder().decode(new Uint8Array(mem.buffer, p, n).slice()) });
+    },
     host_now_ms: () => performance.now(),
     host_epoch_ms: () => Date.now(),
     host_swap_write: (slot, p) => {
@@ -41,7 +46,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
   };
   let wine;
-  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=7', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=8', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
   mem = x.memory;
@@ -71,7 +76,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
     modules: x.stat(9), thunks: x.stat(10),
     ms: performance.now() - t0, swapMs, opfs: !!swap,
   });
-  while ((st = x.run(2000000)) === 0) post('stats', stats());
+  while ((st = x.run(2000000)) === 0 && !tooMuch) post('stats', stats());
   post('stats', stats());
   if (swap) { swap.flush(); swap.truncate(0); swap.close(); }
   // files the program created or changed, offered for download
@@ -81,7 +86,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
     const nl = b.indexOf(0);
     out.push({ name: new TextDecoder().decode(b.subarray(0, nl)), data: b.subarray(nl + 1) });
   }
-  post('done', { ok: st === 1 && x.stat(6) === 0, error: st === 2 ? msg() : '', exitCode: x.stat(6), out });
+  const error = tooMuch ? 'the program printed more than 1 MB (stuck in a loop? if it asks a question, answer it with a switch such as -y)' : st === 2 ? msg() : '';
+  post('done', { ok: !tooMuch && st === 1 && x.stat(6) === 0, error, exitCode: x.stat(6), out });
 }
 
 async function runProof({ poolMb, targetMb, testMb }) {

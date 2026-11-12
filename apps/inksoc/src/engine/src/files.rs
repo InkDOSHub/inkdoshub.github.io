@@ -204,7 +204,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "CloseHandle" => { e.fs.handles.remove(&a0); 1 }
         "ReadFile" => {
             let (buf, n, done) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
-            if a0 == 3 { if done != 0 { let _ = e.mmu.write32(done, 0); } return Some(1); }
+            // no keyboard yet: reading the console fails like a closed pipe
+            if a0 == 3 { if done != 0 { let _ = e.mmu.write32(done, 0); } e.set_err(109); return Some(0); }
             let Some((k, pos)) = e.file_mut(a0) else { return None };
             let data = e.files.get(&k).map(|d| { let s = (pos as usize).min(d.len()); d[s..(s + n as usize).min(d.len())].to_vec() }).unwrap_or_default();
             if e.mmu.write_bytes(buf, &data).is_err() { e.fault(buf); }

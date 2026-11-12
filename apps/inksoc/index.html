@@ -35,7 +35,7 @@
 
 <section>
   <h2>Run a Windows program</h2>
-  <p class="n">The stage 1 test is a normal 64-bit program with a DLL: integers, floating point (SSE2), sorting through function pointers, heap, TLS, TEB/PEB and memory checks, each compared with the expected result. The stage 2 test uses the real msvcrt.dll API: printf and the string functions run Wine's own msvcrt code compiled to wasm, reading the program's memory through the engine's page table. "Open .exe" runs your own console program: select the .exe, its DLLs and any data files together, type its arguments in the box (for 7-Zip: <code>i</code>, <code>b -md18</code>, <code>x file.zip</code>, <code>a out.7z file.txt</code>); files it creates can be downloaded at the end; it stops at the first Windows function that does not exist here yet and names it.</p>
+  <p class="n">The stage 1 test is a normal 64-bit program with a DLL: integers, floating point (SSE2), sorting through function pointers, heap, TLS, TEB/PEB and memory checks, each compared with the expected result. The stage 2 test uses the real msvcrt.dll API: printf and the string functions run Wine's own msvcrt code compiled to wasm, reading the program's memory through the engine's page table. "Open .exe" runs your own console program: select the .exe, its DLLs and any data files together, type its arguments in the box (for 7-Zip: <code>i</code>, <code>b -md18</code>, <code>x file.zip -y</code>, <code>a out.7z file.txt</code>); files it creates can be downloaded at the end; it stops at the first Windows function that does not exist here yet and names it.</p>
   <div class="row">
     <button id="exec">Run stage 1 test</button>
     <button id="exec2">Run stage 2 test</button>
@@ -103,6 +103,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=16"></script>
+<script src="inksoc.js?v=17"></script>
 </body>
 </html>
