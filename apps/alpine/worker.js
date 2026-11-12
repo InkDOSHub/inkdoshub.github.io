@@ -88,7 +88,7 @@ async function run({ rows, cols, network }) {
   const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(u + ': ' + r.status); return r; });
   const [wasm, busybox, overlay, saved] = await Promise.all([
     get('engine.wasm?v=1').then((r) => r.arrayBuffer()), get('busybox?v=1').then((r) => r.arrayBuffer()),
-    get('overlay.tar?v=1').then((r) => r.arrayBuffer()), loadSaved()]);
+    get('overlay.tar?v=2').then((r) => r.arrayBuffer()), loadSaved()]);
   let rootfs = saved;
   if (!rootfs) {
     out('\x1b[2mDownloading Alpine Linux 3.21 (3.5 MB)…\x1b[0m\r\n');
@@ -107,7 +107,7 @@ async function run({ rows, cols, network }) {
   if (x.start() !== 0) { postMessage({ type: 'done', error: dec.decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice()) }); return; }
   x.linux_winsize(rows || 30, cols || 100);
   x.linux_dirty(); // unpacking is not a change; the first save happens after the first real one
-  let line = '';
+  let line = '', lastCr = false;
   const send = (t) => { const b = enc.encode(t); put(b); x.linux_stdin(b.length); };
   lx = {
     resize(r, c) { x.linux_winsize(r, c); },
@@ -121,6 +121,8 @@ async function run({ rows, cols, network }) {
       if (!canon) { send(s); continue; }
       if (s.startsWith('\x1b[') && /R$/.test(s)) continue; // a cursor-position answer nobody asked for in line mode
       for (const ch of s) {
+        const afterCr = lastCr; lastCr = ch === '\r';
+        if (ch === '\n' && afterCr) continue; // \r\n from some keyboards is one Enter, not two
         if (ch === '\x03') { x.linux_interrupt(); line = ''; out('^C\r\n'); }
         else if (ch === '\r' || ch === '\n') { if (echo) out('\r\n'); send(line + '\n'); line = ''; }
         else if (ch === '\x7f' || ch === '\b') { if (line) { line = [...line].slice(0, -1).join(''); if (echo) out('\b \b'); } }
