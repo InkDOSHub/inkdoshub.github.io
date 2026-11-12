@@ -1,43 +1,4 @@
 <!doctype html>
-<html lang="en">
-<head><script src="../../assets/endereco.js?v=2"></script>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
-<title>Linux · InkDOS Hub</title>
-<link rel="stylesheet" href="vendor/xterm.css?v=1">
-<style>
-  :root{--bg:#fff;--fg:#111;--muted:#666;--border:#ddd;--accent:#7c3aed;--term:#0b0b0d}
-  @media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#999;--border:#333}}
-  *{box-sizing:border-box}
-  html,body{height:100%;overflow:hidden}
-  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 -apple-system,system-ui,sans-serif;display:flex;flex-direction:column}
-  header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)}
-  header a{color:var(--accent);text-decoration:none;white-space:nowrap}
-  header b{flex:1;text-align:center}
-  header button{font:inherit;background:none;border:0;color:var(--accent);cursor:pointer;padding:4px 6px}
-  #box{flex:1;min-height:0;background:var(--term);padding:6px}
-  #term{width:100%;height:100%}
-  #keys{display:flex;gap:4px;padding:6px;overflow-x:auto;background:var(--term);border-top:1px solid #222}
-  #keys button{font:13px ui-monospace,Menlo,monospace;background:#26262b;color:#ddd;border:0;border-radius:6px;padding:6px 10px;min-width:40px}
-  #keys button.on{background:var(--accent);color:#fff}
-  #info{display:none;padding:10px 14px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border)}
-  #info.show{display:block}
-  #info code{font-size:12px}
-</style>
-</head>
-<body>
-<header><a href="../../">&lt; InkDOS Hub</a><b>Linux</b><button id="up" title="Send a file to /root">⇡</button><button id="down" title="Download a file">⇣</button><button id="i" title="About">i</button></header>
-<div id="info">Alpine Linux 3.21 (x86-64, musl) running on InkSoC, our own engine: the x86-64 CPU and JIT are the same ones that run Windows programs, and Linux system calls are answered in WebAssembly. Files live in memory while the page is open (<code>/root</code> is home; ⇡ adds files there, ⇣ downloads one). Programs with shared libraries work (Alpine's dynamic loader). Experimental: no network yet, so <code>apk add</code> cannot download. BusyBox is GPL-2.0 (busybox.net); Alpine's packages keep their own licenses (alpinelinux.org).</div>
-<div id="box"><div id="term"></div></div>
-<div id="keys">
-  <button data-k="esc">esc</button><button data-k="tab">tab</button><button data-k="ctrl" id="ctrl">ctrl</button>
-  <button data-k="^C">^C</button><button data-k="^D">^D</button>
-  <button data-k="up">↑</button><button data-k="down">↓</button><button data-k="left">←</button><button data-k="right">→</button>
-  <button data-k="|">|</button><button data-k="~">~</button><button data-k="/">/</button><button data-k="-">-</button>
-</div>
-<input type="file" id="file" multiple hidden>
-<script src="vendor/xterm.js?v=1"></script>
-<script src="linux.js?v=5"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><title>Alpine Linux · InkDOS Hub</title>
+<meta http-equiv="refresh" content="0; url=../alpine/"></head>
+<body><a href="../alpine/">The Linux terminal moved to Alpine Linux</a></body></html>

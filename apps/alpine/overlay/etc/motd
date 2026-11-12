@@ -1,0 +1,6 @@
+Alpine Linux 3.21 on InkSoC (our own x86-64 engine, in the browser)
+
+  help       what you can do here (packages, network, ssh, files, bench)
+  apk add    install programs, e.g.  sudo apk add python3 git openssh-client
+  bench      measure the speed of this terminal
+

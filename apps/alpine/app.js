@@ -1,4 +1,4 @@
-/* Linux terminal page: xterm.js in front, the engine (worker.js) behind. */
+/* Alpine Linux terminal page: xterm.js in front, the engine (worker.js) behind. */
 'use strict';
 const $ = (id) => document.getElementById(id);
 const term = new Terminal({
@@ -22,25 +22,31 @@ function fit() {
   if (w) w.postMessage({ type: 'resize', rows: term.rows, cols: term.cols });
 }
 
+// network: Hub (our server), wisp (public server), off
+const NET_NAMES = { hub: 'Hub', wisp: 'wisp', off: 'No network' };
+let network = 'hub';
+try { network = localStorage.getItem('alpine-net') || 'hub'; } catch (e) {}
+if (!(network in NET_NAMES)) network = 'hub';
+const showNet = () => { $('net').textContent = NET_NAMES[network]; };
+showNet();
+$('net').onclick = () => {
+  const order = ['hub', 'wisp', 'off'];
+  network = order[(order.indexOf(network) + 1) % order.length];
+  try { localStorage.setItem('alpine-net', network); } catch (e) {}
+  showNet();
+  if (w) w.postMessage({ type: 'net', network });
+};
+
 let w = null, starting = false;
 let ctrl = false;
 const send = (t) => { if (w) w.postMessage({ type: 'key', data: t }); };
 
-async function start() {
+function start() {
   if (starting || w) return;
   starting = true;
   term.write('\x1b[2mStarting Alpine Linux on InkSoC…\x1b[0m\r\n');
-  const data = await fetch('bin/busybox?v=1').then((r) => r.arrayBuffer());
-  // Alpine's minirootfs (musl, apk): unpacked at / by the engine; its programs use the shared libraries
-  const files = [{ name: 'busybox', data }];
-  try {
-    const r = await fetch('bin/alpine-rootfs.tar.gz?v=1');
-    const tar = await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
-    files.push({ name: 'rootfs.tar', data: tar });
-  } catch (e) { term.write('\x1b[2m(Alpine files unavailable: BusyBox only)\x1b[0m\r\n'); }
-  w = new Worker('worker.js?v=21');
+  w = new Worker('worker.js?v=1');
   starting = false;
-  fit();
   w.onmessage = (ev) => {
     const m = ev.data;
     if (m.type === 'out') term.write(m.text);
@@ -51,13 +57,16 @@ async function start() {
       a.download = m.path.split('/').pop() || 'file';
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-    } else if (m.type === 'done') {
-      term.write('\r\n\x1b[2m[' + (m.error ? 'stopped: ' + m.error : 'shell ended') + ' · tap to start again]\x1b[0m\r\n');
+    } else if (m.type === 'saved') term.write('\r\n\x1b[2m[files saved]\x1b[0m\r\n');
+    else if (m.type === 'reset') location.reload();
+    else if (m.type === 'done') {
+      term.write('\r\n\x1b[2m[' + (m.error ? 'stopped: ' + m.error : 'Linux ended') + ' · tap to start again]\x1b[0m\r\n');
       if (w) w.terminate();
       w = null;
     }
   };
-  w.postMessage({ type: 'linux', files, cmd: 'sh -l', poolMb: 512, jit: true, rows: term.rows, cols: term.cols }, files.map((f) => f.data));
+  fit();
+  w.postMessage({ type: 'start', rows: term.rows, cols: term.cols, network });
 }
 
 term.onData((d) => {
@@ -81,18 +90,26 @@ $('keys').addEventListener('click', (ev) => {
 });
 
 $('i').onclick = () => $('info').classList.toggle('show');
+$('menu').onclick = () => $('menubox').classList.toggle('show');
+$('save').onclick = () => { $('menubox').classList.remove('show'); if (w) w.postMessage({ type: 'save' }); };
+$('reset').onclick = () => {
+  if (!confirm('Erase your Linux user, files and installed programs, and start again from a clean Alpine?')) return;
+  const go = () => { const r = new Worker('worker.js?v=1'); r.onmessage = () => location.reload(); r.postMessage({ type: 'reset' }); };
+  if (w) { w.terminate(); w = null; }
+  go();
+};
 $('up').onclick = () => $('file').click();
 $('file').onchange = async () => {
   for (const f of $('file').files) {
     const data = await f.arrayBuffer();
     if (w) w.postMessage({ type: 'put', name: f.name, data }, [data]);
-    term.write('\r\n\x1b[2m[' + f.name + ' → /root/' + f.name + ']\x1b[0m\r\n');
+    term.write('\r\n\x1b[2m[' + f.name + ' → your home folder]\x1b[0m\r\n');
   }
   $('file').value = '';
   send('');
 };
 $('down').onclick = () => {
-  const p = prompt('File to download (path, e.g. /root/notes.txt):', '/root/');
+  const p = prompt('File to download (path, e.g. /home/you/notes.txt):', '/home/');
   if (p && w) w.postMessage({ type: 'get', path: p });
 };
 

@@ -26,16 +26,18 @@ pub enum Fd {
     File { path: String, pos: u64, append: bool },
     Dir { path: String, pos: usize },
     Pipe { id: u32, w: bool },
+    Sock { id: u32 },
+    Dev(u8), // 0 /dev/zero, 1 /dev/urandom
 }
 
 /// What a waiting Linux thread waits for.
 #[derive(Clone)]
-pub enum Cond { PipeRead(u32), Child { parent: u32, pid: i64 }, Stdin, Until }
+pub enum Cond { PipeRead(u32), Child { parent: u32, pid: i64 }, Stdin, Until, Socks(Vec<u32>), Poll { socks: Vec<u32>, stdin: bool, pipes: Vec<u32> } }
 
 /// A process that is not running right now keeps its state here.
 pub struct Saved {
     fds: BTreeMap<i32, Fd>, cloexec: BTreeSet<i32>, cwd: String,
-    brk_start: u64, brk: u64, mmap_next: u64, exe: String,
+    brk_start: u64, brk: u64, mmap_next: u64, exe: String, ids: (u32, u32, u32),
     space: crate::mmu::Space, jit: crate::jit::Jit,
 }
 pub struct Proc { ppid: u32, saved: Option<Saved>, zombie: Option<i32> }
@@ -52,6 +54,8 @@ pub struct Lx {
     pub brk: u64,
     pub mmap_next: u64,
     pub exe: String,
+    pub ids: (u32, u32, u32), // real uid, gid, effective uid
+    pub dirty: bool, // the file tree changed since the page last saved it
     // every process
     pub procs: BTreeMap<u32, Proc>,
     pub next_pid: u32,
@@ -60,11 +64,24 @@ pub struct Lx {
     pub stdin: Vec<u8>,
     pub stdin_eof: bool,
     pub lflag: u32, // terminal mode (ICANON 2, ECHO 8)
+    pub termios: Option<Vec<u8>>,
     pub winsize: (u16, u16), // rows, columns
     pub written: BTreeSet<String>,
     pub unknown: BTreeSet<u64>,
     want: Option<Cond>,
+    // network: sockets go out through the page (wisp tunnel on our server)
+    pub socks: BTreeMap<u32, Sock>,
+    pub next_sock: u32,
+    pub net_out: Vec<u8>,
+    pub dns: Vec<String>,
 }
+
+/// A socket. TCP data comes and goes through the page; UDP only answers DNS (here, with made-up addresses
+/// 198.18.x.y that the page turns back into names when connecting).
+#[derive(Default)]
+pub struct Sock { udp: bool, nb: bool, open: bool, closed: bool, failed: bool, rx: std::collections::VecDeque<u8>, dgrams: std::collections::VecDeque<(Vec<u8>, [u8; 16])>, peer: [u8; 16] }
+const EAGAIN: i64 = 11; const ENOTCONN: i64 = 107; const ECONNREFUSED: i64 = 111; const EOPNOTSUPP: i64 = 95; const EAFNOSUPPORT: i64 = 97; const ENETUNREACH: i64 = 101;
+
 
 fn align(v: u64) -> u64 { (v + PAGE - 1) & !(PAGE - 1) }
 
@@ -201,13 +218,17 @@ impl Engine {
         l.fs.insert("/etc/group".into(), Node::File(b"root:x:0:\n".to_vec()));
         l.fs.insert("/etc/hostname".into(), Node::File(b"inksoc\n".to_vec()));
         l.fs.insert("/dev/null".into(), Node::File(Vec::new()));
+        for d in ["zero", "urandom", "random", "tty"] { l.fs.insert(format!("/dev/{}", d), Node::File(Vec::new())); }
         // the page's files go to /root; an ELF also goes to /bin (busybox: every applet links to it)
         let nm = |e: &Engine, k: &str| e.s.names.get(k).cloned().unwrap_or_else(|| k.to_string());
         let files: Vec<(String, Vec<u8>)> = self.s.files.iter().map(|(k, v)| (nm(self, k), v.clone())).collect();
         let bytes = self.s.files.get(name).cloned().ok_or_else(|| format!("{} not found", name))?;
         let name = nm(self, name);
         // a .tar is a root file system (e.g. Alpine's minirootfs): it is unpacked at /
+        let mut files = files;
+        files.sort_by_key(|(k, _)| (!k.starts_with("rootfs"), k.clone())); // the root file system first, overlays after
         for (k, v) in files { if k.ends_with(".tar") { l.untar(&v); } else if k != name { l.put(&format!("/root/{}", k), v); } }
+        l.fs.insert("/etc/resolv.conf".into(), Node::File(b"nameserver 10.0.2.3\n".to_vec()));
         let exe = format!("/bin/{}", name);
         l.put(&exe, bytes.clone());
         l.fds.insert(0, Fd::Tty); l.fds.insert(1, Fd::Tty); l.fds.insert(2, Fd::Tty);
@@ -363,6 +384,7 @@ fn open(e: &mut Engine, path: &str, flags: u64) -> i64 {
     }
     if flags & 0x10000 != 0 { return if exists { -ENOTDIR } else { -ENOENT }; }
     if p == "/dev/tty" || p == "/dev/console" { return l.new_fd(Fd::Tty) as i64; }
+    if p == "/dev/zero" || p == "/dev/urandom" || p == "/dev/random" { let fd = l.new_fd(Fd::Dev(if p == "/dev/zero" { 0 } else { 1 })); if flags & 0x80000 != 0 { l.cloexec.insert(fd); } return fd as i64; }
     if !exists {
         if flags & 0x40 == 0 { return -ENOENT; }
         let dir = p.rsplit_once('/').map(|x| x.0).unwrap_or("/");
@@ -398,6 +420,14 @@ fn do_read(e: &mut Engine, fd: i32, buf: u64, n: u64) -> i64 {
             let d: Vec<u8> = b.drain(..k).collect();
             if e.mmu.write_bytes(buf, &d).is_err() { return -14; }
             k as i64
+        }
+        Some(Fd::Sock { id }) => { let id = *id; sock_recv(e, id, buf, n, false).0 }
+        Some(Fd::Dev(k)) => {
+            let k = *k; let n = n.min(1 << 20) as usize;
+            let mut d = vec![0u8; n];
+            if k == 1 { let mut x = (unsafe { crate::host_now_ms() } * 1000.0) as u64 | 1; for c in d.iter_mut() { x ^= x << 13; x ^= x >> 7; x ^= x << 17; *c = x as u8; } }
+            if e.mmu.write_bytes(buf, &d).is_err() { return -14; }
+            n as i64
         }
         Some(Fd::Tty) => {
             if l.stdin.is_empty() {
@@ -436,6 +466,8 @@ fn write_data(e: &mut Engine, fd: i32, d: &[u8]) -> i64 {
     let l = lx(e);
     match l.fds.get_mut(&fd) {
         Some(Fd::Tty) => { crate::console(&String::from_utf8_lossy(&d)); n as i64 }
+        Some(Fd::Sock { id }) => { let id = *id; sock_send(l, id, d, None) }
+        Some(Fd::Dev(_)) => n as i64,
         Some(Fd::Pipe { id, .. }) => {
             let id = *id;
             if !has_end(l, id, false) { return -EPIPE; }
@@ -467,6 +499,7 @@ pub fn syscall(e: &mut Engine) {
     e.cpu.regs[11] = 0x202;
     #[cfg(feature = "prof")]
     crate::console(&format!("[sys pid {} {} {:x} {:x} {:x}]\n", lx(e).pid, nr, a0, a1, a2));
+    if matches!(nr, 2 | 257 | 76 | 77 | 82 | 264 | 316 | 83 | 258 | 84 | 87 | 263 | 86 | 88 | 265 | 266) || (matches!(nr, 1 | 18 | 20) && matches!(lx(e).fds.get(&(a0 as i32)), Some(Fd::File { .. }))) { lx(e).dirty = true; }
     let v: i64 = match nr {
         0 => do_read(e, a0 as i32, a1, a2),
         22 | 293 => { // pipe / pipe2
@@ -488,7 +521,7 @@ pub fn syscall(e: &mut Engine) {
             let args = strs(e, av); let env = strs(e, ev);
             execve(e, &path, args, env)
         }
-        61 => wait4(e, a0 as i32 as i64, a1, a2),
+        61 => { if a3 != 0 { let _ = e.mmu.write_bytes(a3, &[0u8; 144]); } wait4(e, a0 as i32 as i64, a1, a2) }
         60 | 231 => { exit_proc(e, ((a0 & 0xFF) << 8) as i32); NORET }
         39 | 186 => lx(e).pid as i64,
         110 => { let l = lx(e); l.procs.get(&l.pid).map_or(0, |p| p.ppid) as i64 }
@@ -510,7 +543,7 @@ pub fn syscall(e: &mut Engine) {
         5 => fstat(e, a0 as i32, a1),
         8 => { // lseek
             let l = lx(e);
-            let size = match l.fds.get(&(a0 as i32)) { Some(Fd::File { path, .. }) => match l.fs.get(path) { Some(Node::File(d)) => d.len() as i64, _ => 0 }, Some(Fd::Tty) | Some(Fd::Pipe { .. }) => return ret(e, -ESPIPE), Some(Fd::Dir { .. }) => 0, None => return ret(e, -EBADF) };
+            let size = match l.fds.get(&(a0 as i32)) { Some(Fd::File { path, .. }) => match l.fs.get(path) { Some(Node::File(d)) => d.len() as i64, _ => 0 }, Some(Fd::Tty) | Some(Fd::Pipe { .. }) | Some(Fd::Sock { .. }) | Some(Fd::Dev(_)) => return ret(e, -ESPIPE), Some(Fd::Dir { .. }) => 0, None => return ret(e, -EBADF) };
             match l.fds.get_mut(&(a0 as i32)) {
                 Some(Fd::File { pos, .. }) => {
                     let np = match a2 { 0 => a1 as i64, 1 => *pos as i64 + a1 as i64, 2 => size + a1 as i64, _ => -1 };
@@ -568,10 +601,15 @@ pub fn syscall(e: &mut Engine) {
             let l = lx(e); let q = l.resolve(&p, true);
             if q == "/" || l.fs.contains_key(&q) { 0 } else { -ENOENT }
         }
+        7 | 271 if poll_socks(e, a0, a1, nr, a2) => NORET,
+        41..=55 | 288 => net_call(e, nr, a0, a1, a2, a3, a4, r[9]),
         23 | 7 | 271 => { // select / poll / ppoll: everything is ready
             if nr == 7 || nr == 271 { for k in 0..a1.min(64) { let ev = e.mmu.read16(a0 + 8 * k + 4).unwrap_or(0); let _ = e.mmu.write16(a0 + 8 * k + 6, ev & 5); } a1 as i64 } else { 1 }
         }
         24 => 0, // sched_yield
+        73 => 0, // flock: one machine, nobody else holds the lock
+        37 => 0, // alarm
+        38 => { if a2 != 0 { let _ = e.mmu.write_bytes(a2, &[0u8; 32]); } 0 } // setitimer: timers are not delivered
         32 => { let l = lx(e); match l.fds.get(&(a0 as i32)).cloned() { Some(f) => l.new_fd(f) as i64, None => -EBADF } }
         33 | 292 => { // dup2 / dup3
             let l = lx(e);
@@ -583,7 +621,15 @@ pub fn syscall(e: &mut Engine) {
             let ms = e.mmu.read64(a0).unwrap_or(0) as f64 * 1000.0 + e.mmu.read64(a0 + 8).unwrap_or(0) as f64 / 1e6;
             if ms <= 0.0 { 0 } else { lx(e).want = Some(Cond::Until); e.cpu.rip -= 2; e.block_linux(Cond::Until, Some(ms)); lx(e).want = None; NORET }
         }
-        102 | 104 | 107 | 108 => 0, // uid / gid
+        102 => lx(e).ids.0 as i64, // getuid
+        107 => lx(e).ids.2 as i64, // geteuid
+        104 | 108 => lx(e).ids.1 as i64, // getgid / getegid
+        105 => { let l = lx(e); if l.ids.2 == 0 { l.ids.0 = a0 as u32; } l.ids.2 = a0 as u32; 0 } // setuid
+        113 | 117 => { let l = lx(e); if a0 as i32 != -1 { l.ids.0 = a0 as u32; } if a1 as i32 != -1 { l.ids.2 = a1 as u32; } 0 } // setreuid / setresuid
+        106 | 114 | 119 => { let l = lx(e); let v = if nr == 106 { a0 } else if a1 as i32 != -1 { a1 } else { a0 }; if v as i32 != -1 { l.ids.1 = v as u32; } 0 } // setgid / setregid / setresgid
+        118 | 120 => { let i = lx(e).ids; let v = if nr == 118 { [i.0, i.2, i.2] } else { [i.1; 3] }; for (p, x) in [a0, a1, a2].into_iter().zip(v) { if p != 0 { let _ = e.mmu.write32(p, x); } } 0 }
+        116 | 115 => 0, // setgroups / getgroups (none)
+        122 | 123 => lx(e).ids.0 as i64, // setfsuid / setfsgid
         105 | 106 | 109 | 112 => 0,
         121 => if a0 == 0 { lx(e).pid as i64 } else { a0 as i64 }, // getpgid
         111 => lx(e).pid as i64, // getpgrp
@@ -595,6 +641,12 @@ pub fn syscall(e: &mut Engine) {
             let mut b = [0u8; 390];
             for (k, s) in ["Linux", "inksoc", "6.1.0-inksoc", "#1 SMP InkSoC", "x86_64", "(none)"].iter().enumerate() { b[65 * k..65 * k + s.len()].copy_from_slice(s.as_bytes()); }
             if e.mmu.write_bytes(a0, &b).is_err() { -14 } else { 0 }
+        }
+        72 if (a1 == 3 || a1 == 4) && matches!(lx(e).fds.get(&(a0 as i32)), Some(Fd::Sock { .. })) => { // F_GETFL / F_SETFL on a socket: O_NONBLOCK
+            let l = lx(e);
+            let Some(Fd::Sock { id }) = l.fds.get(&(a0 as i32)).cloned() else { unreachable!() };
+            let s = l.socks.get_mut(&id).unwrap();
+            if a1 == 4 { s.nb = a2 & 0x800 != 0; 0 } else { 2 | if s.nb { 0x800 } else { 0 } }
         }
         72 => { // fcntl
             let l = lx(e);
@@ -739,6 +791,8 @@ fn fstat(e: &mut Engine, fd: i32, a: u64) -> i64 {
     match l.fds.get(&fd) {
         Some(Fd::Pipe { id, .. }) => { let id = *id as u64; stat_buf(e, a, 0o010600, 0, 1000 + id) }
         Some(Fd::Tty) => stat_buf(e, a, 0o020620, 0, 5),
+        Some(Fd::Sock { id }) => { let id = *id as u64; stat_buf(e, a, 0o140777, 0, 5000 + id) }
+        Some(Fd::Dev(k)) => { let k = *k as u64; stat_buf(e, a, 0o020666, 0, 7 + k) }
         Some(Fd::File { path, .. }) | Some(Fd::Dir { path, .. }) => { let p = path.clone(); stat_path(e, &p, a, true) }
         None => -EBADF,
     }
@@ -769,15 +823,27 @@ fn ioctl(e: &mut Engine, fd: i32, req: u64, a: u64) -> i64 {
     if !lx(e).fds.contains_key(&fd) { return -EBADF; }
     if !tty { return -ENOTTY; }
     match req {
-        0x5401 => { // TCGETS: a cooked terminal
-            let mut t = [0u8; 60];
-            t[0..4].copy_from_slice(&0x500u32.to_le_bytes()); // ICRNL | IXON
-            t[4..8].copy_from_slice(&0x5u32.to_le_bytes()); // OPOST | ONLCR
-            t[8..12].copy_from_slice(&0xBFu32.to_le_bytes()); // CS8 | CREAD | B38400
-            t[12..16].copy_from_slice(&0x8A3Bu32.to_le_bytes()); // ISIG | ICANON | ECHO...
-            if e.mmu.write_bytes(a, &t).is_err() { -14 } else { 0 }
+        0x5401 => { // TCGETS: what the program set last (a cooked terminal at first)
+            let t = lx(e).termios.clone().unwrap_or_else(|| {
+                let mut t = vec![0u8; 36];
+                t[0..4].copy_from_slice(&0x500u32.to_le_bytes()); // ICRNL | IXON
+                t[4..8].copy_from_slice(&0x5u32.to_le_bytes()); // OPOST | ONLCR
+                t[8..12].copy_from_slice(&0xBFu32.to_le_bytes()); // CS8 | CREAD | B38400
+                t[12..16].copy_from_slice(&0x8A3Bu32.to_le_bytes()); // ISIG | ICANON | ECHO...
+                t[17..28].copy_from_slice(&[3, 0x1C, 0x7F, 0x15, 4, 0, 1, 0, 0x11, 0x13, 0x1A]); // ^C ^\ DEL ^U ^D, VMIN 1, ^Q ^S ^Z
+                t
+            });
+            let lf = lx(e).lflag; let _ = e.mmu.write32(a + 12, lf);
+            if e.mmu.write_bytes(a, &t[..12]).is_err() { -14 } else { let _ = e.mmu.write_bytes(a + 16, &t[16..]); 0 }
         }
-        0x5402..=0x5404 => { lx(e).lflag = e.mmu.read32(a + 12).unwrap_or(0x8A3B); 0 }
+        0x5402..=0x5404 => {
+            let mut t = vec![0u8; 36];
+            let _ = e.mmu.read_bytes(a, &mut t);
+            let l = lx(e);
+            l.lflag = u32::from_le_bytes(t[12..16].try_into().unwrap());
+            l.termios = Some(t);
+            0
+        }
         0x5413 => { let (rows, cols) = lx(e).winsize; let w: [u16; 4] = [rows, cols, 0, 0]; for (k, v) in w.iter().enumerate() { let _ = e.mmu.write16(a + 2 * k as u64, *v); } 0 }
         0x5414 => 0,
         0x540F => { let _ = e.mmu.write32(a, 1); 0 }
@@ -872,6 +938,10 @@ pub fn ready(e: &mut Engine, c: &Cond) -> bool {
         }
         Cond::Stdin => !l.stdin.is_empty() || l.stdin_eof,
         Cond::Until => false,
+        Cond::Socks(ids) => ids.iter().any(|i| l.socks.get(i).map_or(true, |s| !s.rx.is_empty() || !s.dgrams.is_empty() || s.closed)),
+        Cond::Poll { socks, stdin, pipes } => socks.iter().any(|i| l.socks.get(i).map_or(true, |s| !s.rx.is_empty() || !s.dgrams.is_empty() || s.closed || s.failed))
+            || (*stdin && (!l.stdin.is_empty() || l.stdin_eof))
+            || pipes.iter().any(|id| l.pipes.get(id).map_or(true, |b| !b.is_empty()) || !has_end(l, *id, true)),
     }
 }
 
@@ -885,13 +955,13 @@ pub fn enter(e: &mut Engine, pid: u32) {
     let cur = l.pid;
     let saved = Saved {
         fds: std::mem::take(&mut l.fds), cloexec: std::mem::take(&mut l.cloexec), cwd: std::mem::take(&mut l.cwd),
-        brk_start: l.brk_start, brk: l.brk, mmap_next: l.mmap_next, exe: std::mem::take(&mut l.exe), space, jit,
+        brk_start: l.brk_start, brk: l.brk, mmap_next: l.mmap_next, exe: std::mem::take(&mut l.exe), ids: l.ids, space, jit,
     };
     match l.procs.get_mut(&cur) { Some(p) => p.saved = Some(saved), None => e.mmu.free_saved(saved.space) }
     let l = lx(e);
     let Some(s) = l.procs.get_mut(&pid).and_then(|p| p.saved.take()) else { return };
     l.pid = pid;
-    l.fds = s.fds; l.cloexec = s.cloexec; l.cwd = s.cwd; l.brk_start = s.brk_start; l.brk = s.brk; l.mmap_next = s.mmap_next; l.exe = s.exe;
+    l.fds = s.fds; l.cloexec = s.cloexec; l.cwd = s.cwd; l.brk_start = s.brk_start; l.brk = s.brk; l.mmap_next = s.mmap_next; l.exe = s.exe; l.ids = s.ids;
     e.mmu.put_space(s.space);
     e.jit = s.jit;
     e.jit.on = on;
@@ -906,7 +976,7 @@ fn fork(e: &mut Engine) -> i64 {
     let pid = l.next_pid; l.next_pid += 1;
     let saved = Saved {
         fds: l.fds.clone(), cloexec: l.cloexec.clone(), cwd: l.cwd.clone(),
-        brk_start: l.brk_start, brk: l.brk, mmap_next: l.mmap_next, exe: l.exe.clone(), space, jit,
+        brk_start: l.brk_start, brk: l.brk, mmap_next: l.mmap_next, exe: l.exe.clone(), ids: l.ids, space, jit,
     };
     let me = l.pid;
     l.procs.insert(pid, Proc { ppid: me, saved: Some(saved), zombie: None });
@@ -978,6 +1048,9 @@ fn execve(e: &mut Engine, path: &str, mut args: Vec<String>, env: Vec<String>) -
     }
     if !data.starts_with(b"\x7fELF") { return -ENOEXEC; }
     if args.is_empty() { args.push(p.clone()); }
+    // set-uid programs (no file modes here): these run with effective uid 0, as on Alpine
+    let base = path.rsplit('/').next().unwrap_or("");
+    if matches!(base, "su" | "passwd" | "login" | "ping" | "ping6" | "traceroute" | "crontab" | "doas" | "sudo" | "newgrp" | "chsh" | "chfn" | "gpasswd") { l.ids.2 = 0; }
     // the old program goes away
     let cx: Vec<i32> = l.cloexec.iter().copied().collect();
     for fd in cx { l.fds.remove(&fd); }
@@ -1038,8 +1111,11 @@ pub extern "C" fn linux_put_file() {
     let nl = b.iter().position(|&c| c == 0).unwrap_or(b.len());
     let name = String::from_utf8_lossy(&b[..nl]).into_owned();
     let Some(l) = e.s.lx.as_mut() else { return };
-    let path = l.abs(&if name.starts_with('/') { name } else { format!("/root/{}", name) });
+    // relative names go to the user's home (the Alpine terminal keeps the user name in /etc/inksoc/user)
+    let home = match l.fs.get("/etc/inksoc/user") { Some(Node::File(d)) if !d.is_empty() => format!("/home/{}", String::from_utf8_lossy(d).trim()), _ => "/root".to_string() };
+    let path = l.abs(&if name.starts_with('/') { name } else { format!("{}/{}", home, name) });
     l.put(&path, b.get(nl + 1..).unwrap_or(&[]).to_vec());
+    l.dirty = true;
 }
 
 /// Reads a file of the tree (path in the buffer) for the page to download; its size, or -1.
@@ -1050,4 +1126,290 @@ pub extern "C" fn linux_get_file() -> i32 {
     let Some(l) = e.s.lx.as_ref() else { return -1 };
     let p = l.resolve(&String::from_utf8_lossy(&b), true);
     match l.fs.get(&p) { Some(Node::File(d)) => crate::set_out(d.clone()) as i32, _ => -1 }
+}
+
+// ---------------------------------------------------------------- network
+
+fn sock_send(l: &mut Lx, id: u32, d: &[u8], to: Option<[u8; 16]>) -> i64 {
+    let Some(s) = l.socks.get_mut(&id) else { return -EBADF };
+    if s.udp {
+        let to = to.unwrap_or(s.peer);
+        if u16::from_be_bytes([to[2], to[3]]) == 53 { if let Some(r) = dns_answer(&mut l.dns, d) { l.socks.get_mut(&id).unwrap().dgrams.push_back((r, to)); } }
+        return d.len() as i64;
+    }
+    if s.failed { return -ECONNREFUSED; }
+    if !s.open { return -ENOTCONN; }
+    if s.closed { return -EPIPE; }
+    net_event(&mut l.net_out, 2, id, d);
+    d.len() as i64
+}
+
+/// Reads from a socket: (result, source address for UDP).
+fn sock_recv(e: &mut Engine, id: u32, buf: u64, n: u64, dontwait: bool) -> (i64, Option<[u8; 16]>) {
+    let l = lx(e);
+    let Some(s) = l.socks.get_mut(&id) else { return (-EBADF, None) };
+    if s.udp {
+        let Some((d, from)) = s.dgrams.pop_front() else {
+            if s.nb || dontwait { return (-EAGAIN, None); }
+            l.want = Some(Cond::Socks(vec![id])); return (BLOCKED, None);
+        };
+        let k = d.len().min(n as usize);
+        let _ = e.mmu.write_bytes(buf, &d[..k]);
+        return (k as i64, Some(from));
+    }
+    if s.rx.is_empty() {
+        if s.failed { return (-ECONNREFUSED, None); }
+        if s.closed || !s.open { return (0, None); }
+        if s.nb || dontwait { return (-EAGAIN, None); }
+        l.want = Some(Cond::Socks(vec![id])); return (BLOCKED, None);
+    }
+    let k = (n as usize).min(s.rx.len());
+    let d: Vec<u8> = s.rx.drain(..k).collect();
+    if e.mmu.write_bytes(buf, &d).is_err() { return (-14, None); }
+    (k as i64, None)
+}
+
+fn net_event(out: &mut Vec<u8>, op: u8, id: u32, d: &[u8]) {
+    out.push(op); out.extend_from_slice(&id.to_le_bytes()); out.extend_from_slice(&(d.len() as u32).to_le_bytes()); out.extend_from_slice(d);
+}
+
+/// A DNS question answered here: an A record gets 198.18.x.y (the name is kept), other types get no answer.
+fn dns_answer(names: &mut Vec<String>, q: &[u8]) -> Option<Vec<u8>> {
+    if q.len() < 17 { return None; }
+    let mut o = 12; let mut labels = Vec::new();
+    while o < q.len() && q[o] != 0 { let n = q[o] as usize; labels.push(String::from_utf8_lossy(q.get(o + 1..o + 1 + n)?).to_string()); o += 1 + n; }
+    o += 1;
+    let qtype = u16::from_be_bytes([*q.get(o)?, *q.get(o + 1)?]);
+    let end = o + 4;
+    let name = labels.join(".").to_lowercase();
+    let mut r = q.get(..end)?.to_vec();
+    r[2] = 0x81; r[3] = 0x80; r[8..12].fill(0);
+    if qtype == 1 && !name.is_empty() {
+        let k = match names.iter().position(|n| *n == name) { Some(k) => k, None => { names.push(name); names.len() - 1 } } + 1;
+        r[6] = 0; r[7] = 1;
+        r.extend_from_slice(&[0xC0, 12, 0, 1, 0, 1, 0, 0, 0, 60, 0, 4, 198, 18, (k >> 8) as u8, k as u8]);
+    } else { r[6] = 0; r[7] = 0; }
+    Some(r)
+}
+
+/// poll/ppoll with real readiness (sockets, the terminal, pipes); it waits when nothing is ready.
+fn poll_socks(e: &mut Engine, fds: u64, n: u64, nr: u64, t: u64) -> bool {
+    let ms = if nr == 7 { t as i32 as i64 } else if t == 0 { -1 } else { (e.mmu.read64(t).unwrap_or(0) * 1000 + e.mmu.read64(t + 8).unwrap_or(0) / 1_000_000) as i64 };
+    if n > 256 { return false; }
+    let (mut socks, mut stdin, mut pipes, mut nready) = (Vec::new(), false, Vec::new(), 0i64);
+    for k in 0..n {
+        let at = fds + 8 * k;
+        let fd = e.mmu.read32(at).unwrap_or(0) as i32;
+        let ev = e.mmu.read16(at + 4).unwrap_or(0);
+        let l = lx(e);
+        let (rd, wr, hup) = if fd < 0 { (false, false, false) } else { match l.fds.get(&fd) {
+            Some(Fd::Sock { id }) => {
+                socks.push(*id);
+                match l.socks.get(id) { Some(s) => (!s.rx.is_empty() || !s.dgrams.is_empty() || s.closed || s.failed, s.udp || (s.open && !s.closed), s.closed || s.failed), None => (true, false, true) }
+            }
+            Some(Fd::Tty) => { stdin = true; (!l.stdin.is_empty() || l.stdin_eof, true, false) }
+            Some(Fd::Pipe { id, w }) => {
+                if *w { (false, true, !has_end(l, *id, false)) } else {
+                    pipes.push(*id);
+                    let open = has_end(l, *id, true);
+                    (l.pipes.get(id).map_or(false, |b| !b.is_empty()) || !open, false, !open)
+                }
+            }
+            Some(_) => (true, true, false),
+            None => { let _ = e.mmu.write16(at + 6, 0x20); nready += 1; continue; } // POLLNVAL
+        } };
+        let re = ((if rd { 1 } else { 0 }) | (if wr { 4 } else { 0 })) & ev | if hup { 0x10 } else { 0 };
+        let _ = e.mmu.write16(at + 6, re);
+        if re != 0 { nready += 1; }
+    }
+    if nready > 0 || ms == 0 { ret(e, nready); return true; }
+    e.cpu.rip -= 2;
+    e.block_linux(Cond::Poll { socks, stdin, pipes }, if ms < 0 { None } else { Some(ms as f64) });
+    true
+}
+
+fn read_addr(e: &mut Engine, a: u64, len: u64) -> Option<[u8; 16]> {
+    if a == 0 || len < 8 { return None; }
+    let mut b = [0u8; 28];
+    let _ = e.mmu.read_bytes(a, &mut b[..(len as usize).min(28)]);
+    let mut out = [0u8; 16];
+    match u16::from_le_bytes([b[0], b[1]]) {
+        2 => { out[..8].copy_from_slice(&b[..8]); }
+        10 => { // IPv6: only IPv4-mapped (::ffff:a.b.c.d)
+            if b[8..18].iter().any(|&c| c != 0) || b[18] != 0xFF || b[19] != 0xFF { return Some([0xFF; 16]); }
+            out[0] = 2; out[2] = b[2]; out[3] = b[3]; out[4..8].copy_from_slice(&b[20..24]);
+        }
+        _ => return Some([0xFF; 16]),
+    }
+    Some(out)
+}
+
+fn write_addr(e: &mut Engine, a: u64, lenp: u64, ad: &[u8; 16]) {
+    if a == 0 { return; }
+    let _ = e.mmu.write_bytes(a, ad);
+    if lenp != 0 { let _ = e.mmu.write32(lenp, 16); }
+}
+
+fn net_call(e: &mut Engine, nr: u64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5: u64) -> i64 {
+    let fd = a0 as i32;
+    let sid = match lx(e).fds.get(&fd) { Some(Fd::Sock { id }) => Some(*id), _ => None };
+    match nr {
+        41 => { // socket
+            if a0 != 2 && a0 != 10 { return -EAFNOSUPPORT; }
+            let ty = a1 & 0xF;
+            if ty != 1 && ty != 2 { return -EOPNOTSUPP; }
+            let l = lx(e);
+            l.next_sock += 1;
+            let id = l.next_sock;
+            l.socks.insert(id, Sock { udp: ty == 2, nb: a1 & 0x800 != 0, ..Default::default() });
+            let n = l.new_fd(Fd::Sock { id });
+            if a1 & 0x80000 != 0 { l.cloexec.insert(n); }
+            n as i64
+        }
+        53 => -EOPNOTSUPP, // socketpair
+        288 => -EOPNOTSUPP, // accept4
+        _ if sid.is_none() => if lx(e).fds.contains_key(&fd) { -88 } else { -EBADF }, // ENOTSOCK
+        42 => { // connect
+            let id = sid.unwrap();
+            let Some(ad) = read_addr(e, a1, a2) else { return -EINVAL };
+            if ad[0] == 0xFF { return -ENETUNREACH; }
+            let l = lx(e);
+            let s = l.socks.get_mut(&id).unwrap();
+            s.peer = ad;
+            if s.udp { return 0; }
+            if s.open { return -106; } // EISCONN
+            s.open = true;
+            let port = u16::from_be_bytes([ad[2], ad[3]]);
+            let host = if ad[4] == 198 && ad[5] == 18 {
+                let k = ((ad[6] as usize) << 8 | ad[7] as usize).wrapping_sub(1);
+                l.dns.get(k).cloned().unwrap_or_default()
+            } else { format!("{}.{}.{}.{}", ad[4], ad[5], ad[6], ad[7]) };
+            net_event(&mut l.net_out, 1, id, format!("{}:{}", host, port).as_bytes());
+            0
+        }
+        44 | 46 => { // sendto / sendmsg
+            let id = sid.unwrap();
+            let (d, to) = if nr == 44 {
+                let mut d = vec![0u8; a2.min(1 << 20) as usize];
+                let _ = e.mmu.read_bytes(a1, &mut d);
+                (d, read_addr(e, a4, a5))
+            } else {
+                let (name, nlen, iov, iovn) = (e.mmu.read64(a1).unwrap_or(0), e.mmu.read32(a1 + 8).unwrap_or(0) as u64, e.mmu.read64(a1 + 16).unwrap_or(0), e.mmu.read64(a1 + 24).unwrap_or(0));
+                let mut d = Vec::new();
+                for k in 0..iovn.min(64) {
+                    let (b, n) = (e.mmu.read64(iov + 16 * k).unwrap_or(0), e.mmu.read64(iov + 16 * k + 8).unwrap_or(0).min(1 << 20));
+                    let mut c = vec![0u8; n as usize]; let _ = e.mmu.read_bytes(b, &mut c); d.extend_from_slice(&c);
+                }
+                (d, read_addr(e, name, nlen))
+            };
+            if to.map_or(false, |t| t[0] == 0xFF) { return -ENETUNREACH; }
+            sock_send(lx(e), id, &d, to)
+        }
+        45 | 47 => { // recvfrom / recvmsg
+            let id = sid.unwrap();
+            if nr == 45 {
+                let (v, from) = sock_recv(e, id, a1, a2, a3 & 0x40 != 0);
+                if let Some(f) = from { write_addr(e, a4, a5, &f); }
+                v
+            } else {
+                let (name, iov, iovn) = (e.mmu.read64(a1).unwrap_or(0), e.mmu.read64(a1 + 16).unwrap_or(0), e.mmu.read64(a1 + 24).unwrap_or(0));
+                let (b, n) = (e.mmu.read64(iov).unwrap_or(0), if iovn > 0 { e.mmu.read64(iov + 8).unwrap_or(0) } else { 0 });
+                let (v, from) = sock_recv(e, id, b, n, a2 & 0x40 != 0);
+                if let Some(f) = from { if name != 0 { let _ = e.mmu.write_bytes(name, &f); let _ = e.mmu.write32(a1 + 8, 16); } }
+                if v >= 0 { let _ = e.mmu.write64(a1 + 40, 0); let _ = e.mmu.write32(a1 + 48, 0); }
+                v
+            }
+        }
+        48 | 49 | 54 => 0, // shutdown / bind / setsockopt
+        50 => -EOPNOTSUPP, // listen
+        43 => -EOPNOTSUPP, // accept
+        51 | 52 => { // getsockname / getpeername
+            let id = sid.unwrap();
+            let ad = if nr == 52 { lx(e).socks.get(&id).map_or([0; 16], |s| s.peer) } else { let mut a = [0u8; 16]; a[0] = 2; a[4] = 10; a[7] = 15; a };
+            if nr == 52 && ad[0] == 0 { return -ENOTCONN; }
+            write_addr(e, a1, a2, &ad);
+            0
+        }
+        55 => { // getsockopt: SO_ERROR and the rest read as 0
+            let id = sid.unwrap();
+            let err = if lx(e).socks.get(&id).map_or(false, |s| s.failed) { ECONNREFUSED } else { 0 };
+            if a3 != 0 { let _ = e.mmu.write32(a3, err as u32); }
+            if a4 != 0 { let _ = e.mmu.write32(a4, 4); }
+            0
+        }
+        _ => -ENOSYS,
+    }
+}
+
+/// The page collects what the sockets want to send: [op u8][id u32][len u32][data]...
+/// (1 connect "host:port", 2 data, 3 close). Sockets no process holds any more are closed here.
+#[no_mangle]
+pub extern "C" fn linux_net_poll() -> i32 {
+    let Some(l) = crate::eng().s.lx.as_mut() else { return 0 };
+    let held = |l: &Lx, id: u32| {
+        let is = |f: &Fd| matches!(f, Fd::Sock { id: i } if *i == id);
+        l.fds.values().any(is) || l.procs.values().any(|p| p.saved.as_ref().map_or(false, |s| s.fds.values().any(is)))
+    };
+    let gone: Vec<u32> = l.socks.keys().copied().filter(|&id| !held(l, id)).collect();
+    for id in gone {
+        let s = l.socks.remove(&id).unwrap();
+        if !s.udp && s.open && !s.closed { net_event(&mut l.net_out, 3, id, &[]); }
+    }
+    if l.net_out.is_empty() { return 0; }
+    let v = std::mem::take(&mut l.net_out);
+    crate::set_out(v) as i32
+}
+
+/// The page hands data to socket `id`: kind 1 = bytes (in the buffer), 2 = closed by the other side, 3 = could not connect.
+#[no_mangle]
+pub extern "C" fn linux_net_in(id: u32, kind: u32) {
+    let b = unsafe { crate::take_buf() };
+    let Some(l) = crate::eng().s.lx.as_mut() else { return };
+    let Some(s) = l.socks.get_mut(&id) else { return };
+    match kind { 1 => s.rx.extend(b), 2 => s.closed = true, _ => s.failed = true }
+}
+
+/// Has the file tree changed since the last call? (the page then saves it with `linux_save_tar`)
+#[no_mangle]
+pub extern "C" fn linux_dirty() -> u32 { crate::eng().s.lx.as_mut().map_or(0, |l| std::mem::take(&mut l.dirty) as u32) }
+
+/// The whole file tree as a tar (without /proc, /dev and /tmp), in out_ptr(); its size.
+#[no_mangle]
+pub extern "C" fn linux_save_tar() -> u32 {
+    let Some(l) = crate::eng().s.lx.as_ref() else { return 0 };
+    let mut t: Vec<u8> = Vec::new();
+    fn hdr(t: &mut Vec<u8>, name: &str, ty: u8, size: usize, link: &str, mode: u32) {
+        if name.len() > 99 { // GNU long name
+            let mut d = name.as_bytes().to_vec(); d.push(0);
+            hdr(t, "././@LongLink", b'L', d.len(), "", 0o644);
+            t.extend_from_slice(&d); t.resize((t.len() + 511) / 512 * 512, 0);
+        }
+        let mut h = [0u8; 512];
+        let n = name.as_bytes(); h[..n.len().min(99)].copy_from_slice(&n[..n.len().min(99)]);
+        h[100..108].copy_from_slice(format!("{:07o}\0", mode).as_bytes());
+        h[108..116].copy_from_slice(b"0000000\0"); h[116..124].copy_from_slice(b"0000000\0");
+        h[124..136].copy_from_slice(format!("{:011o}\0", size).as_bytes());
+        h[136..148].copy_from_slice(b"00000000000\0");
+        h[156] = ty;
+        let lk = link.as_bytes(); h[157..157 + lk.len().min(99)].copy_from_slice(&lk[..lk.len().min(99)]);
+        h[257..263].copy_from_slice(b"ustar\0"); h[263..265].copy_from_slice(b"00");
+        h[148..156].fill(b' ');
+        let sum: u32 = h.iter().map(|&c| c as u32).sum();
+        h[148..156].copy_from_slice(format!("{:06o}\0 ", sum).as_bytes());
+        t.extend_from_slice(&h);
+    }
+    for (p, n) in l.fs.iter() {
+        if p.starts_with("/proc") || p.starts_with("/dev") || p.starts_with("/tmp/") { continue; }
+        let name = &p[1..];
+        match n {
+            Node::Dir => hdr(&mut t, &format!("{}/", name), b'5', 0, "", 0o755),
+            Node::Link(k) => {
+                if k.len() > 99 { let mut d = k.as_bytes().to_vec(); d.push(0); hdr(&mut t, "././@LongLink", b'K', d.len(), "", 0o644); t.extend_from_slice(&d); t.resize((t.len() + 511) / 512 * 512, 0); }
+                hdr(&mut t, name, b'2', 0, k, 0o777)
+            }
+            Node::File(d) => { hdr(&mut t, name, b'0', d.len(), "", 0o755); t.extend_from_slice(d); t.resize((t.len() + 511) / 512 * 512, 0); }
+        }
+    }
+    t.extend_from_slice(&[0u8; 1024]);
+    crate::set_out(t)
 }

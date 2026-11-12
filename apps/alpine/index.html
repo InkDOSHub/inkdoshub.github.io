@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head><script src="../../assets/endereco.js?v=2"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
+<title>Alpine Linux · InkDOS Hub</title>
+<link rel="stylesheet" href="vendor/xterm.css?v=1">
+<style>
+  :root{--bg:#fff;--fg:#111;--muted:#666;--border:#ddd;--accent:#7c3aed;--term:#0b0b0d}
+  @media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#999;--border:#333}}
+  *{box-sizing:border-box}
+  html,body{height:100%;overflow:hidden}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 -apple-system,system-ui,sans-serif;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)}
+  header a{color:var(--accent);text-decoration:none;white-space:nowrap}
+  header b{flex:1;text-align:center}
+  header button{font:inherit;background:none;border:0;color:var(--accent);cursor:pointer;padding:4px 6px}
+  #box{flex:1;min-height:0;background:var(--term);padding:6px}
+  #term{width:100%;height:100%}
+  #keys{display:flex;gap:4px;padding:6px;overflow-x:auto;background:var(--term);border-top:1px solid #222}
+  #keys button{font:13px ui-monospace,Menlo,monospace;background:#26262b;color:#ddd;border:0;border-radius:6px;padding:6px 10px;min-width:40px}
+  #keys button.on{background:var(--accent);color:#fff}
+  #info{display:none;padding:10px 14px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border)}
+  #info.show{display:block}
+  #info code{font-size:12px}
+  #menubox{display:none;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)}
+  #menubox.show{display:flex}
+  #menubox button{font:inherit;font-size:14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--fg);padding:6px 10px;cursor:pointer}
+  #menubox #reset{color:#d33}
+</style>
+</head>
+<body>
+<header><a href="../../">&lt; InkDOS Hub</a><b>Alpine Linux</b><button id="net" title="How Linux reaches the internet (tap to switch)">Hub</button><button id="up" title="Send a file to your home folder">⇡</button><button id="down" title="Download a file">⇣</button><button id="i" title="About">i</button><button id="menu" title="Menu">☰</button></header>
+<div id="info">Alpine Linux 3.21 (x86-64) on InkSoC, our own engine: it plays the part of the Linux kernel, like WSL 1, and runs Alpine's real programs. The first start creates your user and password. Your files are kept in this browser between visits. Type <code>help</code> for the guide. Network (top button): <b>Hub</b> = our server, <b>wisp</b> = a public server, <b>off</b> = none. ⇡ sends files to your home folder, ⇣ downloads one. BusyBox is GPL-2.0 (busybox.net); Alpine's packages keep their own licenses (alpinelinux.org).</div>
+<div id="menubox"><button id="save">Save files now</button><button id="reset">Reset Linux (erase everything)</button></div>
+<div id="box"><div id="term"></div></div>
+<div id="keys">
+  <button data-k="esc">esc</button><button data-k="tab">tab</button><button data-k="ctrl" id="ctrl">ctrl</button>
+  <button data-k="^C">^C</button><button data-k="^D">^D</button>
+  <button data-k="up">↑</button><button data-k="down">↓</button><button data-k="left">←</button><button data-k="right">→</button>
+  <button data-k="|">|</button><button data-k="~">~</button><button data-k="/">/</button><button data-k="-">-</button>
+</div>
+<input type="file" id="file" multiple hidden>
+<script src="vendor/xterm.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
