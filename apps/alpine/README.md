@@ -12,8 +12,8 @@ real programs, with their shared libraries (`/lib/ld-musl-x86_64.so.1`).
 - `overlay/` (packed into `overlay.tar` by `overlay/build.sh`): first start (user and
   password, like WSL), `help`, `sudo`, `bench`, prompt and welcome text.
 - `worker.js`: runs the engine, saves the whole file tree to OPFS (`alpine-fs.tar`) a
-  few seconds after it changes, and carries sockets over a wisp tunnel (our server
-  `/net/wisp/`, or a public one). DNS is answered by the engine with made-up
+  few seconds after it changes, and carries sockets over a public wisp tunnel
+  (wisp.mercurywork.shop). DNS is answered by the engine with made-up
   addresses (198.18.x.y) that become host names again when a program connects.
 
 Not yet: threads (`clone` with `CLONE_VM`), listening sockets, signals delivery.

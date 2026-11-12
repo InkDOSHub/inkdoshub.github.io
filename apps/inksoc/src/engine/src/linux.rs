@@ -607,6 +607,7 @@ pub fn syscall(e: &mut Engine) {
             if nr == 7 || nr == 271 { for k in 0..a1.min(64) { let ev = e.mmu.read16(a0 + 8 * k + 4).unwrap_or(0); let _ = e.mmu.write16(a0 + 8 * k + 6, ev & 5); } a1 as i64 } else { 1 }
         }
         24 => 0, // sched_yield
+        165 | 166 => -1, // mount / umount2: EPERM, as for a program without the right to mount
         73 => 0, // flock: one machine, nobody else holds the lock
         37 => 0, // alarm
         38 => { if a2 != 0 { let _ = e.mmu.write_bytes(a2, &[0u8; 32]); } 0 } // setitimer: timers are not delivered

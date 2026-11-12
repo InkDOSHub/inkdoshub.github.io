@@ -15,22 +15,24 @@ function fit() {
   probe.style.cssText = 'position:absolute;visibility:hidden;font-family:' + term.options.fontFamily + ';font-size:' + term.options.fontSize + 'px;line-height:normal';
   probe.textContent = 'W'.repeat(50);
   document.body.appendChild(probe);
-  const cw = probe.getBoundingClientRect().width / 50, ch = term.options.fontSize * 1.2;
+  let cw = probe.getBoundingClientRect().width / 50, ch = term.options.fontSize * 1.2;
   probe.remove();
+  // xterm's own cell size when it has one (Safari's line height differs from the estimate, and too many rows covered the key bar)
+  try { const c = term._core._renderService.dimensions.css.cell; if (c.width > 0 && c.height > 0) { cw = c.width; ch = c.height; } } catch (e) {}
   const cols = Math.max(20, Math.floor(box.width / cw)), rows = Math.max(5, Math.floor(box.height / ch));
   if (cols !== term.cols || rows !== term.rows) term.resize(cols, rows);
   if (w) w.postMessage({ type: 'resize', rows: term.rows, cols: term.cols });
 }
 
-// network: Hub (our server), wisp (public server), off
-const NET_NAMES = { hub: 'Hub', wisp: 'wisp', off: 'No network' };
-let network = 'hub';
-try { network = localStorage.getItem('alpine-net') || 'hub'; } catch (e) {}
-if (!(network in NET_NAMES)) network = 'hub';
+// network: wisp (public wisp server, the one the v86 Linux terminals use) or off
+const NET_NAMES = { wisp: 'wisp', off: 'No network' };
+let network = 'wisp';
+try { network = localStorage.getItem('alpine-net') || 'wisp'; } catch (e) {}
+if (!(network in NET_NAMES)) network = 'wisp';
 const showNet = () => { $('net').textContent = NET_NAMES[network]; };
 showNet();
 $('net').onclick = () => {
-  const order = ['hub', 'wisp', 'off'];
+  const order = ['wisp', 'off'];
   network = order[(order.indexOf(network) + 1) % order.length];
   try { localStorage.setItem('alpine-net', network); } catch (e) {}
   showNet();
@@ -45,7 +47,7 @@ function start() {
   if (starting || w) return;
   starting = true;
   term.write('\x1b[2mStarting Alpine Linux on InkSoC…\x1b[0m\r\n');
-  w = new Worker('worker.js?v=1');
+  w = new Worker('worker.js?v=4');
   starting = false;
   w.onmessage = (ev) => {
     const m = ev.data;
@@ -94,7 +96,7 @@ $('menu').onclick = () => $('menubox').classList.toggle('show');
 $('save').onclick = () => { $('menubox').classList.remove('show'); if (w) w.postMessage({ type: 'save' }); };
 $('reset').onclick = () => {
   if (!confirm('Erase your Linux user, files and installed programs, and start again from a clean Alpine?')) return;
-  const go = () => { const r = new Worker('worker.js?v=1'); r.onmessage = () => location.reload(); r.postMessage({ type: 'reset' }); };
+  const go = () => { const r = new Worker('worker.js?v=4'); r.onmessage = () => location.reload(); r.postMessage({ type: 'reset' }); };
   if (w) { w.terminate(); w = null; }
   go();
 };

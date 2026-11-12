@@ -1,11 +1,11 @@
 /* Alpine Linux terminal: the engine (engine.wasm, a fixed copy of InkSoC kept for this app)
    runs Alpine's programs; this worker feeds it keys, saves the files in OPFS and carries
-   the sockets over a wisp tunnel (our server or a public one). */
+   the sockets over a public wisp tunnel. */
 'use strict';
-const NETS = { hub: 'wss://hub.inkdos.workers.dev/net/wisp/', wisp: 'wss://wisp.mercurywork.shop/v86/', off: null };
+const NETS = { wisp: 'wss://wisp.mercurywork.shop/v86/', off: null };
 const SAVE = 'alpine-fs.tar';
 const out = (t) => postMessage({ type: 'out', text: t });
-let x, mem, lx = null, keys = [], net = 'hub';
+let x, mem, lx = null, keys = [], net = 'wisp';
 const enc = new TextEncoder(), dec = new TextDecoder();
 const put = (b) => { const p = x.buffer(b.length); new Uint8Array(mem.buffer, p, b.length).set(b); };
 
@@ -87,8 +87,8 @@ async function run({ rows, cols, network }) {
   };
   const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(u + ': ' + r.status); return r; });
   const [wasm, busybox, overlay, saved] = await Promise.all([
-    get('engine.wasm?v=1').then((r) => r.arrayBuffer()), get('busybox?v=1').then((r) => r.arrayBuffer()),
-    get('overlay.tar?v=1').then((r) => r.arrayBuffer()), loadSaved()]);
+    get('engine.wasm?v=2').then((r) => r.arrayBuffer()), get('busybox?v=1').then((r) => r.arrayBuffer()),
+    get('overlay.tar?v=3').then((r) => r.arrayBuffer()), loadSaved()]);
   let rootfs = saved;
   if (!rootfs) {
     out('\x1b[2mDownloading Alpine Linux 3.21 (3.5 MB)…\x1b[0m\r\n');
@@ -107,7 +107,7 @@ async function run({ rows, cols, network }) {
   if (x.start() !== 0) { postMessage({ type: 'done', error: dec.decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice()) }); return; }
   x.linux_winsize(rows || 30, cols || 100);
   x.linux_dirty(); // unpacking is not a change; the first save happens after the first real one
-  let line = '';
+  let line = '', lastCr = false;
   const send = (t) => { const b = enc.encode(t); put(b); x.linux_stdin(b.length); };
   lx = {
     resize(r, c) { x.linux_winsize(r, c); },
@@ -121,6 +121,8 @@ async function run({ rows, cols, network }) {
       if (!canon) { send(s); continue; }
       if (s.startsWith('\x1b[') && /R$/.test(s)) continue; // a cursor-position answer nobody asked for in line mode
       for (const ch of s) {
+        const afterCr = lastCr; lastCr = ch === '\r';
+        if (ch === '\n' && afterCr) continue; // \r\n from some keyboards is one Enter, not two
         if (ch === '\x03') { x.linux_interrupt(); line = ''; out('^C\r\n'); }
         else if (ch === '\r' || ch === '\n') { if (echo) out('\r\n'); send(line + '\n'); line = ''; }
         else if (ch === '\x7f' || ch === '\b') { if (line) { line = [...line].slice(0, -1).join(''); if (echo) out('\b \b'); } }
