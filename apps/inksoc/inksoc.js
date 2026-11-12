@@ -12,7 +12,7 @@ const fmt = (n) => Math.round(n).toLocaleString('en-US');
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=3');
+  const w = new Worker('worker.js?v=4');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
@@ -39,7 +39,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=3');
+  const w = new Worker('worker.js?v=4');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -138,12 +138,15 @@ function showLimits() {
   };
   desc('calib', 'Wasm memory');
   desc('tex', 'GPU textures');
+  if (s.combo) lines.push(s.combo.running
+    ? `Combined budget: the tab reloaded after ${s.combo.sec} s (RAM ${s.combo.ram} MB + GPU ${s.combo.gpu} MB).`
+    : `Combined budget: survived ${s.combo.sec} s with RAM ${s.combo.ram} MB + GPU ${s.combo.gpu} MB, ${s.combo.texMb} MB of textures streamed.`);
   $('lim-out').textContent = lines.join('\n') || 'No results yet.';
 }
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=3');
+  const w = new Worker('worker.js?v=4');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -210,3 +213,145 @@ $('clear').onclick = () => { store.set({}); showLimits(); };
   });
   showLimits();
 })();
+
+/* ---------- 5. combined budget: fixed RAM + GPU texture pool with OPFS streaming ---------- */
+$('combo').onclick = async () => {
+  const out = $('combo-out'), btn = $('combo');
+  const s0 = store.get();
+  if (!s0.calib || !s0.calib.mb) { out.textContent = 'Run "Calibrate memory" first.'; return; }
+  if (!navigator.gpu) { out.textContent = 'This test needs WebGPU.'; return; }
+  btn.disabled = true;
+  const total = Math.floor(s0.calib.mb * 0.7);
+  const ram = Math.floor(total * 0.65 / 64) * 64, gpu = Math.floor((total - ram) / 4) * 4;
+  const texMb = +$('combo-tex').value, SIZE = 1024, BYTES = SIZE * SIZE * 4, count = texMb / 4, SHOW = 48;
+  const mark = (extra) => { const s = store.get(); s.combo = Object.assign({ ram, gpu, texMb, sec: 0, running: true }, s.combo && s.combo.running ? s.combo : {}, extra); store.set(s); };
+  store.set(Object.assign(store.get(), { combo: { ram, gpu, texMb, sec: 0, running: true } }));
+  const log = (t) => { out.textContent += t + '\n'; };
+  out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
+
+  const holder = new Worker('worker.js?v=4');
+  await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
+  log(`RAM: ${ram} MB reserved and filled.`);
+
+  const io = new Worker('worker.js?v=4');
+  log(`Writing ${texMb} MB of textures to OPFS...`);
+  const initMs = await new Promise((r) => { io.onmessage = (e) => r(e.data.ms || 0); io.postMessage({ type: 'tex-init', count, size: BYTES }); });
+  log(`Texture file ready in ${fmt(initMs)} ms.`);
+
+  const adapter = await navigator.gpu.requestAdapter();
+  const astc = adapter.features.has('texture-compression-astc');
+  const dev = await adapter.requestDevice({ requiredFeatures: astc ? ['texture-compression-astc'] : [] });
+  let gpuErr = '';
+  dev.onuncapturederror = (e) => { gpuErr = e.error.message; };
+  if (astc) {
+    // ASTC 4x4 = 16 bytes per 4x4 block (1 byte/pixel), 8x8 = 16 bytes per 8x8 block (0.25 byte/pixel)
+    for (const [fmtName, blk] of [['astc-4x4-unorm', 4], ['astc-8x8-unorm', 8]]) {
+      const t = dev.createTexture({ size: [SIZE, SIZE], format: fmtName, usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
+      dev.queue.writeTexture({ texture: t }, new Uint8Array((SIZE / blk) * (SIZE / blk) * 16), { bytesPerRow: (SIZE / blk) * 16 }, [SIZE, SIZE]);
+      t.destroy();
+    }
+    log(`ASTC: yes. Same pool holds ${gpu / 4 * 4} textures in ASTC 4x4 or ${gpu / 4 * 16} in ASTC 8x8 (vs ${gpu / 4} RGBA).`);
+  } else log('ASTC: not offered by this GPU/browser.');
+
+  const ctx = $('combo-cv').getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device: dev, format });
+  const mod = dev.createShaderModule({ code: `
+    @group(0) @binding(0) var t: texture_2d<f32>;
+    @group(0) @binding(1) var s: sampler;
+    struct O { @builtin(position) p: vec4f, @location(0) uv: vec2f };
+    @vertex fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> O {
+      let q = array(vec2f(0, 0), vec2f(1, 0), vec2f(0, 1), vec2f(0, 1), vec2f(1, 0), vec2f(1, 1));
+      let uv = q[v]; let c = f32(i % 8u); let r = f32(i / 8u);
+      var o: O; o.p = vec4f((c + uv.x) / 4.0 - 1.0, 1.0 - (r + uv.y) / 3.0, 0, 1); o.uv = uv; return o;
+    }
+    @fragment fn fs(o: O) -> @location(0) vec4f { return textureSample(t, s, o.uv); }` });
+  const pipe = dev.createRenderPipeline({ layout: 'auto', vertex: { module: mod, entryPoint: 'vs' }, fragment: { module: mod, entryPoint: 'fs', targets: [{ format }] } });
+  const sampler = dev.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+  const bgFor = (tx) => dev.createBindGroup({ layout: pipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: tx.createView() }, { binding: 1, resource: sampler }] });
+  const ph = dev.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
+  dev.queue.writeTexture({ texture: ph }, new Uint8Array([40, 40, 40, 255]), { bytesPerRow: 4 }, [1, 1]);
+  const phBG = bgFor(ph);
+  // The limiter: a fixed pool of GPU textures created once. Nothing else is ever allocated.
+  const nSlots = gpu / 4;
+  const slots = [];
+  for (let i = 0; i < nSlots; i++) {
+    const tx = dev.createTexture({ size: [SIZE, SIZE], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
+    slots.push({ tx, bg: bgFor(tx), id: -1, used: -1 });
+  }
+  await dev.queue.onSubmittedWorkDone();
+  log(`GPU pool: ${nSlots} textures (${gpu} MB) created.${gpuErr ? ' Error: ' + gpuErr : ''}`);
+
+  const where = new Map(); // texture id -> slot index
+  const pending = new Set();
+  let frame = 0, loads = 0, readMs = 0, upMs = 0, placeholders = 0, pos = 0;
+  io.onmessage = (e) => {
+    const d = e.data; if (d.type !== 'tex') return;
+    pending.delete(d.id);
+    let best = -1;
+    for (let i = 0; i < nSlots; i++) {
+      const sl = slots[i];
+      if (sl.used >= frame) continue;
+      if (best < 0 || sl.used < slots[best].used) best = i;
+      if (sl.id < 0) { best = i; break; }
+    }
+    if (best < 0) return;
+    const sl = slots[best];
+    if (sl.id >= 0) where.delete(sl.id);
+    const t = performance.now();
+    dev.queue.writeTexture({ texture: sl.tx }, d.data, { bytesPerRow: SIZE * 4 }, [SIZE, SIZE]);
+    upMs += performance.now() - t; readMs += d.ms; loads++;
+    sl.id = d.id; sl.used = frame; where.set(d.id, best);
+  };
+
+  const t0 = performance.now();
+  let last = t0, worst = 0, lastMark = 0;
+  await new Promise((done) => {
+    const tick = (now) => {
+      const dt = now - last; last = now; if (frame > 5) worst = Math.max(worst, dt);
+      frame++;
+      pos += 0.5; // the "camera" moves through the textures: ~30 new textures per second at 60 fps
+      const base = Math.floor(pos);
+      const enc = dev.createCommandEncoder();
+      const pass = enc.beginRenderPass({ colorAttachments: [{ view: ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }] });
+      pass.setPipeline(pipe);
+      for (let i = 0; i < SHOW; i++) {
+        const id = (base + i) % count;
+        const k = where.get(id);
+        if (k !== undefined) { slots[k].used = frame; pass.setBindGroup(0, slots[k].bg); }
+        else {
+          placeholders++; pass.setBindGroup(0, phBG);
+          if (!pending.has(id) && pending.size < 6) { pending.add(id); io.postMessage({ type: 'tex-get', id }); }
+        }
+        pass.draw(6, 1, 0, i);
+      }
+      // prefetch the next textures the camera is about to need
+      for (let i = SHOW; i < SHOW + 8 && pending.size < 6; i++) {
+        const id = (base + i) % count;
+        if (!where.has(id) && !pending.has(id)) { pending.add(id); io.postMessage({ type: 'tex-get', id }); }
+      }
+      pass.end();
+      dev.queue.submit([enc.finish()]);
+      const sec = (now - t0) / 1000;
+      if (sec - lastMark >= 1) {
+        lastMark = sec;
+        mark({ sec: Math.floor(sec) });
+        $('combo-live').textContent = `${Math.floor(sec)} s · ${(frame / sec).toFixed(0)} fps · ${fmt(loads * 4)} MB streamed`;
+      }
+      if (sec < 30) requestAnimationFrame(tick); else done();
+    };
+    requestAnimationFrame(tick);
+  });
+  const secs = (performance.now() - t0) / 1000;
+  log(`\nSurvived ${secs.toFixed(0)} s.`);
+  log(`Frames: ${(frame / secs).toFixed(1)} fps average, worst frame ${worst.toFixed(0)} ms`);
+  log(`Streamed ${fmt(loads * 4)} MB (${loads} textures, ${(loads * 4 / secs).toFixed(0)} MB/s) through a ${gpu} MB pool`);
+  log(`Per 4 MB texture: OPFS read ${(readMs / Math.max(loads, 1)).toFixed(2)} ms, GPU upload ${(upMs / Math.max(loads, 1)).toFixed(2)} ms`);
+  log(`Draws that waited for a texture: ${(placeholders / (frame * SHOW) * 100).toFixed(1)}%${gpuErr ? '\nGPU error: ' + gpuErr : ''}`);
+  const s = store.get(); s.combo = { ram, gpu, texMb, sec: Math.round(secs), running: false }; store.set(s);
+  io.postMessage({ type: 'tex-done' });
+  setTimeout(() => { io.terminate(); holder.terminate(); }, 500);
+  slots.forEach((sl) => sl.tx.destroy()); dev.destroy();
+  showLimits();
+  btn.disabled = false;
+};

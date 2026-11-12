@@ -67,10 +67,22 @@
 </section>
 
 <section>
+  <h2>5. Combined budget (the tab may reload)</h2>
+  <p class="n">Uses the calibration above: about 70% of the tab limit, split into fixed real RAM for the engine and a fixed GPU texture pool. Then it streams far more textures than the pool holds for 30 s: the least used ones leave the GPU and come back from OPFS when needed.</p>
+  <div class="row">
+    <label>Textures used<select id="combo-tex"><option value="1024">1 GB</option><option value="2048" selected>2 GB</option><option value="3072">3 GB</option><option value="4096">4 GB</option></select></label>
+    <button id="combo">Run 30 s</button>
+  </div>
+  <canvas id="combo-cv" width="512" height="288" style="width:100%;max-width:512px;aspect-ratio:16/9;margin-top:8px;border-radius:8px;background:#000"></canvas>
+  <div id="combo-live" class="n" style="color:var(--muted);font-size:13px"></div>
+  <pre id="combo-out"></pre>
+</section>
+
+<section>
   <h2>Browser</h2>
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=3"></script>
+<script src="inksoc.js?v=4"></script>
 </body>
 </html>

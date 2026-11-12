@@ -104,8 +104,51 @@ async function calibrate({ startMb }) {
   post('calib', { mb, max: true });
 }
 
+/* Test 5: hold a fixed block of real RAM (random data, so iOS cannot compress it). */
+let held = null;
+async function hold({ mb }) {
+  held = new WebAssembly.Memory({ initial: mb * 16, maximum: mb * 16 });
+  const u32 = new Uint32Array(held.buffer);
+  let seed = 88675123;
+  for (let i = 0; i < u32.length; i++) { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; u32[i] = seed; }
+  post('held', { mb });
+}
+
+/* Test 5: texture store in OPFS. The page keeps only a fixed pool of textures
+   on the GPU and asks this worker for the others when they are needed. */
+let tex = null;
+async function texInit({ count, size }) {
+  const root = await navigator.storage.getDirectory();
+  const fh = await root.getFileHandle('inksoc-tex.bin', { create: true });
+  if (tex) tex.h.close();
+  const h = await fh.createSyncAccessHandle();
+  h.truncate(0);
+  const buf = new Uint8Array(size);
+  const t = performance.now();
+  for (let id = 0; id < count; id++) {
+    const c = [(id * 97) & 255, (id * 57) & 255, (id * 23) & 255, 255];
+    for (let i = 0; i < 65536; i += 4) { buf[i] = c[0] ^ (i >> 8); buf[i + 1] = c[1]; buf[i + 2] = c[2] ^ (i >> 10); buf[i + 3] = 255; }
+    for (let o = 65536; o < size; o += 65536) buf.copyWithin(o, 0, 65536);
+    h.write(buf, { at: id * size });
+  }
+  h.flush();
+  tex = { h, size };
+  post('tex-ready', { ms: performance.now() - t });
+}
+async function texGet({ id }) {
+  const b = new Uint8Array(tex.size);
+  const t = performance.now();
+  tex.h.read(b, { at: id * tex.size });
+  postMessage({ type: 'tex', id, ms: performance.now() - t, data: b.buffer }, [b.buffer]);
+}
+async function texDone() {
+  if (tex) { tex.h.truncate(0); tex.h.close(); tex = null; }
+  const root = await navigator.storage.getDirectory();
+  try { await root.removeEntry('inksoc-tex.bin'); } catch (e) {}
+}
+
 onmessage = (ev) => {
   const d = ev.data;
-  const go = { proof: runProof, opfs: opfsLatency, calibrate }[d.type];
+  const go = { proof: runProof, opfs: opfsLatency, calibrate, hold, 'tex-init': texInit, 'tex-get': texGet, 'tex-done': texDone }[d.type];
   if (go) go(d).catch((e) => post('done', { ok: false, error: String(e && e.message || e) }));
 };
