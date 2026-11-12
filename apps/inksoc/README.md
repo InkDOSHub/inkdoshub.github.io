@@ -46,3 +46,19 @@ Own programs: build with `-D__USE_MINGW_ANSI_STDIO=0` so printf comes from msvcr
 `worker.js` patches `test_mb` at 0x140002000 (check with `x86_64-w64-mingw32-nm test.exe`).
 
 License: GPL-3.0-or-later.
+
+## Linux (experimental)
+
+`linux.html` / `linux.js`: a terminal (xterm.js, in `vendor/`) running BusyBox
+(`bin/busybox`, 1.35.0 static x86-64 musl build from busybox.net, GPL-2.0) on
+the same CPU and JIT.
+
+- `src/engine/src/linux.rs`: static ELF loader, Linux system calls (`syscall`),
+  an in-memory file tree, processes (fork copies the address space, execve,
+  wait4, pipes, `#!` scripts), terminal modes and Ctrl+C / Ctrl+D. A syscall
+  that has to wait rewinds to the `syscall` instruction and runs again when the
+  scheduler wakes it. Linux processes run on core 0 only.
+- `src/engine/src/x87.rs` + `f80.rs`: the x87 FPU with exact 80-bit arithmetic
+  (musl's printf and strtod depend on it).
+- `mmu.rs`: one address space per process (`Space`), swapped on a switch.
+

@@ -23,6 +23,8 @@ pub enum W {
     Cs(u64),
     SrwEx(u64),
     SrwSh(u64),
+    /// a Linux system call waiting (pipe, child, terminal input, sleep)
+    Lx(crate::linux::Cond),
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -40,6 +42,7 @@ pub struct Thread {
     pub exit: u32,
     suspend: u32,
     on_core: u32, // core whose registers hold this thread (NO_CORE = saved in cpu)
+    pub pid: u32, // Linux process (0 = Windows program)
 }
 const NO_CORE: u32 = u32::MAX;
 
@@ -59,7 +62,7 @@ impl Engine {
     pub fn sched_init(&mut self) {
         self.s.sched.th.push(Thread {
             id: MAIN_TID, teb: TEB, cpu: Box::new(Cpu::new()), eh: Default::default(), st: St::Running,
-            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: 0,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: 0, pid: 0,
         });
         self.cur = 0;
         self.slice = SLICE;
@@ -133,6 +136,7 @@ impl Engine {
             W::SrwEx(l) => {
                 if self.mmu.read64(*l).unwrap_or(0) == 0 { let _ = self.mmu.write64(*l, SRW_EX); Some(0) } else { None }
             }
+            W::Lx(_) => None,
             W::SrwSh(l) => {
                 let v = self.mmu.read64(*l).unwrap_or(0);
                 if v != SRW_EX { let _ = self.mmu.write64(*l, v + 1); Some(0) } else { None }
@@ -177,13 +181,37 @@ impl Engine {
         let suspended = flags & 4 != 0;
         self.s.sched.th.push(Thread {
             id, teb, cpu, eh: Default::default(), st: if suspended { St::Suspended } else { St::Ready },
-            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE, pid: 0,
         });
         if self.s.sched.th.len() == 2 { self.slice = SLICE; }
         crate::lock::kick();
         let h = self.new_handle(Handle::Thread { tid: id });
         Some((h, id))
     }
+
+    /// A new Linux thread (fork's child), ready to run.
+    pub fn spawn_linux(&mut self, cpu: Cpu, pid: u32) {
+        let id = MAIN_TID + 4 * self.s.sched.th.len() as u32;
+        self.s.sched.th.push(Thread {
+            id, teb: 0, cpu: Box::new(cpu), eh: Default::default(), st: St::Ready,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: NO_CORE, pid,
+        });
+        if self.s.sched.th.len() == 2 { self.slice = SLICE; }
+    }
+    /// The current Linux thread waits (its rip is back on the syscall instruction).
+    pub fn block_linux(&mut self, c: crate::linux::Cond, ms: Option<f64>) {
+        let t = &mut self.s.sched.th[self.cur];
+        t.st = St::Wait;
+        t.wait = Some(W::Lx(c));
+        t.deadline = ms.map_or(f64::INFINITY, |m| now() + m);
+        self.want_switch = true;
+    }
+    /// Every thread of Linux process `pid` ends.
+    pub fn end_linux(&mut self, pid: u32) {
+        for t in self.s.sched.th.iter_mut() { if t.pid == pid { t.st = St::Done; t.wait = None; } }
+        self.want_switch = true;
+    }
+    pub fn cur_pid(&self) -> u32 { self.s.sched.th.get(self.cur).map_or(0, |t| t.pid) }
 
     /// The current thread ends.
     pub fn exit_thread(&mut self, code: u32) {
@@ -218,8 +246,22 @@ impl Engine {
                 if t.st == St::Wait { soonest = soonest.min(t.deadline); }
                 continue;
             }
+            if self.core != 0 && t.pid != 0 { continue; } // Linux processes run on core 0 (one address space at a time)
             match t.st {
                 St::Ready => return self.switch_to(i),
+                St::Wait if matches!(t.wait, Some(W::Lx(_))) => {
+                    let Some(W::Lx(c)) = t.wait.clone() else { unreachable!() };
+                    let dl = t.deadline;
+                    let ready = crate::linux::ready(self, &c);
+                    if ready || t_now >= dl {
+                        let t = &mut self.s.sched.th[i];
+                        t.st = St::Ready;
+                        t.wait = None;
+                        t.pending = if ready { None } else { Some(0) };
+                        return self.switch_to(i);
+                    }
+                    soonest = soonest.min(if matches!(c, crate::linux::Cond::Stdin) { t_now + 30.0 } else { dl });
+                }
                 St::Wait => {
                     let w = t.wait.clone().unwrap();
                     let id = t.id;
@@ -259,6 +301,7 @@ impl Engine {
         let c = self.cur;
         if i != c {
             self.materialize();
+            if self.s.lx.is_some() { let pid = self.s.sched.th[i].pid; crate::linux::enter(self, pid); }
             if c != usize::MAX {
                 core::mem::swap(&mut self.cpu, &mut *self.s.sched.th[c].cpu);
                 core::mem::swap(&mut self.eh, &mut self.s.sched.th[c].eh);
@@ -273,7 +316,10 @@ impl Engine {
             if c != usize::MAX { crate::lock::kick(); }
         }
         self.s.sched.th[i].st = St::Running;
-        if let Some(v) = self.s.sched.th[i].pending.take() { self.do_ret(v); }
+        if let Some(v) = self.s.sched.th[i].pending.take() {
+            // a Linux system call that finished while waiting: skip the syscall instruction
+            if self.s.sched.th[i].pid != 0 { self.cpu.rip += 2; self.cpu.regs[0] = v; } else { self.do_ret(v); }
+        }
         true
     }
 

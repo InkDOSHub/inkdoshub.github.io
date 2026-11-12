@@ -44,7 +44,13 @@ pub struct MmuShared {
     pub swap_ins: u64,
     pub swap_outs: u64,
     pub swap_slots: u32,
+    /// several address spaces (Linux processes): frames of the others must not be evicted
+    pub no_evict: bool,
 }
+
+/// A saved address space (a Linux process that is not running).
+#[derive(Default)]
+pub struct Space { table: HashMap<u64, Pte>, regions: Vec<(u64, u64)>, committed: u64 }
 
 /// One core's view: its own TLB over the shared page table.
 pub struct Mmu {
@@ -64,7 +70,7 @@ impl Mmu {
             regions: Vec::new(),
             committed: 0,
             target_bytes: target_mb << 20,
-            faults: 0, swap_ins: 0, swap_outs: 0, swap_slots: 0,
+            faults: 0, swap_ins: 0, swap_outs: 0, swap_slots: 0, no_evict: false,
         }));
         Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], sh }
     }
@@ -130,6 +136,48 @@ impl Mmu {
         } else { false }
     }
 
+    pub fn flush_tlb(&mut self) { for t in self.tlb.iter_mut() { t.tag = u64::MAX; } }
+
+    /// Moves the current address space out (another process is going to run).
+    pub fn take_space(&mut self) -> Space {
+        self.flush_tlb();
+        Space { table: std::mem::take(&mut self.sh.table), regions: std::mem::take(&mut self.sh.regions), committed: std::mem::replace(&mut self.sh.committed, 0) }
+    }
+    pub fn put_space(&mut self, sp: Space) {
+        self.flush_tlb();
+        self.sh.table = sp.table; self.sh.regions = sp.regions; self.sh.committed = sp.committed;
+    }
+    /// A full copy of the current address space (fork); None = out of real RAM.
+    pub fn clone_space(&mut self) -> Option<Space> {
+        let mut table = HashMap::with_capacity(self.sh.table.len());
+        let entries: Vec<(u64, Pte)> = self.sh.table.iter().map(|(k, v)| (*k, *v)).collect();
+        for (vpn, pte) in entries {
+            if pte.frame == NONE { continue; }
+            let Some(f) = self.sh.free.pop() else {
+                for (_, p) in table.drain() { let p: Pte = p; self.sh.frames[p.frame as usize].used = false; self.sh.free.push(p.frame); }
+                return None;
+            };
+            let (src, dst) = (pte.frame as usize * PAGE as usize, f as usize * PAGE as usize);
+            self.sh.pool.copy_within(src..src + PAGE as usize, dst);
+            self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: true };
+            table.insert(vpn, Pte { frame: f, slot: NONE });
+        }
+        Some(Space { table, regions: self.sh.regions.clone(), committed: self.sh.committed })
+    }
+    /// Frees every page of the current address space (exec, exit).
+    pub fn free_space(&mut self) {
+        self.flush_tlb();
+        for (_, p) in self.sh.table.drain() {
+            if p.frame != NONE { self.sh.frames[p.frame as usize].used = false; self.sh.free.push(p.frame); }
+        }
+        self.sh.regions.clear();
+        self.sh.committed = 0;
+    }
+    /// Frees a saved address space (a process that ended while not running).
+    pub fn free_saved(&mut self, sp: Space) {
+        for (_, p) in sp.table { if p.frame != NONE { self.sh.frames[p.frame as usize].used = false; self.sh.free.push(p.frame); } }
+    }
+
     fn evict_one(&mut self) -> u32 {
         loop {
             let i = self.sh.hand;
@@ -160,7 +208,7 @@ impl Mmu {
         match self.sh.free.pop() {
             Some(f) => Some(f),
             // other cores may hold this frame in their TLB: no swap with several cores (yet)
-            None if crate::lock::MT => None,
+            None if crate::lock::MT || self.sh.no_evict => None,
             None => Some(self.evict_one()),
         }
     }

@@ -11,6 +11,9 @@ mod heap;
 mod jit;
 mod kernel32;
 mod lock;
+mod linux;
+mod x87;
+mod f80;
 mod mmu;
 mod msvcrt;
 mod oleaut;
@@ -86,6 +89,8 @@ pub struct Shared {
     pub cores: u32,
     pub insns: u64, // instructions of every core, added after each run
     pub jit_on: bool,
+    pub lx: Option<Box<linux::Lx>>,
+    pub names: HashMap<String, String>, // file key -> name as given (Linux keeps case, no .dll)
 }
 
 #[cfg_attr(target_feature = "atomics", thread_local)]
@@ -93,6 +98,13 @@ static mut ENGINE: Option<Engine> = None;
 static mut SHARED: Option<Shared> = None;
 static mut BUF: Vec<u8> = Vec::new();
 static mut MSG: Vec<u8> = Vec::new();
+
+#[allow(static_mut_refs)]
+#[allow(static_mut_refs)]
+pub(crate) fn set_out(v: Vec<u8>) -> u32 { unsafe { OUT = v; OUT.len() as u32 } }
+
+#[allow(static_mut_refs)]
+pub(crate) unsafe fn take_buf() -> Vec<u8> { std::mem::take(&mut BUF) }
 
 #[allow(static_mut_refs)]
 pub(crate) fn eng() -> &'static mut Engine { unsafe { ENGINE.as_mut().unwrap() } }
@@ -124,7 +136,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             heap: heap::Heap::default(), tls_used: 0,
             init_queue: Vec::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
-            sched: Default::default(), cores: 1, insns: 0, jit_on: true,
+            sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
         });
         ENGINE = Some(Engine {
             mmu: Mmu::new(pool_mb as usize, target_mb as u64),
@@ -180,7 +192,9 @@ pub extern "C" fn add_file() {
     unsafe {
         let b = std::mem::take(&mut BUF);
         let nl = b.iter().position(|&c| c == 0).unwrap_or(0);
-        let name = pe::norm(&String::from_utf8_lossy(&b[..nl]));
+        let raw = String::from_utf8_lossy(&b[..nl]).into_owned();
+        let name = pe::norm(&raw);
+        eng().s.names.insert(name.clone(), raw.rsplit(['\\', '/']).next().unwrap_or(&raw).to_string());
         eng().s.files.insert(name, b[nl + 1..].to_vec());
     }
 }
@@ -271,8 +285,14 @@ static mut OUT: Vec<u8> = Vec::new();
 #[allow(static_mut_refs)]
 pub extern "C" fn out_file(i: u32) -> u32 {
     let e = eng();
-    let Some(name) = e.s.fs.written.iter().nth(i as usize).cloned() else { return 0 };
-    let data = e.s.files.get(&name).cloned().unwrap_or_default();
+    let (name, data) = if e.s.lx.is_some() {
+        let Some(x) = linux::written(e).into_iter().nth(i as usize) else { return 0 };
+        x
+    } else {
+        let Some(name) = e.s.fs.written.iter().nth(i as usize).cloned() else { return 0 };
+        let data = e.s.files.get(&name).cloned().unwrap_or_default();
+        (name, data)
+    };
     unsafe { OUT = name.into_bytes(); OUT.push(0); OUT.extend_from_slice(&data); OUT.len() as u32 }
 }
 #[no_mangle]
@@ -340,6 +360,8 @@ impl Engine {
     }
     /// Stops the program with a message (the first error wins).
     pub fn set_error(&mut self, m: String) {
+        // a Linux child process that crashes ends alone (like a signal), the shell goes on
+        if self.s.lx.is_some() && linux::crash(self, &m) { return; }
         let _g = lock::lock();
         if self.s.error.is_none() { self.s.error = Some(m); }
     }
@@ -410,6 +432,7 @@ impl Engine {
         self.cpu.gs_base = TEB;
         self.sched_init();
         let bytes = self.s.files.get(name).cloned().ok_or_else(|| format!("{} not found", name))?;
+        if bytes.starts_with(b"\x7fELF") { return self.linux_boot(name, cmd); }
         // before the imports are bound: msvcrt's _acmdln points at it
         self.s.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
         let idx = pe::load_image(self, name, &bytes, true)?;

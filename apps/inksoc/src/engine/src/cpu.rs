@@ -4,6 +4,7 @@
 
 use crate::Engine;
 
+#[derive(Clone)]
 pub struct Cpu {
     pub regs: [u64; 16],
     pub rip: u64,
@@ -22,11 +23,16 @@ pub struct Cpu {
     pub lz_b: u64,
     pub lz_r: u64,
     pub jit_limit: u64, // JIT loops stop when icount reaches this
+    // x87 stack (as f64), top index, control and status words
+    pub fpu: [crate::f80::F80; 8],
+    pub ftop: u8,
+    pub fcw: u16,
+    pub fsw: u16,
 }
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { regs: [0; 16], rip: 0, cf: false, zf: false, sf: false, of: false, pf: false, df: false, icount: 0, xmm: [0; 16], gs_base: 0, fs_base: 0, seg: 0, lz_op: 0, lz_size: 0, lz_cf: 0, lz_a: 0, lz_b: 0, lz_r: 0, jit_limit: 0 }
+        Cpu { regs: [0; 16], rip: 0, cf: false, zf: false, sf: false, of: false, pf: false, df: false, icount: 0, xmm: [0; 16], gs_base: 0, fs_base: 0, seg: 0, lz_op: 0, lz_size: 0, lz_cf: 0, lz_a: 0, lz_b: 0, lz_r: 0, jit_limit: 0, fpu: [crate::f80::F80::ZERO; 8], ftop: 0, fcw: 0x37F, fsw: 0 }
     }
 }
 
@@ -70,6 +76,7 @@ pub fn step_block(e: &mut Engine, n: u64) -> u64 {
         if e.cpu.rip >= crate::THUNK_BASE { break; }
         step(e);
         done += 1;
+        if e.want_switch { break; } // the thread blocked or ended (Linux system call)
     }
     e.cpu.icount += done;
     done
@@ -85,6 +92,7 @@ pub fn step_trace(e: &mut Engine, n: u64) -> u64 {
         if r0 >= crate::THUNK_BASE { break; }
         step(e);
         done += 1;
+        if e.want_switch { break; }
         let d = e.cpu.rip.wrapping_sub(r0);
         if d == 0 || d > 15 { break; }
     }
@@ -571,8 +579,7 @@ fn step(e: &mut Engine) {
         0x9B => { e.cpu.rip = rip + d.p as u64; }
         0xF5 => { e.cpu.cf = !e.cpu.cf; e.cpu.rip = rip + d.p as u64; }
         0xF8 => { e.cpu.cf = false; e.cpu.rip = rip + d.p as u64; }
-        // x87: only fninit / fnclex (startup code resets the FPU; SSE2 does the math)
-        0xDB if d.b[d.p] == 0xE3 || d.b[d.p] == 0xE2 => { d.p += 1; e.cpu.rip = rip + d.p as u64; }
+        0xD8..=0xDF => crate::x87::x87(e, &mut d, rip, rex, op as u8),
         0xF9 => { e.cpu.cf = true; e.cpu.rip = rip + d.p as u64; }
         0xFC => { e.cpu.df = false; e.cpu.rip = rip + d.p as u64; }
         0xFD => { e.cpu.df = true; e.cpu.rip = rip + d.p as u64; }
@@ -698,6 +705,7 @@ fn two_byte(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, osz:
     match op {
         0x1F => { let m = modrm(d, e, rex); let _ = m; e.cpu.rip = rip + d.p as u64; }
         0x0B => { e.set_error(format!("ud2 at 0x{:x}", rip)); }
+        0x05 if e.s.lx.is_some() => { e.cpu.rip = rip + d.p as u64; crate::linux::syscall(e); }
         0x0D | 0x18..=0x1E => { let _ = modrm(d, e, rex); e.cpu.rip = rip + d.p as u64; }
         0xAE => {
             let m = modrm(d, e, rex);

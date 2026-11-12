@@ -38,6 +38,7 @@ const LZ_SAR: u32 = 8;
 const LZ_ADC: u32 = 9;
 const LZ_SBB: u32 = 10;
 
+#[derive(Clone)]
 pub struct Jit {
     pub on: bool,
     map: HashMap<u64, u32>,
