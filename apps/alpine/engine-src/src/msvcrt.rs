@@ -242,8 +242,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         // process
         "exit" | "_exit" | "abort" => {
-            e.s.exited = true;
-            e.s.exit_code = if name == "abort" { 3 } else { a0 as u32 };
+            e.exit_process(if name == "abort" { 3 } else { a0 as u32 });
             crate::kernel32::NO_RETURN
         }
         "_errno" => { e.iob(); e.cpu.gs_base + 0x68 }
@@ -290,7 +289,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             crate::kernel32::NO_RETURN
         }
         "_onexit" | "__dllonexit" => a0,
-        "_amsg_exit" => { e.s.exited = true; e.s.exit_code = 255; crate::kernel32::NO_RETURN }
+        "_amsg_exit" => { e.exit_process(255); crate::kernel32::NO_RETURN }
         "signal" => 0,
         "_isatty" => (a0 <= 2) as u64,
         "_get_osfhandle" => match a0 { 0 => 3, 1 => 1, 2 => 2, _ => u64::MAX },

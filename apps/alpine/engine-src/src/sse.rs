@@ -101,6 +101,11 @@ pub fn sse(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, p66: 
             _ => g!(e, e.xsrc(&m, next, 16)),
         }),
         0x11 | 0x29 | 0x2B | 0x7F | 0xE7 => { let b = if op == 0x11 && kind == 2 { 4 } else if op == 0x11 && kind == 3 { 8 } else { 16 }; g!(e, e.xstore(&m, next, b, dst)); }
+        // F2: movddup (low double twice); F3: movsldup (even singles twice)
+        0x12 if kind == 3 => { let s = g!(e, e.xsrc(&m, next, 8)) & u64::MAX as u128; out = Some(s | (s << 64)); }
+        0x12 if kind == 2 => { let s = g!(e, e.xsrc(&m, next, 16)); let a = s & 0xFFFF_FFFF; let c = (s >> 64) & 0xFFFF_FFFF; out = Some(a | a << 32 | c << 64 | c << 96); }
+        // F3: movshdup (odd singles twice)
+        0x16 if kind == 2 => { let s = g!(e, e.xsrc(&m, next, 16)); let b = (s >> 32) & 0xFFFF_FFFF; let d = s >> 96; out = Some(b | b << 32 | d << 64 | d << 96); }
         0x12 => { let s = g!(e, e.xsrc(&m, next, if m.md == 3 { 16 } else { 8 })); let lo = if m.md == 3 && !p66 { s >> 64 } else { s }; out = Some((dst & !(u64::MAX as u128)) | (lo & u64::MAX as u128)); }
         0x13 => { g!(e, e.xstore(&m, next, 8, dst)); }
         0x16 => { let s = g!(e, e.xsrc(&m, next, if m.md == 3 { 16 } else { 8 })); out = Some((dst & u64::MAX as u128) | (s << 64)); }

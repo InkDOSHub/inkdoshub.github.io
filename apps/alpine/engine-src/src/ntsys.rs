@@ -191,6 +191,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtReadFile" => {
             let (iosb, buf, n, offp) = (e.arg(4), e.arg(5), e.arg(6) as u32 as u64, e.arg(7));
             if a0 == 3 || matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { e.iosb(iosb, END_OF_FILE, 0); return Some(END_OF_FILE); }
+            if let Some(id) = e.pipe_id(a0) {
+                return Some(match e.pipe_read(a0, buf, n) {
+                    Ok(k) => { e.iosb(iosb, OK, k); OK }
+                    Err(true) => { e.iosb(iosb, 0xC000_014B, 0); 0xC000_014B } // STATUS_PIPE_BROKEN
+                    Err(false) => e.wait_on(crate::sched::W::Pipe(id), u64::MAX),
+                });
+            }
             let (k, pos) = match e.s.fs.handles.get(&a0) { Some(Handle::File { name, pos }) => (name.clone(), *pos), _ => return Some(INVALID_HANDLE) };
             let pos = if offp != 0 { let o = e.mmu.read64(offp).unwrap_or(u64::MAX); if o as i64 >= 0 { o } else { pos } } else { pos };
             let data = e.s.files.get(&k).map(|d| { let s = (pos as usize).min(d.len()); d[s..(s + n as usize).min(d.len())].to_vec() }).unwrap_or_default();
@@ -206,6 +213,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if e.mmu.read_bytes(buf, &mut v).is_err() { return Some(INVALID_PARAMETER); }
             if a0 == 1 || a0 == 2 { crate::console(&String::from_utf8_lossy(&v)); e.iosb(iosb, OK, n); return Some(OK); }
             if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { e.iosb(iosb, OK, n); return Some(OK); }
+            if e.pipe_write(a0, buf, n) { e.iosb(iosb, OK, n); return Some(OK); }
             let (k, pos) = match e.s.fs.handles.get(&a0) { Some(Handle::File { name, pos }) => (name.clone(), *pos), _ => return Some(INVALID_HANDLE) };
             let pos = if offp != 0 { let o = e.mmu.read64(offp).unwrap_or(u64::MAX); if o as i64 >= 0 { o } else { pos } } else { pos };
             let d = e.s.files.entry(k.clone()).or_default();
@@ -220,6 +228,16 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtFlushBuffersFile" | "NtFlushBuffersFileEx" => { let p = e.arg(1); e.iosb(p, OK, 0); OK }
         "NtQueryInformationFile" => {
             let (iosb, buf, len, class) = (e.arg(1), e.arg(2), e.arg(3) as u32 as u64, e.arg(4) as u32);
+            if e.pipe_id(a0).is_some() {
+                // pipe: synchronous mode (16), local pipe info (24): connected, byte mode
+                let need = match class { 8 => 4, 16 => 4, 24 => 40, 5 => 24, 4 => 40, _ => return Some(INVALID_INFO_CLASS) };
+                if len < need { return Some(INFO_LENGTH_MISMATCH); }
+                e.zero_n(buf, need);
+                let wr = matches!(e.s.fs.handles.get(&a0), Some(Handle::Pipe { write: true, .. }));
+                match class { 8 => { let _ = e.mmu.write32(buf, if wr { 0x120116 } else { 0x120089 }); } 16 => { let _ = e.mmu.write32(buf, 0x20); } 24 => { let _ = e.mmu.write32(buf + 16, 1); let _ = e.mmu.write32(buf + 20, 4096); let _ = e.mmu.write32(buf + 24, 4096); let _ = e.mmu.write32(buf + 32, 3); } 5 => { let _ = e.mmu.write32(buf + 16, 1); } 4 => { let _ = e.mmu.write32(buf + 32, 0x80); } _ => {} }
+                e.iosb(iosb, OK, need);
+                return Some(OK);
+            }
             let con = a0 <= 3;
             let (dir, size, pos) = if con { (false, 0, 0) } else { match e.file_info(a0) { Some(x) => x, None => return Some(INVALID_HANDLE) } };
             let attr: u32 = if dir { 0x10 } else { 0x80 };
@@ -237,6 +255,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 35 => { let _ = e.mmu.write32(buf, attr); }
                 18 => { basic(e, buf); std_(e, buf + 40); let _ = e.mmu.write64(buf + 64, a0); let _ = e.mmu.write64(buf + 80, pos); }
                 6 => { let _ = e.mmu.write64(buf, a0); }
+                8 => { let _ = e.mmu.write32(buf, 0x12019F); }
                 34 => { for o in [0, 8, 16, 24] { let _ = e.mmu.write64(buf + o, ft); } let _ = e.mmu.write64(buf + 32, (size + 4095) & !4095); let _ = e.mmu.write64(buf + 40, size); let _ = e.mmu.write32(buf + 48, attr); }
                 _ => {}
             }
@@ -275,9 +294,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtQueryAttributesFile" | "NtQueryFullAttributesFile" => {
             let nm = e.oa_name(a0);
-            let k = nm.rsplit(['\\', '/']).next().unwrap_or(&nm).to_ascii_lowercase();
             let out = e.arg(1);
-            let found = if k.is_empty() || k == "inksoc" || k.ends_with(':') || e.s.fs.dirs.contains(&k) { Some((0x10u32, 0u64)) } else { e.s.files.get(&k).map(|d| (0x80u32, d.len() as u64)) };
+            let found = match crate::files::key_of(&nm) { None => Some((0x10u32, 0u64)), Some(k) => if e.is_dir(&k) { Some((0x10u32, 0u64)) } else { e.s.files.get(&k).map(|d| (0x80u32, d.len() as u64)) } };
             match found {
                 Some((attr, size)) => {
                     let ft = now_ft();
@@ -293,18 +311,22 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             // (handle*, access, attributes, iosb, [alloc size, file attributes, share, disposition, options])
             let oa = e.arg(2); let nm = e.oa_name(oa);
             let iosb = e.arg(3);
-            let k = nm.rsplit(['\\', '/']).next().unwrap_or(&nm).to_ascii_lowercase();
             let disp = if name == "NtCreateFile" { e.arg(7) as u32 } else { 1 }; // FILE_OPEN
-            if k.is_empty() || k == "inksoc" || k.ends_with(':') || k == "??" {
+            if nm.len() >= 11 && nm[..11].eq_ignore_ascii_case("\\Device\\Afd") {
+                let h = e.new_handle(Handle::Afd); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, 1); return Some(OK);
+            }
+            let kk = crate::files::key_of(&nm);
+            let k = kk.clone().unwrap_or_default();
+            if kk.is_none() || k == "??" {
                 let h = e.new_handle(Handle::Dir); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, 1); return Some(OK);
             }
             if k == "conin$" { let _ = e.mmu.write64(a0, 3); e.iosb(iosb, OK, 1); return Some(OK); }
             if nm.starts_with("\\??\\CON") || nm.eq_ignore_ascii_case("CONOUT$") { let _ = e.mmu.write64(a0, 1); e.iosb(iosb, OK, 1); return Some(OK); }
             if k == "nul" { let h = e.new_handle(Handle::Null); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, 1); return Some(OK); }
             let opts = if name == "NtCreateFile" { e.arg(8) as u32 } else { e.arg(5) as u32 };
-            let is_dir = e.s.fs.dirs.contains(&k);
+            let is_dir = e.is_dir(&k);
             if is_dir || opts & 1 != 0 { // FILE_DIRECTORY_FILE
-                if !is_dir && matches!(disp, 2 | 3) && !e.s.files.contains_key(&k) { e.s.fs.dirs.insert(k.clone()); }
+                if !is_dir && matches!(disp, 2 | 3) && !e.s.files.contains_key(&k) { e.note_case(&k, &nm); e.s.fs.dirs.insert(k.clone()); }
                 else if !is_dir { return Some(OBJECT_NAME_NOT_FOUND); }
                 else if disp == 2 { return Some(0xC000_0035); }
                 let h = e.new_handle(Handle::Dir); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, if is_dir { 1 } else { 2 }); return Some(OK);
@@ -316,7 +338,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 2 if exists => return Some(0xC000_0035), // OBJECT_NAME_COLLISION
                 _ => {}
             }
-            if !exists || matches!(disp, 0 | 4 | 5) { e.s.files.insert(k.clone(), Vec::new()); e.s.fs.written.insert(k.clone()); }
+            if !exists || matches!(disp, 0 | 4 | 5) { e.s.files.insert(k.clone(), Vec::new()); e.s.fs.written.insert(k.clone()); e.note_case(&k, &nm); }
             let h = e.new_handle(Handle::File { name: k, pos: 0 });
             let _ = e.mmu.write64(a0, h);
             e.iosb(iosb, OK, if exists { 1 } else { 2 });
@@ -324,11 +346,34 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtDeleteFile" => {
             let nm = e.oa_name(a0);
-            let k = nm.rsplit(['\\', '/']).next().unwrap_or(&nm).to_ascii_lowercase();
+            let k = crate::files::key_of(&nm).unwrap_or_default();
             if e.s.files.remove(&k).is_some() { e.s.fs.written.remove(&k); OK } else { OBJECT_NAME_NOT_FOUND }
         }
         "NtQueryDirectoryFile" | "NtQueryDirectoryFileEx" => 0x8000_0006, // STATUS_NO_MORE_FILES
-        "NtDeviceIoControlFile" | "NtFsControlFile" => 0xC000_0010, // STATUS_INVALID_DEVICE_REQUEST
+        "NtDeviceIoControlFile" | "NtFsControlFile" => {
+            // sockets: Wine's ws2_32 creates them with IOCTL_AFD_WINE_CREATE; nothing else works yet
+            if name == "NtDeviceIoControlFile" && matches!(e.s.fs.handles.get(&a0), Some(Handle::Afd)) {
+                let (iosb, code) = (e.arg(4), e.arg(5) as u32);
+                let (inp, inl, out, outl) = (e.arg(6), e.arg(7) as u32 as u64, e.arg(8), e.arg(9) as u32 as u64);
+                match code {
+                    0x12_0320 => { e.iosb(iosb, OK, 0); return Some(OK); } // create
+                    // bind: the address asked for is the address got
+                    0x1_2003 => {
+                        let n = inl.saturating_sub(4).min(outl);
+                        let mut v = vec![0u8; n as usize];
+                        let _ = e.mmu.read_bytes(inp + 4, &mut v);
+                        let _ = e.mmu.write_bytes(out, &v);
+                        e.iosb(iosb, OK, n); return Some(OK);
+                    }
+                    // complete an async call that user mode already finished: the status is the input
+                    0x12_0348 => { let st = e.mmu.read32(inp).unwrap_or(0) as u64; e.iosb(iosb, st, 0); return Some(st); }
+                    _ => {}
+                }
+                if unsafe { crate::TRACE } { crate::console(&format!("[afd] ioctl {:x}\n", code)); }
+                return Some(0xC000_00BB); // STATUS_NOT_SUPPORTED
+            }
+            0xC000_0010 // STATUS_INVALID_DEVICE_REQUEST
+        }
         "NtCancelIoFile" | "NtCancelIoFileEx" | "NtCancelSynchronousIoFile" => { let p = e.arg(1); e.iosb(p, OK, 0); OK }
         "NtCreateNamedPipeFile" | "NtCreateMailslotFile" => NOT_IMPLEMENTED,
 
@@ -460,12 +505,17 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtQueryTimerResolution" => { let (b, c) = (e.arg(1), e.arg(2)); let _ = e.mmu.write32(a0, 156_250); let _ = e.mmu.write32(b, 5000); let _ = e.mmu.write32(c, 156_250); OK }
         "NtSetTimerResolution" => { let p = e.arg(2); let _ = e.mmu.write32(p, 10_000); OK }
         "NtGetCurrentProcessorNumber" => 0,
-        "NtTerminateProcess" => { if a0 == 0 || a0 == u64::MAX { e.s.exited = true; e.s.exit_code = e.arg(1) as u32; return Some(crate::kernel32::NO_RETURN); } OK }
+        "NtTerminateProcess" => {
+            let code = e.arg(1) as u32;
+            if a0 == 0 || a0 == u64::MAX { e.exit_process(code); return Some(crate::kernel32::NO_RETURN); }
+            if let Some(Handle::Process { pid }) = e.s.fs.handles.get(&a0) { let p = *pid; if let Some(i) = e.s.pinfo.get_mut(&p) { if i.exit.is_none() { i.exit = Some(code); } } for t in e.s.sched.th.iter_mut() { if t.wpid == p { t.st = crate::sched::St::Done; } } }
+            OK
+        }
         "NtQueryDefaultLocale" => { let p = e.arg(1); let _ = e.mmu.write32(p, 0x409); OK }
         "NtQueryDefaultUILanguage" | "NtQueryInstallUILanguage" => { let _ = e.mmu.write16(a0, 0x409); OK }
         "NtQueryLicenseValue" => OBJECT_NAME_NOT_FOUND,
         "NtTraceControl" | "NtTraceEvent" => OK,
-        "NtDuplicateObject" => { let (h, out) = (e.arg(1), e.arg(3)); if out != 0 { let _ = e.mmu.write64(out, h); } OK }
+        "NtDuplicateObject" => { let (h, out) = (e.arg(1), e.arg(3)); let h = e.dup_handle(h); if out != 0 { let _ = e.mmu.write64(out, h); } OK }
         "NtQueryObject" => INVALID_INFO_CLASS,
         "NtDisplayString" => OK,
 
@@ -499,8 +549,70 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtQueryValueKey" | "NtQueryKey" | "NtEnumerateKey" | "NtEnumerateValueKey" | "NtDeleteKey" | "NtDeleteValueKey" | "NtSetValueKey" | "NtNotifyChangeKey" | "NtFlushKey" => INVALID_HANDLE,
 
         // ---- sections: no file mapping yet ----
-        "NtCreateSection" | "NtOpenSection" | "NtMapViewOfSection" | "NtMapViewOfSectionEx" => NOT_IMPLEMENTED,
-        "NtUnmapViewOfSection" | "NtUnmapViewOfSectionEx" => OK,
+        "NtCreateSection" => {
+            // (handle*, access, attributes, size*, protection, allocation, file)
+            let (sp, file) = (e.arg(3), e.arg(6));
+            let want = if sp != 0 { e.mmu.read64(sp).unwrap_or(0) } else { 0 };
+            let s = if file != 0 {
+                let Some(Handle::File { name, .. }) = e.s.fs.handles.get(&file) else { return Some(INVALID_HANDLE) };
+                let name = name.clone();
+                let len = e.s.files.get(&name).map_or(0, |d| d.len() as u64);
+                if want > len { if let Some(d) = e.s.files.get_mut(&name) { d.resize(want as usize, 0); } }
+                let size = want.max(len);
+                if size == 0 { return Some(0xC000_011E); } // STATUS_MAPPED_FILE_SIZE_ZERO
+                Handle::Section { file: Some(name), size, base: 0 }
+            } else {
+                if want == 0 { return Some(INVALID_PARAMETER); }
+                Handle::Section { file: None, size: want, base: 0 }
+            };
+            let h = e.new_handle(s);
+            let _ = e.mmu.write64(a0, h);
+            OK
+        }
+        "NtMapViewOfSection" | "NtMapViewOfSectionEx" => {
+            // (section, process, base*, zero bits, commit, offset*, view size*, ...) / Ex: (section, process, base*, offset*, view size*, ...)
+            let ex = name == "NtMapViewOfSectionEx";
+            let (bp, op, vp) = if ex { (e.arg(2), e.arg(3), e.arg(4)) } else { (e.arg(2), e.arg(5), e.arg(6)) };
+            let off = if op != 0 { e.mmu.read64(op).unwrap_or(0) } else { 0 };
+            let want = if vp != 0 { e.mmu.read64(vp).unwrap_or(0) } else { 0 };
+            let (file, size, base) = match e.s.fs.handles.get(&a0) { Some(Handle::Section { file, size, base }) => (file.clone(), *size, *base), _ => return Some(INVALID_HANDLE) };
+            if off > size { return Some(INVALID_PARAMETER); }
+            let len = if want == 0 { size - off } else { want.min(size - off) };
+            let addr = match &file {
+                Some(f) => {
+                    let Some(a) = e.alloc((len + 0xFFF) & !0xFFF) else { return Some(0xC000_0017) };
+                    let data = e.s.files.get(f).map(|d| d[(off as usize).min(d.len())..((off + len) as usize).min(d.len())].to_vec()).unwrap_or_default();
+                    let _ = e.mmu.write_bytes(a, &data);
+                    e.s.fs.views.insert(a, (f.clone(), off, len));
+                    a
+                }
+                None if base != 0 => base + off,
+                None => {
+                    let Some(a) = e.alloc((size + 0xFFF) & !0xFFF) else { return Some(0xC000_0017) };
+                    if let Some(Handle::Section { base, .. }) = e.s.fs.handles.get_mut(&a0) { *base = a; }
+                    a + off
+                }
+            };
+            let _ = e.mmu.write64(bp, addr);
+            if vp != 0 { let _ = e.mmu.write64(vp, (len + 0xFFF) & !0xFFF); }
+            OK
+        }
+        "NtUnmapViewOfSection" | "NtUnmapViewOfSectionEx" => {
+            // a file view: its bytes go back to the file
+            let a = e.arg(1);
+            if let Some((f, off, len)) = e.s.fs.views.remove(&a) {
+                let mut v = vec![0u8; len as usize];
+                if e.mmu.read_bytes(a, &mut v).is_ok() {
+                    if let Some(d) = e.s.files.get_mut(&f) {
+                        let end = ((off + len) as usize).min(d.len());
+                        let o = (off as usize).min(end);
+                        if d[o..end] != v[..end - o] { d[o..end].copy_from_slice(&v[..end - o]); e.s.fs.written.insert(f); }
+                    }
+                }
+                e.mmu.release_region(a);
+            }
+            OK
+        }
         "NtGetNlsSectionPtr" | "NtInitializeNlsFiles" => NOT_IMPLEMENTED,
         "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); let _ = e.mmu.write64(a0, h); OK }
         "NtSetIoCompletion" | "NtRemoveIoCompletion" | "NtRemoveIoCompletionEx" => NOT_IMPLEMENTED,

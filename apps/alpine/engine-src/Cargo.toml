@@ -16,3 +16,5 @@ codegen-units = 1
 
 [features]
 prof = []
+# instruction-by-instruction check against a reference CPU (tools/diff)
+diff = []
