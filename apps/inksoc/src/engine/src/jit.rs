@@ -432,6 +432,7 @@ impl G {
     /// Pushes the size-bit value at address local `a`.
     fn load(&mut self, a: u32, size: u32) {
         self.tlb_check(a, size / 8, false);
+        #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, false); self.b(I32AND); }
         self.b(IF); self.b(T_I64);
         self.host(a);
         let (op, al) = match size { 8 => (0x31, 0), 16 => (0x33, 1), 32 => (0x35, 2), _ => (I64LOAD, 3) };
@@ -444,6 +445,7 @@ impl G {
     /// Stores local v (size bits) at address local `a`.
     fn store(&mut self, a: u32, v: u32, size: u32) {
         self.tlb_check(a, size / 8, true);
+        #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, true); self.b(I32AND); }
         self.b(IF); self.b(VOID);
         self.host(a);
         self.get(v);
@@ -585,6 +587,10 @@ impl G {
     // ---- exits ----
 
     fn flush(&mut self) {
+        #[cfg(feature = "ab_flush")] self.flush_once();
+        self.flush_once();
+    }
+    fn flush_once(&mut self) {
         for r in 0..16u8 {
             if self.dirty & (1 << r) != 0 {
                 self.st_base(); self.get(R0 + r as u32);
@@ -1468,6 +1474,8 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     }
     g.b(END); // loop
     g.b(END); // function
+    #[cfg(feature = "prof")]
+    { prof::add(0xD0000000, total as u64); prof::add(0xD0000001, g.c.len() as u64); }
 
     finish(g)
 }
