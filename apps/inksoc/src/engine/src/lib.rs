@@ -4,10 +4,12 @@
 // License: GPL-3.0-or-later.
 
 mod cpu;
+mod files;
 mod heap;
 mod kernel32;
 mod mmu;
 mod msvcrt;
+mod oleaut;
 mod pe;
 mod sse;
 
@@ -59,6 +61,7 @@ pub struct Engine {
     pub cmdline: (u64, u64),
     pub unknown_calls: u64,
     pub crt: msvcrt::Crt,
+    pub fs: files::Files,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -96,7 +99,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0,
             init_queue: Vec::new(), loadlib: Vec::new(),
-            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(),
+            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
         });
     }
 }
@@ -145,6 +148,22 @@ pub extern "C" fn run(budget: u32) -> i32 {
     }
     if e.error.is_some() { 2 } else if e.exited { 1 } else { 0 }
 }
+
+static mut OUT: Vec<u8> = Vec::new();
+
+/// The i-th file the program wrote: fills out_ptr() with "name\0data" and
+/// returns its length, or 0 when there are no more.
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn out_file(i: u32) -> u32 {
+    let e = eng();
+    let Some(name) = e.fs.written.iter().nth(i as usize).cloned() else { return 0 };
+    let data = e.files.get(&name).cloned().unwrap_or_default();
+    unsafe { OUT = name.into_bytes(); OUT.push(0); OUT.extend_from_slice(&data); OUT.len() as u32 }
+}
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn out_ptr() -> *const u8 { unsafe { OUT.as_ptr() } }
 
 #[no_mangle]
 pub extern "C" fn stat(i: u32) -> f64 {
@@ -341,7 +360,8 @@ impl Engine {
                 Some(unsafe { wine_RtlComputeCrc32(a, b, c) } as u64)
             }
             _ if dll == "msvcrt.dll" => msvcrt::call(self, &name),
-            _ => kernel32::call(self, &name),
+            _ if dll == "oleaut32.dll" => oleaut::call(self, &name),
+            _ => files::call(self, &name).or_else(|| kernel32::call(self, &name)),
         };
         if self.error.is_some() || self.exited { return; }
         match r {

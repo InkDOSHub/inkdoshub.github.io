@@ -104,6 +104,21 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetProcessAffinityMask" => { let (p, s) = (e.arg(1), e.arg(2)); e.w64(p, 1); e.w64(s, 1); 1 }
         "SetProcessAffinityMask" | "SetThreadAffinityMask" => 1,
         "GetLargePageMinimum" => 0,
+        // user32 text helpers (no windows needed)
+        "CharPrevExA" => { let (start, cur) = (e.arg(1), e.arg(2)); if cur > start { cur - 1 } else { start } }
+        "CharPrevA" | "CharPrevW" => { let cur = e.arg(1); let step = if name.ends_with('W') { 2 } else { 1 }; if cur > a0 { cur - step } else { a0 } }
+        "CharNextA" => { if e.mmu.read8(a0).unwrap_or(0) != 0 { a0 + 1 } else { a0 } }
+        "CharNextW" => { if e.mmu.read16(a0).unwrap_or(0) != 0 { a0 + 2 } else { a0 } }
+        "CharUpperW" | "CharLowerW" => {
+            let up = name == "CharUpperW";
+            let conv = |c: u16| -> u16 { let ch = char::from_u32(c as u32).unwrap_or('?'); let s: String = if up { ch.to_uppercase().collect() } else { ch.to_lowercase().collect() }; s.encode_utf16().next().unwrap_or(c) };
+            if a0 >> 16 == 0 { conv(a0 as u16) as u64 } else {
+                let mut i = 0; loop { let c = e.mmu.read16(a0 + 2 * i).unwrap_or(0); if c == 0 { break; } let _ = e.mmu.write16(a0 + 2 * i, conv(c)); i += 1; }
+                a0
+            }
+        }
+        "GetActiveProcessorGroupCount" | "GetMaximumProcessorGroupCount" => 1,
+        "GetActiveProcessorCount" | "GetMaximumProcessorCount" => 1,
         // advapi32: no security tokens or registry yet; callers handle the failure
         "OpenProcessToken" | "OpenThreadToken" | "LookupPrivilegeValueW" | "LookupPrivilegeValueA" | "AdjustTokenPrivileges" => { e.set_last_error(5); 0 }
         "RegOpenKeyExW" | "RegOpenKeyExA" | "RegQueryValueExW" | "RegQueryValueExA" => 2,

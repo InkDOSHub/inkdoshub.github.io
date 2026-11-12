@@ -41,7 +41,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
   };
   let wine;
-  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=5', 'wine.wasm?v=1'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=7', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
   mem = x.memory;
@@ -74,7 +74,14 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
   while ((st = x.run(2000000)) === 0) post('stats', stats());
   post('stats', stats());
   if (swap) { swap.flush(); swap.truncate(0); swap.close(); }
-  post('done', { ok: st === 1 && x.stat(6) === 0, error: st === 2 ? msg() : '', exitCode: x.stat(6) });
+  // files the program created or changed, offered for download
+  const out = [];
+  for (let i = 0, n; (n = x.out_file(i)); i++) {
+    const b = new Uint8Array(mem.buffer, x.out_ptr(), n).slice();
+    const nl = b.indexOf(0);
+    out.push({ name: new TextDecoder().decode(b.subarray(0, nl)), data: b.subarray(nl + 1) });
+  }
+  post('done', { ok: st === 1 && x.stat(6) === 0, error: st === 2 ? msg() : '', exitCode: x.stat(6), out });
 }
 
 async function runProof({ poolMb, targetMb, testMb }) {

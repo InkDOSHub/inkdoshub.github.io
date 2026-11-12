@@ -203,7 +203,9 @@ const WINE_FUNCS: &[(&str, i32)] = &[
     ("isdigit", 18), ("isalpha", 19), ("isalnum", 20), ("isupper", 21), ("islower", 22),
     ("_stricmp", 23), ("_strnicmp", 24), ("strspn", 25), ("strcspn", 26), ("strpbrk", 27),
     ("strtok", 28), ("memchr", 29), ("_vsnprintf", 32), ("vsnprintf", 32), ("vsprintf", 33),
-    ("memcmp", 35), ("_itoa", 36),
+    ("memcmp", 35), ("_itoa", 36), ("wcslen", 37), ("wcscmp", 38), ("wcsncmp", 39), ("wcscpy", 40),
+    ("wcscat", 41), ("wcschr", 42), ("wcsrchr", 43), ("wcsstr", 44), ("_wcsicmp", 45), ("towupper", 46),
+    ("towlower", 47), ("wcstol", 48), ("wcsncpy", 49), ("_wcsnicmp", 50), ("_wcsdup", 51), ("wcstoul", 52),
 ];
 
 pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
@@ -283,7 +285,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             initterm_next(e);
             crate::kernel32::NO_RETURN
         }
-        "_onexit" => a0,
+        "_onexit" | "__dllonexit" => a0,
         "_amsg_exit" => { e.exited = true; e.exit_code = 255; crate::kernel32::NO_RETURN }
         "signal" => 0,
         "_isatty" => (a0 <= 2) as u64,
@@ -292,7 +294,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "___lc_codepage_func" => 0,
         "___mb_cur_max_func" => 1,
         "strerror" => { if e.crt.strerror == 0 { e.crt.strerror = e.put_str("error", false); } e.crt.strerror }
-        "wcslen" => { let mut n = 0; while e.mmu.read16(a0 + 2 * n).unwrap_or(0) != 0 { n += 1; } n }
         "atexit" => 0,
         "localeconv" => {
             // a "C" locale lconv: decimal point "."
@@ -323,7 +324,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "fclose" => {
             match e.crt.streams.remove(&a0) {
-                Some(s) => { if s.write { e.files.insert(s.name, s.data); } e.heap_free(a0); 0 }
+                Some(s) => { if s.write { e.fs.written.insert(s.name.clone()); e.files.insert(s.name, s.data); } e.heap_free(a0); 0 }
                 None => u32::MAX as u64,
             }
         }

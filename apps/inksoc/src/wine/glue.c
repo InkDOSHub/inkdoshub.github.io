@@ -148,6 +148,7 @@ static int vprint_to(INT64 stream, const char *fmt, va_list va)
 #define P(x) ((void *)(x))
 #define S(x) ((char *)(x))
 #define I(x) ((int)(x))
+#define W(x) ((wchar_t *)(x))
 
 INT64 CDECL ink_call(int id, INT64 a, INT64 b, INT64 c, INT64 d)
 {
@@ -191,6 +192,22 @@ INT64 CDECL ink_call(int id, INT64 a, INT64 b, INT64 c, INT64 d)
     case 34: return vprint_to(a, S(b), (va_list)c);
     case 35: return memcmp(P(a), P(b), c);
     case 36: return (INT64)_itoa(I(a), S(b), I(c));
+    case 37: return wcslen(W(a));
+    case 38: return wcscmp(W(a), W(b));
+    case 39: return wcsncmp(W(a), W(b), c);
+    case 40: return (INT64)wcscpy(W(a), W(b));
+    case 41: return (INT64)wcscat(W(a), W(b));
+    case 42: return (INT64)wcschr(W(a), (wchar_t)b);
+    case 43: return (INT64)wcsrchr(W(a), (wchar_t)b);
+    case 44: return (INT64)wcsstr(W(a), W(b));
+    case 45: return _wcsicmp(W(a), W(b));
+    case 46: return towupper((wint_t)a);
+    case 47: return towlower((wint_t)a);
+    case 48: return wcstol(W(a), P(b), I(c));
+    case 49: return (INT64)wcsncpy(W(a), W(b), c);
+    case 50: return _wcsnicmp(W(a), W(b), c);
+    case 51: return (INT64)_wcsdup(W(a));
+    case 52: return wcstoul(W(a), P(b), I(c));
     }
     return 0;
 }
