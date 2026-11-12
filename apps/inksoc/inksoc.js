@@ -59,12 +59,20 @@ function runExec(files, exe, args) {
 $('exec').onclick = () => runExec(null, 'stage1.exe');
 $('exec2').onclick = () => runExec(null, 'stage2.exe');
 $('exec4').onclick = () => runExec(null, 'stage4.exe');
+// Picked files add up: a DLL or data file picked later joins the .exe picked before
+// (some browsers hand over only one file per pick). Names like "7z (1).dll" are fixed.
+const picked = new Map();
 $('pick').onchange = async (ev) => {
-  const list = [...ev.target.files];
-  const exe = list.find((f) => /\.exe$/i.test(f.name));
-  if (!exe) { $('exec-out').textContent = 'Select an .exe (and its DLLs, if any).'; return; }
-  const files = await Promise.all(list.map(async (f) => ({ name: f.name, data: await f.arrayBuffer() })));
+  for (const f of ev.target.files) {
+    const name = f.name.replace(/ \(\d+\)(?=\.[^.]+$)/, '');
+    picked.set(name.toLowerCase(), { name, data: await f.arrayBuffer() });
+  }
   ev.target.value = '';
+  const all = [...picked.values()];
+  const exes = all.filter((f) => /\.exe$/i.test(f.name));
+  if (!exes.length) { $('exec-out').textContent = 'Picked: ' + all.map((f) => f.name).join(', ') + '. Now pick the .exe.'; return; }
+  const exe = exes[exes.length - 1];
+  const files = all.map((f) => ({ name: f.name, data: f.data.slice(0) }));
   runExec(files, exe.name, $('args').value.trim());
 };
 

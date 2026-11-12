@@ -44,7 +44,7 @@
     <input id="args" placeholder="arguments (optional)" style="min-width:10em">
     <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="jit" checked>JIT</label>
     <label style="flex-direction:row;align-items:center;gap:4px" title="Program threads run at the same time on several cores; needs hub.inkdos.workers.dev (on other addresses 1 core is used)">Cores <select id="cores"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
-    <label class="btnlike">Open .exe…<input type="file" id="pick" multiple accept=".exe,.dll" hidden></label>
+    <label class="btnlike">Open .exe…<input type="file" id="pick" multiple hidden></label>
   </div>
   <p class="n" id="budget"></p>
   <table id="exec-stats"></table>
@@ -107,6 +107,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=25"></script>
+<script src="inksoc.js?v=26"></script>
 </body>
 </html>
