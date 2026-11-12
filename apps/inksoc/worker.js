@@ -88,7 +88,12 @@ async function calibrate({ startMb }) {
   const step = 128, pagesPerStep = step * 16; // 64 KB wasm pages
   const m = new WebAssembly.Memory({ initial: 16, maximum: 65536 });
   let mb = 1;
-  const touch = (fromMb, toMb) => { const u8 = new Uint8Array(m.buffer); for (let o = fromMb << 20; o < toMb << 20; o += 4096) u8[o] = 1; };
+  // Fill with random data: iOS compresses mostly-empty pages, which would hide the real limit.
+  let seed = 2463534242;
+  const touch = (fromMb, toMb) => {
+    const u32 = new Uint32Array(m.buffer, fromMb << 20, (toMb - fromMb) << 18);
+    for (let i = 0; i < u32.length; i++) { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; u32[i] = seed; }
+  };
   while (mb + step <= 4096) {
     try { m.grow(pagesPerStep); } catch (e) { post('calib', { mb, refused: true }); return; }
     touch(mb, mb + step);

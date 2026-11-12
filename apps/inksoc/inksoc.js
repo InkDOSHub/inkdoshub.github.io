@@ -12,7 +12,7 @@ const fmt = (n) => Math.round(n).toLocaleString('en-US');
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=1');
+  const w = new Worker('worker.js?v=2');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
@@ -39,7 +39,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=1');
+  const w = new Worker('worker.js?v=2');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -143,7 +143,7 @@ function showLimits() {
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=1');
+  const w = new Worker('worker.js?v=2');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -164,7 +164,7 @@ $('tex').onclick = async () => {
   const gl = cv.getContext('webgl2');
   if (!gl) { $('lim-out').textContent = 'No WebGL2'; return; }
   const size = 2048, data = new Uint8Array(size * size * 4); // 16 MB each
-  for (let i = 0; i < data.length; i += 4096) data[i] = i & 255;
+  crypto.getRandomValues(data.subarray(0, 65536)); for (let i = 65536; i < data.length; i += 65536) data.copyWithin(i, 0, 65536);
   const keep = [];
   let mb = 0;
   store.set(Object.assign(store.get(), { tex: { mb: 0, running: true } }));
