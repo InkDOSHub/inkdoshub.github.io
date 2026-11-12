@@ -305,8 +305,13 @@ $('combo').onclick = async () => {
 
   log('Creating the GPU pool...');
   const step = (t) => { $('combo-live').textContent = 'step: ' + t; };
-  step('canvas context');
-  const ctx = $('combo-cv').getContext('webgpu');
+  // Draw target: the page canvas, or an OffscreenCanvas (as in test 3) copied to the page each frame
+  const drawMode = $('combo-draw').value;
+  step('canvas context (' + drawMode + ')');
+  const cv = $('combo-cv');
+  const off = drawMode === 'page' ? null : new OffscreenCanvas(cv.width, cv.height);
+  const ctx = (off || cv).getContext('webgpu');
+  const show = drawMode === 'copy' ? cv.getContext('bitmaprenderer') : null;
   const format = navigator.gpu.getPreferredCanvasFormat();
   step('configure');
   ctx.configure({ device: dev, format });
@@ -390,6 +395,7 @@ $('combo').onclick = async () => {
       }
       pass.end();
       dev.queue.submit([enc.finish()]);
+      if (show) show.transferFromImageBitmap(off.transferToImageBitmap());
       const sec = (now - t0) / 1000;
       if (sec - lastMark >= 1) {
         lastMark = sec;

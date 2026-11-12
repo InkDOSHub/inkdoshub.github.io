@@ -88,6 +88,7 @@
     <label>Engine RAM<select id="combo-ram"><option value="-1" selected>Auto</option><option value="0">0 MB</option><option value="256">256 MB</option><option value="512">512 MB</option></select></label>
     <label>GPU pool<select id="combo-gpu"><option value="0" selected>Auto</option><option value="128">128 MB</option><option value="256">256 MB</option><option value="512">512 MB</option></select></label>
     <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="combo-astc" checked>ASTC check</label>
+    <label>Draw to<select id="combo-draw"><option value="copy" selected>Offscreen + copy</option><option value="page">Page canvas</option><option value="off">Offscreen only</option></select></label>
     <button id="combo">Run 30 s</button>
   </div>
   <canvas id="combo-cv" width="512" height="288" style="width:100%;max-width:512px;aspect-ratio:16/9;margin-top:8px;border-radius:8px;background:#000"></canvas>
@@ -100,6 +101,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=9"></script>
+<script src="inksoc.js?v=10"></script>
 </body>
 </html>
