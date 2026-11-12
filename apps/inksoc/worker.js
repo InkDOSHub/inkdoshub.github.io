@@ -91,7 +91,7 @@ async function calibrate({ startMb }) {
   // Fill with random data: iOS compresses mostly-empty pages, which would hide the real limit.
   let seed = 2463534242;
   const touch = (fromMb, toMb) => {
-    const u32 = new Uint32Array(m.buffer, fromMb << 20, (toMb - fromMb) << 18);
+    const u32 = new Uint32Array(m.buffer, fromMb * 1048576, (toMb - fromMb) * 262144);
     for (let i = 0; i < u32.length; i++) { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; u32[i] = seed; }
   };
   while (mb + step <= 4096) {
