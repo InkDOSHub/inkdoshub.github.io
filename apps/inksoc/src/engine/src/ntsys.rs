@@ -518,8 +518,70 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtQueryValueKey" | "NtQueryKey" | "NtEnumerateKey" | "NtEnumerateValueKey" | "NtDeleteKey" | "NtDeleteValueKey" | "NtSetValueKey" | "NtNotifyChangeKey" | "NtFlushKey" => INVALID_HANDLE,
 
         // ---- sections: no file mapping yet ----
-        "NtCreateSection" | "NtOpenSection" | "NtMapViewOfSection" | "NtMapViewOfSectionEx" => NOT_IMPLEMENTED,
-        "NtUnmapViewOfSection" | "NtUnmapViewOfSectionEx" => OK,
+        "NtCreateSection" => {
+            // (handle*, access, attributes, size*, protection, allocation, file)
+            let (sp, file) = (e.arg(3), e.arg(6));
+            let want = if sp != 0 { e.mmu.read64(sp).unwrap_or(0) } else { 0 };
+            let s = if file != 0 {
+                let Some(Handle::File { name, .. }) = e.s.fs.handles.get(&file) else { return Some(INVALID_HANDLE) };
+                let name = name.clone();
+                let len = e.s.files.get(&name).map_or(0, |d| d.len() as u64);
+                if want > len { if let Some(d) = e.s.files.get_mut(&name) { d.resize(want as usize, 0); } }
+                let size = want.max(len);
+                if size == 0 { return Some(0xC000_011E); } // STATUS_MAPPED_FILE_SIZE_ZERO
+                Handle::Section { file: Some(name), size, base: 0 }
+            } else {
+                if want == 0 { return Some(INVALID_PARAMETER); }
+                Handle::Section { file: None, size: want, base: 0 }
+            };
+            let h = e.new_handle(s);
+            let _ = e.mmu.write64(a0, h);
+            OK
+        }
+        "NtMapViewOfSection" | "NtMapViewOfSectionEx" => {
+            // (section, process, base*, zero bits, commit, offset*, view size*, ...) / Ex: (section, process, base*, offset*, view size*, ...)
+            let ex = name == "NtMapViewOfSectionEx";
+            let (bp, op, vp) = if ex { (e.arg(2), e.arg(3), e.arg(4)) } else { (e.arg(2), e.arg(5), e.arg(6)) };
+            let off = if op != 0 { e.mmu.read64(op).unwrap_or(0) } else { 0 };
+            let want = if vp != 0 { e.mmu.read64(vp).unwrap_or(0) } else { 0 };
+            let (file, size, base) = match e.s.fs.handles.get(&a0) { Some(Handle::Section { file, size, base }) => (file.clone(), *size, *base), _ => return Some(INVALID_HANDLE) };
+            if off > size { return Some(INVALID_PARAMETER); }
+            let len = if want == 0 { size - off } else { want.min(size - off) };
+            let addr = match &file {
+                Some(f) => {
+                    let Some(a) = e.alloc((len + 0xFFF) & !0xFFF) else { return Some(0xC000_0017) };
+                    let data = e.s.files.get(f).map(|d| d[(off as usize).min(d.len())..((off + len) as usize).min(d.len())].to_vec()).unwrap_or_default();
+                    let _ = e.mmu.write_bytes(a, &data);
+                    e.s.fs.views.insert(a, (f.clone(), off, len));
+                    a
+                }
+                None if base != 0 => base + off,
+                None => {
+                    let Some(a) = e.alloc((size + 0xFFF) & !0xFFF) else { return Some(0xC000_0017) };
+                    if let Some(Handle::Section { base, .. }) = e.s.fs.handles.get_mut(&a0) { *base = a; }
+                    a + off
+                }
+            };
+            let _ = e.mmu.write64(bp, addr);
+            if vp != 0 { let _ = e.mmu.write64(vp, (len + 0xFFF) & !0xFFF); }
+            OK
+        }
+        "NtUnmapViewOfSection" | "NtUnmapViewOfSectionEx" => {
+            // a file view: its bytes go back to the file
+            let a = e.arg(1);
+            if let Some((f, off, len)) = e.s.fs.views.remove(&a) {
+                let mut v = vec![0u8; len as usize];
+                if e.mmu.read_bytes(a, &mut v).is_ok() {
+                    if let Some(d) = e.s.files.get_mut(&f) {
+                        let end = ((off + len) as usize).min(d.len());
+                        let o = (off as usize).min(end);
+                        if d[o..end] != v[..end - o] { d[o..end].copy_from_slice(&v[..end - o]); e.s.fs.written.insert(f); }
+                    }
+                }
+                e.mmu.release_region(a);
+            }
+            OK
+        }
         "NtGetNlsSectionPtr" | "NtInitializeNlsFiles" => NOT_IMPLEMENTED,
         "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); let _ = e.mmu.write64(a0, h); OK }
         "NtSetIoCompletion" | "NtRemoveIoCompletion" | "NtRemoveIoCompletionEx" => NOT_IMPLEMENTED,

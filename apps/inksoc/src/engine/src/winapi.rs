@@ -535,7 +535,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "TlsGetValue2" => { e.mmu.read64(e.cpu.gs_base + 0x1480 + 8 * a0.min(63)).unwrap_or(0) }
         "EventRegister" | "EventUnregister" | "EventSetInformation" | "EventWriteTransfer" | "EventWrite" => 0,
         "OutputDebugStringW" => { let s = e.read_wstr(a0, 4096); console(&format!("[debug] {}", s)); 0 }
-        "GetFileVersionInfoSizeW" | "GetFileVersionInfoSizeA" | "GetFileVersionInfoW" | "GetFileVersionInfoA" | "VerQueryValueW" | "VerQueryValueA" => { e.last_err(1813); 0 }
         "WerSetFlags" | "WerRegisterRuntimeExceptionModule" => 0,
         "CoInitialize" | "CoInitializeEx" | "OleInitialize" => 0,
         "CoUninitialize" | "OleUninitialize" => 0,

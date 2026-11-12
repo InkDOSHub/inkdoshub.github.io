@@ -64,6 +64,24 @@ pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     if !NATIVE_DLLS.contains(&n.as_str()) && !n.starts_with("api-ms-win-") && !e.s.files.contains_key(&format!("wine-{}", n)) {
         crate::console(&format!("[inksoc] {} is not available yet: its functions will stop the program when called\n", n));
     }
+    // a minimal PE header, for programs that read their DLLs' headers (PHP checks the
+    // runtime's linker version: 14.x like Visual C++ 2015-2022)
+    let mut h = [0u8; 0x150];
+    h[0] = b'M'; h[1] = b'Z'; h[0x3C] = 0x40;
+    h[0x40..0x44].copy_from_slice(b"PE\0\0");
+    h[0x44..0x46].copy_from_slice(&0x8664u16.to_le_bytes());
+    h[0x54..0x56].copy_from_slice(&0xF0u16.to_le_bytes()); // optional header size
+    h[0x56..0x58].copy_from_slice(&0x2022u16.to_le_bytes()); // DLL, executable, large addresses
+    h[0x58..0x5A].copy_from_slice(&0x20Bu16.to_le_bytes());
+    h[0x5A] = 14; h[0x5B] = 44;
+    h[0x58 + 24..0x58 + 32].copy_from_slice(&base.to_le_bytes()); // ImageBase
+    h[0x58 + 32..0x58 + 36].copy_from_slice(&0x1000u32.to_le_bytes());
+    h[0x58 + 36..0x58 + 40].copy_from_slice(&0x200u32.to_le_bytes());
+    h[0x58 + 40] = 6; h[0x58 + 48] = 6; // OS and subsystem version 6.0
+    h[0x58 + 56..0x58 + 60].copy_from_slice(&0x10000u32.to_le_bytes()); // SizeOfImage
+    h[0x58 + 60..0x58 + 64].copy_from_slice(&0x1000u32.to_le_bytes());
+    h[0x58 + 68] = 3; // console
+    let _ = e.mmu.write_bytes(base, &h);
     e.s.modules.push(Module { name: n, base, size: 0x10000, entry: 0, exports: HashMap::new(), native: true, fwd: HashMap::new() });
     Ok(e.s.modules.len() - 1)
 }

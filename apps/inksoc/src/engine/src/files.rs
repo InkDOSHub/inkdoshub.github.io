@@ -27,6 +27,8 @@ pub enum Handle {
     Port { q: std::collections::VecDeque<[u64; 4]> },
     /// one end of an anonymous pipe (`Files::pipes`)
     Pipe { id: u64, write: bool },
+    /// a section (file mapping): a file's contents or plain shared memory (`base` once mapped)
+    Section { file: Option<String>, size: u64, base: u64 },
 }
 
 /// Anonymous pipe: bytes in flight and how many write ends are open.
@@ -44,6 +46,8 @@ pub struct Files {
     pub pipes: HashMap<u64, Pipe>,
     /// extra references made by DuplicateHandle (closed only when this reaches 0)
     pub refs: HashMap<u64, u32>,
+    /// mapped views of files: base -> (file, offset, length); written back when unmapped
+    pub views: HashMap<u64, (String, u64, u64)>,
 }
 
 /// File name (key in the engine's file table) of a Windows path; None for the folder itself.

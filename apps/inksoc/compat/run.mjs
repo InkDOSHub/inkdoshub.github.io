@@ -68,6 +68,7 @@ async function runOne({ files, exe, args }) {
   const enc = (t) => new TextEncoder().encode(t);
   for (const f of files) { const nm = enc(path.basename(f)), d = fs.readFileSync(f), b = new Uint8Array(nm.length + 1 + d.length); b.set(nm); b.set(d, nm.length + 1); put(b); x.add_file(); }
   if (process.env.TRACE) x.set_trace(1);
+  if (process.env.NOJIT) x.set_jit(0);
   put(enc(exe + '\0' + exe + (args ? ' ' + args : '')));
   const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()));
   const t0 = performance.now();
