@@ -268,7 +268,7 @@ $('combo').onclick = async () => {
   if (!navigator.gpu) { out.textContent = 'This test needs WebGPU.'; return; }
   btn.disabled = true;
   const total = Math.floor(s0.calib.mb * 0.7);
-  const ram = Math.floor(total * 0.65 / 64) * 64, gpu = +$('combo-gpu').value || Math.floor((total - ram) / 4) * 4;
+  const ramSel = +$('combo-ram').value, ram = ramSel >= 0 ? ramSel : Math.floor(total * 0.65 / 64) * 64, gpu = +$('combo-gpu').value || Math.floor((total - ram) / 4) * 4;
   const texMb = +$('combo-tex').value, SIZE = 1024, BYTES = SIZE * SIZE * 4, count = texMb / 4, SHOW = 48;
   const mark = (extra) => { const s = store.get(); s.combo = Object.assign({ ram, gpu, texMb, sec: 0, running: true }, s.combo && s.combo.running ? s.combo : {}, extra); store.set(s); };
   store.set(Object.assign(store.get(), { combo: { ram, gpu, texMb, sec: 0, running: true } }));
@@ -276,7 +276,7 @@ $('combo').onclick = async () => {
   out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
 
   const holder = new Worker('worker.js?v=6');
-  await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
+  if (ram > 0) await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
   log(`RAM: ${ram} MB reserved and filled.`);
 
   const io = new Worker('worker.js?v=6');

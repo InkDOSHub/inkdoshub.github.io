@@ -85,6 +85,7 @@
   <p class="n">Uses the calibration above: about 70% of the tab limit, split into fixed real RAM for the engine and a fixed GPU texture pool. Then it streams far more textures than the pool holds for 30 s: the least used ones leave the GPU and come back from OPFS when needed.</p>
   <div class="row">
     <label>Textures used<select id="combo-tex"><option value="1024">1 GB</option><option value="2048" selected>2 GB</option><option value="3072">3 GB</option><option value="4096">4 GB</option></select></label>
+    <label>Engine RAM<select id="combo-ram"><option value="-1" selected>Auto</option><option value="0">0 MB</option><option value="256">256 MB</option><option value="512">512 MB</option></select></label>
     <label>GPU pool<select id="combo-gpu"><option value="0" selected>Auto</option><option value="128">128 MB</option><option value="256">256 MB</option><option value="512">512 MB</option></select></label>
     <button id="combo">Run 30 s</button>
   </div>
@@ -98,6 +99,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=7"></script>
+<script src="inksoc.js?v=8"></script>
 </body>
 </html>
