@@ -155,6 +155,7 @@ impl Engine {
         }
     }
 
+    pub(crate) fn wine_module_pub(&mut self, file: &str) -> Option<usize> { self.wine_module(file) }
     /// Loads one of the shipped Wine DLLs (without running its DllMain).
     fn wine_module(&mut self, file: &str) -> Option<usize> {
         if let Some(i) = pe::find_module(self, file) { return Some(i); }

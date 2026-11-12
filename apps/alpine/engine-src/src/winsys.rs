@@ -153,7 +153,7 @@ pub struct Popup { pub menu: u64, pub hwnd: u64, pub x: i32, pub y: i32, pub w: 
 pub enum Step { Ret(u64), Send { hwnd: u64, msg: u32, wp: u64, lp: u64, then: Cont } }
 pub type Cont = Box<dyn FnOnce(&mut Engine, u64) -> Step>;
 
-struct Frame { tid: u32, rsp: u64, regs: [u64; 8], xmm: [u128; 10], cont: Cont }
+struct Frame { tid: u32, rsp: u64, regs: [u64; 8], xmm: [u128; 10], cont: Cont, back: (u64, usize) }
 
 pub struct Keys(pub [u8; 256]);
 impl Default for Keys { fn default() -> Self { Keys([0; 256]) } }
@@ -171,6 +171,8 @@ pub struct Win {
     pub queues: HashMap<u32, Queue>,
     pub timers: Vec<Timer>,
     frames: Vec<Frame>,
+    /// WoW64: (lparam, bytes) of the packed structure to copy back after the callback
+    pack_back: Option<(u64, usize)>,
     pub procs_a: Vec<u64>,
     pub procs_w: Vec<u64>,
     pub builtins_done: bool,
@@ -244,7 +246,11 @@ impl Engine {
                 Step::Ret(v) => return v,
                 Step::Send { hwnd, msg, wp, lp, then } => {
                     match self.proc_params(hwnd, msg, wp, lp, false) {
-                        Some(p) => { self.callback(4, &p, then); return NO_RETURN; } // NtUserCallWinProc
+                        Some(mut p) => {
+                            self.s.win.pack_back = None;
+                            if self.s.wow64 && lp > 0xFFFF { self.pack_lparam(&mut p, msg, wp, lp); }
+                            self.callback(4, &p, then); return NO_RETURN; // NtUserCallWinProc
+                        }
                         None => s = then(self, 0),
                     }
                 }
@@ -269,7 +275,9 @@ impl Engine {
         xmm.copy_from_slice(&c.xmm[6..16]);
         let rsp = c.regs[4];
         let tid = self.cur_tid();
-        self.s.win.frames.push(Frame { tid, rsp, regs, xmm, cont });
+        // WoW64: a packed lparam structure (after the parameters) comes back after the result
+        let back = if self.s.wow64 && id == 4 { self.s.win.pack_back.take().unwrap_or((0, 0)) } else { (0, 0) };
+        self.s.win.frames.push(Frame { tid, rsp, regs, xmm, cont, back });
         let base = (rsp - 0x300 - args.len() as u64) & !0xF;
         let _ = self.mmu.write_bytes(base, args);
         let sp = (base - 0x100) & !0xF;
@@ -290,6 +298,10 @@ impl Engine {
             return;
         };
         let f = self.s.win.frames.remove(i);
+        if f.back.1 != 0 && ret != 0 && len as usize >= 8 + f.back.1 {
+            let mut b = vec![0u8; f.back.1];
+            if self.mmu.read_bytes(ret + 8, &mut b).is_ok() { let _ = self.mmu.write_bytes(f.back.0, &b); }
+        }
         let c = &mut self.cpu;
         for (k, r) in [3usize, 5, 6, 7, 12, 13, 14, 15].iter().enumerate() { c.regs[*r] = f.regs[k]; }
         c.xmm[6..16].copy_from_slice(&f.xmm);
@@ -320,6 +332,41 @@ impl Engine {
         p[56..64].copy_from_slice(&pa.to_le_bytes());
         p[64..72].copy_from_slice(&pw.to_le_bytes());
         Some(p)
+    }
+
+    /// WoW64: structures an lparam points to travel packed after the parameters
+    /// (wow64win converts them to their 32-bit layout); what the procedure may
+    /// change is copied back on return (pack_back).
+    fn pack_lparam(&mut self, p: &mut Vec<u8>, msg: u32, wp: u64, lp: u64) {
+        let (n, back) = match msg {
+            0x01 | 0x81 => (0x50, false),                // WM_CREATE, WM_NCCREATE: CREATESTRUCTW (+ strings)
+            0x83 => if wp != 0 { (56 + 40, true) } else { (16, true) }, // WM_NCCALCSIZE
+            0x46 | 0x47 => (40, true),                   // WM_WINDOWPOSCHANGING/CHANGED
+            0x24 => (40, true),                          // WM_GETMINMAXINFO
+            0x7C | 0x7D => (8, true),                    // WM_STYLECHANGING/CHANGED
+            0x0214 | 0x0216 => (16, true),               // WM_SIZING, WM_MOVING
+            _ => return,
+        };
+        let mut d = vec![0u8; n];
+        if msg == 0x83 && wp != 0 {
+            // NCCALCSIZE_PARAMS then the WINDOWPOS it points to
+            if self.mmu.read_bytes(lp, &mut d[..56]).is_err() { return; }
+            let wpos = u64::from_le_bytes(d[48..56].try_into().unwrap());
+            let _ = self.mmu.read_bytes(wpos, &mut d[56..]);
+        } else if self.mmu.read_bytes(lp, &mut d).is_err() { return; }
+        if msg == 0x01 || msg == 0x81 {
+            for off in [0x38usize, 0x40] { // lpszName, lpszClass (strings follow unless atoms)
+                let sp = u64::from_le_bytes(d[off..off + 8].try_into().unwrap());
+                if sp > 0xFFFF {
+                    let w = self.read_wstr(sp, 1024);
+                    for c in w.encode_utf16().chain([0]) { d.extend_from_slice(&c.to_le_bytes()); }
+                }
+            }
+        }
+        p.resize(80, 0);
+        p.extend_from_slice(&d);
+        self.s.win.pack_back = if back { Some((lp, n)) } else { None };
+        if msg == 0x83 && wp != 0 { self.s.win.pack_back = Some((lp, 48)); } // the rectangles
     }
 
     /// Fills the program's win_proc_params so user32 calls the procedure itself.

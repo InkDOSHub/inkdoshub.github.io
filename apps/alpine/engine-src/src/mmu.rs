@@ -14,6 +14,27 @@ extern "C" {
 }
 
 pub const PAGE: u64 = 4096;
+
+// ---- TLB shootdown (multi-core) ----
+// Every core has its own TLB over the shared frames. Before a frame is given
+// to another page (eviction, VirtualFree, munmap), the core doing it (holding
+// the engine lock) clears that page from every core's TLB, then waits until
+// each other core is at a safe point: between two blocks (the run loop), off
+// guest code (waiting for the lock, idle, back in JavaScript). A core inside a
+// JIT block may be between its TLB check and the access, so it is waited for.
+use core::sync::atomic::{AtomicU32, Ordering::*};
+const MAXC: usize = 16;
+const AWAY: u32 = u32::MAX;
+static EPOCH: AtomicU32 = AtomicU32::new(1);
+static SEEN: [AtomicU32; MAXC] = [const { AtomicU32::new(AWAY) }; MAXC];
+static TLBS: [AtomicU32; MAXC] = [const { AtomicU32::new(0) }; MAXC];
+/// The core is between blocks (call at the top of the run loop).
+#[inline(always)]
+pub fn safe_point(core: u32) { if crate::lock::MT { SEEN[core as usize].store(EPOCH.load(Acquire), Release); } }
+/// The core leaves program code (waits for the lock, sleeps, returns to JavaScript).
+#[inline(always)]
+pub fn away(core: u32) { if crate::lock::MT { SEEN[core as usize].store(AWAY, Release); } }
+
 const NONE: u32 = u32::MAX;
 const TLB_SIZE: usize = 8192;
 
@@ -63,8 +84,25 @@ pub struct Space { id: u32 }
 /// One core's view: its own TLB over the shared page table.
 pub struct Mmu {
     tlb: Vec<TlbEntry>,
+    core: u32,
     pub sh: &'static mut MmuShared,
+    /// locked instruction in progress (several cores): 0 none, 1 armed, 2 its read
+    /// was recorded, 3 its write lost the race (the instruction is run again), 4 written
+    pub lk: u8,
+    lk_at: (u64, u64, usize),
+    /// the CPU state before the locked instruction (to run it again)
+    pub lk_snap: Option<Box<crate::cpu::Cpu>>,
 }
+
+// ---- x86 memory order (TSO) with several cores ----
+// Plain wasm loads/stores on ARM64 may be reordered (a store seen before an
+// earlier one), which x86 programs never see. With more than one core, the JIT
+// and the interpreter use atomic (sequentially consistent) accesses for
+// aligned data: ldar/stlr on ARM64, which keeps x86's order.
+static STRONG: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+pub fn set_strong(on: bool) { STRONG.store(on, Relaxed); }
+#[inline(always)]
+pub fn strong() -> bool { STRONG.load(Relaxed) }
 
 impl Mmu {
     pub fn new(pool_mb: usize, target_mb: u64) -> Mmu {
@@ -81,13 +119,41 @@ impl Mmu {
             faults: 0, swap_ins: 0, swap_outs: 0, swap_slots: 0, no_evict: false,
             cur: 0, next_asid: 1, saved: HashMap::new(), free_slots: Vec::new(),
         }));
-        Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], sh }
+        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core: 0, sh, lk: 0, lk_at: (0, 0, 0), lk_snap: None };
+        TLBS[0].store(m.tlb.as_ptr() as u32, Release);
+        m
     }
 
     /// Another core's view of the same memory (empty TLB).
-    pub fn new_core(&self) -> Mmu {
+    pub fn new_core(&self, core: u32) -> Mmu {
         let sh = unsafe { &mut *(self.sh as *const MmuShared as *mut MmuShared) };
-        Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], sh }
+        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core, sh, lk: 0, lk_at: (0, 0, 0), lk_snap: None };
+        TLBS[core as usize].store(m.tlb.as_ptr() as u32, Release);
+        m
+    }
+
+    /// Removes page `vpn` from every core's TLB (engine lock held).
+    fn shoot(&mut self, vpn: u64) {
+        let t = (vpn as usize) & (TLB_SIZE - 1);
+        if self.tlb[t].tag == vpn { self.tlb[t].tag = u64::MAX; }
+        if !crate::lock::MT { return; }
+        for c in 0..MAXC {
+            let p = TLBS[c].load(Acquire);
+            if p == 0 || c as u32 == self.core { continue; }
+            unsafe {
+                let e = (p as *mut TlbEntry).add(t);
+                if core::ptr::read_volatile(&(*e).tag) == vpn { core::ptr::write_volatile(&mut (*e).tag, u64::MAX); }
+            }
+        }
+    }
+    /// Waits until no other core can still be using a TLB entry cleared by shoot().
+    fn shoot_wait(&self) {
+        if !crate::lock::MT { return; }
+        let ep = EPOCH.fetch_add(1, AcqRel) + 1;
+        for c in 0..MAXC {
+            if c as u32 == self.core { continue; }
+            while { let s = SEEN[c].load(Acquire); s != AWAY && s < ep } { core::hint::spin_loop(); }
+        }
     }
 
     /// Addresses the JIT bakes into its code (both never move).
@@ -128,15 +194,17 @@ impl Mmu {
         } else {
             (first..last).filter(|v| self.sh.table.contains_key(v)).collect()
         };
+        let mut freed = Vec::new();
         for vpn in vpns {
             let pte = self.sh.table.remove(&vpn).unwrap();
-            let t = (vpn as usize) & (TLB_SIZE - 1);
-            if self.tlb[t].tag == vpn { self.tlb[t].tag = u64::MAX; }
-            if pte.frame != NONE {
-                self.sh.frames[pte.frame as usize].used = false;
-                self.sh.free.push(pte.frame);
-            }
+            self.shoot(vpn);
+            if pte.frame != NONE { freed.push(pte.frame); }
             if pte.slot != NONE { self.sh.free_slots.push(pte.slot); }
+        }
+        if !freed.is_empty() { self.shoot_wait(); }
+        for f in freed {
+            self.sh.frames[f as usize].used = false;
+            self.sh.free.push(f);
         }
     }
 
@@ -238,7 +306,8 @@ impl Mmu {
                 continue;
             }
             let mine = f.asid == self.sh.cur;
-            if mine && self.tlb[t].tag == f.vpn { self.tlb[t].tag = u64::MAX; }
+            // pages of a parked space are in no TLB (every switch flushes)
+            if mine { self.shoot(f.vpn); self.shoot_wait(); }
             let pool = self.sh.pool.as_ptr();
             let slot = {
                 let table = if mine { Some(&mut self.sh.table) } else { self.sh.saved.get_mut(&f.asid).map(|s| &mut s.table) };
@@ -262,8 +331,8 @@ impl Mmu {
     fn get_frame(&mut self) -> Option<u32> {
         match self.sh.free.pop() {
             Some(f) => Some(f),
-            // other cores may hold this frame in their TLB: no swap with several cores (yet)
-            None if crate::lock::MT || self.sh.no_evict => None,
+            // swap I/O needs the OPFS file, which only core 0's worker holds
+            None if self.sh.no_evict || self.core != 0 => None,
             None => Some(self.evict_one()),
         }
     }
@@ -314,10 +383,50 @@ impl Mmu {
         Ok(self.fill(vpn, write)? + (addr & 0xFFF) as usize)
     }
 
+    /// Aligned atomic load of N bytes at pool offset o.
+    #[inline(always)]
+    fn ld_atomic<const N: usize>(&self, o: usize) -> u64 {
+        use core::sync::atomic::*;
+        let p = unsafe { self.sh.pool.as_ptr().add(o) };
+        unsafe { match N {
+            1 => (*(p as *const AtomicU8)).load(SeqCst) as u64,
+            2 => (*(p as *const AtomicU16)).load(SeqCst) as u64,
+            4 => (*(p as *const AtomicU32)).load(SeqCst) as u64,
+            _ => (*(p as *const AtomicU64)).load(SeqCst),
+        } }
+    }
+    #[inline(always)]
+    fn st_atomic<const N: usize>(&self, o: usize, v: u64) {
+        use core::sync::atomic::*;
+        let p = unsafe { self.sh.pool.as_ptr().add(o) };
+        unsafe { match N {
+            1 => (*(p as *const AtomicU8)).store(v as u8, SeqCst),
+            2 => (*(p as *const AtomicU16)).store(v as u16, SeqCst),
+            4 => (*(p as *const AtomicU32)).store(v as u32, SeqCst),
+            _ => (*(p as *const AtomicU64)).store(v, SeqCst),
+        } }
+    }
+    /// Compare-and-swap of N bytes at pool offset o; true = it was `old` and is now `new`.
+    fn cas<const N: usize>(&self, o: usize, old: u64, new: u64) -> bool {
+        use core::sync::atomic::*;
+        let p = unsafe { self.sh.pool.as_ptr().add(o) };
+        unsafe { match N {
+            1 => (*(p as *const AtomicU8)).compare_exchange(old as u8, new as u8, SeqCst, SeqCst).is_ok(),
+            2 => (*(p as *const AtomicU16)).compare_exchange(old as u16, new as u16, SeqCst, SeqCst).is_ok(),
+            4 => (*(p as *const AtomicU32)).compare_exchange(old as u32, new as u32, SeqCst, SeqCst).is_ok(),
+            _ => (*(p as *const AtomicU64)).compare_exchange(old, new, SeqCst, SeqCst).is_ok(),
+        } }
+    }
+
     #[inline(always)]
     fn rd<const N: usize>(&mut self, addr: u64) -> Result<u64, Fault> {
         if (addr & 0xFFF) as usize <= 4096 - N {
             let o = self.tr(addr, false)?;
+            if crate::lock::MT && (self.lk != 0 || strong()) && o % N == 0 {
+                let v = self.ld_atomic::<N>(o);
+                if self.lk == 1 { self.lk = 2; self.lk_at = (addr, v, N); }
+                return Ok(v);
+            }
             let mut b = [0u8; 8];
             b[..N].copy_from_slice(&self.sh.pool[o..o + N]);
             Ok(u64::from_le_bytes(b))
@@ -332,6 +441,17 @@ impl Mmu {
     fn wr<const N: usize>(&mut self, addr: u64, v: u64) -> Result<(), Fault> {
         if (addr & 0xFFF) as usize <= 4096 - N {
             let o = self.tr(addr, true)?;
+            if crate::lock::MT && (self.lk != 0 || strong()) && o % N == 0 {
+                match self.lk {
+                    3 => return Ok(()), // lost the race: nothing more is written
+                    2 if self.lk_at.0 == addr && self.lk_at.2 == N => {
+                        // the locked read-modify-write: only if no other core changed it meanwhile
+                        self.lk = if self.cas::<N>(o, self.lk_at.1, v) { 4 } else { 3 };
+                        return Ok(());
+                    }
+                    _ => { self.st_atomic::<N>(o, v); return Ok(()); }
+                }
+            }
             self.sh.pool[o..o + N].copy_from_slice(&v.to_le_bytes()[..N]);
             Ok(())
         } else {
@@ -341,9 +461,15 @@ impl Mmu {
     }
 
     #[inline(always)]
-    pub fn read8(&mut self, a: u64) -> Result<u8, Fault> { let o = self.tr(a, false)?; Ok(self.sh.pool[o]) }
+    pub fn read8(&mut self, a: u64) -> Result<u8, Fault> {
+        if crate::lock::MT && (self.lk != 0 || strong()) { return Ok(self.rd::<1>(a)? as u8); }
+        let o = self.tr(a, false)?; Ok(self.sh.pool[o])
+    }
     #[inline(always)]
-    pub fn write8(&mut self, a: u64, v: u8) -> Result<(), Fault> { let o = self.tr(a, true)?; self.sh.pool[o] = v; Ok(()) }
+    pub fn write8(&mut self, a: u64, v: u8) -> Result<(), Fault> {
+        if crate::lock::MT && (self.lk != 0 || strong()) { return self.wr::<1>(a, v as u64); }
+        let o = self.tr(a, true)?; self.sh.pool[o] = v; Ok(())
+    }
     pub fn read16(&mut self, a: u64) -> Result<u16, Fault> { Ok(self.rd::<2>(a)? as u16) }
     pub fn read32(&mut self, a: u64) -> Result<u32, Fault> { Ok(self.rd::<4>(a)? as u32) }
     pub fn read64(&mut self, a: u64) -> Result<u64, Fault> { self.rd::<8>(a) }

@@ -432,10 +432,19 @@ impl G {
     /// Pushes the size-bit value at address local `a`.
     fn load(&mut self, a: u32, size: u32) {
         self.tlb_check(a, size / 8, false);
+        #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, false); self.b(I32AND); }
         self.b(IF); self.b(T_I64);
-        self.host(a);
         let (op, al) = match size { 8 => (0x31, 0), 16 => (0x33, 1), 32 => (0x35, 2), _ => (I64LOAD, 3) };
-        self.mem(op, al, self.pool);
+        if crate::mmu::strong() {
+            // x86 order with several cores: atomic load when aligned (i64.atomic.load*)
+            let aop = match size { 8 => 0x14, 16 => 0x15, 32 => 0x16, _ => 0x11 };
+            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.b(IF); self.b(T_I64); }
+            self.host(a); self.b(0xFE); self.mem(aop, al, self.pool);
+            if size > 8 { self.b(ELSE); self.host(a); self.mem(op, al, self.pool); self.b(END); }
+        } else {
+            self.host(a);
+            self.mem(op, al, self.pool);
+        }
         self.b(ELSE);
         self.get(a); self.i32c(size as i32); self.call(F_RD);
         self.b(END);
@@ -444,11 +453,20 @@ impl G {
     /// Stores local v (size bits) at address local `a`.
     fn store(&mut self, a: u32, v: u32, size: u32) {
         self.tlb_check(a, size / 8, true);
+        #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, true); self.b(I32AND); }
         self.b(IF); self.b(VOID);
-        self.host(a);
-        self.get(v);
         let (op, al) = match size { 8 => (0x3C, 0), 16 => (0x3D, 1), 32 => (0x3E, 2), _ => (I64STORE, 3) };
-        self.mem(op, al, self.pool);
+        if crate::mmu::strong() {
+            // x86 order with several cores: atomic store when aligned (i64.atomic.store*)
+            let aop = match size { 8 => 0x1B, 16 => 0x1C, 32 => 0x1D, _ => 0x18 };
+            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.b(IF); self.b(VOID); }
+            self.host(a); self.get(v); self.b(0xFE); self.mem(aop, al, self.pool);
+            if size > 8 { self.b(ELSE); self.host(a); self.get(v); self.mem(op, al, self.pool); self.b(END); }
+        } else {
+            self.host(a);
+            self.get(v);
+            self.mem(op, al, self.pool);
+        }
         self.b(ELSE);
         self.get(a); self.get(v); self.i32c(size as i32); self.call(F_WR);
         self.b(END);
@@ -585,6 +603,10 @@ impl G {
     // ---- exits ----
 
     fn flush(&mut self) {
+        #[cfg(feature = "ab_flush")] self.flush_once();
+        self.flush_once();
+    }
+    fn flush_once(&mut self) {
         for r in 0..16u8 {
             if self.dirty & (1 << r) != 0 {
                 self.st_base(); self.get(R0 + r as u32);
@@ -1468,6 +1490,8 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     }
     g.b(END); // loop
     g.b(END); // function
+    #[cfg(feature = "prof")]
+    { prof::add(0xD0000000, total as u64); prof::add(0xD0000001, g.c.len() as u64); }
 
     finish(g)
 }
