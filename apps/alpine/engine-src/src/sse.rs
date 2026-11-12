@@ -81,12 +81,12 @@ macro_rules! g { ($e:expr, $x:expr) => { match $x { Ok(v) => v, Err(_) => return
 /// Returns true when the opcode was handled here.
 pub fn sse(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, p66: bool, rep: u8, op: u8) -> bool {
     let w = rex & 8 != 0;
-    let is_sse = matches!(op, 0x10..=0x17 | 0x28..=0x2F | 0x50..=0x7F | 0xC2 | 0xC6 | 0xD1..=0xFE | 0x2B);
+    let is_sse = matches!(op, 0x10..=0x17 | 0x28..=0x2F | 0x50..=0x7F | 0xC2 | 0xC4 | 0xC5 | 0xC6 | 0xD0..=0xFE | 0x2B);
     if !is_sse { return false; }
     // 0x60..0x7F and 0xD1..0xFE without 66/F3/F2 are MMX: not supported
-    if (matches!(op, 0x60..=0x7F) || op >= 0xD1) && !p66 && rep == 0 { e.unsupported(buf); return true; }
+    if (matches!(op, 0x60..=0x7F) || op >= 0xD0) && !p66 && rep == 0 { e.unsupported(buf); return true; }
     let m = modrm(d, e, rex);
-    let imm_ops = matches!(op, 0x70..=0x73 | 0xC2 | 0xC6);
+    let imm_ops = matches!(op, 0x70..=0x73 | 0xC2 | 0xC4 | 0xC5 | 0xC6);
     let imm = if imm_ops { d.u8() } else { 0 };
     let next = rip + d.p as u64;
     let r = m.reg as usize;
@@ -116,6 +116,12 @@ pub fn sse(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, p66: 
             });
         }
         0x28 => out = Some(g!(e, e.xsrc(&m, next, 16))),
+        0xD0 if kind == 1 || kind == 3 => {
+            // addsubpd / addsubps: even lanes subtract, odd lanes add
+            let sv = g!(e, e.xsrc(&m, next, 16));
+            out = Some(if kind == 1 { let (a, b) = (f64s(dst), f64s(sv)); from_f64s([a[0] - b[0], a[1] + b[1]]) }
+                       else { let (a, b) = (f32s(dst), f32s(sv)); from_f32s([a[0] - b[0], a[1] + b[1], a[2] - b[2], a[3] + b[3]]) });
+        }
         0x2A => {
             if kind < 2 { e.unsupported(buf); return true; }
             let sz = if w { 64 } else { 32 };
@@ -185,6 +191,16 @@ pub fn sse(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, p66: 
                 2 => (dst & !0xFFFF_FFFF) | if cmp_pred(f32::from_bits(dst as u32) as f64, f32::from_bits(s as u32) as f64, imm) { 0xFFFF_FFFF } else { 0 },
                 _ => (dst & !(u64::MAX as u128)) | if cmp_pred(f64::from_bits(dst as u64), f64::from_bits(s as u64), imm) { u64::MAX as u128 } else { 0 },
             });
+        }
+        0xC4 if p66 => {
+            // pinsrw xmm, r32/m16, imm8
+            let v = g!(e, e.get(crate::cpu::rm_loc(e, &m, next, 16, rex), 16)) as u16;
+            let mut a = u16s(dst); a[(imm & 7) as usize] = v; out = Some(from_u16s(a));
+        }
+        0xC5 if p66 && m.md == 3 => {
+            // pextrw r32, xmm, imm8
+            let v = u16s(e.cpu.xmm[m.rm as usize])[(imm & 7) as usize] as u64;
+            let _ = e.set(Loc::Reg(m.reg, false), 32, v);
         }
         0xC6 => {
             let s = g!(e, e.xsrc(&m, next, 16));

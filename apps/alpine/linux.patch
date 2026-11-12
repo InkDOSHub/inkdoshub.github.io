@@ -1,0 +1,245 @@
+diff -ruN -x target -x .gitignore -x Cargo.lock a/src/linux.rs b/src/linux.rs
+--- a/src/linux.rs	2026-11-12 15:40:26.000000000 +0000
++++ b/src/linux.rs	2026-11-12 16:09:09.463757496 +0000
+@@ -239,7 +239,7 @@
+             }
+         }
+         self.s.lx = Some(Box::new(l));
+-        self.mmu.sh.no_evict = true;
++        // processes share the swap: pages of any process can move out to OPFS
+         self.sched_init();
+         self.s.sched.th[0].pid = 1;
+         let mut args = split_args(cmd);
+@@ -372,9 +372,32 @@
+     stat_buf(e, a, mode, size, ino)
+ }
+ 
++/// /proc files made when opened (memory, CPU, uptime) so free, top and htop have something to read.
++fn proc_file(e: &mut Engine, p: &str) {
++    let total_kb = e.mmu.sh.target_bytes >> 10;
++    let frames_kb = (e.mmu.frames_total() * 4) as u64;
++    let used_kb = (e.mmu.resident() * 4) as u64;
++    let up = unsafe { crate::host_now_ms() } / 1000.0;
++    let text = match p {
++        "/proc/meminfo" => format!("MemTotal:       {total_kb} kB\nMemFree:        {f} kB\nMemAvailable:   {f} kB\nBuffers:        0 kB\nCached:         0 kB\nSwapCached:     0 kB\nSwapTotal:      0 kB\nSwapFree:       0 kB\nShmem:          0 kB\nSReclaimable:   0 kB\n", f = total_kb.saturating_sub(used_kb)),
++        "/proc/cpuinfo" => "processor\t: 0\nvendor_id\t: InkSoC\nmodel name\t: InkSoC x86-64 (WebAssembly JIT)\ncpu MHz\t\t: 1000.000\ncpu cores\t: 1\nflags\t\t: fpu tsc cx8 cmov mmx fxsr sse sse2 lm\n\n".to_string(),
++        "/proc/uptime" => format!("{:.2} 0.00\n", up),
++        "/proc/loadavg" => "0.00 0.00 0.00 1/1 1\n".to_string(),
++        "/proc/version" => "Linux version 6.6.0-inksoc (InkSoC engine in WebAssembly) #1 SMP\n".to_string(),
++        "/proc/stat" => format!("cpu  {u} 0 0 0 0 0 0 0 0 0\ncpu0 {u} 0 0 0 0 0 0 0 0 0\nbtime 0\nprocesses 1\nprocs_running 1\n", u = (up * 100.0) as u64),
++        _ => return,
++    };
++    let _ = frames_kb;
++    let l = lx(e);
++    l.mkdirs("/proc");
++    l.fs.insert(p.to_string(), Node::File(text.into_bytes()));
++}
++
+ fn open(e: &mut Engine, path: &str, flags: u64) -> i64 {
+     let l = lx(e);
+     let p = l.resolve(path, true);
++    let p = if p.starts_with("/proc/") { let q = p.clone(); proc_file(e, &q); q } else { p };
++    let l = lx(e);
+     let exists = p == "/" || l.fs.contains_key(&p);
+     if l.is_dir(&p) {
+         if flags & 3 != 0 { return -EISDIR; }
+@@ -716,7 +739,16 @@
+         }
+         97 | 302 => { if nr == 302 && a3 != 0 { let _ = e.mmu.write64(a3, u64::MAX); let _ = e.mmu.write64(a3 + 8, u64::MAX); } 0 } // getrlimit / prlimit64
+         98 => { let _ = e.mmu.write_bytes(a1, &[0u8; 144]); 0 } // getrusage
+-        99 => { let mut b = [0u8; 112]; b[32..40].copy_from_slice(&(1u64 << 33).to_le_bytes()); b[40..48].copy_from_slice(&(1u64 << 32).to_le_bytes()); b[104..108].copy_from_slice(&1u32.to_le_bytes()); let _ = e.mmu.write_bytes(a0, &b); 0 } // sysinfo
++        99 => { // sysinfo: the memory programs see (target) and how much of it is in use
++            let total = e.mmu.sh.target_bytes; let used = (e.mmu.resident() as u64) * 4096;
++            let up = (unsafe { crate::host_now_ms() } / 1000.0) as u64;
++            let mut b = [0u8; 112];
++            b[0..8].copy_from_slice(&up.to_le_bytes());
++            b[32..40].copy_from_slice(&total.to_le_bytes()); b[40..48].copy_from_slice(&total.saturating_sub(used).to_le_bytes());
++            b[80..82].copy_from_slice(&(lx(e).procs.len() as u16).to_le_bytes());
++            b[104..108].copy_from_slice(&1u32.to_le_bytes()); // mem_unit
++            let _ = e.mmu.write_bytes(a0, &b); 0
++        }
+         100 => { let _ = e.mmu.write_bytes(a0, &[0u8; 32]); 0 } // times
+         137 | 138 => { let mut b = [0u8; 120]; b[0..8].copy_from_slice(&0xEF53u64.to_le_bytes()); b[8..16].copy_from_slice(&4096u64.to_le_bytes()); b[16..24].copy_from_slice(&(1u64 << 20).to_le_bytes()); b[24..32].copy_from_slice(&(1u64 << 19).to_le_bytes()); b[32..40].copy_from_slice(&(1u64 << 19).to_le_bytes()); b[56..64].copy_from_slice(&255u64.to_le_bytes()); let _ = e.mmu.write_bytes(a1, &b); 0 } // statfs
+         158 => { // arch_prctl
+diff -ruN -x target -x .gitignore -x Cargo.lock a/src/mmu.rs b/src/mmu.rs
+--- a/src/mmu.rs	2026-11-12 15:40:26.000000000 +0000
++++ b/src/mmu.rs	2026-11-12 16:09:09.463471071 +0000
+@@ -21,7 +21,7 @@
+ struct Pte { frame: u32, slot: u32 }
+ 
+ #[derive(Clone, Copy)]
+-struct Frame { vpn: u64, used: bool, referenced: bool, dirty: bool }
++struct Frame { vpn: u64, used: bool, referenced: bool, dirty: bool, asid: u32 }
+ 
+ // layout read by JIT code: tag @0, off @8, writable @12 (16 bytes)
+ #[derive(Clone, Copy)]
+@@ -46,11 +46,19 @@
+     pub swap_slots: u32,
+     /// several address spaces (Linux processes): frames of the others must not be evicted
+     pub no_evict: bool,
++    /// Linux processes: the running one is `cur`; the others keep their page tables here, so the
++    /// swap can move their pages out too (each frame knows its owner)
++    cur: u32,
++    next_asid: u32,
++    saved: HashMap<u32, Saved>,
++    free_slots: Vec<u32>,
+ }
+ 
+-/// A saved address space (a Linux process that is not running).
++struct Saved { table: HashMap<u64, Pte>, regions: Vec<(u64, u64)>, committed: u64 }
++
++/// A saved address space (a Linux process that is not running): its tables stay in the MMU.
+ #[derive(Default)]
+-pub struct Space { table: HashMap<u64, Pte>, regions: Vec<(u64, u64)>, committed: u64 }
++pub struct Space { id: u32 }
+ 
+ /// One core's view: its own TLB over the shared page table.
+ pub struct Mmu {
+@@ -63,7 +71,7 @@
+         let n = pool_mb * 256;
+         let sh = Box::leak(Box::new(MmuShared {
+             pool: vec![0u8; n * PAGE as usize],
+-            frames: vec![Frame { vpn: 0, used: false, referenced: false, dirty: false }; n],
++            frames: vec![Frame { vpn: 0, used: false, referenced: false, dirty: false, asid: 0 }; n],
+             free: (0..n as u32).rev().collect(),
+             hand: 0,
+             table: HashMap::new(),
+@@ -71,6 +79,7 @@
+             committed: 0,
+             target_bytes: target_mb << 20,
+             faults: 0, swap_ins: 0, swap_outs: 0, swap_slots: 0, no_evict: false,
++            cur: 0, next_asid: 1, saved: HashMap::new(), free_slots: Vec::new(),
+         }));
+         Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], sh }
+     }
+@@ -127,6 +136,7 @@
+                 self.sh.frames[pte.frame as usize].used = false;
+                 self.sh.free.push(pte.frame);
+             }
++            if pte.slot != NONE { self.sh.free_slots.push(pte.slot); }
+         }
+     }
+ 
+@@ -145,41 +155,68 @@
+     /// Moves the current address space out (another process is going to run).
+     pub fn take_space(&mut self) -> Space {
+         self.flush_tlb();
+-        Space { table: std::mem::take(&mut self.sh.table), regions: std::mem::take(&mut self.sh.regions), committed: std::mem::replace(&mut self.sh.committed, 0) }
++        let id = self.sh.cur;
++        let sv = Saved { table: std::mem::take(&mut self.sh.table), regions: std::mem::take(&mut self.sh.regions), committed: std::mem::replace(&mut self.sh.committed, 0) };
++        self.sh.saved.insert(id, sv);
++        Space { id }
+     }
+     pub fn put_space(&mut self, sp: Space) {
+         self.flush_tlb();
+-        self.sh.table = sp.table; self.sh.regions = sp.regions; self.sh.committed = sp.committed;
++        let sv = self.sh.saved.remove(&sp.id).unwrap_or(Saved { table: HashMap::new(), regions: Vec::new(), committed: 0 });
++        self.sh.table = sv.table; self.sh.regions = sv.regions; self.sh.committed = sv.committed;
++        self.sh.cur = sp.id;
++    }
++    fn alloc_slot(&mut self) -> u32 {
++        self.sh.free_slots.pop().unwrap_or_else(|| { let s = self.sh.swap_slots; self.sh.swap_slots += 1; s })
+     }
+-    /// A full copy of the current address space (fork); None = out of real RAM.
++    /// A full copy of the current address space (fork). Pages go to free frames while there are
++    /// some, then straight to swap; pages already in swap are copied slot to slot.
+     pub fn clone_space(&mut self) -> Option<Space> {
++        let id = self.sh.next_asid;
++        self.sh.next_asid += 1;
+         let mut table = HashMap::with_capacity(self.sh.table.len());
++        let mut buf = vec![0u8; PAGE as usize];
+         let entries: Vec<(u64, Pte)> = self.sh.table.iter().map(|(k, v)| (*k, *v)).collect();
+         for (vpn, pte) in entries {
+-            if pte.frame == NONE { continue; }
+-            let Some(f) = self.sh.free.pop() else {
+-                for (_, p) in table.drain() { let p: Pte = p; self.sh.frames[p.frame as usize].used = false; self.sh.free.push(p.frame); }
+-                return None;
+-            };
+-            let (src, dst) = (pte.frame as usize * PAGE as usize, f as usize * PAGE as usize);
+-            self.sh.pool.copy_within(src..src + PAGE as usize, dst);
+-            self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: true };
+-            table.insert(vpn, Pte { frame: f, slot: NONE });
++            if pte.frame != NONE {
++                let src = pte.frame as usize * PAGE as usize;
++                if let Some(f) = self.sh.free.pop() {
++                    let dst = f as usize * PAGE as usize;
++                    self.sh.pool.copy_within(src..src + PAGE as usize, dst);
++                    self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: true, asid: id };
++                    table.insert(vpn, Pte { frame: f, slot: NONE });
++                    continue;
++                }
++                buf.copy_from_slice(&self.sh.pool[src..src + PAGE as usize]);
++            } else if pte.slot != NONE {
++                unsafe { host_swap_read(pte.slot, buf.as_mut_ptr()); }
++                self.sh.swap_ins += 1;
++            } else { continue; }
++            let slot = self.alloc_slot();
++            unsafe { host_swap_write(slot, buf.as_ptr()); }
++            self.sh.swap_outs += 1;
++            table.insert(vpn, Pte { frame: NONE, slot });
++        }
++        self.sh.saved.insert(id, Saved { table, regions: self.sh.regions.clone(), committed: self.sh.committed });
++        Some(Space { id })
++    }
++    fn release_table(&mut self, table: HashMap<u64, Pte>) {
++        for (_, p) in table {
++            if p.frame != NONE { self.sh.frames[p.frame as usize].used = false; self.sh.free.push(p.frame); }
++            if p.slot != NONE { self.sh.free_slots.push(p.slot); }
+         }
+-        Some(Space { table, regions: self.sh.regions.clone(), committed: self.sh.committed })
+     }
+     /// Frees every page of the current address space (exec, exit).
+     pub fn free_space(&mut self) {
+         self.flush_tlb();
+-        for (_, p) in self.sh.table.drain() {
+-            if p.frame != NONE { self.sh.frames[p.frame as usize].used = false; self.sh.free.push(p.frame); }
+-        }
++        let t = std::mem::take(&mut self.sh.table);
++        self.release_table(t);
+         self.sh.regions.clear();
+         self.sh.committed = 0;
+     }
+     /// Frees a saved address space (a process that ended while not running).
+     pub fn free_saved(&mut self, sp: Space) {
+-        for (_, p) in sp.table { if p.frame != NONE { self.sh.frames[p.frame as usize].used = false; self.sh.free.push(p.frame); } }
++        if let Some(sv) = self.sh.saved.remove(&sp.id) { self.release_table(sv.table); }
+     }
+ 
+     fn evict_one(&mut self) -> u32 {
+@@ -195,13 +232,22 @@
+                 if self.tlb[t].tag == f.vpn { self.tlb[t].tag = u64::MAX; }
+                 continue;
+             }
+-            if self.tlb[t].tag == f.vpn { self.tlb[t].tag = u64::MAX; }
+-            let pte = self.sh.table.get_mut(&f.vpn).unwrap();
+-            if f.dirty || pte.slot == NONE {
+-                if pte.slot == NONE { pte.slot = self.sh.swap_slots; self.sh.swap_slots += 1; }
+-                unsafe { host_swap_write(pte.slot, self.sh.pool.as_ptr().add(i * PAGE as usize)); }
++            let mine = f.asid == self.sh.cur;
++            if mine && self.tlb[t].tag == f.vpn { self.tlb[t].tag = u64::MAX; }
++            let pool = self.sh.pool.as_ptr();
++            let slot = {
++                let table = if mine { Some(&mut self.sh.table) } else { self.sh.saved.get_mut(&f.asid).map(|s| &mut s.table) };
++                match table.and_then(|t| t.get_mut(&f.vpn)) { Some(p) => p.slot, None => { self.sh.frames[i].used = false; return i as u32; } }
++            };
++            let need = f.dirty || slot == NONE;
++            let slot = if slot == NONE { self.alloc_slot() } else { slot };
++            if need {
++                unsafe { host_swap_write(slot, pool.add(i * PAGE as usize)); }
+                 self.sh.swap_outs += 1;
+             }
++            let table = if mine { &mut self.sh.table } else { &mut self.sh.saved.get_mut(&f.asid).unwrap().table };
++            let pte = table.get_mut(&f.vpn).unwrap();
++            pte.slot = slot;
+             pte.frame = NONE;
+             self.sh.frames[i].used = false;
+             return i as u32;
+@@ -241,7 +287,7 @@
+             } else {
+                 self.sh.pool[off..off + PAGE as usize].fill(0);
+             }
+-            self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: false };
++            self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: false, asid: self.sh.cur };
+             self.sh.table.get_mut(&vpn).unwrap().frame = f;
+             f
+         };

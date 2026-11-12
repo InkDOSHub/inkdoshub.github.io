@@ -12,6 +12,7 @@ pub struct Module {
     pub entry: u64,
     pub exports: HashMap<String, u64>,
     pub native: bool,
+    pub fwd: HashMap<String, String>, // forwarded exports: name -> "dll.Func"
 }
 
 fn u16_at(b: &[u8], o: usize) -> Result<u16, String> {
@@ -24,7 +25,7 @@ fn u64_at(b: &[u8], o: usize) -> Result<u64, String> {
     Ok(u32_at(b, o)? as u64 | (u32_at(b, o + 4)? as u64) << 32)
 }
 
-pub const NATIVE_DLLS: &[&str] = &["kernel32.dll", "kernelbase.dll", "ntdll.dll", "msvcrt.dll", "oleaut32.dll", "advapi32.dll"];
+pub const NATIVE_DLLS: &[&str] = &["kernel32.dll", "kernelbase.dll", "ntdll.dll", "oleaut32.dll", "advapi32.dll", "vcruntime140.dll", "vcruntime140_1.dll", "shell32.dll", "shlwapi.dll", "bcrypt.dll", "bcryptprimitives.dll", "version.dll", "winmm.dll", "win32u.dll"];
 
 pub fn find_module(e: &Engine, name: &str) -> Option<usize> {
     let n = norm(name);
@@ -33,7 +34,10 @@ pub fn find_module(e: &Engine, name: &str) -> Option<usize> {
 
 pub fn norm(name: &str) -> String {
     let n = name.rsplit(['\\', '/']).next().unwrap_or(name).to_ascii_lowercase();
-    if n.contains('.') { n } else { n + ".dll" }
+    let n = if n.contains('.') { n } else { n + ".dll" };
+    // the Universal CRT's API sets all live in ucrtbase.dll
+    if n.starts_with("api-ms-win-crt-") { return "ucrtbase.dll".into(); }
+    n
 }
 
 /// Loads a module by name: from loaded modules, from the program files, or
@@ -44,12 +48,23 @@ pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     if let Some(bytes) = e.s.files.get(&n).cloned() {
         return load_image(e, &n, &bytes, false);
     }
+    // a DLL the engine does not implement at all: Wine's, as program code
+    if !NATIVE_DLLS.contains(&n.as_str()) {
+        if let Some(bytes) = e.s.files.get(&format!("wine-{}", n)).cloned() {
+            // window-system DLLs: their DllMain needs the graphics kernel, which console programs never use
+            let gui = ["user32.dll", "gdi32.dll", "shell32.dll", "ole32.dll", "combase.dll", "imm32.dll", "comctl32.dll", "winmm.dll", "setupapi.dll", "shcore.dll"].contains(&n.as_str());
+            let r = load_image(e, &n, &bytes, false)?;
+            // only the window DLL itself skips DllMain: the DLLs it pulled in still start normally
+            if gui { let b = e.s.modules[r].base; e.s.init_queue.retain(|&(_, base)| base != b); }
+            return Ok(r);
+        }
+    }
     // native module: a small reserved range serves as its handle
     let base = e.alloc(0x10000).ok_or("out of memory")?;
-    if !NATIVE_DLLS.contains(&n.as_str()) && !n.starts_with("api-ms-win-") {
+    if !NATIVE_DLLS.contains(&n.as_str()) && !n.starts_with("api-ms-win-") && !e.s.files.contains_key(&format!("wine-{}", n)) {
         crate::console(&format!("[inksoc] {} is not available yet: its functions will stop the program when called\n", n));
     }
-    e.s.modules.push(Module { name: n, base, size: 0x10000, entry: 0, exports: HashMap::new(), native: true });
+    e.s.modules.push(Module { name: n, base, size: 0x10000, entry: 0, exports: HashMap::new(), native: true, fwd: HashMap::new() });
     Ok(e.s.modules.len() - 1)
 }
 
@@ -61,7 +76,13 @@ pub fn proc_address(e: &mut Engine, idx: usize, func: &str) -> Option<u64> {
         return Some(e.thunk(&dll, func));
     }
     let a = *e.s.modules[idx].exports.get(func)?;
-    if a == 0 { return None; }
+    if a == 0 {
+        // forwarded export: "dll.Func" (or "dll.#ord")
+        let f = e.s.modules[idx].fwd.get(func)?.clone();
+        let (dll, name) = f.split_once('.')?;
+        let m = load_by_name(e, dll).ok()?;
+        return proc_address(e, m, name);
+    }
     Some(a)
 }
 
@@ -138,6 +159,7 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
 
     // Exports
     let mut exports = HashMap::new();
+    let mut fwd = HashMap::new();
     let (exp_rva, exp_size) = dir(0)?;
     if exp_rva != 0 {
         let d = base + exp_rva;
@@ -147,7 +169,7 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
         let (funcs, names, ords) = (base + rd32(e, d + 28)? as u64, base + rd32(e, d + 32)? as u64, base + rd32(e, d + 36)? as u64);
         let target = |e: &mut Engine, i: u64| -> Result<u64, String> {
             let rva = rd32(e, funcs + 4 * i)? as u64;
-            // forwarders ("DLL.Func") point inside the export directory: resolved lazily as 0
+            // forwarders ("DLL.Func") point inside the export directory: resolved when imported
             Ok(if rva >= exp_rva && rva < exp_rva + exp_size { 0 } else { base + rva })
         };
         for i in 0..nnames {
@@ -155,13 +177,18 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
             let ord = e.mmu.read16(ords + 2 * i).map_err(|_| "exports")? as u64;
             let fname = e.read_cstr(base + nrva, 256);
             let t = target(e, ord)?;
+            if t == 0 {
+                let rva = rd32(e, funcs + 4 * ord)? as u64;
+                let f = e.read_cstr(base + rva, 256);
+                fwd.insert(fname.clone(), f);
+            }
             exports.insert(fname, t);
         }
         for i in 0..nfun { let t = target(e, i)?; exports.insert(format!("#{}", ord_base + i), t); }
     }
 
     let idx = e.s.modules.len();
-    e.s.modules.push(Module { name: name.to_string(), base, size: image_size, entry: if entry_rva != 0 { base + entry_rva } else { 0 }, exports, native: false });
+    e.s.modules.push(Module { name: name.to_string(), base, size: image_size, entry: if entry_rva != 0 { base + entry_rva } else { 0 }, exports, native: false, fwd });
 
     // Imports (load dependencies first, then bind)
     let (imp_rva, _) = dir(1)?;
@@ -190,6 +217,17 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
             d += 20;
         }
     }
-    if !is_exe && e.s.modules[idx].entry != 0 { e.s.init_queue.push((e.s.modules[idx].entry, base)); }
+    // Static TLS (__declspec(thread)): one slot per image in the TEB's TLS array
+    let (tls_rva, _) = dir(9)?;
+    if tls_rva != 0 {
+        let t = base + tls_rva;
+        let (start, end, index_at) = (rd64(e, t)?, rd64(e, t + 8)?, rd64(e, t + 16)?);
+        let zero = rd32(e, t + 32)? as u64;
+        let i = e.s.tls_tmpl.len();
+        e.s.tls_tmpl.push((start, end.saturating_sub(start), zero));
+        if index_at != 0 { e.mmu.write32(index_at, i as u32).map_err(|_| "tls")?; }
+        e.tls_block(crate::TEB, i);
+    }
+    if !is_exe && !e.s.no_init && e.s.modules[idx].entry != 0 { e.s.init_queue.push((e.s.modules[idx].entry, base)); }
     Ok(idx)
 }
