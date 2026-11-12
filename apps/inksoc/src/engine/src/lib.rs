@@ -13,6 +13,7 @@ mod mmu;
 mod msvcrt;
 mod oleaut;
 mod pe;
+mod sched;
 mod sse;
 
 use cpu::Cpu;
@@ -37,6 +38,7 @@ pub const RET_INIT: u64 = THUNK_BASE + 0xFFE0;
 pub const RET_LOADLIB: u64 = THUNK_BASE + 0xFFD0;
 pub const RET_INITTERM: u64 = THUNK_BASE + 0xFFC0;
 pub const RET_EH: u64 = THUNK_BASE + 0xFFB0;
+pub const RET_THREAD: u64 = THUNK_BASE + 0xFFA0;
 pub const TEB: u64 = 0x7FFD_0000_0000;
 pub const PEB: u64 = 0x7FFD_0001_0000;
 const STACK_SIZE: u64 = 1 << 20;
@@ -67,6 +69,7 @@ pub struct Engine {
     pub fs: files::Files,
     pub eh: eh::Eh,
     pub jit: jit::Jit,
+    pub sched: sched::Sched,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -104,7 +107,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0,
             init_queue: Vec::new(), loadlib: Vec::new(),
-            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(), eh: Default::default(), jit: Default::default(),
+            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(), eh: Default::default(), jit: Default::default(), sched: Default::default(),
         });
     }
 }
@@ -138,12 +141,16 @@ pub extern "C" fn poke32(addr: f64, v: u32) -> i32 {
     match eng().mmu.write32(addr as u64, v) { Ok(_) => 0, Err(_) => -1 }
 }
 
-/// Runs up to `budget` instructions. 0 = still running, 1 = exited, 2 = error.
+/// Runs up to `budget` instructions. 0 = still running, 1 = exited, 2 = error,
+/// 3 = every thread is waiting (call again after stat(17) ms).
 #[no_mangle]
 pub extern "C" fn run(budget: u32) -> i32 {
     let e = eng();
     let mut left = budget as u64;
+    let mut idle = false;
     while left > 0 && !e.exited && e.error.is_none() {
+        if e.sched.switch && !e.sched_switch() { idle = e.error.is_none(); break; }
+        if e.exited || e.error.is_some() { break; }
         let rip = e.cpu.rip;
         if rip >= THUNK_BASE && rip < THUNK_BASE + 0x10000 {
             e.materialize();
@@ -151,21 +158,26 @@ pub extern "C" fn run(budget: u32) -> i32 {
             continue;
         }
         if e.jit.on {
+            let lim = left.min(e.slice_left());
             if let Some(f) = jit::Jit::lookup(e, rip) {
                 let before = e.cpu.icount;
-                e.cpu.jit_limit = before + left;
+                e.cpu.jit_limit = before + lim;
                 jit::call(f);
-                left = left.saturating_sub(e.cpu.icount - before);
+                let n = e.cpu.icount - before;
+                left = left.saturating_sub(n);
+                e.sched_tick(n);
                 continue;
             }
-            let n = cpu::step_trace(e, left.min(4096));
+            let n = cpu::step_trace(e, lim.min(4096));
             left = left.saturating_sub(n);
+            e.sched_tick(n);
             continue;
         }
-        let n = cpu::step_block(e, left.min(4096));
+        let n = cpu::step_block(e, left.min(e.slice_left()).min(4096));
         left = left.saturating_sub(n);
+        e.sched_tick(n);
     }
-    if e.error.is_some() { 2 } else if e.exited { 1 } else { 0 }
+    if e.error.is_some() { 2 } else if e.exited { 1 } else if idle { 3 } else { 0 }
 }
 
 /// Turns the JIT on or off (call before start).
@@ -192,7 +204,7 @@ pub extern "C" fn out_ptr() -> *const u8 { unsafe { OUT.as_ptr() } }
 pub extern "C" fn stat(i: u32) -> f64 {
     let e = eng();
     match i {
-        0 => e.cpu.icount as f64,
+        0 => (e.cpu.icount + e.sched.other_icount()) as f64,
         1 => e.mmu.faults as f64,
         2 => e.mmu.swap_ins as f64,
         3 => e.mmu.swap_outs as f64,
@@ -209,6 +221,9 @@ pub extern "C" fn stat(i: u32) -> f64 {
         14 => e.jit.ms,
         15 => e.jit.bytes as f64,
         16 => e.jit.failed as f64,
+        17 => e.sched.idle_ms,
+        18 => e.sched.th.len() as f64,
+        19 => e.sched.switches as f64,
         _ => 0.0,
     }
 }
@@ -306,6 +321,7 @@ impl Engine {
         w(self, TEB + 0x58, TEB + 0x1800); // ThreadLocalStoragePointer (static TLS array)
         w(self, TEB + 0x60, PEB);
         self.cpu.gs_base = TEB;
+        self.sched_init();
         let bytes = self.files.get(name).cloned().ok_or_else(|| format!("{} not found", name))?;
         // before the imports are bound: msvcrt's _acmdln points at it
         self.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
@@ -368,6 +384,7 @@ impl Engine {
             RET_INIT => { self.next_init(); return; }
             RET_INITTERM => { msvcrt::initterm_next(self); return; }
             RET_EH => { self.eh_next(); return; }
+            RET_THREAD => { let c = self.cpu.regs[0] as u32; self.exit_thread(c); return; }
             RET_LOADLIB => {
                 let (h, sp) = self.loadlib.pop().unwrap_or((0, self.cpu.regs[4]));
                 self.cpu.regs[4] = sp;
@@ -389,13 +406,14 @@ impl Engine {
                 let (a, b, c) = (self.arg(0) as u32, self.arg(1), self.arg(2) as i32);
                 Some(unsafe { wine_RtlComputeCrc32(a, b, c) } as u64)
             }
+            _ if name.starts_with("_beginthread") || name.starts_with("_endthread") => sched::call(self, &name),
             _ if dll == "msvcrt.dll" => msvcrt::call(self, &name),
             _ if dll == "oleaut32.dll" => oleaut::call(self, &name),
-            _ => files::call(self, &name).or_else(|| kernel32::call(self, &name)),
+            _ => sched::call(self, &name).or_else(|| files::call(self, &name)).or_else(|| kernel32::call(self, &name)),
         };
         if self.error.is_some() || self.exited { return; }
         match r {
-            Some(kernel32::NO_RETURN) => {}
+            Some(kernel32::NO_RETURN) | Some(sched::BLOCK) => {}
             Some(v) => self.do_ret(v),
             None => self.error = Some(format!("not implemented yet: {}!{}", dll, name)),
         }

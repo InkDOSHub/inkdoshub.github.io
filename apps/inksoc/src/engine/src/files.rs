@@ -2,7 +2,7 @@
 // files the page gave the engine (the .exe, its DLLs, data) and the files the
 // program creates. Paths are reduced to the file name.
 
-use crate::{pe, Engine, TEB};
+use crate::{pe, Engine};
 use std::collections::HashMap;
 
 pub const DIR: &str = "C:\\InkSoC";
@@ -15,7 +15,10 @@ pub enum Handle {
     File { name: String, pos: u64 },
     Dir,
     Find { names: Vec<String>, next: usize },
-    Event { set: bool },
+    Event { set: bool, manual: bool },
+    Mutex { owner: u32, count: u32 },
+    Semaphore { count: i32, max: i32 },
+    Thread { tid: u32 },
 }
 
 #[derive(Default)]
@@ -44,7 +47,7 @@ fn wild(p: &[u8], s: &[u8]) -> bool {
 }
 
 impl Engine {
-    fn set_err(&mut self, v: u32) { let _ = self.mmu.write32(TEB + 0x68, v); }
+    fn set_err(&mut self, v: u32) { let _ = self.mmu.write32(self.cpu.gs_base + 0x68, v); }
 
     pub fn new_handle(&mut self, h: Handle) -> u64 {
         if self.fs.next == 0 { self.fs.next = FIRST_HANDLE; }
@@ -353,9 +356,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             b.len() as u64
         }
         // ---- events (one thread: an event is just a flag) ----
-        "CreateEventW" | "CreateEventA" => { let set = e.arg(2) != 0; e.new_handle(Handle::Event { set }) }
-        "SetEvent" => { if let Some(Handle::Event { set }) = e.fs.handles.get_mut(&a0) { *set = true; } 1 }
-        "ResetEvent" => { if let Some(Handle::Event { set }) = e.fs.handles.get_mut(&a0) { *set = false; } 1 }
         "OpenEventW" | "OpenFileMappingW" => { e.set_err(2); 0 }
         "FormatMessageW" | "FormatMessageA" => {
             // system messages only (FORMAT_MESSAGE_FROM_SYSTEM)

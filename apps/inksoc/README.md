@@ -21,8 +21,13 @@ This folder holds the first proof:
   the entry point `ink_call`. Wine's own data and stack sit at 1-4 MB of the
   engine's memory (the engine is linked with `--global-base=4194304`).
 - `src/test/test.c`: the x86-64 test program (`test.exe`).
-- `src/test64/`: stage 1 test (`main.c` + `testdll.c`) and stage 2 test (`stage2.c`,
-  real msvcrt.dll API).
+- `src/engine/src/sched.rs`: program threads. Each thread is a saved CPU state;
+  the engine switches every 200,000 instructions or when a thread waits
+  (WaitFor*, Sleep, critical sections, SRW locks, events, mutexes, semaphores).
+  When every thread waits on a timeout, `run` returns 3 and the page waits.
+- `src/test64/`: stage 1 test (`main.c` + `testdll.c`), stage 2 test (`stage2.c`,
+  real msvcrt.dll API) and stage 4 test (`stage4.c`, threads; same build
+  command as stage 2).
 - `index.html`, `inksoc.js`, `worker.js`: test page (engine proof, OPFS swap cost,
   draw calls per frame, memory and GPU texture limits).
 

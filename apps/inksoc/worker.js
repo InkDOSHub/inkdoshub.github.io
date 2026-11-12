@@ -60,7 +60,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit }) {
   };
   let jitErr = 0;
   let wine;
-  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=10', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=11', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
   mem = x.memory;
@@ -89,10 +89,16 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit }) {
     insns: x.stat(0), faults: x.stat(1), swapIn: x.stat(2), swapOut: x.stat(3),
     resident: x.stat(4), frames: x.stat(5), bridge: x.stat(7), slots: x.stat(8),
     modules: x.stat(9), thunks: x.stat(10),
-    jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16),
+    jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16), threads: x.stat(18), switches: x.stat(19),
     ms: performance.now() - t0, swapMs, opfs: !!swap,
   });
-  while ((st = x.run(2000000)) === 0 && !tooMuch) post('stats', stats());
+  // 3 = every program thread is waiting (Sleep, a timeout): wait that long without spinning
+  while (!tooMuch) {
+    st = x.run(2000000);
+    if (st === 3) { await new Promise((r) => setTimeout(r, Math.max(0, x.stat(17)))); continue; }
+    if (st !== 0) break;
+    post('stats', stats());
+  }
   post('stats', stats());
   if (swap) { swap.flush(); swap.truncate(0); swap.close(); }
   // files the program created or changed, offered for download
@@ -114,7 +120,7 @@ async function runProof({ poolMb, targetMb, testMb }) {
 async function runExec(d) {
   let files = d.files;
   if (!files) {
-    const names = d.exe === 'stage2.exe' ? ['stage2.exe'] : ['stage1.exe', 'testdll.dll'];
+    const names = d.exe === 'stage1.exe' || !d.exe ? ['stage1.exe', 'testdll.dll'] : [d.exe];
     files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
   }
   return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit });

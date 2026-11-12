@@ -3,7 +3,7 @@
 // streams are native here. Wine's code reads and writes program memory
 // through the page table via the wine_load_ptr / wine_store_ptr hooks.
 
-use crate::{console, Engine, RET_INITTERM, TEB};
+use crate::{console, Engine, RET_INITTERM};
 use std::collections::HashMap;
 
 #[link(wasm_import_module = "env")]
@@ -136,7 +136,7 @@ pub extern "C" fn wine_malloc(n: u64) -> u64 { crate::eng().heap_alloc(n, false)
 #[no_mangle]
 pub extern "C" fn wine_free(p: u64) { if p != 0 { crate::eng().heap_free(p); } }
 #[no_mangle]
-pub extern "C" fn wine_teb() -> u64 { TEB }
+pub extern "C" fn wine_teb() -> u64 { crate::eng().cpu.gs_base }
 #[no_mangle]
 pub extern "C" fn wine_memmove(dst: u64, src: u64, n: u64) -> u64 {
     let e = crate::eng();
@@ -246,7 +246,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             e.exit_code = if name == "abort" { 3 } else { a0 as u32 };
             crate::kernel32::NO_RETURN
         }
-        "_errno" => { e.iob(); TEB + 0x68 }
+        "_errno" => { e.iob(); e.cpu.gs_base + 0x68 }
         // streams
         "__iob_func" => e.iob(),
         "puts" => { let s = e.read_cstr(a0, 1 << 20); e.stream_write(1, format!("{}\n", s).as_bytes()); 0 }
@@ -318,7 +318,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let write = mode.contains('w') || mode.contains('a');
             let data = match e.files.get(&key) {
                 Some(d) if !mode.contains('w') => d.clone(),
-                None if !write => { let _ = e.mmu.write32(TEB + 0x68, 2); return Some(0); } // ENOENT
+                None if !write => { let _ = e.mmu.write32(e.cpu.gs_base + 0x68, 2); return Some(0); } // ENOENT
                 _ => Vec::new(),
             };
             let f = e.heap_alloc(FILE_SIZE, true);

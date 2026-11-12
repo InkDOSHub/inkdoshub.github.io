@@ -1,7 +1,7 @@
 // Our own kernel32: the functions a normal program needs to start and run,
 // implemented natively (wasm) against the engine. Single thread for now.
 
-use crate::{console, pe, Engine, PEB, RET_LOADLIB, TEB};
+use crate::{console, pe, Engine, PEB, RET_LOADLIB};
 
 /// Returned by functions that already set rip themselves (no `ret`).
 pub const NO_RETURN: u64 = u64::MAX - 0x5A5A;
@@ -10,10 +10,10 @@ const PROCESS_HEAP: u64 = 0x0000_0000_00AA_0000;
 const ERROR_ENVVAR_NOT_FOUND: u32 = 203;
 
 impl Engine {
-    fn set_last_error(&mut self, v: u32) { let _ = self.mmu.write32(TEB + 0x68, v); }
+    fn set_last_error(&mut self, v: u32) { let _ = self.mmu.write32(self.cpu.gs_base + 0x68, v); }
     fn w32(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write32(a, v); } }
     fn w64(&mut self, a: u64, v: u64) { if a != 0 { let _ = self.mmu.write64(a, v); } }
-    fn zero(&mut self, a: u64, n: u64) { for i in 0..n { let _ = self.mmu.write8(a + i, 0); } }
+    pub(crate) fn zero(&mut self, a: u64, n: u64) { for i in 0..n { let _ = self.mmu.write8(a + i, 0); } }
 
     fn module_by_handle(&self, h: u64) -> Option<usize> {
         if h == 0 { return self.modules.iter().position(|m| m.base == self.exe_base); }
@@ -154,19 +154,19 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             1
         }
         "IsProcessorFeaturePresent" => matches!(a0, 6 | 10 | 3 | 8 | 12 | 20) as u64, // SSE, SSE2, MMX, RDTSC, NX, ...
-        "GetLastError" => e.mmu.read32(TEB + 0x68).unwrap_or(0) as u64,
+        "GetLastError" => e.mmu.read32(e.cpu.gs_base + 0x68).unwrap_or(0) as u64,
         "SetLastError" => { e.set_last_error(a0 as u32); 0 }
 
         // ---- TLS / FLS (64 slots in the TEB) ----
         "TlsAlloc" | "FlsAlloc" => {
             match (0..64).find(|i| e.tls_used & (1 << i) == 0) {
-                Some(i) => { e.tls_used |= 1 << i; let _ = e.mmu.write64(TEB + 0x1480 + 8 * i, 0); i }
+                Some(i) => { e.tls_used |= 1 << i; let _ = e.mmu.write64(e.cpu.gs_base + 0x1480 + 8 * i, 0); i }
                 None => 0xFFFF_FFFF,
             }
         }
         "TlsFree" | "FlsFree" => { if a0 < 64 { e.tls_used &= !(1 << a0); } 1 }
-        "TlsGetValue" | "FlsGetValue" => { e.set_last_error(0); if a0 < 64 { e.mmu.read64(TEB + 0x1480 + 8 * a0).unwrap_or(0) } else { 0 } }
-        "TlsSetValue" | "FlsSetValue" => { let v = e.arg(1); if a0 < 64 { let _ = e.mmu.write64(TEB + 0x1480 + 8 * a0, v); 1 } else { 0 } }
+        "TlsGetValue" | "FlsGetValue" => { e.set_last_error(0); if a0 < 64 { e.mmu.read64(e.cpu.gs_base + 0x1480 + 8 * a0).unwrap_or(0) } else { 0 } }
+        "TlsSetValue" | "FlsSetValue" => { let v = e.arg(1); if a0 < 64 { let _ = e.mmu.write64(e.cpu.gs_base + 0x1480 + 8 * a0, v); 1 } else { 0 } }
 
         // ---- locks: one thread for now, so they only need to exist ----
         "InitializeCriticalSection" | "InitializeCriticalSectionAndSpinCount" | "InitializeCriticalSectionEx" => { e.zero(a0, 40); 1 }

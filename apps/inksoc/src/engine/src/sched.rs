@@ -1,0 +1,359 @@
+// Threads: every program thread is a saved CPU state; the engine runs one at a
+// time and switches after a time slice, or when the thread waits. Waits
+// (WaitFor*, Sleep, critical sections, SRW locks) leave the thread parked on
+// the native function's address; when the wait is satisfied the scheduler
+// finishes the call (the return value goes in rax) and the thread runs on.
+
+use crate::cpu::Cpu;
+use crate::files::Handle;
+use crate::{eh, kernel32::NO_RETURN, Engine, PEB, RET_THREAD, TEB};
+
+const SLICE: u64 = 200_000; // instructions per turn
+const STILL_ACTIVE: u64 = 259;
+const WAIT_TIMEOUT: u64 = 258;
+const WAIT_FAILED: u64 = 0xFFFF_FFFF;
+pub const BLOCK: u64 = u64::MAX - 0x5A5B;
+const SRW_EX: u64 = u64::MAX;
+const MAIN_TID: u32 = 8;
+
+#[derive(Clone)]
+pub enum W {
+    Sleep,
+    Objs { hs: Vec<u64>, all: bool },
+    Cs(u64),
+    SrwEx(u64),
+    SrwSh(u64),
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum St { Ready, Wait, Suspended, Done }
+
+pub struct Thread {
+    pub id: u32,
+    pub teb: u64,
+    cpu: Box<Cpu>,
+    eh: eh::Eh,
+    pub st: St,
+    wait: Option<W>,
+    deadline: f64, // ms (host clock); infinity = no timeout
+    pending: Option<u64>, // return value of the native call it was parked in
+    pub exit: u32,
+    suspend: u32,
+}
+
+#[derive(Default)]
+pub struct Sched {
+    pub th: Vec<Thread>,
+    pub cur: usize,
+    left: u64,
+    pub switch: bool,
+    pub idle_ms: f64,
+    pub switches: u64,
+}
+
+fn now() -> f64 { unsafe { crate::host_now_ms() } }
+
+impl Sched {
+    pub fn multi(&self) -> bool { self.th.len() > 1 }
+    pub fn tid(&self) -> u32 { self.th.get(self.cur).map_or(MAIN_TID, |t| t.id) }
+    /// Instructions run by the threads that are not current (each CPU state counts its own).
+    pub fn other_icount(&self) -> u64 { self.th.iter().enumerate().filter(|(i, _)| *i != self.cur).map(|(_, t)| t.cpu.icount).sum() }
+}
+
+impl Engine {
+    pub fn sched_init(&mut self) {
+        self.sched.th.push(Thread {
+            id: MAIN_TID, teb: TEB, cpu: Box::new(Cpu::new()), eh: Default::default(), st: St::Ready,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0,
+        });
+        self.sched.left = SLICE;
+    }
+
+    fn cur_tid(&self) -> u32 { self.sched.tid() }
+
+    /// Counts executed instructions; asks for a switch when the slice is used.
+    #[inline(always)]
+    pub fn sched_tick(&mut self, n: u64) {
+        if self.sched.th.len() > 1 {
+            if self.sched.left <= n { self.sched.switch = true; } else { self.sched.left -= n; }
+        }
+    }
+    /// How many instructions the current thread may still run in its slice.
+    pub fn slice_left(&self) -> u64 { if self.sched.th.len() > 1 { self.sched.left.max(1) } else { u64::MAX } }
+
+    fn thread_of(&self, h: u64) -> Option<usize> {
+        if h == u64::MAX - 1 { return Some(self.sched.cur); }
+        match self.fs.handles.get(&h) {
+            Some(Handle::Thread { tid }) => self.sched.th.iter().position(|t| t.id == *tid),
+            _ => None,
+        }
+    }
+
+    /// Is handle h signaled for thread `me`?
+    fn signaled(&self, h: u64, me: u32) -> bool {
+        match self.fs.handles.get(&h) {
+            Some(Handle::Event { set, .. }) => *set,
+            Some(Handle::Mutex { owner, .. }) => *owner == 0 || *owner == me,
+            Some(Handle::Semaphore { count, .. }) => *count > 0,
+            Some(Handle::Thread { tid }) => self.sched.th.iter().find(|t| t.id == *tid).map_or(true, |t| t.st == St::Done),
+            _ => true,
+        }
+    }
+    fn acquire(&mut self, h: u64, me: u32) {
+        match self.fs.handles.get_mut(&h) {
+            Some(Handle::Event { set, manual }) => { if !*manual { *set = false; } }
+            Some(Handle::Mutex { owner, count }) => { *owner = me; *count += 1; }
+            Some(Handle::Semaphore { count, .. }) => { *count -= 1; }
+            _ => {}
+        }
+    }
+
+    /// Tries to finish a wait for thread index i; Some(return value) when done.
+    fn try_wait(&mut self, w: &W, me: u32) -> Option<u64> {
+        match w {
+            W::Sleep => None,
+            W::Objs { hs, all } => {
+                if *all {
+                    if hs.iter().all(|&h| self.signaled(h, me)) {
+                        for &h in hs { self.acquire(h, me); }
+                        return Some(0);
+                    }
+                    None
+                } else {
+                    let i = hs.iter().position(|&h| self.signaled(h, me))?;
+                    self.acquire(hs[i], me);
+                    Some(i as u64)
+                }
+            }
+            W::Cs(cs) => {
+                let owner = self.mmu.read64(cs + 16).unwrap_or(0);
+                if owner == 0 || owner == me as u64 {
+                    let rc = self.mmu.read32(cs + 12).unwrap_or(0);
+                    let _ = self.mmu.write64(cs + 16, me as u64);
+                    let _ = self.mmu.write32(cs + 12, rc + 1);
+                    Some(0)
+                } else { None }
+            }
+            W::SrwEx(l) => {
+                if self.mmu.read64(*l).unwrap_or(0) == 0 { let _ = self.mmu.write64(*l, SRW_EX); Some(0) } else { None }
+            }
+            W::SrwSh(l) => {
+                let v = self.mmu.read64(*l).unwrap_or(0);
+                if v != SRW_EX { let _ = self.mmu.write64(*l, v + 1); Some(0) } else { None }
+            }
+        }
+    }
+
+    /// Native call that waits: finishes now when possible, else parks the thread.
+    fn wait_on(&mut self, w: W, ms: u64) -> u64 {
+        let me = self.cur_tid();
+        if let Some(v) = self.try_wait(&w, me) { return v; }
+        if ms == 0 { return WAIT_TIMEOUT; }
+        let t = &mut self.sched.th[self.sched.cur];
+        t.st = St::Wait;
+        t.wait = Some(w);
+        t.deadline = if ms >= 0xFFFF_FFFF { f64::INFINITY } else { now() + ms as f64 };
+        self.sched.switch = true;
+        BLOCK
+    }
+
+    fn new_thread(&mut self, stack: u64, start: u64, param: u64, flags: u64) -> Option<(u64, u32)> {
+        let size = stack.max(1 << 20);
+        let st = self.alloc(size)?;
+        let teb = self.alloc(0x2000)?;
+        let id = MAIN_TID + 4 * self.sched.th.len() as u32;
+        let w = |e: &mut Engine, a: u64, v: u64| { let _ = e.mmu.write64(a, v); };
+        w(self, teb + 0x08, st + size);
+        w(self, teb + 0x10, st);
+        w(self, teb + 0x30, teb);
+        w(self, teb + 0x40, 4);
+        w(self, teb + 0x48, id as u64);
+        w(self, teb + 0x58, teb + 0x1800);
+        w(self, teb + 0x60, PEB);
+        let mut cpu = Box::new(Cpu::new());
+        let sp = st + size - 0x100;
+        w(self, sp, RET_THREAD);
+        cpu.regs[4] = sp;
+        cpu.regs[1] = param;
+        cpu.rip = start;
+        cpu.gs_base = teb;
+        cpu.xmm = self.cpu.xmm; // MXCSR-like state is not modeled; start clean otherwise
+        let suspended = flags & 4 != 0;
+        self.sched.th.push(Thread {
+            id, teb, cpu, eh: Default::default(), st: if suspended { St::Suspended } else { St::Ready },
+            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32,
+        });
+        if self.sched.th.len() == 2 { self.sched.left = SLICE; }
+        let h = self.new_handle(Handle::Thread { tid: id });
+        Some((h, id))
+    }
+
+    /// The current thread ends.
+    pub fn exit_thread(&mut self, code: u32) {
+        let c = self.sched.cur;
+        self.sched.th[c].st = St::Done;
+        self.sched.th[c].exit = code;
+        if self.sched.th.iter().all(|t| t.st == St::Done) {
+            self.exited = true;
+            self.exit_code = code;
+        }
+        self.sched.switch = true;
+    }
+
+    /// Picks the next thread to run. false = nobody can run now (idle_ms says how long to wait).
+    pub fn sched_switch(&mut self) -> bool {
+        self.sched.switch = false;
+        self.sched.left = SLICE;
+        let n = self.sched.th.len();
+        if n <= 1 && self.sched.th.first().map_or(true, |t| t.st == St::Ready) { return true; }
+        let t_now = now();
+        let mut soonest = f64::INFINITY;
+        for k in 1..=n {
+            let i = (self.sched.cur + k) % n;
+            let t = &self.sched.th[i];
+            match t.st {
+                St::Ready => return self.switch_to(i),
+                St::Wait => {
+                    let w = t.wait.clone().unwrap();
+                    let id = t.id;
+                    let dl = t.deadline;
+                    let r = self.try_wait(&w, id).or_else(|| if t_now >= dl { Some(if matches!(w, W::Sleep) { 0 } else { WAIT_TIMEOUT }) } else { None });
+                    if let Some(v) = r {
+                        let t = &mut self.sched.th[i];
+                        t.st = St::Ready;
+                        t.wait = None;
+                        t.pending = Some(v);
+                        return self.switch_to(i);
+                    }
+                    soonest = soonest.min(dl);
+                }
+                _ => {}
+            }
+        }
+        if soonest.is_finite() {
+            self.sched.idle_ms = (soonest - t_now).max(0.0);
+            self.sched.switch = true;
+            false
+        } else {
+            self.error = Some("all threads are waiting for each other (deadlock)".into());
+            false
+        }
+    }
+
+    fn switch_to(&mut self, i: usize) -> bool {
+        let c = self.sched.cur;
+        if i != c {
+            self.materialize();
+            core::mem::swap(&mut self.cpu, &mut *self.sched.th[c].cpu);
+            core::mem::swap(&mut self.eh, &mut self.sched.th[c].eh);
+            core::mem::swap(&mut self.cpu, &mut *self.sched.th[i].cpu);
+            core::mem::swap(&mut self.eh, &mut self.sched.th[i].eh);
+            self.sched.cur = i;
+            self.sched.switches += 1;
+        }
+        if let Some(v) = self.sched.th[i].pending.take() { self.do_ret(v); }
+        true
+    }
+
+    fn handles_arg(&mut self, n: u64, p: u64) -> Vec<u64> {
+        (0..n.min(64)).map(|k| self.mmu.read64(p + 8 * k).unwrap_or(0)).collect()
+    }
+}
+
+/// Thread and synchronization functions; None = not ours.
+pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
+    let a0 = e.arg(0);
+    let me = e.cur_tid();
+    Some(match name {
+        "CreateThread" | "_beginthreadex" | "_beginthread" => {
+            let (stack, start, param, flags) = if name == "_beginthread" { (e.arg(1), a0, e.arg(2), 0) } else { (e.arg(1), e.arg(2), e.arg(3), e.arg(4)) };
+            match e.new_thread(stack, start, param, flags) {
+                Some((h, id)) => {
+                    if name != "_beginthread" { let p = e.arg(5); if p != 0 { let _ = e.mmu.write32(p, id); } }
+                    h
+                }
+                None => 0,
+            }
+        }
+        "ExitThread" | "_endthreadex" | "_endthread" => { e.exit_thread(a0 as u32); NO_RETURN }
+        "GetCurrentThreadId" => me as u64,
+        "GetThreadId" => e.thread_of(a0).map_or(0, |i| e.sched.th[i].id as u64),
+        "ResumeThread" => match e.thread_of(a0) {
+            Some(i) => {
+                let t = &mut e.sched.th[i];
+                let prev = t.suspend;
+                if t.suspend > 0 { t.suspend -= 1; if t.suspend == 0 && t.st == St::Suspended { t.st = St::Ready; } }
+                prev as u64
+            }
+            None => u32::MAX as u64,
+        },
+        "SuspendThread" => match e.thread_of(a0) {
+            Some(i) if i != e.sched.cur => { let t = &mut e.sched.th[i]; let prev = t.suspend; t.suspend += 1; if t.st == St::Ready { t.st = St::Suspended; } prev as u64 }
+            _ => 0,
+        },
+        "GetExitCodeThread" => {
+            let p = e.arg(1);
+            let v = e.thread_of(a0).map_or(0, |i| if e.sched.th[i].st == St::Done { e.sched.th[i].exit as u64 } else { STILL_ACTIVE });
+            let _ = e.mmu.write32(p, v as u32);
+            1
+        }
+        "WaitForSingleObject" | "WaitForSingleObjectEx" => {
+            if a0 != u64::MAX - 1 && !e.fs.handles.contains_key(&a0) { WAIT_FAILED }
+            else { let ms = e.arg(1) as u32 as u64; e.wait_on(W::Objs { hs: vec![a0], all: false }, ms) }
+        }
+        "WaitForMultipleObjects" | "WaitForMultipleObjectsEx" => {
+            let p = e.arg(1);
+            let hs = e.handles_arg(a0, p);
+            let all = e.arg(2) as u32 != 0;
+            let ms = e.arg(3) as u32 as u64;
+            e.wait_on(W::Objs { hs, all }, ms)
+        }
+        "Sleep" | "SleepEx" => {
+            let ms = a0 as u32 as u64;
+            if ms == 0 { e.sched.switch = e.sched.multi(); 0 } else { e.wait_on(W::Sleep, ms) }
+        }
+        "SwitchToThread" => { e.sched.switch = e.sched.multi(); 1 }
+        "CreateEventW" | "CreateEventA" | "CreateEventExW" | "CreateEventExA" => {
+            let (manual, set) = if name.contains("Ex") { let f = e.arg(2); (f & 1 != 0, f & 2 != 0) } else { (e.arg(1) != 0, e.arg(2) != 0) };
+            e.new_handle(Handle::Event { set, manual })
+        }
+        "SetEvent" => { if let Some(Handle::Event { set, .. }) = e.fs.handles.get_mut(&a0) { *set = true; } 1 }
+        "ResetEvent" => { if let Some(Handle::Event { set, .. }) = e.fs.handles.get_mut(&a0) { *set = false; } 1 }
+        "PulseEvent" => 1,
+        "CreateMutexW" | "CreateMutexA" => { let own = e.arg(1) != 0; e.new_handle(Handle::Mutex { owner: if own { me } else { 0 }, count: own as u32 }) }
+        "ReleaseMutex" => match e.fs.handles.get_mut(&a0) {
+            Some(Handle::Mutex { owner, count }) if *owner == me => { *count -= 1; if *count == 0 { *owner = 0; } 1 }
+            _ => 0,
+        },
+        "CreateSemaphoreW" | "CreateSemaphoreA" | "CreateSemaphoreExW" => { let (c, m) = (e.arg(1) as i32, e.arg(2) as i32); e.new_handle(Handle::Semaphore { count: c, max: m }) }
+        "ReleaseSemaphore" => {
+            let (n, p) = (e.arg(1) as i32, e.arg(2));
+            match e.fs.handles.get_mut(&a0) {
+                Some(Handle::Semaphore { count, max }) if *count + n <= *max => {
+                    let prev = *count;
+                    *count += n;
+                    if p != 0 { let _ = e.mmu.write32(p, prev as u32); }
+                    1
+                }
+                _ => 0,
+            }
+        }
+        "InitializeCriticalSection" | "InitializeCriticalSectionAndSpinCount" | "InitializeCriticalSectionEx" => { e.zero(a0, 40); 1 }
+        "DeleteCriticalSection" => 0,
+        "EnterCriticalSection" => e.wait_on(W::Cs(a0), u64::MAX),
+        "TryEnterCriticalSection" => (e.try_wait(&W::Cs(a0), me).is_some()) as u64,
+        "LeaveCriticalSection" => {
+            let rc = e.mmu.read32(a0 + 12).unwrap_or(0);
+            if rc <= 1 { let _ = e.mmu.write32(a0 + 12, 0); let _ = e.mmu.write64(a0 + 16, 0); } else { let _ = e.mmu.write32(a0 + 12, rc - 1); }
+            0
+        }
+        "InitializeSRWLock" => { let _ = e.mmu.write64(a0, 0); 0 }
+        "AcquireSRWLockExclusive" => { let r = e.wait_on(W::SrwEx(a0), u64::MAX); if r == BLOCK { r } else { 0 } }
+        "AcquireSRWLockShared" => { let r = e.wait_on(W::SrwSh(a0), u64::MAX); if r == BLOCK { r } else { 0 } }
+        "TryAcquireSRWLockExclusive" => e.try_wait(&W::SrwEx(a0), me).is_some() as u64,
+        "TryAcquireSRWLockShared" => e.try_wait(&W::SrwSh(a0), me).is_some() as u64,
+        "ReleaseSRWLockExclusive" => { let _ = e.mmu.write64(a0, 0); 0 }
+        "ReleaseSRWLockShared" => { let v = e.mmu.read64(a0).unwrap_or(1); let _ = e.mmu.write64(a0, v.saturating_sub(1)); 0 }
+        _ => return None,
+    })
+}
