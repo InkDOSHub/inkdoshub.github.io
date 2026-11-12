@@ -93,6 +93,10 @@ impl Mmu {
         self.sh.regions.push((start, start + size));
         self.sh.committed += size;
     }
+    /// Address space only (MEM_RESERVE): not counted against the memory target.
+    pub fn add_reserved(&mut self, start: u64, size: u64) {
+        self.sh.regions.push((start, start + size));
+    }
 
     fn in_region(&self, addr: u64) -> bool {
         self.sh.regions.iter().any(|&(s, e)| addr >= s && addr < e)

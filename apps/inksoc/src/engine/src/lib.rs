@@ -385,6 +385,16 @@ impl Engine {
         }
     }
 
+    /// Reserves address space only (pages are backed when first touched).
+    pub fn reserve(&mut self, size: u64) -> Option<u64> {
+        let size = (size.max(1) + 0xFFFF) & !0xFFFF;
+        if self.s.next_alloc + size > 0x7F00_0000_0000 { return None; }
+        let a = self.s.next_alloc;
+        self.s.next_alloc += size + 0x10000;
+        self.mmu.add_reserved(a, size);
+        Some(a)
+    }
+
     /// VirtualAlloc-style reservation: 64 KB aligned, committed lazily.
     pub fn alloc(&mut self, size: u64) -> Option<u64> {
         let size = (size.max(1) + 0xFFFF) & !0xFFFF;

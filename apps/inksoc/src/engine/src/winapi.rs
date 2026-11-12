@@ -401,7 +401,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetHandleInformation" => { let p = e.arg(1); e.wr32(p, 0); 1 }
         "LockFile" | "UnlockFile" | "LockFileEx" | "UnlockFileEx" => 1,
         "VerifyConsoleIoHandle" => (a0 <= 3) as u64,
-        "GetNumberOfConsoleInputEvents" => { let p = e.arg(1); e.wr32(p, 0); 1 }
+        // only the console input handle has input events (programs tell input from output this way)
+        "GetNumberOfConsoleInputEvents" => { if a0 != 3 { return Some(0); } let p = e.arg(1); e.wr32(p, 0); 1 }
         "PeekConsoleInputA" | "PeekConsoleInputW" | "ReadConsoleInputA" | "ReadConsoleInputW" => { let p = e.arg(3); e.wr32(p, 0); 1 }
         "ReadConsoleA" | "ReadConsoleW" => { let p = e.arg(3); e.wr32(p, 0); 1 }
         "GetConsoleScreenBufferInfoEx" => { e.last_err(6); 0 }

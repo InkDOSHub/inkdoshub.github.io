@@ -13,7 +13,7 @@ pub fn redirect(name: &str) -> Option<String> {
     if name.starts_with("Nt") && name.len() > 2 && name.as_bytes()[2].is_ascii_uppercase() { return Some(name.to_string()); }
     const KEEP: &[&str] = &[
         "RtlAllocateHeap", "RtlFreeHeap", "RtlReAllocateHeap", "RtlSizeHeap", "RtlCreateHeap", "RtlDestroyHeap", "RtlGetProcessHeaps",
-        "RtlValidateHeap", "RtlCompactHeap", "RtlLockHeap", "RtlUnlockHeap", "RtlWalkHeap", "RtlSetHeapInformation", "RtlQueryHeapInformation",
+        "RtlValidateHeap", "RtlCompactHeap", "RtlGetUserInfoHeap", "RtlSetUserValueHeap", "RtlSetUserFlagsHeap", "RtlLockHeap", "RtlUnlockHeap", "RtlWalkHeap", "RtlSetHeapInformation", "RtlQueryHeapInformation",
         "RtlEnterCriticalSection", "RtlLeaveCriticalSection", "RtlTryEnterCriticalSection", "RtlInitializeCriticalSection",
         "RtlInitializeCriticalSectionEx", "RtlInitializeCriticalSectionAndSpinCount", "RtlDeleteCriticalSection",
         "RtlIsCriticalSectionLocked", "RtlIsCriticalSectionLockedByThread",
@@ -188,9 +188,21 @@ impl Engine {
     /// the ANSI/OEM code page and the case tables from l_intl.nls.
     fn wine_nls(&mut self, i: usize) {
         let base = self.s.modules[i].base;
-        // the table's place is known for this exact Wine build only
-        if self.s.modules[i].exports.get("RtlUpcaseUnicodeChar") != Some(&(base + 0x39e40)) { return; }
-        let nls = base + 0x6d5e0;
+        // the globals' places come from the code that uses them (any Wine version):
+        // RtlUpcaseUnicodeChar reads nls_info.UpperCaseTable with `mov rcx, [rip+d]`,
+        // RtlResetRtlTranslations stores NlsAnsiCodePage with `mov [rip+d], eax`
+        let find = |e: &mut Engine, f: &str, pat: &[u8]| -> Option<u64> {
+            let a = *e.s.modules[i].exports.get(f)?;
+            let mut b = [0u8; 32];
+            e.mmu.read_bytes(a, &mut b).ok()?;
+            let k = (0..32 - pat.len() - 4).find(|&k| &b[k..k + pat.len()] == pat)?;
+            let d = i32::from_le_bytes(b[k + pat.len()..k + pat.len() + 4].try_into().ok()?) as i64;
+            Some((a as i64 + (k + pat.len() + 4) as i64 + d) as u64)
+        };
+        let Some(upper) = find(self, "RtlUpcaseUnicodeChar", &[0x48, 0x8B, 0x0D]) else { return };
+        let acp = find(self, "RtlResetRtlTranslations", &[0x89, 0x05]);
+        let _ = base;
+        let nls = upper - 0x80;
         for t in [nls, nls + 0x40] {
             let _ = self.mmu.write_bytes(t, &[0xE9, 0xFD, 4, 0, 0x3F, 0, 0xFD, 0xFF, 0x3F, 0, 0x3F, 0]);
         }
@@ -201,7 +213,7 @@ impl Engine {
             let _ = self.mmu.write64(nls + 0x80, a + 4);
             let _ = self.mmu.write64(nls + 0x88, a + 4 + 2 * n);
         }
-        let _ = self.mmu.write16(base + 0x95964, 65001); // NlsAnsiCodePage
+        if let Some(a) = acp { let _ = self.mmu.write16(a, 65001); } // NlsAnsiCodePage
     }
 
     /// Per-thread blocks Wine's ntdll expects in the TEB (activation context stack).

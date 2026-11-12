@@ -5,12 +5,10 @@
    "status": "exit",
    "exitCode": 0,
    "error": "",
-   "missing": [
-    "zlib1.dll"
-   ],
-   "mips": 5,
-   "ms": 453,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n\r\n7-Zip (a) 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\r\n\r\nScanning the drive:\r\n  0M Scan \r          \r1 file, 42 bytes (1 KiB)\r\n\r\nCreating archive: out.7z\r\n\r\nAdd new data to archive: 1 file, 42 bytes (1 KiB)\r\n\r\n  0%\r    \r\r\nFiles read from disk: 1\r\nArchive size: 168 bytes (1 KiB)\r\nEverything is Ok\r\n"
+   "missing": [],
+   "mips": 6,
+   "ms": 483,
+   "out": "\r\n7-Zip (a) 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\r\n\r\nScanning the drive:\r\n  0M Scan \r          \r1 file, 42 bytes (1 KiB)\r\n\r\nCreating archive: out.7z\r\n\r\nAdd new data to archive: 1 file, 42 bytes (1 KiB)\r\n\r\n  0%\r    \r\r\nFiles read from disk: 1\r\nArchive size: 168 bytes (1 KiB)\r\nEverything is Ok\r\n"
   },
   "jq": {
    "ok": false,
@@ -19,18 +17,18 @@
    "error": "expected output not found",
    "missing": [],
    "mips": 4,
-   "ms": 395,
+   "ms": 363,
    "out": "Assertion failed: block_is_single(binder), file src/compile.c, line 308\r\n\r\n"
   },
   "sqlite": {
-   "ok": false,
+   "ok": true,
    "status": "exit",
    "exitCode": 0,
-   "error": "expected output not found",
+   "error": "",
    "missing": [],
-   "mips": 3,
-   "ms": 411,
-   "out": ""
+   "mips": 2,
+   "ms": 498,
+   "out": "42\n\r"
   },
   "ripgrep": {
    "ok": true,
@@ -38,8 +36,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 10,
-   "ms": 586,
+   "mips": 9,
+   "ms": 530,
    "out": "1:hello world\n4:hello again\n"
   },
   "ripgrep-gnu": {
@@ -48,8 +46,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 10,
-   "ms": 678,
+   "mips": 8,
+   "ms": 721,
    "out": "1:hello world\n4:hello again\n"
   },
   "fd": {
@@ -58,12 +56,11 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 391,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nfd 10.2.0\n"
+   "ms": 412,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nfd 10.2.0\n"
   },
   "bat": {
    "ok": true,
@@ -71,8 +68,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 37,
-   "ms": 1383,
+   "mips": 24,
+   "ms": 1948,
    "out": "hello world\nzebra\napple\nhello again\nmango\n"
   },
   "hyperfine": {
@@ -82,7 +79,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 374,
+   "ms": 477,
    "out": "hyperfine 1.19.0\n"
   },
   "hexyl": {
@@ -92,7 +89,7 @@
    "error": "",
    "missing": [],
    "mips": 4,
-   "ms": 427,
+   "ms": 452,
    "out": "┌────────┬─────────────────────────┬─────────────────────────┬────────┬────────┐\n│00000000│ 68 65 6c 6c 6f 20 77 6f ┊ 72 6c 64 0a 7a 65 62 72 │hello wo┊rld_zebr│\n│00000010│ 61 0a 61 70 70 6c 65 0a ┊ 68 65 6c 6c 6f 20 61 67 │a_apple_┊hello ag│\n│00000020│ 61 69 6e 0a 6d 61 6e 67 ┊ 6f 0a                   │ain_mang┊o_      │\n└────────┴─────────────────────────┴─────────────────────────┴────────┴────────┘\n"
   },
   "zstd": {
@@ -102,7 +99,7 @@
    "error": "",
    "missing": [],
    "mips": 3,
-   "ms": 428,
+   "ms": 409,
    "out": "\r                                                                               \rRead:    42   B /    42   B ==> 121%\r                                                                               \rin.txt               :130.95%   (    42 B =>     55 B, in.zst) \r\n"
   },
   "lz4": {
@@ -112,7 +109,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 384,
+   "ms": 415,
    "out": "\rRead : 0 MiB   ==> 142.86%   \r                                                                               \rCompressed 42 bytes into 60 bytes ==> 142.86%\r\n"
   },
   "brotli": {
@@ -121,19 +118,19 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 15,
-   "ms": 517,
+   "mips": 16,
+   "ms": 522,
    "out": ""
   },
   "upx": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "access violation at 0x8 (rip 0x7ff0003b7668) [in wine-ntdll.dll+0x57668]",
+   "error": "",
    "missing": [],
-   "mips": 120,
-   "ms": 581,
-   "out": ""
+   "mips": 99,
+   "ms": 610,
+   "out": "upx 4.2.4\r\nNRV data compression library 0.84\r\nUCL data compression library 1.03\r\nzlib data compression library 1.3.1.1-motley\r\nLZMA SDK version 4.43\r\nCopyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer\r\nCopyright (C) 1996-2024 Laszlo Molnar\r\nCopyright (C) 2000-2024 John F. Reiser\r\nCopyright (C) 1995-2024 Jean-loup Gailly and Mark Adler\r\nCopyright (C) 1999-2006 Igor Pavlov\r\nUPX comes with ABSOLUTELY NO WARRANTY; for details type 'upx -L'.\r\n"
   },
   "ninja": {
    "ok": true,
@@ -142,18 +139,18 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 392,
+   "ms": 398,
    "out": "1.12.1\r\n"
   },
   "yq": {
-   "ok": false,
+   "ok": true,
    "status": "exit",
    "exitCode": 0,
-   "error": "expected output not found",
+   "error": "",
    "missing": [],
-   "mips": 8,
-   "ms": 1241,
-   "out": "null\n"
+   "mips": 10,
+   "ms": 1061,
+   "out": "\"x\"\n"
   },
   "fzf": {
    "ok": true,
@@ -161,8 +158,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 421,
-   "ms": 1272,
+   "mips": 598,
+   "ms": 992,
    "out": "0.56.3 (add1aec)\n"
   },
   "coreutils": {
@@ -170,12 +167,10 @@
    "status": "exit",
    "exitCode": 0,
    "error": "",
-   "missing": [
-    "zlib1.dll"
-   ],
+   "missing": [],
    "mips": 1,
-   "ms": 440,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\napple\nhello again\nhello world\nmango\nzebra\n"
+   "ms": 424,
+   "out": "apple\nhello again\nhello world\nmango\nzebra\n"
   },
   "tokei": {
    "ok": true,
@@ -183,11 +178,10 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
    "mips": 3,
-   "ms": 427,
+   "ms": 447,
    "out": "unctions will stop the program when called\n===============================================================================\n Language            Files        Lines         Code     Comments       Blanks\n===============================================================================\n C                       1            2            2            0            0\n===============================================================================\n Total                   1            2            2            0            0\n===============================================================================\n"
   },
   "sd": {
@@ -197,7 +191,7 @@
    "error": "expected output not found",
    "missing": [],
    "mips": 1,
-   "ms": 395,
+   "ms": 425,
    "out": "error: Incorrect function. (os error 1)\n"
   },
   "dust": {
@@ -206,27 +200,27 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll",
-    "nsi.dll"
+    "nsi.dll",
+    "netutils.dll"
    ],
    "mips": 1,
-   "ms": 347,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\nDust 1.1.1\n"
+   "ms": 448,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] netutils.dll is not available yet: its functions will stop the program when called\nDust 1.1.1\n"
   },
   "delta": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: ntdll.dll!NtOpenProcess",
+   "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll",
-    "nsi.dll"
+    "nsi.dll",
+    "netutils.dll"
    ],
-   "mips": 4,
-   "ms": 454,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 6,
+   "ms": 511,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] netutils.dll is not available yet: its functions will stop the program when called\ndelta 0.18.2\n"
   },
   "oxipng": {
    "ok": true,
@@ -235,7 +229,7 @@
    "error": "",
    "missing": [],
    "mips": 16,
-   "ms": 536,
+   "ms": 591,
    "out": "Processing: in.png\n86 bytes (81.43% smaller): out.png\n"
   },
   "age": {
@@ -244,8 +238,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 7,
-   "ms": 534,
+   "mips": 6,
+   "ms": 616,
    "out": "v1.2.0\n"
   },
   "rclone": {
@@ -253,12 +247,10 @@
    "status": "exit",
    "exitCode": 0,
    "error": "",
-   "missing": [
-    "zlib1.dll"
-   ],
-   "mips": 131,
-   "ms": 4560,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n2026/11/12 12:20:10 ERROR : Couldn't find configuration directory nor home directory: HOMEDRIVE, HOMEPATH, or USERPROFILE are blank\n2026/11/12 12:20:10 ERROR : Defaulting to storing config in current directory.\n2026/11/12 12:20:10 ERROR : Use --config flag to workaround.\nrclone v1.68.2\n- os/version: unknown\n- os/kernel: unknown\n- os/type: windows\n- os/arch: amd64\n- go/version: go1.23.3\n- go/linking: static\n- go/tags: cmount\n"
+   "missing": [],
+   "mips": 126,
+   "ms": 4759,
+   "out": "2026/11/12 15:37:56 ERROR : Couldn't find configuration directory nor home directory: HOMEDRIVE, HOMEPATH, or USERPROFILE are blank\n2026/11/12 15:37:56 ERROR : Defaulting to storing config in current directory.\n2026/11/12 15:37:56 ERROR : Use --config flag to workaround.\nrclone v1.68.2\n- os/version: unknown\n- os/kernel: unknown\n- os/type: windows\n- os/arch: amd64\n- go/version: go1.23.3\n- go/linking: static\n- go/tags: cmount\n"
   },
   "hugo": {
    "ok": true,
@@ -267,7 +259,7 @@
    "error": "",
    "missing": [],
    "mips": 43,
-   "ms": 3848,
+   "ms": 3734,
    "out": "hugo v0.139.3-2f6864387cd31b975914e8373d4bf38bddbd47bc windows/amd64 BuildDate=2024-11-29T15:36:56Z VendorInfo=gohugoio\n"
   },
   "gh": {
@@ -276,8 +268,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 117,
-   "ms": 5525,
+   "mips": 151,
+   "ms": 4399,
    "out": "gh version 2.62.0 (2024-11-14)\nhttps://github.com/cli/cli/releases/tag/v2.62.0\n"
   },
   "restic": {
@@ -286,8 +278,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 11,
-   "ms": 2061,
+   "mips": 13,
+   "ms": 1765,
    "out": "restic 0.17.3 compiled with go1.23.3 on windows/amd64\n"
   },
   "shellcheck": {
@@ -296,49 +288,45 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "nsi.dll",
     "msacm32.dll",
     "coml2.dll"
    ],
    "mips": 2,
-   "ms": 456,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] msacm32.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nShellCheck - shell script analysis tool\r\nversion: 0.10.0\r\nlicense: GNU General Public License, version 3\r\nwebsite: https://www.shellcheck.net\r\n"
+   "ms": 505,
+   "out": "[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] msacm32.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nShellCheck - shell script analysis tool\r\nversion: 0.10.0\r\nlicense: GNU General Public License, version 3\r\nwebsite: https://www.shellcheck.net\r\n"
   },
   "pandoc": {
-   "ok": false,
+   "ok": true,
    "status": "exit",
-   "exitCode": 1,
-   "error": "expected output not found",
+   "exitCode": 0,
+   "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
    "mips": 2,
-   "ms": 1438,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\npandoc.exe: osReserveHeapMemory: VirtualAlloc MEM_RESERVE 1099512676352 bytes                 at address 0000000000000000 bytes failed: H���"
+   "ms": 1833,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\npandoc.exe 3.5\r\nFeatures: +server +lua\r\nScripting engine: Lua 5.4\r\nUser data directory: C:\\InkSoC\\pandoc\r\nCopyright (C) 2006-2024 John MacFarlane. Web: https://pandoc.org\r\nThis is free software; see the source for copying conditions. There is no\r\nwarranty, not even for merchantability or fitness for a particular purpose.\r\n"
   },
   "qpdf": {
    "ok": true,
    "status": "exit",
    "exitCode": 0,
    "error": "",
-   "missing": [
-    "zlib1.dll"
-   ],
-   "mips": 9,
-   "ms": 718,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\nqpdf version 11.9.1\r\nRun qpdf --copyright to see copyright and license information.\r\n"
+   "missing": [],
+   "mips": 6,
+   "ms": 798,
+   "out": "qpdf version 11.9.1\r\nRun qpdf --copyright to see copyright and license information.\r\n"
   },
   "python": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "access violation at 0xaa00c0 (rip 0x7ff000ae8c52) [in wine-ntdll.dll+0x28c52]",
+   "error": "",
    "missing": [],
-   "mips": 11,
-   "ms": 1234,
-   "out": ""
+   "mips": 21,
+   "ms": 3383,
+   "out": "42\r\n"
   },
   "ffmpeg": {
    "ok": true,
@@ -347,14 +335,13 @@
    "error": "",
    "missing": [
     "avrt.dll",
-    "zlib1.dll",
     "nsi.dll",
     "msimg32.dll",
     "coml2.dll",
     "avicap32.dll"
    ],
-   "mips": 67,
-   "ms": 1080,
+   "mips": 50,
+   "ms": 1265,
    "out": "-enable-nvenc --enable-vaapi --enable-openal --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband\r\nlibavutil      61.  1.102 / 61.  1.102\r\nlibavcodec     63.  1.102 / 63.  1.102\r\nlibavformat    63.  1.102 / 63.  1.102\r\nlibavdevice    63.  1.102 / 63.  1.102\r\nlibavfilter    12.  1.102 / 12.  1.102\r\nlibswscale     10.  1.102 / 10.  1.102\r\nlibswresample   7.  1.102 /  7.  1.102\r\n\r\nExiting with exit code 0\r\n"
   },
   "nasm": {
@@ -364,7 +351,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 413,
+   "ms": 391,
    "out": "NASM version 2.16.03 compiled on Apr 17 2024\r\n"
   },
   "tcc": {
@@ -372,26 +359,23 @@
    "status": "exit",
    "exitCode": 0,
    "error": "",
-   "missing": [
-    "zlib1.dll"
-   ],
-   "mips": 5,
-   "ms": 403,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\ntcc version 0.9.27 (x86_64 Windows)\r\n"
+   "missing": [],
+   "mips": 4,
+   "ms": 428,
+   "out": "tcc version 0.9.27 (x86_64 Windows)\r\n"
   },
   "node": {
    "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: ntdll.dll!NtOpenDirectoryObject",
+   "status": "exit",
+   "exitCode": 1,
+   "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll",
     "nsi.dll"
    ],
-   "mips": 47,
-   "ms": 2704,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 29,
+   "ms": 4725,
+   "out": "F (bad file descriptor)\n    at new WriteStream (node:tty:97:11)\n    at createWritableStdioStream (node:internal/bootstrap/switches/is_main_thread:56:16)\n    at process.getStdout [as stdout] (node:internal/bootstrap/switches/is_main_thread:153:12)\n    at console.get (node:internal/console/constructor:204:42)\n    at console.value (node:internal/console/constructor:329:50)\n    at console.log (node:internal/console/constructor:376:61)\n    at [eval]:1:9\n    at runScriptInThisContext (node:internal/vm:209:10)\n    at node:internal/process/execution:118:14\n    at [eval]-wrapper:6:24\n\nNode.js v22.11.0\n"
   },
   "deno": {
    "ok": true,
@@ -399,12 +383,11 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
-   "mips": 9,
-   "ms": 1102,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\ndeno 2.1.1 (stable, release, x86_64-pc-windows-msvc)\nv8 13.0.245.12-rusty\ntypescript 5.6.2\n"
+   "mips": 8,
+   "ms": 1203,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\ndeno 2.1.1 (stable, release, x86_64-pc-windows-msvc)\nv8 13.0.245.12-rusty\ntypescript 5.6.2\n"
   },
   "cwebp": {
    "ok": true,
@@ -412,12 +395,11 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 366,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n1.4.0\r\nlibsharpyuv: 0.4.0\r\n"
+   "ms": 357,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n1.4.0\r\nlibsharpyuv: 0.4.0\r\n"
   },
   "git": {
    "ok": true,
@@ -426,7 +408,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 502,
+   "ms": 568,
    "out": "git version 2.47.1.windows.1\n"
   },
   "cmake": {
@@ -435,12 +417,11 @@
    "exitCode": 0,
    "error": "access violation at 0x0 (rip 0x14011217a) [in cmake.exe+0x11217a]",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
-   "mips": 6,
-   "ms": 660,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nCMake Error: Could not find CMAKE_ROOT !!!\nCMake has most likely not been installed correctly.\nModules directory not found in\n\n"
+   "mips": 4,
+   "ms": 731,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nCMake Error: Could not find CMAKE_ROOT !!!\nCMake has most likely not been installed correctly.\nModules directory not found in\n\n"
   },
   "tidy": {
    "ok": true,
@@ -449,7 +430,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 361,
+   "ms": 345,
    "out": "HTML Tidy for Windows version 5.8.0\r\n"
   },
   "dos2unix": {
@@ -459,7 +440,7 @@
    "error": "",
    "missing": [],
    "mips": 4,
-   "ms": 375,
+   "ms": 420,
    "out": "dos2unix 7.5.2 (2024-01-22)\r\nWindows 64 bit version (MinGW-w64).\r\nWINVER 0x601\r\nWith Unicode UTF-16 support.\r\nWith Unicode file name support.\r\nWithout native language support.\r\nWithout support to preserve the user and group ownership of files.\r\nhttps://waterlan.home.xs4all.nl/dos2unix.html\r\nhttps://dos2unix.sourceforge.io/\r\n"
   },
   "ytdlp": {
@@ -467,34 +448,30 @@
    "status": "exit",
    "exitCode": 4294967295,
    "error": "expected output not found",
-   "missing": [
-    "zlib1.dll"
-   ],
-   "mips": 372,
-   "ms": 1901,
-   "out": "should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\INSTALLER\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\METADATA\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\RECORD\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\REQUESTED\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\WHEEL\r\n[PYI-4:ERROR] Failed to create child process!\r\nCreateProcessW: The system cannot find the file specified.\r\r\n"
+   "missing": [],
+   "mips": 361,
+   "ms": 2013,
+   "out": "should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\INSTALLER\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\METADATA\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\RECORD\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\REQUESTED\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\WHEEL\r\n[PYI-4:ERROR] Failed to create child process!\r\nCreateProcessW: The system cannot find the file specified.\r\r\n"
   },
   "micro": {
    "ok": true,
    "status": "exit",
    "exitCode": 0,
    "error": "",
-   "missing": [
-    "zlib1.dll"
-   ],
-   "mips": 9,
-   "ms": 1041,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\nVersion: 2.0.14\nCommit hash: 04c57704\nCompiled on August 27, 2024\n"
+   "missing": [],
+   "mips": 8,
+   "ms": 1271,
+   "out": "Version: 2.0.14\nCommit hash: 04c57704\nCompiled on August 27, 2024\n"
   },
   "gron": {
-   "ok": false,
+   "ok": true,
    "status": "exit",
-   "exitCode": 3,
-   "error": "expected output not found",
+   "exitCode": 0,
+   "error": "",
    "missing": [],
    "mips": 5,
-   "ms": 674,
-   "out": "failed to form statements: EOF\n"
+   "ms": 796,
+   "out": "json = {};\njson.a = [];\njson.a[0] = 1;\njson.a[1] = 2;\njson.a[2] = 3;\njson.b = \"x\";\n"
   },
   "duckdb": {
    "ok": true,
@@ -504,8 +481,8 @@
    "missing": [
     "concrt140.dll"
    ],
-   "mips": 17,
-   "ms": 1840,
+   "mips": 18,
+   "ms": 1672,
    "out": "[inksoc] concrt140.dll is not available yet: its functions will stop the program when called\nâââââââââââ\r\nâ (6 * 7) â\r\nâ  int32  â\r\nâââââââââââ¤\r\nâ      42 â\r\nâââââââââââ\r\n"
   },
   "starship": {
@@ -514,12 +491,11 @@
    "exitCode": 0,
    "error": "access violation at 0x0 (rip 0x0)",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 451,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n"
+   "ms": 437,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n"
   },
   "zoxide": {
    "ok": true,
@@ -527,12 +503,11 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
-   "mips": 2,
-   "ms": 391,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nzoxide 0.9.6\n"
+   "mips": 1,
+   "ms": 415,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nzoxide 0.9.6\n"
   },
   "lazygit": {
    "ok": true,
@@ -540,12 +515,11 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
-   "mips": 369,
-   "ms": 1458,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\ncommit=611fabde11d24d9acc71ee26077b9a1101f59f27, build date=2024-09-18T10:56:10Z, build source=binaryRelease, version=0.44.1, os=windows, arch=amd64, git version=\n"
+   "mips": 299,
+   "ms": 1736,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\ncommit=611fabde11d24d9acc71ee26077b9a1101f59f27, build date=2024-09-18T10:56:10Z, build source=binaryRelease, version=0.44.1, os=windows, arch=amd64, git version=\n"
   },
   "php": {
    "ok": false,
@@ -553,25 +527,22 @@
    "exitCode": 1,
    "error": "expected output not found",
    "missing": [
-    "zlib1.dll",
     "nsi.dll",
     "coml2.dll"
    ],
-   "mips": 4,
-   "ms": 692,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nPHP Warning:  'C:\\InkSoC\\vcruntime140.dll' 0.0 is not compatible with this PHP build linked with 14.29 in Unknown on line 0\n"
+   "mips": 5,
+   "ms": 615,
+   "out": "[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nPHP Warning:  'C:\\InkSoC\\vcruntime140.dll' 0.0 is not compatible with this PHP build linked with 14.29 in Unknown on line 0\n"
   },
   "qjs": {
    "ok": true,
    "status": "exit",
    "exitCode": 0,
    "error": "",
-   "missing": [
-    "zlib1.dll"
-   ],
-   "mips": 7,
-   "ms": 482,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n42\r\n"
+   "missing": [],
+   "mips": 5,
+   "ms": 564,
+   "out": "42\r\n"
   },
   "just": {
    "ok": true,
@@ -579,12 +550,11 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
    "mips": 2,
-   "ms": 366,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\njust 1.37.0\n"
+   "ms": 377,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\njust 1.37.0\n"
   },
   "xh": {
    "ok": true,
@@ -593,12 +563,11 @@
    "error": "",
    "missing": [
     "nsi.dll",
-    "zlib1.dll",
     "coml2.dll"
    ],
-   "mips": 5,
-   "ms": 514,
-   "out": "[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nxh 0.23.0\n+native-tls +rustls\n"
+   "mips": 4,
+   "ms": 597,
+   "out": "[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nxh 0.23.0\n+native-tls +rustls\n"
   },
   "glow": {
    "ok": true,
@@ -606,12 +575,11 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
-   "mips": 49,
-   "ms": 2686,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n# style name or JSON path (default \"auto\")\nstyle: \"auto\"\n# mouse support (TUI-mode only)\nmouse: false\n# use pager to display markdown\npager: false\n# word-wrap at width\nwidth: 80\nglow version 2.0.0 (67243bb)\n"
+   "mips": 47,
+   "ms": 2793,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nglow version 2.0.0 (67243bb)\n"
   },
   "mkcert": {
    "ok": true,
@@ -619,8 +587,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 5,
-   "ms": 540,
+   "mips": 4,
+   "ms": 606,
    "out": "v1.4.4\n"
   },
   "procs": {
@@ -629,13 +597,12 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll",
     "nsi.dll"
    ],
    "mips": 1,
-   "ms": 369,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\nprocs \"0.14.8 ( rev: 368d14a, rustc: 1.82.0, build at: 2024/10/23 10:23:55 )\"\n"
+   "ms": 418,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\nprocs \"0.14.8 ( rev: 368d14a, rustc: 1.82.0, build at: 2024/10/23 10:23:55 )\"\n"
   },
   "eza": {
    "ok": true,
@@ -643,13 +610,12 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "zlib1.dll",
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 382,
-   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\neza - A modern, maintained replacement for ls\nv0.20.10 [+git]\nhttps://github.com/eza-community/eza\n"
+   "ms": 405,
+   "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\neza - A modern, maintained replacement for ls\nv0.20.10 [+git]\nhttps://github.com/eza-community/eza\n"
   }
  },
- "date": "2026-11-12T12:20:49.399Z"
+ "date": "2026-11-12T15:38:39.740Z"
 }

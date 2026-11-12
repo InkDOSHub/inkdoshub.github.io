@@ -168,6 +168,24 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtQueryInformationJobObject" => { let (b, n, r) = (e.arg(2), e.arg(3) as u32 as u64, e.arg(4)); e.zero_n(b, n); if r != 0 { let _ = e.mmu.write32(r, n as u32); } OK }
         "NtIsProcessInJob" => 0x0000_0123, // STATUS_PROCESS_NOT_IN_JOB
+        "RtlGetUserInfoHeap" => { for k in [3, 4] { let p = e.arg(k); if p != 0 { let _ = e.mmu.write64(p, 0); } } 1 }
+        "RtlSetUserValueHeap" | "RtlSetUserFlagsHeap" => 1,
+        // other processes: only our own exists
+        "NtOpenProcess" => {
+            let cid = e.arg(3);
+            let pid = if cid != 0 { e.mmu.read64(cid).unwrap_or(0) } else { 0 };
+            if pid == 4 { let _ = e.mmu.write64(a0, u64::MAX); OK } else { 0xC000_000B } // STATUS_INVALID_CID
+        }
+        "NtOpenThread" => {
+            let cid = e.arg(3);
+            let tid = if cid != 0 { e.mmu.read64(cid + 8).unwrap_or(0) as u32 } else { 0 };
+            if e.s.sched.th.iter().any(|t| t.id == tid) { let h = e.new_handle(Handle::Thread { tid }); let _ = e.mmu.write64(a0, h); OK } else { 0xC000_000B }
+        }
+        "NtOpenDirectoryObject" | "NtCreateDirectoryObject" | "NtOpenSymbolicLinkObject" => {
+            let h = e.new_handle(Handle::Dir); let _ = e.mmu.write64(a0, h); OK
+        }
+        "NtQueryDirectoryObject" => NO_MORE_ENTRIES,
+        "NtQuerySymbolicLinkObject" => OBJECT_NAME_NOT_FOUND,
         // ---- files ----
         "NtReadFile" => {
             let (iosb, buf, n, offp) = (e.arg(4), e.arg(5), e.arg(6) as u32 as u64, e.arg(7));
@@ -279,6 +297,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if k.is_empty() || k == "inksoc" || k.ends_with(':') || k == "??" {
                 let h = e.new_handle(Handle::Dir); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, 1); return Some(OK);
             }
+            if k == "conin$" { let _ = e.mmu.write64(a0, 3); e.iosb(iosb, OK, 1); return Some(OK); }
             if nm.starts_with("\\??\\CON") || nm.eq_ignore_ascii_case("CONOUT$") { let _ = e.mmu.write64(a0, 1); e.iosb(iosb, OK, 1); return Some(OK); }
             if k == "nul" { let h = e.new_handle(Handle::Null); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, 1); return Some(OK); }
             let opts = if name == "NtCreateFile" { e.arg(8) as u32 } else { e.arg(5) as u32 };
@@ -316,7 +335,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtAllocateVirtualMemory" | "NtAllocateVirtualMemoryEx" => {
             let (bp, sp) = (e.arg(1), if name == "NtAllocateVirtualMemory" { e.arg(3) } else { e.arg(2) });
             let (want, size) = (e.mmu.read64(bp).unwrap_or(0), e.mmu.read64(sp).unwrap_or(0));
-            let a = if want == 0 { e.alloc(size) } else if e.mmu.region_of(want).is_some() { Some(want & !0xFFF) } else {
+            let kind = e.arg(if name == "NtAllocateVirtualMemory" { 4 } else { 3 }) as u32;
+            let a = if want == 0 { if kind & 0x1000 == 0 { e.reserve(size) } else { e.alloc(size) } } else if e.mmu.region_of(want).is_some() { Some(want & !0xFFF) } else {
                 let s = want & !0xFFFF; let end = (want + size + 0xFFFF) & !0xFFFF;
                 if e.mmu.overlaps(s, end) { None } else { e.mmu.add_region(s, end - s); Some(s) }
             };

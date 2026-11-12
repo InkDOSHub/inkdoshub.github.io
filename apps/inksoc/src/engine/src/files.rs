@@ -224,6 +224,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 e.set_err(5); return Some(INVALID);
             };
             if k == "nul" { e.set_err(0); return Some(e.new_handle(Handle::Null)); }
+            if k == "conin$" { e.set_err(0); return Some(3); }
+            if k == "conout$" { e.set_err(0); return Some(1); }
             if e.s.fs.dirs.contains(&k) {
                 if flags & 0x0200_0000 != 0 { return Some(e.new_handle(Handle::Dir)); }
                 e.set_err(5); return Some(INVALID);

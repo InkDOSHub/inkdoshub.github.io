@@ -76,7 +76,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             e.w32(w, n as u32);
             1
         }
-        "GetConsoleMode" => { let a = e.arg(1); e.w32(a, 3); 1 }
+        "GetConsoleMode" => { if a0 == 0 || a0 > 3 { return Some(0); } let a = e.arg(1); e.w32(a, if a0 == 3 { 0x1F7 } else { 7 }); 1 }
         "SetConsoleMode" | "SetConsoleCtrlHandler" | "SetConsoleOutputCP" | "SetConsoleCP" => 1,
         "GetConsoleCP" | "GetConsoleOutputCP" => 65001,
         "GetFileType" => if a0 <= 3 { 2 } else { 0 },
@@ -182,7 +182,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         // ---- virtual memory ----
         "VirtualAlloc" => {
             let size = e.arg(1);
-            if a0 == 0 { e.alloc(size).unwrap_or(0) }
+            let kind = e.arg(2);
+            if a0 == 0 { if kind & 0x1000 == 0 { e.reserve(size).unwrap_or(0) } else { e.alloc(size).unwrap_or(0) } }
             else if e.mmu.region_of(a0).is_some() { a0 & !0xFFF }
             else {
                 let start = a0 & !0xFFFF;

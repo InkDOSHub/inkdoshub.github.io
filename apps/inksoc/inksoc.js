@@ -36,7 +36,7 @@ function runExec(files, exe, args) {
   $('exec').disabled = $('exec2').disabled = $('exec4').disabled = $('exec7z').disabled = true;
   $('exec-out').textContent = '';
   const b = budgetMb();
-  const w = new Worker('worker.js?v=22');
+  const w = new Worker('worker.js?v=23');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('exec-out').textContent += d.text;
@@ -84,7 +84,7 @@ $('pick').onchange = async (ev) => {
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=22');
+  const w = new Worker('worker.js?v=23');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
@@ -103,7 +103,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=22');
+  const w = new Worker('worker.js?v=23');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -215,7 +215,7 @@ function showLimits() {
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=22');
+  const w = new Worker('worker.js?v=23');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -298,11 +298,11 @@ $('combo').onclick = async () => {
   const log = (t) => { out.textContent += t + '\n'; };
   out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
 
-  const holder = new Worker('worker.js?v=22');
+  const holder = new Worker('worker.js?v=23');
   if (ram > 0) await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
   log(`RAM: ${ram} MB reserved and filled.`);
 
-  const io = new Worker('worker.js?v=22');
+  const io = new Worker('worker.js?v=23');
   log(`Writing ${texMb} MB of textures to OPFS...`);
   const initMs = await new Promise((r) => { io.onmessage = (e) => r(e.data.ms || 0); io.postMessage({ type: 'tex-init', count, size: BYTES }); });
   log(`Texture file ready in ${fmt(initMs)} ms.`);
