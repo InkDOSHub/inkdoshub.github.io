@@ -162,15 +162,14 @@ function ligar() {
   try { maq = localStorage.getItem("wine-maquina") === "x64" ? "x64" : "x32"; $("nucleos").value = localStorage.getItem("wine-x64-nucleos") || "1"; } catch (e) {}
   function escolher() {
     maq = document.querySelector('input[name=maquina]:checked').value;
-    $("campo-tela").hidden = $("campo-abrir").hidden = maq !== "x32"; $("campo-nucleos").hidden = maq !== "x64";
+    $("campo-tela").hidden = $("campo-abrir").hidden = maq !== "x32"; $("campo-nucleos").hidden = true;
     try { localStorage.setItem("wine-maquina", maq); } catch (e) {}
   }
   document.querySelector('input[name=maquina][value=' + maq + ']').checked = true; escolher();
   [].forEach.call(document.querySelectorAll("input[name=maquina]"), function (r) { r.onchange = escolher; });
   $("btn-ligar").onclick = function () {
     if (maq === "x32") return ligar();
-    try { localStorage.setItem("wine-x64-nucleos", $("nucleos").value); } catch (e) {}
-    location.href = "x64/?nucleos=" + $("nucleos").value;
+    location.href = "../inksoc/"; // x64: our own engine (InkSoC)
   };
   var direto = false;
   try { direto = sessionStorage.getItem("wine-reiniciar") === "1"; sessionStorage.removeItem("wine-reiniciar"); } catch (e) {}
@@ -201,10 +200,10 @@ function copiarParaD(dados, nomeOriginal) {
         escreverD(pasta + "/" + e, b); n++;
         if (/\.exe$/i.test(e)) { exes++; if (e64(b)) x64++; }
       }
-      if (exes && x64 === exes) aviso = " The programs in it are 64-bit and will not run yet.";
+      if (exes && x64 === exes) aviso = " The programs in it are 64-bit: open them with x64 (InkSoC).";
       estado("Copied " + n + " files to D:\\" + pasta + ". Open it in the file manager (drive D:, press F5 to refresh)." + aviso);
     } else {
-      if (e64(dados)) aviso = " This is a 64-bit program: it will not run yet (look for the 32-bit download).";
+      if (e64(dados)) aviso = " This is a 64-bit program: open it with x64 (InkSoC), or look for the 32-bit download.";
       escreverD(nome, dados);
       if (/\.exe$/i.test(nome)) try { localStorage.setItem("wine-ultimo-exe", nome); } catch (e) {}
       estado("Copied to D:\\" + nome + ". Open it in the file manager (drive D:, press F5 to refresh), or restart and pick it in Open to run only this program." + aviso);
