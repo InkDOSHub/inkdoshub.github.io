@@ -10,7 +10,7 @@
   :root{--bg:#fff;--fg:#111;--muted:#666;--border:#ddd;--accent:#7c3aed;--term:#0b0b0d}
   @media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#999;--border:#333}}
   *{box-sizing:border-box}
-  html,body{height:100%}
+  html,body{height:100%;overflow:hidden}
   body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 -apple-system,system-ui,sans-serif;display:flex;flex-direction:column}
   header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)}
   header a{color:var(--accent);text-decoration:none;white-space:nowrap}
@@ -38,6 +38,6 @@
 </div>
 <input type="file" id="file" multiple hidden>
 <script src="vendor/xterm.js?v=1"></script>
-<script src="linux.js?v=1"></script>
+<script src="linux.js?v=2"></script>
 </body>
 </html>

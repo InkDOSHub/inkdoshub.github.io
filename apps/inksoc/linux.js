@@ -90,5 +90,16 @@ $('down').onclick = () => {
 };
 
 addEventListener('resize', () => fit());
+// iPhone/iPad: the on-screen keyboard covers the page; shrink it to the visible area so the key bar stays above the keyboard
+const vv = window.visualViewport;
+if (vv) {
+  const fitView = () => { document.body.style.height = vv.height + 'px'; window.scrollTo(0, 0); fit(); };
+  vv.addEventListener('resize', fitView);
+  vv.addEventListener('scroll', () => window.scrollTo(0, 0));
+  fitView();
+}
+// no auto-capitals or auto-correct in the terminal
+const ta = document.querySelector('.xterm-helper-textarea');
+if (ta) { ta.setAttribute('autocapitalize', 'off'); ta.setAttribute('autocorrect', 'off'); ta.setAttribute('spellcheck', 'false'); ta.setAttribute('autocomplete', 'off'); }
 start();
 term.focus();
