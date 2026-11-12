@@ -6,6 +6,12 @@ This folder holds the first proof:
 - `src/engine/`: Rust → wasm engine. PE32+ loader, x86-64 interpreter, 64-bit page
   table with a fixed pool of real RAM and swap to OPFS, and a bridge to "Wine side"
   C code compiled to wasm (`wine/ntdll_proof.c`).
+- `src/engine/src/jit.rs`: JIT. Hot x86-64 blocks (40 visits) become small wasm
+  modules that the page compiles and adds to the engine's function table.
+  Registers live in wasm locals, flags are lazy (a cmp + jcc becomes one wasm
+  compare), a jump back to the block start is a wasm loop, and memory uses the
+  same software TLB inline. Instructions it does not translate run through the
+  interpreter one at a time. The "JIT" box on the page turns it off.
 - `src/wine/`: Wine's msvcrt (string functions, printf, ctype; Wine 10.0, LGPL)
   compiled to `wine.wasm`. The C files are compiled as x86-64 Windows code (so
   structs and `va_list` match the program exactly), retargeted to wasm64, and every

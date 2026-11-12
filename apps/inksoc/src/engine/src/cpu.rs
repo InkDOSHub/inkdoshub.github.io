@@ -13,18 +13,28 @@ pub struct Cpu {
     pub gs_base: u64,
     pub fs_base: u64,
     pub seg: u64, // segment base of the current instruction (fs:/gs: prefix)
+    // Lazy flags left by JIT code: the last flag-setting operation, turned
+    // into cf/zf/... only when someone needs them (lz_op 0 = flags are exact).
+    pub lz_op: u32,
+    pub lz_size: u32,
+    pub lz_cf: u32,
+    pub lz_a: u64,
+    pub lz_b: u64,
+    pub lz_r: u64,
+    pub jit_limit: u64, // JIT loops stop when icount reaches this
 }
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { regs: [0; 16], rip: 0, cf: false, zf: false, sf: false, of: false, pf: false, df: false, icount: 0, xmm: [0; 16], gs_base: 0, fs_base: 0, seg: 0 }
+        Cpu { regs: [0; 16], rip: 0, cf: false, zf: false, sf: false, of: false, pf: false, df: false, icount: 0, xmm: [0; 16], gs_base: 0, fs_base: 0, seg: 0, lz_op: 0, lz_size: 0, lz_cf: 0, lz_a: 0, lz_b: 0, lz_r: 0, jit_limit: 0 }
     }
 }
 
 #[derive(Clone, Copy)]
 pub(crate) enum Loc { Reg(u8, bool), Mem(u64) }
 
-pub(crate) struct ModRm { pub md: u8, pub reg: u8, pub rm: u8, base: Option<u8>, index: Option<u8>, scale: u8, disp: i64, riprel: bool }
+#[derive(Clone, Copy)]
+pub(crate) struct ModRm { pub md: u8, pub reg: u8, pub rm: u8, pub base: Option<u8>, pub index: Option<u8>, pub scale: u8, pub disp: i64, pub riprel: bool }
 
 pub(crate) struct Dec<'a> { pub b: &'a [u8; 16], pub p: usize }
 impl<'a> Dec<'a> {
@@ -54,6 +64,7 @@ macro_rules! tryf {
 
 /// Executes up to `n` instructions; returns how many ran.
 pub fn step_block(e: &mut Engine, n: u64) -> u64 {
+    e.materialize();
     let mut done = 0;
     while done < n && !e.exited && e.error.is_none() {
         if e.cpu.rip >= crate::THUNK_BASE { break; }
@@ -64,7 +75,58 @@ pub fn step_block(e: &mut Engine, n: u64) -> u64 {
     done
 }
 
+/// Like step_block, but also stops after a jump (so the caller sees each new
+/// block start, for the JIT's hit counts).
+pub fn step_trace(e: &mut Engine, n: u64) -> u64 {
+    e.materialize();
+    let mut done = 0;
+    while done < n && !e.exited && e.error.is_none() {
+        let r0 = e.cpu.rip;
+        if r0 >= crate::THUNK_BASE { break; }
+        step(e);
+        done += 1;
+        let d = e.cpu.rip.wrapping_sub(r0);
+        if d == 0 || d > 15 { break; }
+    }
+    e.cpu.icount += done;
+    done
+}
+
+/// One instruction (JIT fallback). Flags must already be exact.
+pub fn step_one(e: &mut Engine) { step(e); }
+
 impl Engine {
+    /// Turns lazy JIT flags into exact ones.
+    #[inline(always)]
+    pub fn materialize(&mut self) {
+        if self.cpu.lz_op != 0 { self.materialize_slow(); }
+    }
+    #[cold]
+    fn materialize_slow(&mut self) {
+        let c = &mut self.cpu;
+        let size = c.lz_size;
+        let (m, sb) = (mask(size), sign(size));
+        let (a, b, r) = (c.lz_a, c.lz_b, c.lz_r);
+        let cnt = b as u32;
+        let (cf, of) = match c.lz_op {
+            1 => (r < a, (a ^ r) & (b ^ r) & sb != 0),
+            2 => (a < b, (a ^ b) & (a ^ r) & sb != 0),
+            4 => (c.lz_cf != 0, r == sb),
+            5 => (c.lz_cf != 0, a == sb),
+            6 => { let cf = if cnt <= size { (a >> (size - cnt)) & 1 != 0 } else { false }; (cf, (r & sb != 0) != cf) }
+            7 => ((a >> (cnt - 1)) & 1 != 0, a & sb != 0),
+            8 => ((sx(a, size) >> (cnt - 1)) & 1 != 0, false),
+            9 => (r < a || (c.lz_cf != 0 && r == a), (a ^ r) & (b ^ r) & sb != 0),
+            10 => (a < b || (c.lz_cf != 0 && a == b), (a ^ b) & (a ^ r) & sb != 0),
+            _ => (false, false),
+        };
+        c.cf = cf; c.of = of;
+        c.zf = r & m == 0;
+        c.sf = r & sb != 0;
+        c.pf = (r as u8).count_ones() % 2 == 0;
+        c.lz_op = 0;
+    }
+
     pub(crate) fn get(&mut self, l: Loc, size: u32) -> Result<u64, ()> {
         match l {
             Loc::Reg(r, hi) => {

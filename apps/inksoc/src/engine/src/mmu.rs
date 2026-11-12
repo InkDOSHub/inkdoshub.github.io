@@ -23,7 +23,9 @@ struct Pte { frame: u32, slot: u32 }
 #[derive(Clone, Copy)]
 struct Frame { vpn: u64, used: bool, referenced: bool, dirty: bool }
 
+// layout read by JIT code: tag @0, off @8, writable @12 (16 bytes)
 #[derive(Clone, Copy)]
+#[repr(C)]
 struct TlbEntry { tag: u64, off: usize, writable: bool }
 
 pub struct Fault;
@@ -60,6 +62,11 @@ impl Mmu {
             faults: 0, swap_ins: 0, swap_outs: 0, swap_slots: 0,
         }
     }
+
+    /// Addresses the JIT bakes into its code (both never move).
+    pub fn tlb_addr(&self) -> u32 { self.tlb.as_ptr() as u32 }
+    pub fn pool_addr(&self) -> u32 { self.pool.as_ptr() as u32 }
+    pub const TLB_MASK: u32 = (TLB_SIZE - 1) as u32;
 
     pub fn frames_total(&self) -> usize { self.frames.len() }
     pub fn resident(&self) -> usize { self.frames.len() - self.free.len() }

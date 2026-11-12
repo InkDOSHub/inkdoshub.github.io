@@ -7,6 +7,7 @@ mod cpu;
 mod eh;
 mod files;
 mod heap;
+mod jit;
 mod kernel32;
 mod mmu;
 mod msvcrt;
@@ -65,6 +66,7 @@ pub struct Engine {
     pub crt: msvcrt::Crt,
     pub fs: files::Files,
     pub eh: eh::Eh,
+    pub jit: jit::Jit,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -102,7 +104,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0,
             init_queue: Vec::new(), loadlib: Vec::new(),
-            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(), eh: Default::default(),
+            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(), eh: Default::default(), jit: Default::default(),
         });
     }
 }
@@ -142,8 +144,22 @@ pub extern "C" fn run(budget: u32) -> i32 {
     let e = eng();
     let mut left = budget as u64;
     while left > 0 && !e.exited && e.error.is_none() {
-        if e.cpu.rip >= THUNK_BASE && e.cpu.rip < THUNK_BASE + 0x10000 {
+        let rip = e.cpu.rip;
+        if rip >= THUNK_BASE && rip < THUNK_BASE + 0x10000 {
+            e.materialize();
             e.call_native();
+            continue;
+        }
+        if e.jit.on {
+            if let Some(f) = jit::Jit::lookup(e, rip) {
+                let before = e.cpu.icount;
+                e.cpu.jit_limit = before + left;
+                jit::call(f);
+                left = left.saturating_sub(e.cpu.icount - before);
+                continue;
+            }
+            let n = cpu::step_trace(e, left.min(4096));
+            left = left.saturating_sub(n);
             continue;
         }
         let n = cpu::step_block(e, left.min(4096));
@@ -151,6 +167,10 @@ pub extern "C" fn run(budget: u32) -> i32 {
     }
     if e.error.is_some() { 2 } else if e.exited { 1 } else { 0 }
 }
+
+/// Turns the JIT on or off (call before start).
+#[no_mangle]
+pub extern "C" fn set_jit(on: u32) { eng().jit.on = on != 0; }
 
 static mut OUT: Vec<u8> = Vec::new();
 
@@ -185,6 +205,10 @@ pub extern "C" fn stat(i: u32) -> f64 {
         10 => e.thunks.len() as f64,
         11 => e.cpu.rip as f64,
         12 => e.cpu.regs[4] as f64,
+        13 => e.jit.blocks as f64,
+        14 => e.jit.ms,
+        15 => e.jit.bytes as f64,
+        16 => e.jit.failed as f64,
         _ => 0.0,
     }
 }

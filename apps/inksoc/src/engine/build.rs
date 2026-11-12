@@ -10,5 +10,8 @@ fn main() {
     println!("cargo:rustc-link-arg={}", obj);
     // keep 1-4 MB of wasm memory free for wine.wasm (its data and stack)
     println!("cargo:rustc-link-arg=--global-base=4194304");
+    // the JIT adds its compiled blocks to the function table
+    println!("cargo:rustc-link-arg=--export-table");
+    println!("cargo:rustc-link-arg=--growable-table");
     println!("cargo:rerun-if-changed=wine/ntdll_proof.c");
 }

@@ -18,7 +18,7 @@ async function openSwap(name) {
 }
 
 /* Runs a program on the engine. files: [{ name, data }], exe: file name to start. */
-async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
+async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit }) {
   const swap = await openSwap('inksoc-swap.bin');
   const ram = new Map();
   let mem, swapMs = 0, outBytes = 0, tooMuch = false;
@@ -44,9 +44,23 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
     },
     // msvcrt calls into Wine's code (wine.wasm), instantiated below
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
+    // JIT: compiles one translated block and adds it to the engine's function table
+    host_jit: (p, n) => {
+      try {
+        const m = new WebAssembly.Module(new Uint8Array(mem.buffer, p, n).slice());
+        const i = new WebAssembly.Instance(m, { env: { memory: mem, rd: x.jit_rd, wr: x.jit_wr, step: x.jit_step, cond: x.jit_cond } });
+        const t = x.__indirect_function_table, k = t.grow(1);
+        t.set(k, i.exports.f);
+        return k;
+      } catch (e) {
+        if (!jitErr++) post('log', { text: '[jit] block not compiled (' + e.message + '), the interpreter runs it\n' });
+        return -1;
+      }
+    },
   };
+  let jitErr = 0;
   let wine;
-  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=9', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=10', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
   mem = x.memory;
@@ -54,6 +68,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
   const enc = (t) => new TextEncoder().encode(t);
   const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice());
   x.init(poolMb, targetMb);
+  if (jit === false) x.set_jit(0);
   // Wine's msvcrt shares the engine's memory; its pointers go through the engine's page table
   wine = (await WebAssembly.instantiate(wineWasm, { env: {
     memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc,
@@ -74,6 +89,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
     insns: x.stat(0), faults: x.stat(1), swapIn: x.stat(2), swapOut: x.stat(3),
     resident: x.stat(4), frames: x.stat(5), bridge: x.stat(7), slots: x.stat(8),
     modules: x.stat(9), thunks: x.stat(10),
+    jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16),
     ms: performance.now() - t0, swapMs, opfs: !!swap,
   });
   while ((st = x.run(2000000)) === 0 && !tooMuch) post('stats', stats());
@@ -101,7 +117,7 @@ async function runExec(d) {
     const names = d.exe === 'stage2.exe' ? ['stage2.exe'] : ['stage1.exe', 'testdll.dll'];
     files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
   }
-  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb });
+  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit });
 }
 
 /* Random 4 KB reads/writes on a 64 MB OPFS file: the real cost of one swap page. */
