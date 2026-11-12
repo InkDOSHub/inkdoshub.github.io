@@ -291,7 +291,7 @@ $('combo').onclick = async () => {
   let gpuErr = '';
   dev.onuncapturederror = (e) => { gpuErr = e.error.message; log('GPU error: ' + gpuErr); };
   dev.lost.then((i) => log('GPU device lost: ' + (i.reason || '') + ' ' + (i.message || '')));
-  const waitGpu = (what) => Promise.race([dev.queue.onSubmittedWorkDone(), new Promise((r) => setTimeout(() => { log('(GPU did not answer in 10 s after: ' + what + ')'); r(); }, 10000))]);
+  const waitGpu = (what) => (dev.queue.submit([dev.createCommandEncoder().finish()]), Promise.race([dev.queue.onSubmittedWorkDone(), new Promise((r) => setTimeout(() => { log('(GPU did not answer in 10 s after: ' + what + ')'); r(); }, 10000))]));
   if (astc) {
     // ASTC 4x4 = 16 bytes per 4x4 block (1 byte/pixel), 8x8 = 16 bytes per 8x8 block (0.25 byte/pixel)
     for (const [fmtName, blk] of [['astc-4x4-unorm', 4], ['astc-8x8-unorm', 8]]) {
