@@ -129,6 +129,8 @@ pub extern "C" fn jit_wr(a: u64, v: u64, size: u32) {
 #[no_mangle]
 pub extern "C" fn jit_step(next: u64) -> u32 {
     let e = crate::eng();
+    #[cfg(feature = "prof")]
+    { let rip = e.cpu.rip; let op = decode(e, rip).map_or(0xFFFFFF, |i| i.op | if i.lock { 0x1000000 } else { 0 }); prof::add(op, 1); }
     e.materialize();
     crate::cpu::step_one(e);
     if e.s.error.is_some() { e.cpu.jit_limit = 0; }
@@ -312,7 +314,8 @@ const F_RD: u32 = 0; const F_WR: u32 = 1; const F_STEP: u32 = 2; const F_COND: u
 // locals: i32 first, then i64
 const L_E: u32 = 0; // TLB entry address
 const L_C: u32 = 1; // i32 scratch (conditions)
-const N_I32: u32 = 2;
+const L_B: u32 = 2; // next block of the region
+const N_I32: u32 = 3;
 const R0: u32 = N_I32; // 16 guest registers
 const L_A: u32 = R0 + 16; // address of the memory operand
 const L_A2: u32 = R0 + 17; // second address (stack)
@@ -339,7 +342,9 @@ struct G {
     cpu: u32,
     tlb: u32,
     pool: u32,
-    head: u64,
+    heads: Vec<u64>, // blocks of this region (index = br_table slot)
+    base: u32, // labels between the current block's code and the region loop
+    max_tmp: u32,
 }
 
 macro_rules! off { ($f:ident) => { core::mem::offset_of!(crate::cpu::Cpu, $f) as u32 } }
@@ -610,22 +615,25 @@ impl G {
         self.add_icount(n);
         self.b(RET);
     }
-    /// Jumps back to the block start (`depth` = blocks open inside the loop).
-    fn backedge(&mut self, n: u32, depth: u32) {
+    /// Jumps to block `idx` of this region (`depth` = blocks open inside the current block).
+    fn internal(&mut self, target: u64, idx: usize, n: u32, depth: u32) {
         self.flush();
         self.exit_flags();
         self.add_icount(n);
         self.cpu_ld64(off!(icount)); self.cpu_ld64(off!(jit_limit)); self.b(I64GEU);
         self.b(IF); self.b(VOID);
-        let h = self.head;
-        self.set_rip_const(h);
+        self.set_rip_const(target);
         self.b(RET);
         self.b(END);
-        self.b(BR); self.u(depth as u64);
+        self.i32c(idx as i32); self.set(L_B);
+        self.b(BR); self.u((depth + self.base) as u64);
     }
-    /// Jump to a constant target: a loop when it is the block start.
+    /// Jump to a constant target: stays in the module when the target is one of its blocks.
     fn jump(&mut self, target: u64, n: u32, depth: u32) {
-        if target == self.head { self.backedge(n, depth); } else { self.exit(target, n); }
+        match self.heads.iter().position(|&h| h == target) {
+            Some(idx) => self.internal(target, idx, n, depth),
+            None => self.exit(target, n),
+        }
     }
 
     /// Runs one instruction in the interpreter.
@@ -995,9 +1003,13 @@ fn native(g: &mut G, i: &Ins, live: bool) -> bool {
     true
 }
 
-/// Translates the block at `rip`; None = nothing to compile there.
-fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
-    // decode the straight-line run
+const MAX_BLOCKS: usize = 16; // blocks per region
+const MAX_REGION_INS: usize = 320;
+
+struct Block { list: Vec<Ins>, end_rip: Option<u64>, pc: u64 }
+
+/// Decodes the straight-line run at `rip` (conditional jumps continue it).
+fn decode_block(e: &mut Engine, rip: u64) -> Option<Block> {
     let mut list: Vec<Ins> = Vec::new();
     let mut pc = rip;
     let mut end_rip = None; // where the block stops when it does not end in a jump
@@ -1021,7 +1033,63 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     }
     if list.is_empty() { return None; }
     if end_rip.is_none() && !is_branch(list.last().unwrap()) { end_rip = Some(pc); }
+    Some(Block { list, end_rip, pc })
+}
 
+/// Constant places a block can go next.
+fn targets(b: &Block) -> Vec<u64> {
+    let mut t = Vec::new();
+    for i in &b.list {
+        match i.op {
+            0x70..=0x7F | 0x0F80..=0x0F8F | 0xE9 | 0xEB | 0xE8 => t.push(i.next.wrapping_add(i.imm)),
+            _ => {}
+        }
+    }
+    let last = b.list.last().unwrap();
+    if !matches!(last.op, 0xE9 | 0xEB | 0xE8 | 0xC3 | 0xC2 | 0xFF) { t.push(b.end_rip.unwrap_or(b.pc)); }
+    t
+}
+
+/// Translates the region at `rip` (the hot block plus the blocks its jumps reach);
+/// None = nothing to compile there.
+fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
+    let first = decode_block(e, rip)?;
+    let mut total = first.list.len();
+    let mut heads = vec![rip];
+    let mut blocks = vec![first];
+    let mut k = 0;
+    while k < blocks.len() && blocks.len() < MAX_BLOCKS && total < MAX_REGION_INS {
+        for t in targets(&blocks[k]) {
+            if blocks.len() >= MAX_BLOCKS || total >= MAX_REGION_INS { break; }
+            if heads.contains(&t) { continue; }
+            if let Some(b) = decode_block(e, t) { total += b.list.len(); heads.push(t); blocks.push(b); }
+        }
+        k += 1;
+    }
+    let cpu = &e.cpu as *const _ as u32;
+    let nb = blocks.len() as u32;
+    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: e.mmu.pool_addr(), heads, base: 0, max_tmp: FIRST_TMP };
+    g.b(0x03); g.b(VOID); // loop: every jump between blocks comes back here
+    for _ in 0..nb { g.b(0x02); g.b(VOID); }
+    g.get(L_B); g.b(0x0E); g.u(nb as u64);
+    for j in 0..nb { g.u(j as u64); }
+    g.u(0);
+    for (j, b) in blocks.into_iter().enumerate() {
+        g.b(END); // the code of block j follows the end of label j
+        g.base = nb - 1 - j as u32;
+        g.valid = 0; g.dirty = 0; g.prod = Prod::Unknown;
+        g.ntmp = FIRST_TMP;
+        emit_block(&mut g, b);
+        g.max_tmp = g.max_tmp.max(g.ntmp);
+    }
+    g.b(END); // loop
+    g.b(END); // function
+
+    finish(g)
+}
+
+fn emit_block(g: &mut G, b: Block) {
+    let Block { list, mut end_rip, pc } = b;
     // flag liveness after each instruction (exits count as reads)
     let mut live = vec![true; list.len()];
     let mut l = true;
@@ -1033,9 +1101,6 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
         if r { l = true; } else if w { l = false; }
     }
 
-    let cpu = &e.cpu as *const _ as u32;
-    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: e.mmu.pool_addr(), head: rip };
-    g.b(0x03); g.b(VOID); // loop (block start = label 0 at top level)
     let mut done_all = false;
     for (k, i) in list.iter().enumerate() {
         let n = k as u32 + 1;
@@ -1053,7 +1118,7 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
             0xE8 => {
                 g.i64c(i.next); g.set(L_T);
                 g.push(L_T);
-                g.exit(i.next.wrapping_add(i.imm), n);
+                g.jump(i.next.wrapping_add(i.imm), n, 0);
                 done_all = true; break;
             }
             0xC3 | 0xC2 => {
@@ -1076,7 +1141,7 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
             _ => {}
         }
         let snap = (g.c.len(), g.ntmp, g.valid, g.dirty, g.prod);
-        if !native(&mut g, i, live[k]) {
+        if !native(g, i, live[k]) {
             g.c.truncate(snap.0);
             (g.ntmp, g.valid, g.dirty, g.prod) = (snap.1, snap.2, snap.3, snap.4);
             g.fallback(i, n);
@@ -1084,16 +1149,16 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     }
     if !done_all {
         let n = list.iter().take_while(|i| Some(i.rip) != end_rip).count() as u32;
-        g.exit(end_rip.unwrap_or(pc), n);
+        g.jump(end_rip.unwrap_or(pc), n, 0);
     }
-    g.b(END); // loop
-    g.b(END); // function
+}
 
+fn finish(g: G) -> Option<Vec<u8>> {
     // module
     let mut body = Vec::with_capacity(g.c.len() + 16);
     leb_u(&mut body, 2);
     leb_u(&mut body, N_I32 as u64); body.push(0x7F);
-    leb_u(&mut body, (g.ntmp - R0) as u64); body.push(0x7E);
+    leb_u(&mut body, (g.max_tmp - R0) as u64); body.push(0x7E);
     body.extend_from_slice(&g.c);
 
     let mut m = Vec::with_capacity(body.len() + 128);
@@ -1127,4 +1192,18 @@ fn section(m: &mut Vec<u8>, id: u8, data: &[u8]) {
     m.push(id);
     leb_u(m, data.len() as u64);
     m.extend_from_slice(data);
+}
+
+#[cfg(feature = "prof")]
+pub mod prof {
+    use std::collections::HashMap;
+    static mut P: Option<HashMap<u32, u64>> = None;
+    pub fn add(k: u32, n: u64) { unsafe { *P.get_or_insert_with(HashMap::new).entry(k).or_insert(0) += n; } }
+    #[no_mangle]
+    pub extern "C" fn prof_dump() {
+        let mut v: Vec<_> = unsafe { P.clone().unwrap_or_default().into_iter().collect() };
+        v.sort_by(|a, b| b.1.cmp(&a.1));
+        let s: String = v.iter().take(40).map(|(k, n)| format!("{:x} {}\n", k, n)).collect();
+        crate::eng().s.error = Some(s);
+    }
 }

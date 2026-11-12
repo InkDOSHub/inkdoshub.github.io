@@ -289,7 +289,7 @@ fn step(e: &mut Engine) {
     }
     if (0x40..0x50).contains(&op) { rex = op; op = d.u8(); }
     // lock prefix (and xchg with memory): atomic against the other cores
-    let _atomic = if crate::lock::MT && (locked || ((op == 0x86 || op == 0x87) && d.b[d.p.min(15)] >> 6 != 3)) { Some(crate::lock::lock()) } else { None };
+    let _atomic = if crate::lock::MT && (locked || ((op == 0x86 || op == 0x87) && d.b[d.p.min(15)] >> 6 != 3)) { crate::lock::count_locked(); Some(crate::lock::lock()) } else { None };
     let w = rex & 8 != 0;
     let osz: u32 = if w { 64 } else if opsize16 { 16 } else { 32 };
 

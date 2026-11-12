@@ -15,7 +15,7 @@ extern "C" {
 
 pub const PAGE: u64 = 4096;
 const NONE: u32 = u32::MAX;
-const TLB_SIZE: usize = 1024;
+const TLB_SIZE: usize = 8192;
 
 #[derive(Clone, Copy)]
 struct Pte { frame: u32, slot: u32 }

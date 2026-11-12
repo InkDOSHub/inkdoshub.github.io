@@ -238,11 +238,15 @@ pub extern "C" fn run(budget: u32) -> i32 {
                 e.cpu.jit_limit = before + lim;
                 jit::call(f);
                 let n = e.cpu.icount - before;
+                #[cfg(feature = "prof")]
+                { jit::prof::add(0xB0000000, 1); jit::prof::add(0xB0000001, n); }
                 left = left.saturating_sub(n);
                 e.sched_tick(n);
                 continue;
             }
             let n = cpu::step_trace(e, lim.min(4096));
+            #[cfg(feature = "prof")]
+            { jit::prof::add(0xC0000000, 1); jit::prof::add(0xC0000001, n); }
             left = left.saturating_sub(n);
             e.sched_tick(n);
             continue;
@@ -299,6 +303,10 @@ pub extern "C" fn stat(i: u32) -> f64 {
         17 => e.idle_ms,
         18 => e.s.sched.th.len() as f64,
         19 => e.s.sched.switches as f64,
+        20 => lock::counter(0),
+        21 => lock::counter(1),
+        22 => lock::counter(2),
+        23 => lock::counter(3),
         _ => 0.0,
     }
 }
