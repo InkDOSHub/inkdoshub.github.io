@@ -14,6 +14,27 @@ extern "C" {
 }
 
 pub const PAGE: u64 = 4096;
+
+// ---- TLB shootdown (multi-core) ----
+// Every core has its own TLB over the shared frames. Before a frame is given
+// to another page (eviction, VirtualFree, munmap), the core doing it (holding
+// the engine lock) clears that page from every core's TLB, then waits until
+// each other core is at a safe point: between two blocks (the run loop), off
+// guest code (waiting for the lock, idle, back in JavaScript). A core inside a
+// JIT block may be between its TLB check and the access, so it is waited for.
+use core::sync::atomic::{AtomicU32, Ordering::*};
+const MAXC: usize = 16;
+const AWAY: u32 = u32::MAX;
+static EPOCH: AtomicU32 = AtomicU32::new(1);
+static SEEN: [AtomicU32; MAXC] = [const { AtomicU32::new(AWAY) }; MAXC];
+static TLBS: [AtomicU32; MAXC] = [const { AtomicU32::new(0) }; MAXC];
+/// The core is between blocks (call at the top of the run loop).
+#[inline(always)]
+pub fn safe_point(core: u32) { if crate::lock::MT { SEEN[core as usize].store(EPOCH.load(Acquire), Release); } }
+/// The core leaves program code (waits for the lock, sleeps, returns to JavaScript).
+#[inline(always)]
+pub fn away(core: u32) { if crate::lock::MT { SEEN[core as usize].store(AWAY, Release); } }
+
 const NONE: u32 = u32::MAX;
 const TLB_SIZE: usize = 8192;
 
@@ -56,6 +77,7 @@ pub struct Space { table: HashMap<u64, Pte>, regions: Vec<(u64, u64)>, committed
 /// One core's view: its own TLB over the shared page table.
 pub struct Mmu {
     tlb: Vec<TlbEntry>,
+    core: u32,
     pub sh: &'static mut MmuShared,
 }
 
@@ -74,13 +96,41 @@ impl Mmu {
             target_bytes: target_mb << 20,
             faults: 0, swap_ins: 0, swap_outs: 0, swap_slots: 0, no_evict: false,
         }));
-        Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], sh }
+        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core: 0, sh };
+        TLBS[0].store(m.tlb.as_ptr() as u32, Release);
+        m
     }
 
     /// Another core's view of the same memory (empty TLB).
-    pub fn new_core(&self) -> Mmu {
+    pub fn new_core(&self, core: u32) -> Mmu {
         let sh = unsafe { &mut *(self.sh as *const MmuShared as *mut MmuShared) };
-        Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], sh }
+        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core, sh };
+        TLBS[core as usize].store(m.tlb.as_ptr() as u32, Release);
+        m
+    }
+
+    /// Removes page `vpn` from every core's TLB (engine lock held).
+    fn shoot(&mut self, vpn: u64) {
+        let t = (vpn as usize) & (TLB_SIZE - 1);
+        if self.tlb[t].tag == vpn { self.tlb[t].tag = u64::MAX; }
+        if !crate::lock::MT { return; }
+        for c in 0..MAXC {
+            let p = TLBS[c].load(Acquire);
+            if p == 0 || c as u32 == self.core { continue; }
+            unsafe {
+                let e = (p as *mut TlbEntry).add(t);
+                if core::ptr::read_volatile(&(*e).tag) == vpn { core::ptr::write_volatile(&mut (*e).tag, u64::MAX); }
+            }
+        }
+    }
+    /// Waits until no other core can still be using a TLB entry cleared by shoot().
+    fn shoot_wait(&self) {
+        if !crate::lock::MT { return; }
+        let ep = EPOCH.fetch_add(1, AcqRel) + 1;
+        for c in 0..MAXC {
+            if c as u32 == self.core { continue; }
+            while { let s = SEEN[c].load(Acquire); s != AWAY && s < ep } { core::hint::spin_loop(); }
+        }
     }
 
     /// Addresses the JIT bakes into its code (both never move).
@@ -121,14 +171,16 @@ impl Mmu {
         } else {
             (first..last).filter(|v| self.sh.table.contains_key(v)).collect()
         };
+        let mut freed = Vec::new();
         for vpn in vpns {
             let pte = self.sh.table.remove(&vpn).unwrap();
-            let t = (vpn as usize) & (TLB_SIZE - 1);
-            if self.tlb[t].tag == vpn { self.tlb[t].tag = u64::MAX; }
-            if pte.frame != NONE {
-                self.sh.frames[pte.frame as usize].used = false;
-                self.sh.free.push(pte.frame);
-            }
+            self.shoot(vpn);
+            if pte.frame != NONE { freed.push(pte.frame); }
+        }
+        if !freed.is_empty() { self.shoot_wait(); }
+        for f in freed {
+            self.sh.frames[f as usize].used = false;
+            self.sh.free.push(f);
         }
     }
 
@@ -201,7 +253,8 @@ impl Mmu {
                 if self.tlb[t].tag == f.vpn { self.tlb[t].tag = u64::MAX; }
                 continue;
             }
-            if self.tlb[t].tag == f.vpn { self.tlb[t].tag = u64::MAX; }
+            self.shoot(f.vpn);
+            self.shoot_wait();
             let pte = self.sh.table.get_mut(&f.vpn).unwrap();
             if f.dirty || pte.slot == NONE {
                 if pte.slot == NONE { pte.slot = self.sh.swap_slots; self.sh.swap_slots += 1; }
@@ -217,8 +270,8 @@ impl Mmu {
     fn get_frame(&mut self) -> Option<u32> {
         match self.sh.free.pop() {
             Some(f) => Some(f),
-            // other cores may hold this frame in their TLB: no swap with several cores (yet)
-            None if crate::lock::MT || self.sh.no_evict => None,
+            // swap I/O needs the OPFS file, which only core 0's worker holds
+            None if self.sh.no_evict || self.core != 0 => None,
             None => Some(self.evict_one()),
         }
     }

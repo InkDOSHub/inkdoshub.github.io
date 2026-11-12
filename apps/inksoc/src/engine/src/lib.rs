@@ -207,7 +207,7 @@ pub extern "C" fn core_init(id: u32) {
         let mut jit: jit::Jit = Default::default();
         jit.on = SHARED.as_ref().unwrap().jit_on;
         ENGINE = Some(Engine {
-            mmu: mmu0.new_core(),
+            mmu: mmu0.new_core(id),
             cpu: Cpu::new(), eh: Default::default(), jit,
             core: id, cur: usize::MAX, want_switch: true, slice: 0, idle_ms: 0.0,
             s: SHARED.as_mut().unwrap(),
@@ -255,8 +255,10 @@ pub extern "C" fn run(budget: u32) -> i32 {
     let mut idle = false;
     let start = e.cpu.icount;
     let mut done_other = 0u64; // instructions of threads this core switched away from
+    mmu::safe_point(e.core);
     if e.s.lx.is_none() && e.s.user_shared { e.shared_time(); }
     while left > 0 && !e.s.exited && e.s.error.is_none() {
+        mmu::safe_point(e.core);
         if e.want_switch {
             let before = e.cpu.icount;
             let ok = { let _g = lock::lock(); e.sched_switch() };
@@ -302,6 +304,7 @@ pub extern "C" fn run(budget: u32) -> i32 {
         e.sched_tick(n);
     }
     { let _g = lock::lock(); e.s.insns += budget as u64 - left; }
+    mmu::away(e.core);
     if e.s.error.is_some() { 2 } else if e.s.exited { 1 } else if idle { 3 } else { 0 }
 }
 
