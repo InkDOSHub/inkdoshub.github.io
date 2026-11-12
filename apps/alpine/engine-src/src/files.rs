@@ -18,7 +18,13 @@ pub enum Handle {
     Event { set: bool, manual: bool },
     Mutex { owner: u32, count: u32 },
     Semaphore { count: i32, max: i32 },
+    /// waitable timer: signaled from `due` (host ms) on
+    Timer { due: f64, manual: bool, period: f64 },
     Thread { tid: u32 },
+    /// the NUL device: reads end at once, writes vanish
+    Null,
+    /// I/O completion port: queued packets (key, apc context, status, information)
+    Port { q: std::collections::VecDeque<[u64; 4]> },
 }
 
 #[derive(Default)]
@@ -26,6 +32,8 @@ pub struct Files {
     pub handles: HashMap<u64, Handle>,
     /// files the program created or changed (offered for download)
     pub written: std::collections::BTreeSet<String>,
+    /// folders the program made (by name, like files)
+    pub dirs: std::collections::BTreeSet<String>,
     next: u64,
 }
 
@@ -152,8 +160,30 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let p = e.path_arg(0, wide);
             match key_of(&p) {
                 None => ATTR_DIR as u64,
+                Some(k) if e.s.fs.dirs.contains(&k) => ATTR_DIR as u64,
                 Some(k) if e.s.files.contains_key(&k) || e.s.files.contains_key(&pe::norm(&k)) => ATTR_NORMAL as u64,
                 _ => { e.set_err(2); 0xFFFF_FFFF }
+            }
+        }
+        "GetFileAttributesExW" | "GetFileAttributesExA" => {
+            // WIN32_FILE_ATTRIBUTE_DATA: attributes, 3 file times, size high/low
+            let p = e.path_arg(0, name.ends_with("ExW"));
+            let out = e.arg(2);
+            let found = match key_of(&p) {
+                None => Some((ATTR_DIR, 0u64)),
+                Some(k) if e.s.fs.dirs.contains(&k) => Some((ATTR_DIR, 0u64)),
+                Some(k) => e.s.files.get(&k).or_else(|| e.s.files.get(&pe::norm(&k))).map(|d| (ATTR_NORMAL, d.len() as u64)),
+            };
+            match found {
+                Some((attr, size)) => {
+                    let ft = file_time_now();
+                    let _ = e.mmu.write32(out, attr);
+                    for o in [4, 12, 20] { let _ = e.mmu.write64(out + o, ft); }
+                    let _ = e.mmu.write32(out + 28, (size >> 32) as u32);
+                    let _ = e.mmu.write32(out + 32, size as u32);
+                    1
+                }
+                None => { e.set_err(2); 0 }
             }
         }
         "SetFileAttributesW" | "SetFileTime" | "SetFileAttributesA" => 1,
@@ -193,6 +223,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 if flags & 0x0200_0000 != 0 { return Some(e.new_handle(Handle::Dir)); }
                 e.set_err(5); return Some(INVALID);
             };
+            if k == "nul" { e.set_err(0); return Some(e.new_handle(Handle::Null)); }
+            if k == "conin$" { e.set_err(0); return Some(3); }
+            if k == "conout$" { e.set_err(0); return Some(1); }
+            if e.s.fs.dirs.contains(&k) {
+                if flags & 0x0200_0000 != 0 { return Some(e.new_handle(Handle::Dir)); }
+                e.set_err(5); return Some(INVALID);
+            }
             let exists = e.s.files.contains_key(&k);
             match disp {
                 1 if exists => { e.set_err(80); return Some(INVALID); }            // CREATE_NEW
@@ -209,6 +246,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (buf, n, done) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
             // no keyboard yet: reading the console fails like a closed pipe
             if a0 == 3 { if done != 0 { let _ = e.mmu.write32(done, 0); } e.set_err(109); return Some(0); }
+            if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { if done != 0 { let _ = e.mmu.write32(done, 0); } return Some(1); }
             let Some((k, pos)) = e.file_mut(a0) else { return None };
             let data = e.s.files.get(&k).map(|d| { let s = (pos as usize).min(d.len()); d[s..(s + n as usize).min(d.len())].to_vec() }).unwrap_or_default();
             if e.mmu.write_bytes(buf, &data).is_err() { e.fault(buf); }
@@ -218,6 +256,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "WriteFile" => {
             let (buf, n, done) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
+            if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { if done != 0 { let _ = e.mmu.write32(done, n as u32); } return Some(1); }
             let Some((k, pos)) = e.file_mut(a0) else { return None }; // console: kernel32
             let mut v = vec![0u8; n as usize];
             if e.mmu.read_bytes(buf, &mut v).is_err() { e.fault(buf); }
@@ -230,7 +269,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if done != 0 { let _ = e.mmu.write32(done, n as u32); }
             1
         }
-        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(_) => 1, None => return None },
+        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(_) => 1, None => return None },
         "GetFileSize" | "GetFileSizeEx" => {
             let Some((k, _)) = e.file_mut(a0) else { e.set_err(6); return Some(if name == "GetFileSize" { 0xFFFF_FFFF } else { 0 }) };
             let size = e.s.files.get(&k).map(|d| d.len() as u64).unwrap_or(0);
@@ -279,8 +318,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let p = e.path_arg(0, wide);
             match key_of(&p) { Some(k) if e.s.files.remove(&k).is_some() => { e.s.fs.written.remove(&k); 1 } _ => { e.set_err(2); 0 } }
         }
-        "CreateDirectoryW" | "CreateDirectoryA" => { e.set_err(183); 0 }
-        "RemoveDirectoryW" => 1,
+        "CreateDirectoryW" | "CreateDirectoryA" | "CreateDirectoryExW" => {
+            let p = e.path_arg(if name == "CreateDirectoryExW" { 1 } else { 0 }, wide);
+            match key_of(&p) {
+                Some(k) if !e.s.fs.dirs.contains(&k) && !e.s.files.contains_key(&k) => { e.s.fs.dirs.insert(k); 1 }
+                _ => { e.set_err(183); 0 }
+            }
+        }
+        "RemoveDirectoryW" | "RemoveDirectoryA" => { let p = e.path_arg(0, wide); if let Some(k) = key_of(&p) { e.s.fs.dirs.remove(&k); } 1 }
         "MoveFileW" | "MoveFileWithProgressW" | "MoveFileExW" => {
             let (from, to) = (e.path_arg(0, true), e.path_arg(1, true));
             match (key_of(&from), key_of(&to)) {

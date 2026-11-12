@@ -4,13 +4,16 @@ A complete Alpine Linux 3.21 (x86-64) terminal in the browser, WSL 1 style: the 
 engine plays the part of the Linux kernel (system calls in WebAssembly) and runs Alpine's
 real programs, with their shared libraries (`/lib/ld-musl-x86_64.so.1`).
 
-- `engine-src/`: this app's own copy of the InkSoC engine source (taken from
-  `apps/inksoc/src/engine` at 655e8ac). Changes for Linux go here, so the Windows engine is
-  never touched. Its MMU swaps the pages of every process (each frame knows its owner;
-  fork copies pages into free frames, then straight to swap). Build:
-  `cd engine-src && cargo build --release --target wasm32-unknown-unknown` and copy
-  `target/wasm32-unknown-unknown/release/inksoc.wasm` to `engine.wasm`. Bring in engine
-  speed work from `apps/inksoc` on purpose, file by file.
+- Engine: Windows first, Linux follows. The Windows engine (`apps/inksoc/src/engine`) never
+  gets Linux changes. This app keeps them as `linux.patch` (today: `src/mmu.rs`, swap for
+  every process, and `src/linux.rs`) on top of the Windows engine commit in `engine-base.txt`.
+  - `tools/sync-engine.sh <commit or version tag>`: takes that Windows engine, re-applies
+    `linux.patch`, builds, runs `tests/linux-test.mjs`, and only then replaces `engine-src/`,
+    `engine.wasm` and `engine-base.txt`. Speed work on the CPU and JIT comes along as is.
+  - `tools/make-patch.sh`: after changing Linux parts in `engine-src/`, rebuilds `linux.patch`.
+  - `tests/linux-test.mjs [engine.wasm]`: boots Alpine with 24 MB of real RAM and checks the
+    first start, sudo, files, fork/exec, apk, /proc and the swap (node, no network).
+- `engine-src/`: the Windows engine at `engine-base.txt` plus `linux.patch`.
 - `engine.wasm`: the build of `engine-src`.
 - Memory: the same budget as InkSoC. Programs see 8 GB; real RAM = half of the lowest tab
   limit seen on this device (key `inksoc-limits`, shared with the InkSoC page; 256 MB before
