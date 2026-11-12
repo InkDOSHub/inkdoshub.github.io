@@ -74,7 +74,13 @@ pub fn step_block(e: &mut Engine, n: u64) -> u64 {
     let mut done = 0;
     while done < n && !e.s.exited && e.s.error.is_none() {
         if e.cpu.rip >= crate::THUNK_BASE { break; }
+        #[cfg(feature = "diff")]
+        let chk = diff::want(e.cpu.rip);
+        #[cfg(feature = "diff")]
+        if chk { unsafe { diff::host_diff(0); } }
         step(e);
+        #[cfg(feature = "diff")]
+        if chk { unsafe { diff::host_diff(1); } }
         done += 1;
         if e.want_switch { break; } // the thread blocked or ended (Linux system call)
     }
@@ -902,5 +908,44 @@ fn two_byte(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, osz:
             e.cpu.rip = next;
         }
         _ => e.unsupported(buf),
+    }
+}
+
+/// Reference-CPU check (feature "diff"): the host compares each instruction.
+#[cfg(feature = "diff")]
+pub mod diff {
+    #[link(wasm_import_module = "env")]
+    extern "C" { pub fn host_diff(phase: u32); }
+    static mut SEEN: Option<std::collections::HashMap<u64, u32>> = None;
+    pub static mut K: u32 = 3;
+    #[no_mangle]
+    pub extern "C" fn diff_k(k: u32) { unsafe { K = k; } }
+    /// the first K runs of each address are checked
+    #[allow(static_mut_refs)]
+    pub fn want(rip: u64) -> bool {
+        let m = unsafe { SEEN.get_or_insert_with(Default::default) };
+        let n = m.entry(rip).or_insert(0);
+        if *n >= unsafe { K } { return false; }
+        *n += 1;
+        true
+    }
+    /// 0..15 registers, 16 rip, 17 flags (cf zf sf of pf df bits 0 11 6 7 11 2 10), 18 gs base, 32+2i/33+2i xmm i low/high
+    /// 32 bits of guest memory, or -1 when unmapped (no fault)
+    #[no_mangle]
+    pub extern "C" fn diff_read(a: u64) -> i64 { crate::eng().mmu.read32(a).map_or(-1, |v| v as i64) }
+    #[no_mangle]
+    pub extern "C" fn diff_get(i: u32) -> u64 {
+        let e = crate::eng();
+        e.materialize();
+        let c = &e.cpu;
+        match i {
+            0..=15 => c.regs[i as usize],
+            16 => c.rip,
+            17 => (c.cf as u64) | (c.pf as u64) << 2 | (c.zf as u64) << 6 | (c.sf as u64) << 7 | (c.df as u64) << 10 | (c.of as u64) << 11,
+            18 => c.gs_base,
+            19 => c.fs_base,
+            32..=63 => { let x = c.xmm[((i - 32) / 2) as usize]; if i % 2 == 0 { x as u64 } else { (x >> 64) as u64 } }
+            _ => 0,
+        }
     }
 }
