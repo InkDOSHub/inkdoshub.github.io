@@ -13,6 +13,8 @@ const STILL_ACTIVE: u64 = 259;
 const WAIT_TIMEOUT: u64 = 258;
 const WAIT_FAILED: u64 = 0xFFFF_FFFF;
 pub const BLOCK: u64 = u64::MAX - 0x5A5B;
+/// pending value of a parked call that runs again when the thread wakes
+pub const RETRY: u64 = u64::MAX - 0x5A5C;
 const SRW_EX: u64 = u64::MAX;
 const MAIN_TID: u32 = 8;
 
@@ -27,6 +29,8 @@ pub enum W {
     Lx(crate::linux::Cond),
     /// WaitOnAddress: until the value changes or the address is woken
     Addr { addr: u64, val: u64, size: u32, seq: u64, win: bool },
+    /// a pipe read: until there is data or no writer (then the call runs again)
+    Pipe(u64),
     /// keyed event: until a release with the same key
     Keyed(u64),
     /// completion port: until packets arrive (out = key*, apc*, iosb* or entries*, count, written*)
@@ -169,6 +173,7 @@ impl Engine {
                 }
                 Some(0)
             }
+            W::Pipe(id) => match self.s.fs.pipes.get(id) { Some(p) if p.buf.is_empty() && p.writers > 0 => None, _ => Some(RETRY) },
             W::Keyed(k) => match self.s.sched.keyed.get_mut(k) { Some(n) if *n > 0 => { *n -= 1; Some(0) } _ => None },
             W::Addr { addr, val, size, seq, win } => {
                 let cur = match size { 1 => self.mmu.read8(*addr).map(|v| v as u64), 2 => self.mmu.read16(*addr).map(|v| v as u64), 4 => self.mmu.read32(*addr).map(|v| v as u64), _ => self.mmu.read64(*addr) }.unwrap_or(0);
@@ -368,7 +373,7 @@ impl Engine {
         self.s.sched.th[i].st = St::Running;
         if let Some(v) = self.s.sched.th[i].pending.take() {
             // a Linux system call that finished while waiting: skip the syscall instruction
-            if self.s.sched.th[i].pid != 0 { self.cpu.rip += 2; self.cpu.regs[0] = v; } else { self.do_ret(v); }
+            if self.s.sched.th[i].pid != 0 { self.cpu.rip += 2; self.cpu.regs[0] = v; } else if v != RETRY { self.do_ret(v); }
         }
         true
     }
@@ -503,7 +508,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if let Some(Handle::Timer { due, .. }) = e.s.fs.handles.get_mut(&a0) { *due = f64::INFINITY; }
             if name == "NtCancelTimer" { 0 } else { 1 }
         }
-        "NtClose" => { e.s.fs.handles.remove(&a0); 0 }
+        "NtClose" => { e.close_handle(a0); 0 }
         "NtCreateThreadEx" => {
             // (handle*, access, attributes, process, start, param, flags, zero bits, stack, max stack, attribute list)
             let (start, param, flags, stack, list) = (e.arg(4), e.arg(5), e.arg(6), e.arg(8), e.arg(10));

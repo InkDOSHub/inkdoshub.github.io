@@ -25,7 +25,13 @@ pub enum Handle {
     Null,
     /// I/O completion port: queued packets (key, apc context, status, information)
     Port { q: std::collections::VecDeque<[u64; 4]> },
+    /// one end of an anonymous pipe (`Files::pipes`)
+    Pipe { id: u64, write: bool },
 }
+
+/// Anonymous pipe: bytes in flight and how many write ends are open.
+#[derive(Default)]
+pub struct Pipe { pub buf: std::collections::VecDeque<u8>, pub writers: u32 }
 
 #[derive(Default)]
 pub struct Files {
@@ -35,6 +41,9 @@ pub struct Files {
     /// folders the program made (by name, like files)
     pub dirs: std::collections::BTreeSet<String>,
     next: u64,
+    pub pipes: HashMap<u64, Pipe>,
+    /// extra references made by DuplicateHandle (closed only when this reaches 0)
+    pub refs: HashMap<u64, u32>,
 }
 
 /// File name (key in the engine's file table) of a Windows path; None for the folder itself.
@@ -64,6 +73,50 @@ impl Engine {
         self.s.fs.handles.insert(id, h);
         id
     }
+
+    /// CloseHandle/NtClose: drops one reference; the object goes with the last one.
+    pub fn close_handle(&mut self, h: u64) -> bool {
+        if let Some(n) = self.s.fs.refs.get_mut(&h) { *n -= 1; if *n == 0 { self.s.fs.refs.remove(&h); } return true; }
+        match self.s.fs.handles.remove(&h) {
+            Some(Handle::Pipe { id, write }) => {
+                if let Some(p) = self.s.fs.pipes.get_mut(&id) { if write { p.writers -= 1; } }
+                if !write || self.s.fs.pipes.get(&id).map_or(false, |p| p.writers == 0) && !self.s.fs.handles.values().any(|x| matches!(x, Handle::Pipe { id: i, .. } if *i == id)) { self.s.fs.pipes.remove(&id); }
+                true
+            }
+            Some(_) => true,
+            None => false,
+        }
+    }
+    /// DuplicateHandle: the same handle, one more reference.
+    pub fn dup_handle(&mut self, h: u64) -> u64 {
+        if self.s.fs.handles.contains_key(&h) { *self.s.fs.refs.entry(h).or_insert(0) += 1; }
+        h
+    }
+    pub fn new_pipe(&mut self) -> (u64, u64) {
+        let id = self.s.fs.next + 1;
+        self.s.fs.pipes.insert(id, Pipe { buf: Default::default(), writers: 1 });
+        (self.new_handle(Handle::Pipe { id, write: false }), self.new_handle(Handle::Pipe { id, write: true }))
+    }
+    /// Reads a pipe: Ok(bytes), Err(true) when every write end is closed, Err(false) when it must wait.
+    pub fn pipe_read(&mut self, h: u64, buf: u64, n: u64) -> Result<u64, bool> {
+        let Some(Handle::Pipe { id, .. }) = self.s.fs.handles.get(&h) else { return Err(true) };
+        let id = *id;
+        let Some(p) = self.s.fs.pipes.get_mut(&id) else { return Err(true) };
+        if p.buf.is_empty() { return Err(p.writers == 0); }
+        let k = (n as usize).min(p.buf.len());
+        let v: Vec<u8> = p.buf.drain(..k).collect();
+        if self.mmu.write_bytes(buf, &v).is_err() { self.fault(buf); }
+        Ok(k as u64)
+    }
+    pub fn pipe_write(&mut self, h: u64, buf: u64, n: u64) -> bool {
+        let Some(Handle::Pipe { id, .. }) = self.s.fs.handles.get(&h) else { return false };
+        let id = *id;
+        let mut v = vec![0u8; n as usize];
+        if self.mmu.read_bytes(buf, &mut v).is_err() { self.fault(buf); }
+        if let Some(p) = self.s.fs.pipes.get_mut(&id) { p.buf.extend(v); }
+        true
+    }
+    pub fn pipe_id(&self, h: u64) -> Option<u64> { match self.s.fs.handles.get(&h) { Some(Handle::Pipe { id, .. }) => Some(*id), _ => None } }
 
     fn path_arg(&mut self, i: usize, wide: bool) -> String {
         let a = self.arg(i);
@@ -241,12 +294,20 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let _ = access;
             e.new_handle(Handle::File { name: k, pos: 0 })
         }
-        "CloseHandle" => { e.s.fs.handles.remove(&a0); 1 }
+        "CloseHandle" => { if e.close_handle(a0) { 1 } else { return None } }
         "ReadFile" => {
             let (buf, n, done) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
             // no keyboard yet: reading the console fails like a closed pipe
             if a0 == 3 { if done != 0 { let _ = e.mmu.write32(done, 0); } e.set_err(109); return Some(0); }
             if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { if done != 0 { let _ = e.mmu.write32(done, 0); } return Some(1); }
+            if let Some(id) = e.pipe_id(a0) {
+                return Some(match e.pipe_read(a0, buf, n) {
+                    Ok(k) => { if done != 0 { let _ = e.mmu.write32(done, k as u32); } 1 }
+                    Err(true) => { if done != 0 { let _ = e.mmu.write32(done, 0); } e.set_err(109); 0 } // ERROR_BROKEN_PIPE
+                    Err(false) if n == 0 => { if done != 0 { let _ = e.mmu.write32(done, 0); } 1 }
+                    Err(false) => e.wait_on(crate::sched::W::Pipe(id), u64::MAX),
+                });
+            }
             let Some((k, pos)) = e.file_mut(a0) else { return None };
             let data = e.s.files.get(&k).map(|d| { let s = (pos as usize).min(d.len()); d[s..(s + n as usize).min(d.len())].to_vec() }).unwrap_or_default();
             if e.mmu.write_bytes(buf, &data).is_err() { e.fault(buf); }
@@ -257,10 +318,11 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "WriteFile" => {
             let (buf, n, done) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
             if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { if done != 0 { let _ = e.mmu.write32(done, n as u32); } return Some(1); }
+            if e.pipe_write(a0, buf, n) { if done != 0 { let _ = e.mmu.write32(done, n as u32); } return Some(1); }
             let Some((k, pos)) = e.file_mut(a0) else { return None }; // console: kernel32
             let mut v = vec![0u8; n as usize];
             if e.mmu.read_bytes(buf, &mut v).is_err() { e.fault(buf); }
-            e.s.fs.written.insert(k.clone());
+            if !k.starts_with('|') { e.s.fs.written.insert(k.clone()); }
             let d = e.s.files.entry(k).or_default();
             let end = pos as usize + v.len();
             if d.len() < end { d.resize(end, 0); }
@@ -269,7 +331,20 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if done != 0 { let _ = e.mmu.write32(done, n as u32); }
             1
         }
-        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(_) => 1, None => return None },
+        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(Handle::Pipe { .. }) => 3, Some(_) => 1, None => return None },
+        "PeekNamedPipe" => {
+            let Some(id) = e.pipe_id(a0) else { e.set_err(6); return Some(0) };
+            let (buf, n, read, avail, left) = (e.arg(1), e.arg(2) as u32 as usize, e.arg(3), e.arg(4), e.arg(5));
+            let (data, w): (Vec<u8>, u32) = match e.s.fs.pipes.get(&id) { Some(p) => (p.buf.iter().take(n).copied().collect(), p.writers), None => (vec![], 0) };
+            let total = e.s.fs.pipes.get(&id).map_or(0, |p| p.buf.len()) as u32;
+            if total == 0 && w == 0 { e.set_err(109); return Some(0); }
+            if buf != 0 { let _ = e.mmu.write_bytes(buf, &data); }
+            if read != 0 { let _ = e.mmu.write32(read, if buf != 0 { data.len() as u32 } else { 0 }); }
+            if avail != 0 { let _ = e.mmu.write32(avail, total); }
+            if left != 0 { let _ = e.mmu.write32(left, 0); }
+            1
+        }
+        "SetNamedPipeHandleState" => if e.pipe_id(a0).is_some() { 1 } else { return None },
         "GetFileSize" | "GetFileSizeEx" => {
             let Some((k, _)) = e.file_mut(a0) else { e.set_err(6); return Some(if name == "GetFileSize" { 0xFFFF_FFFF } else { 0 }) };
             let size = e.s.files.get(&k).map(|d| d.len() as u64).unwrap_or(0);

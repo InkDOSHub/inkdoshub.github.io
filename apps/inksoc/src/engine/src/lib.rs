@@ -254,7 +254,8 @@ pub extern "C" fn run(budget: u32) -> i32 {
             let _ = done_other;
             if !ok {
                 idle = e.s.error.is_none();
-                if lock::MT && idle { let g = lock::gen(); lock::idle(g, e.idle_ms); idle = false; left = left.saturating_sub(1000); continue; }
+                // the page's core goes back to JavaScript when there are windows (screen updates, input)
+                if lock::MT && idle && !(e.core == 0 && { let _g = lock::lock(); !e.s.win.tops.is_empty() }) { let g = lock::gen(); lock::idle(g, e.idle_ms); idle = false; left = left.saturating_sub(1000); continue; }
                 break;
             }
         }
@@ -583,7 +584,14 @@ impl Engine {
         if let Some(&a) = self.s.thunk_fb.get(&idx) { self.cpu.rip = a; return; }
         let ra = self.mmu.read64(self.cpu.regs[4]).unwrap_or(0);
         let k = self.s.recent_n % 16; self.s.recent[k] = (idx as u32, ra); self.s.recent_n += 1;
-        if unsafe { TRACE } { if let Some((d, n)) = self.s.thunks.get(idx) { console(&format!("[call] {}!{} rcx={:x} rdx={:x}\n", d, n, self.cpu.regs[1], self.cpu.regs[2])); } }
+        if unsafe { TRACE } { if let Some((d, n)) = self.s.thunks.get(idx) {
+            let t = self.cur_tid(); let p = self.cpu.regs[1];
+            // first argument shown as text when it reads like a string
+            let mut txt = String::new();
+            if n.ends_with('W') { for i in 0..80 { match self.mmu.read16(p + 2 * i) { Ok(c) if c >= 32 && c < 0x7F => txt.push(c as u8 as char), _ => break } } }
+            else if n.ends_with('A') { for i in 0..80 { match self.mmu.read8(p + i) { Ok(c) if c >= 32 && c < 0x7F => txt.push(c as char), _ => break } } }
+            console(&format!("[call] t{} {}!{} rcx={:x} rdx={:x} r8={:x} ra={:x} {}\n", t, d, n, p, self.cpu.regs[2], self.cpu.regs[8], ra, txt));
+        } }
         let Some((dll, name)) = self.s.thunks.get(idx).cloned() else {
             self.set_error(format!("jump into the native area at 0x{:x}", self.cpu.rip));
             return;

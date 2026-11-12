@@ -393,8 +393,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetConsoleWindow" => 0,
 
         // ---- handles and processes ----
-        "DuplicateHandle" => { let (h, out) = (e.arg(1), e.arg(3)); e.wr64(out, h); 1 }
-        "CreatePipe" => { e.last_err(ERROR_NOT_SUPPORTED); 0 }
+        "DuplicateHandle" => { let (h, out) = (e.arg(1), e.arg(3)); let h = e.dup_handle(h); e.wr64(out, h); 1 }
+        "CreatePipe" => { let (pr, pw) = (e.arg(0), e.arg(1)); let (r, w) = e.new_pipe(); e.wr64(pr, r); e.wr64(pw, w); 1 }
         "CreateProcessW" | "CreateProcessA" | "CreateProcessAsUserW" | "ShellExecuteW" | "ShellExecuteExW" => { e.last_err(ERROR_FILE_NOT_FOUND); 0 }
         "GetExitCodeProcess" => { let p = e.arg(1); e.wr32(p, 0); 1 }
         "SetStdHandle" | "SetHandleInformation" => 1,

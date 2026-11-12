@@ -191,6 +191,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtReadFile" => {
             let (iosb, buf, n, offp) = (e.arg(4), e.arg(5), e.arg(6) as u32 as u64, e.arg(7));
             if a0 == 3 || matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { e.iosb(iosb, END_OF_FILE, 0); return Some(END_OF_FILE); }
+            if let Some(id) = e.pipe_id(a0) {
+                return Some(match e.pipe_read(a0, buf, n) {
+                    Ok(k) => { e.iosb(iosb, OK, k); OK }
+                    Err(true) => { e.iosb(iosb, 0xC000_014B, 0); 0xC000_014B } // STATUS_PIPE_BROKEN
+                    Err(false) => e.wait_on(crate::sched::W::Pipe(id), u64::MAX),
+                });
+            }
             let (k, pos) = match e.s.fs.handles.get(&a0) { Some(Handle::File { name, pos }) => (name.clone(), *pos), _ => return Some(INVALID_HANDLE) };
             let pos = if offp != 0 { let o = e.mmu.read64(offp).unwrap_or(u64::MAX); if o as i64 >= 0 { o } else { pos } } else { pos };
             let data = e.s.files.get(&k).map(|d| { let s = (pos as usize).min(d.len()); d[s..(s + n as usize).min(d.len())].to_vec() }).unwrap_or_default();
@@ -206,6 +213,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if e.mmu.read_bytes(buf, &mut v).is_err() { return Some(INVALID_PARAMETER); }
             if a0 == 1 || a0 == 2 { crate::console(&String::from_utf8_lossy(&v)); e.iosb(iosb, OK, n); return Some(OK); }
             if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { e.iosb(iosb, OK, n); return Some(OK); }
+            if e.pipe_write(a0, buf, n) { e.iosb(iosb, OK, n); return Some(OK); }
             let (k, pos) = match e.s.fs.handles.get(&a0) { Some(Handle::File { name, pos }) => (name.clone(), *pos), _ => return Some(INVALID_HANDLE) };
             let pos = if offp != 0 { let o = e.mmu.read64(offp).unwrap_or(u64::MAX); if o as i64 >= 0 { o } else { pos } } else { pos };
             let d = e.s.files.entry(k.clone()).or_default();
@@ -220,6 +228,16 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtFlushBuffersFile" | "NtFlushBuffersFileEx" => { let p = e.arg(1); e.iosb(p, OK, 0); OK }
         "NtQueryInformationFile" => {
             let (iosb, buf, len, class) = (e.arg(1), e.arg(2), e.arg(3) as u32 as u64, e.arg(4) as u32);
+            if e.pipe_id(a0).is_some() {
+                // pipe: synchronous mode (16), local pipe info (24): connected, byte mode
+                let need = match class { 8 => 4, 16 => 4, 24 => 40, 5 => 24, 4 => 40, _ => return Some(INVALID_INFO_CLASS) };
+                if len < need { return Some(INFO_LENGTH_MISMATCH); }
+                e.zero_n(buf, need);
+                let wr = matches!(e.s.fs.handles.get(&a0), Some(Handle::Pipe { write: true, .. }));
+                match class { 8 => { let _ = e.mmu.write32(buf, if wr { 0x120116 } else { 0x120089 }); } 16 => { let _ = e.mmu.write32(buf, 0x20); } 24 => { let _ = e.mmu.write32(buf + 16, 1); let _ = e.mmu.write32(buf + 20, 4096); let _ = e.mmu.write32(buf + 24, 4096); let _ = e.mmu.write32(buf + 32, 3); } 5 => { let _ = e.mmu.write32(buf + 16, 1); } 4 => { let _ = e.mmu.write32(buf + 32, 0x80); } _ => {} }
+                e.iosb(iosb, OK, need);
+                return Some(OK);
+            }
             let con = a0 <= 3;
             let (dir, size, pos) = if con { (false, 0, 0) } else { match e.file_info(a0) { Some(x) => x, None => return Some(INVALID_HANDLE) } };
             let attr: u32 = if dir { 0x10 } else { 0x80 };
@@ -237,6 +255,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 35 => { let _ = e.mmu.write32(buf, attr); }
                 18 => { basic(e, buf); std_(e, buf + 40); let _ = e.mmu.write64(buf + 64, a0); let _ = e.mmu.write64(buf + 80, pos); }
                 6 => { let _ = e.mmu.write64(buf, a0); }
+                8 => { let _ = e.mmu.write32(buf, 0x12019F); }
                 34 => { for o in [0, 8, 16, 24] { let _ = e.mmu.write64(buf + o, ft); } let _ = e.mmu.write64(buf + 32, (size + 4095) & !4095); let _ = e.mmu.write64(buf + 40, size); let _ = e.mmu.write32(buf + 48, attr); }
                 _ => {}
             }
@@ -465,7 +484,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtQueryDefaultUILanguage" | "NtQueryInstallUILanguage" => { let _ = e.mmu.write16(a0, 0x409); OK }
         "NtQueryLicenseValue" => OBJECT_NAME_NOT_FOUND,
         "NtTraceControl" | "NtTraceEvent" => OK,
-        "NtDuplicateObject" => { let (h, out) = (e.arg(1), e.arg(3)); if out != 0 { let _ = e.mmu.write64(out, h); } OK }
+        "NtDuplicateObject" => { let (h, out) = (e.arg(1), e.arg(3)); let h = e.dup_handle(h); if out != 0 { let _ = e.mmu.write64(out, h); } OK }
         "NtQueryObject" => INVALID_INFO_CLASS,
         "NtDisplayString" => OK,
 
