@@ -23,6 +23,8 @@ mod sse;
 mod winapi;
 mod winefb;
 mod ntsys;
+mod winsys;
+mod wingdi;
 
 use cpu::Cpu;
 use mmu::Mmu;
@@ -88,6 +90,9 @@ pub struct Shared {
     pub init_queue: Vec<(u64, u64)>,
     pub resume: Vec<winefb::Resume>,
     pub user_shared: bool,
+    pub win: winsys::Win,
+    pub gdi: wingdi::Gdi,
+    pub win_ki: u64,
     pub wine_exports: HashMap<String, std::collections::HashSet<String>>,
     pub ldr_entries: HashMap<u64, u64>,
     pub loadlib: Vec<(u64, u64)>, // (module handle, caller rsp) while a DllMain runs
@@ -147,7 +152,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             files: HashMap::new(), modules: Vec::new(),
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0, no_init: false, thunk_fb: HashMap::new(), wine_fb: HashMap::new(), env_block: 0, tls_tmpl: Vec::new(),
-            init_queue: Vec::new(), resume: Vec::new(), user_shared: false, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
+            init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), win_ki: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
         });
@@ -568,7 +573,7 @@ impl Engine {
             _ if dll == "oleaut32.dll" => oleaut::call(self, &name),
             _ if dll.starts_with("vcruntime140") => msvcrt::call(self, &name),
             // the window system's kernel side: console programs get "nothing there"
-            _ if dll == "win32u.dll" => Some(0),
+            _ if dll == "win32u.dll" => winsys::call(self, &name),
             _ => sched::call(self, &name).or_else(|| files::call(self, &name)).or_else(|| kernel32::call(self, &name)).or_else(|| winapi::call(self, &name)).or_else(|| ntsys::call(self, &name)),
         };
         if self.s.error.is_some() || self.s.exited { return; }

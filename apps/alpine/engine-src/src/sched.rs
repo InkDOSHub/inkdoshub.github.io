@@ -31,6 +31,10 @@ pub enum W {
     Keyed(u64),
     /// completion port: until packets arrive (out = key*, apc*, iosb* or entries*, count, written*)
     Port { h: u64, ex: bool, out: [u64; 3], count: u32 },
+    /// GetMessage: until a message for the thread (written to `out`)
+    Msg { out: u64, hwnd: u64, first: u32, last: u32 },
+    /// MsgWaitForMultipleObjects: an object or any message
+    MsgOrObjs { hs: Vec<u64> },
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -169,6 +173,11 @@ impl Engine {
             W::Addr { addr, val, size, seq } => {
                 let cur = match size { 1 => self.mmu.read8(*addr).map(|v| v as u64), 2 => self.mmu.read16(*addr).map(|v| v as u64), 4 => self.mmu.read32(*addr).map(|v| v as u64), _ => self.mmu.read64(*addr) }.unwrap_or(0);
                 if cur != *val || self.s.sched.addr_seq.get(addr).copied().unwrap_or(0) != *seq { Some(0) } else { None }
+            }
+            W::Msg { out, hwnd, first, last } => self.peek_tid(me, *out, *hwnd, *first, *last, true).map(|more| more as u64),
+            W::MsgOrObjs { hs } => {
+                if let Some(i) = hs.iter().position(|&h| self.signaled(h, me)) { self.acquire(hs[i], me); return Some(i as u64); }
+                if self.has_msgs(me) { Some(hs.len() as u64) } else { None }
             }
             W::SrwSh(l) => {
                 let v = self.mmu.read64(*l).unwrap_or(0);
@@ -310,6 +319,8 @@ impl Engine {
                         return self.switch_to(i);
                     }
                     soonest = soonest.min(dl);
+                    // a window thread: page input can come at any time, timers are due later
+                    if matches!(w, W::Msg { .. } | W::MsgOrObjs { .. }) { soonest = soonest.min((t_now + 30.0).min(self.next_timer(id))); }
                     // a waitable timer in the wait: wake up when it is due
                     if let W::Objs { hs, .. } = &w {
                         for h in hs { if let Some(Handle::Timer { due, .. }) = self.s.fs.handles.get(h) { soonest = soonest.min(*due); } }

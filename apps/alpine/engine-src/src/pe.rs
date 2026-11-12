@@ -52,7 +52,7 @@ pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     if !NATIVE_DLLS.contains(&n.as_str()) {
         if let Some(bytes) = e.s.files.get(&format!("wine-{}", n)).cloned() {
             // window-system DLLs: their DllMain needs the graphics kernel, which console programs never use
-            let gui = ["user32.dll", "gdi32.dll", "shell32.dll", "ole32.dll", "combase.dll", "imm32.dll", "comctl32.dll", "winmm.dll", "setupapi.dll", "shcore.dll"].contains(&n.as_str());
+            let gui = ["shell32.dll", "ole32.dll", "combase.dll", "imm32.dll", "comctl32.dll", "winmm.dll", "setupapi.dll", "shcore.dll"].contains(&n.as_str());
             let r = load_image(e, &n, &bytes, false)?;
             // only the window DLL itself skips DllMain: the DLLs it pulled in still start normally
             if gui { let b = e.s.modules[r].base; e.s.init_queue.retain(|&(_, base)| base != b); }
@@ -187,6 +187,8 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
         for i in 0..nfun { let t = target(e, i)?; exports.insert(format!("#{}", ord_base + i), t); }
     }
 
+    // gdi32 reads the GDI handle table straight from the PEB
+    if name == "gdi32.dll" || name == "wine-gdi32.dll" { e.gdi_init(); }
     let idx = e.s.modules.len();
     e.s.modules.push(Module { name: name.to_string(), base, size: image_size, entry: if entry_rva != 0 { base + entry_rva } else { 0 }, exports, native: false, fwd });
 

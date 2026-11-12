@@ -20,10 +20,10 @@ wasm="${CARGO_TARGET_DIR:-/tmp/alpine-engine-target}/wasm32-unknown-unknown/rele
 echo "== Linux test"
 node tests/linux-test.mjs "$wasm" || { echo "Linux test failed: engine-src and engine.wasm stay as they were"; exit 1; }
 rm -rf engine-src.old && mv engine-src engine-src.old && mkdir engine-src
-cp -r "$tmp"/Cargo.toml "$tmp"/Cargo.lock "$tmp"/build.rs "$tmp"/build-mt.sh "$tmp"/src "$tmp"/wine engine-src/
+cp -r "$tmp"/. engine-src/
 cp engine-src.old/.gitignore engine-src/ 2>/dev/null || true
 rm -rf engine-src.old "$tmp"
 cp "$wasm" engine.wasm
 echo "$new" > engine-base.txt
 sh tools/make-patch.sh
-echo "Done: the Linux engine now follows the Windows engine $new. Bump engine.wasm?v= in worker.js."
+echo "Done: the Linux engine now follows the Windows engine $new. Write its version (apps/inksoc/VERSIONS.md) in engine-version.txt and bump engine.wasm?v= in worker.js."
