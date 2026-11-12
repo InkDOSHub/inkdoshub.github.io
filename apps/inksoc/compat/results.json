@@ -6,57 +6,51 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "user32.dll"
+    "zlib1.dll"
    ],
-   "mips": 4,
-   "ms": 375,
-   "out": "[inksoc] user32.dll is not available yet: its functions will stop the program when called\n\n7-Zip (a) 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\n\nScanning the drive:\n  0M Scan \r          \r1 file, 42 bytes (1 KiB)\n\nCreating archive: out.7z\n\nAdd new data to archive: 1 file, 42 bytes (1 KiB)\n\n  0%\r    \r\nFiles read from disk: 1\nArchive size: 168 bytes (1 KiB)\nEverything is Ok\n"
+   "mips": 5,
+   "ms": 453,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n\r\n7-Zip (a) 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\r\n\r\nScanning the drive:\r\n  0M Scan \r          \r1 file, 42 bytes (1 KiB)\r\n\r\nCreating archive: out.7z\r\n\r\nAdd new data to archive: 1 file, 42 bytes (1 KiB)\r\n\r\n  0%\r    \r\r\nFiles read from disk: 1\r\nArchive size: 168 bytes (1 KiB)\r\nEverything is Ok\r\n"
   },
   "jq": {
    "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetFullPathNameA",
+   "status": "exit",
+   "exitCode": 3,
+   "error": "expected output not found",
    "missing": [],
-   "mips": 1,
-   "ms": 337,
-   "out": ""
+   "mips": 4,
+   "ms": 395,
+   "out": "Assertion failed: block_is_single(binder), file src/compile.c, line 308\r\n\r\n"
   },
   "sqlite": {
    "ok": false,
-   "status": "stopped",
+   "status": "exit",
    "exitCode": 0,
-   "error": "access violation at 0x8 (rip 0x1402c39a9)",
+   "error": "expected output not found",
    "missing": [],
    "mips": 3,
-   "ms": 294,
+   "ms": 411,
    "out": ""
   },
   "ripgrep": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: userenv.dll!GetUserProfileDirectoryW",
-   "missing": [
-    "userenv.dll"
-   ],
-   "mips": 7,
-   "ms": 361,
-   "out": "[inksoc] userenv.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 10,
+   "ms": 586,
+   "out": "1:hello world\n4:hello again\n"
   },
   "ripgrep-gnu": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm",
-   "missing": [
-    "userenv.dll",
-    "ws2_32.dll",
-    "bcryptprimitives.dll"
-   ],
-   "mips": 0,
-   "ms": 403,
-   "out": "[inksoc] userenv.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 10,
+   "ms": 678,
+   "out": "1:hello world\n4:hello again\n"
   },
   "fd": {
    "ok": true,
@@ -64,737 +58,598 @@
    "exitCode": 0,
    "error": "",
    "missing": [
-    "ole32.dll",
-    "userenv.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
    "mips": 1,
-   "ms": 333,
-   "out": "[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] userenv.dll is not available yet: its functions will stop the program when called\nfd 10.2.0\n"
+   "ms": 391,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nfd 10.2.0\n"
   },
   "bat": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
-   "missing": [
-    "secur32.dll",
-    "shell32.dll",
-    "bcrypt.dll",
-    "ws2_32.dll",
-    "vcruntime140.dll"
-   ],
-   "mips": 0,
-   "ms": 235,
-   "out": "[inksoc] secur32.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 37,
+   "ms": 1383,
+   "out": "hello world\nzebra\napple\nhello again\nmango\n"
   },
   "hyperfine": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
-   "missing": [
-    "bcryptprimitives.dll",
-    "bcrypt.dll",
-    "vcruntime140.dll"
-   ],
-   "mips": 0,
-   "ms": 202,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 1,
+   "ms": 374,
+   "out": "hyperfine 1.19.0\n"
   },
   "hexyl": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
-   "missing": [
-    "vcruntime140.dll"
-   ],
-   "mips": 0,
-   "ms": 191,
-   "out": "[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 4,
+   "ms": 427,
+   "out": "┌────────┬─────────────────────────┬─────────────────────────┬────────┬────────┐\n│00000000│ 68 65 6c 6c 6f 20 77 6f ┊ 72 6c 64 0a 7a 65 62 72 │hello wo┊rld_zebr│\n│00000010│ 61 0a 61 70 70 6c 65 0a ┊ 68 65 6c 6c 6f 20 61 67 │a_apple_┊hello ag│\n│00000020│ 61 69 6e 0a 6d 61 6e 67 ┊ 6f 0a                   │ain_mang┊o_      │\n└────────┴─────────────────────────┴─────────────────────────┴────────┴────────┘\n"
   },
   "zstd": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: msvcrt.dll!rand_s",
+   "error": "",
    "missing": [],
-   "mips": 0,
-   "ms": 236,
-   "out": ""
+   "mips": 3,
+   "ms": 428,
+   "out": "\r                                                                               \rRead:    42   B /    42   B ==> 121%\r                                                                               \rin.txt               :130.95%   (    42 B =>     55 B, in.zst) \r\n"
   },
   "lz4": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: msvcrt.dll!__lconv_init",
+   "error": "",
    "missing": [],
-   "mips": 0,
-   "ms": 251,
-   "out": ""
+   "mips": 2,
+   "ms": 384,
+   "out": "\rRead : 0 MiB   ==> 142.86%   \r                                                                               \rCompressed 42 bytes into 60 bytes ==> 142.86%\r\n"
   },
   "brotli": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
-   "missing": [
-    "vcruntime140.dll"
-   ],
-   "mips": 0,
-   "ms": 294,
-   "out": "[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 15,
+   "ms": 517,
+   "out": ""
   },
   "upx": {
    "ok": false,
    "status": "stopped",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!AddVectoredExceptionHandler",
+   "error": "access violation at 0x8 (rip 0x7ff0003b7668) [in wine-ntdll.dll+0x57668]",
    "missing": [],
-   "mips": 228,
-   "ms": 371,
+   "mips": 120,
+   "ms": 581,
    "out": ""
   },
   "ninja": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetACP",
+   "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 234,
-   "out": ""
+   "ms": 392,
+   "out": "1.12.1\r\n"
   },
   "yq": {
    "ok": false,
-   "status": "stopped",
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetErrorMode",
-   "missing": [
-    "bcryptprimitives.dll",
-    "winmm.dll",
-    "ws2_32.dll"
-   ],
-   "mips": 0,
-   "ms": 308,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
+   "error": "expected output not found",
+   "missing": [],
+   "mips": 8,
+   "ms": 1241,
+   "out": "null\n"
   },
   "fzf": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetSystemDirectoryA",
+   "error": "",
    "missing": [],
-   "mips": 0,
-   "ms": 222,
-   "out": ""
+   "mips": 421,
+   "ms": 1272,
+   "out": "0.56.3 (add1aec)\n"
   },
   "coreutils": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
+   "error": "",
    "missing": [
-    "ws2_32.dll",
-    "bcrypt.dll",
-    "user32.dll",
-    "version.dll",
-    "vcruntime140.dll"
+    "zlib1.dll"
    ],
-   "mips": 0,
-   "ms": 250,
-   "out": "[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] user32.dll is not available yet: its functions will stop the program when called\n[inksoc] version.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 1,
+   "ms": 440,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\napple\nhello again\nhello world\nmango\nzebra\n"
   },
   "tokei": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
+   "error": "",
    "missing": [
-    "ole32.dll",
-    "shell32.dll",
-    "userenv.dll",
-    "vcruntime140.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 226,
-   "out": "[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] userenv.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 3,
+   "ms": 427,
+   "out": "unctions will stop the program when called\n===============================================================================\n Language            Files        Lines         Code     Comments       Blanks\n===============================================================================\n C                       1            2            2            0            0\n===============================================================================\n Total                   1            2            2            0            0\n===============================================================================\n"
   },
   "sd": {
    "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
-   "missing": [
-    "bcrypt.dll",
-    "vcruntime140.dll"
-   ],
-   "mips": 0,
-   "ms": 237,
-   "out": "[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "status": "exit",
+   "exitCode": 1,
+   "error": "expected output not found",
+   "missing": [],
+   "mips": 1,
+   "ms": 395,
+   "out": "error: Incorrect function. (os error 1)\n"
   },
   "dust": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
+   "error": "",
    "missing": [
-    "bcryptprimitives.dll",
-    "pdh.dll",
-    "ole32.dll",
-    "psapi.dll",
-    "shell32.dll",
-    "iphlpapi.dll",
-    "netapi32.dll",
-    "secur32.dll",
-    "powrprof.dll",
-    "vcruntime140.dll"
+    "zlib1.dll",
+    "coml2.dll",
+    "nsi.dll"
    ],
-   "mips": 0,
-   "ms": 275,
-   "out": "s functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] iphlpapi.dll is not available yet: its functions will stop the program when called\n[inksoc] netapi32.dll is not available yet: its functions will stop the program when called\n[inksoc] secur32.dll is not available yet: its functions will stop the program when called\n[inksoc] powrprof.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 1,
+   "ms": 347,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\nDust 1.1.1\n"
   },
   "delta": {
    "ok": false,
    "status": "stopped",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
+   "error": "not implemented yet: ntdll.dll!NtOpenProcess",
    "missing": [
-    "bcryptprimitives.dll",
-    "ole32.dll",
-    "secur32.dll",
-    "ws2_32.dll",
-    "shell32.dll",
-    "pdh.dll",
-    "psapi.dll",
-    "powrprof.dll",
-    "iphlpapi.dll",
-    "netapi32.dll",
-    "vcruntime140.dll"
+    "zlib1.dll",
+    "coml2.dll",
+    "nsi.dll"
    ],
-   "mips": 0,
-   "ms": 275,
-   "out": "et: its functions will stop the program when called\n[inksoc] pdh.dll is not available yet: its functions will stop the program when called\n[inksoc] psapi.dll is not available yet: its functions will stop the program when called\n[inksoc] powrprof.dll is not available yet: its functions will stop the program when called\n[inksoc] iphlpapi.dll is not available yet: its functions will stop the program when called\n[inksoc] netapi32.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 4,
+   "ms": 454,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n"
   },
   "oxipng": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
-   "missing": [
-    "bcryptprimitives.dll",
-    "vcruntime140.dll"
-   ],
-   "mips": 0,
-   "ms": 193,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 16,
+   "ms": 536,
+   "out": "Processing: in.png\n86 bytes (81.43% smaller): out.png\n"
   },
   "age": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetErrorMode",
-   "missing": [
-    "bcryptprimitives.dll",
-    "winmm.dll",
-    "ws2_32.dll"
-   ],
-   "mips": 0,
-   "ms": 207,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 7,
+   "ms": 534,
+   "out": "v1.2.0\n"
   },
   "rclone": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetErrorMode",
+   "error": "",
    "missing": [
-    "bcryptprimitives.dll"
+    "zlib1.dll"
    ],
-   "mips": 0,
-   "ms": 483,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 131,
+   "ms": 4560,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n2026/11/12 12:20:10 ERROR : Couldn't find configuration directory nor home directory: HOMEDRIVE, HOMEPATH, or USERPROFILE are blank\n2026/11/12 12:20:10 ERROR : Defaulting to storing config in current directory.\n2026/11/12 12:20:10 ERROR : Use --config flag to workaround.\nrclone v1.68.2\n- os/version: unknown\n- os/kernel: unknown\n- os/type: windows\n- os/arch: amd64\n- go/version: go1.23.3\n- go/linking: static\n- go/tags: cmount\n"
   },
   "hugo": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetErrorMode",
-   "missing": [
-    "bcryptprimitives.dll"
-   ],
-   "mips": 0,
-   "ms": 467,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 43,
+   "ms": 3848,
+   "out": "hugo v0.139.3-2f6864387cd31b975914e8373d4bf38bddbd47bc windows/amd64 BuildDate=2024-11-29T15:36:56Z VendorInfo=gohugoio\n"
   },
   "gh": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetErrorMode",
-   "missing": [
-    "bcryptprimitives.dll",
-    "winmm.dll",
-    "ws2_32.dll"
-   ],
-   "mips": 0,
-   "ms": 555,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 117,
+   "ms": 5525,
+   "out": "gh version 2.62.0 (2024-11-14)\nhttps://github.com/cli/cli/releases/tag/v2.62.0\n"
   },
   "restic": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetErrorMode",
-   "missing": [
-    "bcryptprimitives.dll"
-   ],
-   "mips": 0,
-   "ms": 322,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 11,
+   "ms": 2061,
+   "out": "restic 0.17.3 compiled with go1.23.3 on windows/amd64\n"
   },
   "shellcheck": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: msvcrt.dll!__lconv_init",
+   "error": "",
    "missing": [
-    "dbghelp.dll",
-    "gdi32.dll",
-    "shell32.dll",
-    "user32.dll",
-    "winmm.dll",
-    "wsock32.dll"
+    "zlib1.dll",
+    "nsi.dll",
+    "msacm32.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 229,
-   "out": "[inksoc] dbghelp.dll is not available yet: its functions will stop the program when called\n[inksoc] gdi32.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] user32.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n[inksoc] wsock32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 2,
+   "ms": 456,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] msacm32.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nShellCheck - shell script analysis tool\r\nversion: 0.10.0\r\nlicense: GNU General Public License, version 3\r\nwebsite: https://www.shellcheck.net\r\n"
   },
   "pandoc": {
    "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm",
+   "status": "exit",
+   "exitCode": 1,
+   "error": "expected output not found",
    "missing": [
-    "ws2_32.dll",
-    "shell32.dll",
-    "user32.dll",
-    "dbghelp.dll",
-    "crypt32.dll",
-    "ole32.dll",
-    "rpcrt4.dll",
-    "gdi32.dll",
-    "winmm.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 1132,
-   "out": "ailable yet: its functions will stop the program when called\n[inksoc] dbghelp.dll is not available yet: its functions will stop the program when called\n[inksoc] crypt32.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] rpcrt4.dll is not available yet: its functions will stop the program when called\n[inksoc] gdi32.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 2,
+   "ms": 1438,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\npandoc.exe: osReserveHeapMemory: VirtualAlloc MEM_RESERVE 1099512676352 bytes                 at address 0000000000000000 bytes failed: H���"
   },
   "qpdf": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: msvcrt.dll!rand_s",
+   "error": "",
    "missing": [
-    "crypt32.dll",
-    "user32.dll",
-    "ws2_32.dll"
+    "zlib1.dll"
    ],
-   "mips": 0,
-   "ms": 334,
-   "out": "[inksoc] crypt32.dll is not available yet: its functions will stop the program when called\n[inksoc] user32.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 9,
+   "ms": 718,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\nqpdf version 11.9.1\r\nRun qpdf --copyright to see copyright and license information.\r\n"
   },
   "python": {
    "ok": false,
    "status": "stopped",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-core-path-l1-1-0.dll!PathCchSkipRoot",
-   "missing": [
-    "ws2_32.dll"
-   ],
-   "mips": 10,
-   "ms": 1207,
-   "out": "[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
-  },
-  "ffmpeg": {
-   "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-stdio-l1-1-0.dll!__acrt_iob_func",
-   "missing": [
-    "avrt.dll",
-    "bcrypt.dll",
-    "crypt32.dll",
-    "gdi32.dll",
-    "iphlpapi.dll",
-    "msimg32.dll",
-    "ncrypt.dll",
-    "ole32.dll",
-    "shell32.dll",
-    "shlwapi.dll",
-    "user32.dll",
-    "avicap32.dll",
-    "winmm.dll",
-    "ws2_32.dll"
-   ],
-   "mips": 0,
-   "ms": 589,
-   "out": "ble yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] shlwapi.dll is not available yet: its functions will stop the program when called\n[inksoc] user32.dll is not available yet: its functions will stop the program when called\n[inksoc] avicap32.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
-  },
-  "nasm": {
-   "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm",
+   "error": "access violation at 0xaa00c0 (rip 0x7ff000ae8c52) [in wine-ntdll.dll+0x28c52]",
    "missing": [],
-   "mips": 0,
-   "ms": 221,
+   "mips": 11,
+   "ms": 1234,
    "out": ""
   },
-  "tcc": {
-   "ok": false,
-   "status": "stopped",
+  "ffmpeg": {
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!RtlAddFunctionTable",
+   "error": "",
    "missing": [
-    "user32.dll"
+    "avrt.dll",
+    "zlib1.dll",
+    "nsi.dll",
+    "msimg32.dll",
+    "coml2.dll",
+    "avicap32.dll"
    ],
-   "mips": 0,
-   "ms": 219,
-   "out": "[inksoc] user32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 67,
+   "ms": 1080,
+   "out": "-enable-nvenc --enable-vaapi --enable-openal --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband\r\nlibavutil      61.  1.102 / 61.  1.102\r\nlibavcodec     63.  1.102 / 63.  1.102\r\nlibavformat    63.  1.102 / 63.  1.102\r\nlibavdevice    63.  1.102 / 63.  1.102\r\nlibavfilter    12.  1.102 / 12.  1.102\r\nlibswscale     10.  1.102 / 10.  1.102\r\nlibswresample   7.  1.102 /  7.  1.102\r\n\r\nExiting with exit code 0\r\n"
+  },
+  "nasm": {
+   "ok": true,
+   "status": "exit",
+   "exitCode": 0,
+   "error": "",
+   "missing": [],
+   "mips": 2,
+   "ms": 413,
+   "out": "NASM version 2.16.03 compiled on Apr 17 2024\r\n"
+  },
+  "tcc": {
+   "ok": true,
+   "status": "exit",
+   "exitCode": 0,
+   "error": "",
+   "missing": [
+    "zlib1.dll"
+   ],
+   "mips": 5,
+   "ms": 403,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\ntcc version 0.9.27 (x86_64 Windows)\r\n"
   },
   "node": {
    "ok": false,
    "status": "stopped",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetACP",
+   "error": "not implemented yet: ntdll.dll!NtOpenDirectoryObject",
    "missing": [
-    "dbghelp.dll",
-    "ws2_32.dll",
-    "crypt32.dll",
-    "user32.dll",
-    "ole32.dll",
-    "iphlpapi.dll",
-    "psapi.dll",
-    "shell32.dll",
-    "userenv.dll",
-    "bcrypt.dll",
-    "winmm.dll"
+    "zlib1.dll",
+    "coml2.dll",
+    "nsi.dll"
    ],
-   "mips": 0,
-   "ms": 651,
-   "out": "able yet: its functions will stop the program when called\n[inksoc] iphlpapi.dll is not available yet: its functions will stop the program when called\n[inksoc] psapi.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] userenv.dll is not available yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 47,
+   "ms": 2704,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n"
   },
   "deno": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-core-fibers-l1-1-2.dll!FlsGetValue2",
+   "error": "",
    "missing": [
-    "bcryptprimitives.dll",
-    "user32.dll",
-    "shell32.dll",
-    "gdi32.dll",
-    "ws2_32.dll",
-    "crypt32.dll",
-    "ole32.dll",
-    "psapi.dll",
-    "winmm.dll",
-    "userenv.dll",
-    "bcrypt.dll",
-    "dbghelp.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 683,
-   "out": "ailable yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] psapi.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n[inksoc] userenv.dll is not available yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] dbghelp.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 9,
+   "ms": 1102,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\ndeno 2.1.1 (stable, release, x86_64-pc-windows-msvc)\nv8 13.0.245.12-rusty\ntypescript 5.6.2\n"
   },
   "cwebp": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetACP",
+   "error": "",
    "missing": [
-    "ole32.dll",
-    "shlwapi.dll",
-    "shell32.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
    "mips": 1,
-   "ms": 268,
-   "out": "[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] shlwapi.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n"
+   "ms": 366,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n1.4.0\r\nlibsharpyuv: 0.4.0\r\n"
   },
   "git": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: msvcrt.dll!rand_s",
-   "missing": [
-    "user32.dll",
-    "ws2_32.dll"
-   ],
-   "mips": 0,
-   "ms": 333,
-   "out": "[inksoc] user32.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 2,
+   "ms": 502,
+   "out": "git version 2.47.1.windows.1\n"
   },
   "cmake": {
    "ok": false,
    "status": "stopped",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetACP",
+   "error": "access violation at 0x0 (rip 0x14011217a) [in cmake.exe+0x11217a]",
    "missing": [
-    "dbghelp.dll",
-    "bcrypt.dll",
-    "shell32.dll",
-    "ws2_32.dll",
-    "crypt32.dll",
-    "user32.dll",
-    "ole32.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 232,
-   "out": "lable yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n[inksoc] crypt32.dll is not available yet: its functions will stop the program when called\n[inksoc] user32.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 6,
+   "ms": 660,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nCMake Error: Could not find CMAKE_ROOT !!!\nCMake has most likely not been installed correctly.\nModules directory not found in\n\n"
   },
   "tidy": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
-   "missing": [
-    "vcruntime140.dll"
-   ],
-   "mips": 0,
-   "ms": 239,
-   "out": "[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 2,
+   "ms": 361,
+   "out": "HTML Tidy for Windows version 5.8.0\r\n"
   },
   "dos2unix": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: shell32.dll!CommandLineToArgvW",
-   "missing": [
-    "shell32.dll"
-   ],
-   "mips": 0,
-   "ms": 235,
-   "out": "[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n"
+   "error": "",
+   "missing": [],
+   "mips": 4,
+   "ms": 375,
+   "out": "dos2unix 7.5.2 (2024-01-22)\r\nWindows 64 bit version (MinGW-w64).\r\nWINVER 0x601\r\nWith Unicode UTF-16 support.\r\nWith Unicode file name support.\r\nWithout native language support.\r\nWithout support to preserve the user and group ownership of files.\r\nhttps://waterlan.home.xs4all.nl/dos2unix.html\r\nhttps://dos2unix.sourceforge.io/\r\n"
   },
   "ytdlp": {
    "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: msvcrt.dll!__wgetmainargs",
+   "status": "exit",
+   "exitCode": 4294967295,
+   "error": "expected output not found",
    "missing": [
-    "user32.dll"
+    "zlib1.dll"
    ],
-   "mips": 0,
-   "ms": 322,
-   "out": "[inksoc] user32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 372,
+   "ms": 1901,
+   "out": "should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\INSTALLER\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\METADATA\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\RECORD\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\REQUESTED\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME0161.tmp\\wheel-0.45.0.dist-info\\WHEEL\r\n[PYI-4:ERROR] Failed to create child process!\r\nCreateProcessW: The system cannot find the file specified.\r\r\n"
   },
   "micro": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetSystemDirectoryA",
-   "missing": [],
-   "mips": 0,
-   "ms": 242,
-   "out": ""
+   "error": "",
+   "missing": [
+    "zlib1.dll"
+   ],
+   "mips": 9,
+   "ms": 1041,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\nVersion: 2.0.14\nCommit hash: 04c57704\nCompiled on August 27, 2024\n"
   },
   "gron": {
    "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetSystemDirectoryA",
+   "status": "exit",
+   "exitCode": 3,
+   "error": "expected output not found",
    "missing": [],
-   "mips": 0,
-   "ms": 242,
-   "out": ""
+   "mips": 5,
+   "ms": 674,
+   "out": "failed to form statements: EOF\n"
   },
   "duckdb": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
+   "error": "",
    "missing": [
-    "ws2_32.dll",
-    "rstrtmgr.dll",
-    "msvcp140.dll",
-    "vcruntime140.dll",
-    "vcruntime140_1.dll",
-    "bcrypt.dll"
+    "concrt140.dll"
    ],
-   "mips": 0,
-   "ms": 294,
-   "out": "[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n[inksoc] rstrtmgr.dll is not available yet: its functions will stop the program when called\n[inksoc] msvcp140.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140_1.dll is not available yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 17,
+   "ms": 1840,
+   "out": "[inksoc] concrt140.dll is not available yet: its functions will stop the program when called\nâââââââââââ\r\nâ (6 * 7) â\r\nâ  int32  â\r\nâââââââââââ¤\r\nâ      42 â\r\nâââââââââââ\r\n"
   },
   "starship": {
    "ok": false,
    "status": "stopped",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetACP",
+   "error": "access violation at 0x0 (rip 0x0)",
    "missing": [
-    "bcryptprimitives.dll",
-    "bcrypt.dll",
-    "user32.dll",
-    "shell32.dll",
-    "ole32.dll",
-    "setupapi.dll",
-    "ws2_32.dll",
-    "shlwapi.dll"
-   ],
-   "mips": 0,
-   "ms": 242,
-   "out": "ble yet: its functions will stop the program when called\n[inksoc] user32.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] setupapi.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n[inksoc] shlwapi.dll is not available yet: its functions will stop the program when called\n"
-  },
-  "zoxide": {
-   "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetACP",
-   "missing": [
-    "bcryptprimitives.dll",
-    "shell32.dll",
-    "ole32.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
    "mips": 1,
-   "ms": 241,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n"
+   "ms": 451,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n"
+  },
+  "zoxide": {
+   "ok": true,
+   "status": "exit",
+   "exitCode": 0,
+   "error": "",
+   "missing": [
+    "zlib1.dll",
+    "coml2.dll"
+   ],
+   "mips": 2,
+   "ms": 391,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nzoxide 0.9.6\n"
   },
   "lazygit": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetErrorMode",
+   "error": "",
    "missing": [
-    "bcryptprimitives.dll",
-    "winmm.dll",
-    "ws2_32.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 401,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n[inksoc] winmm.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 369,
+   "ms": 1458,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\ncommit=611fabde11d24d9acc71ee26077b9a1101f59f27, build date=2024-09-18T10:56:10Z, build source=binaryRelease, version=0.44.1, os=windows, arch=amd64, git version=\n"
   },
   "php": {
    "ok": false,
-   "status": "stopped",
-   "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initialize_onexit_table",
+   "status": "exit",
+   "exitCode": 1,
+   "error": "expected output not found",
    "missing": [
-    "ws2_32.dll",
-    "crypt32.dll",
-    "iphlpapi.dll",
-    "ole32.dll",
-    "dnsapi.dll",
-    "bcrypt.dll",
-    "vcruntime140.dll",
-    "shell32.dll"
+    "zlib1.dll",
+    "nsi.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 446,
-   "out": "et: its functions will stop the program when called\n[inksoc] iphlpapi.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] dnsapi.dll is not available yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 4,
+   "ms": 692,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nPHP Warning:  'C:\\InkSoC\\vcruntime140.dll' 0.0 is not compatible with this PHP build linked with 14.29 in Unknown on line 0\n"
   },
   "qjs": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: msvcrt.dll!__lconv_init",
+   "error": "",
    "missing": [
-    "user32.dll"
+    "zlib1.dll"
    ],
-   "mips": 0,
-   "ms": 228,
-   "out": "[inksoc] user32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 7,
+   "ms": 482,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n42\r\n"
   },
   "just": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-core-fibers-l1-1-2.dll!FlsGetValue2",
+   "error": "",
    "missing": [
-    "bcryptprimitives.dll",
-    "shell32.dll",
-    "ole32.dll",
-    "bcrypt.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 208,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 2,
+   "ms": 366,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\njust 1.37.0\n"
   },
   "xh": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetACP",
+   "error": "",
    "missing": [
-    "bcryptprimitives.dll",
-    "bcrypt.dll",
-    "ws2_32.dll",
-    "iphlpapi.dll",
-    "crypt32.dll",
-    "secur32.dll",
-    "shell32.dll",
-    "ole32.dll"
+    "nsi.dll",
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 239,
-   "out": "le yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n[inksoc] iphlpapi.dll is not available yet: its functions will stop the program when called\n[inksoc] crypt32.dll is not available yet: its functions will stop the program when called\n[inksoc] secur32.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 5,
+   "ms": 514,
+   "out": "[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nxh 0.23.0\n+native-tls +rustls\n"
   },
   "glow": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetErrorMode",
+   "error": "",
    "missing": [
-    "bcryptprimitives.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 271,
-   "out": "[inksoc] bcryptprimitives.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 49,
+   "ms": 2686,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n# style name or JSON path (default \"auto\")\nstyle: \"auto\"\n# mouse support (TUI-mode only)\nmouse: false\n# use pager to display markdown\npager: false\n# word-wrap at width\nwidth: 80\nglow version 2.0.0 (67243bb)\n"
   },
   "mkcert": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: kernel32.dll!GetSystemDirectoryA",
+   "error": "",
    "missing": [],
-   "mips": 0,
-   "ms": 248,
-   "out": ""
+   "mips": 5,
+   "ms": 540,
+   "out": "v1.4.4\n"
   },
   "procs": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: api-ms-win-crt-runtime-l1-1-0.dll!_initterm_e",
+   "error": "",
    "missing": [
-    "bcryptprimitives.dll",
-    "psapi.dll",
-    "shell32.dll",
-    "ole32.dll",
-    "iphlpapi.dll",
-    "ws2_32.dll",
-    "user32.dll",
-    "vcruntime140.dll"
+    "zlib1.dll",
+    "coml2.dll",
+    "nsi.dll"
    ],
-   "mips": 0,
-   "ms": 254,
-   "out": "et: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] iphlpapi.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n[inksoc] user32.dll is not available yet: its functions will stop the program when called\n[inksoc] vcruntime140.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 1,
+   "ms": 369,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\nprocs \"0.14.8 ( rev: 368d14a, rustc: 1.82.0, build at: 2024/10/23 10:23:55 )\"\n"
   },
   "eza": {
-   "ok": false,
-   "status": "stopped",
+   "ok": true,
+   "status": "exit",
    "exitCode": 0,
-   "error": "not implemented yet: msvcrt.dll!__lconv_init",
+   "error": "",
    "missing": [
-    "bcrypt.dll",
-    "ole32.dll",
-    "secur32.dll",
-    "shell32.dll",
-    "ws2_32.dll"
+    "zlib1.dll",
+    "coml2.dll"
    ],
-   "mips": 0,
-   "ms": 205,
-   "out": "[inksoc] bcrypt.dll is not available yet: its functions will stop the program when called\n[inksoc] ole32.dll is not available yet: its functions will stop the program when called\n[inksoc] secur32.dll is not available yet: its functions will stop the program when called\n[inksoc] shell32.dll is not available yet: its functions will stop the program when called\n[inksoc] ws2_32.dll is not available yet: its functions will stop the program when called\n"
+   "mips": 1,
+   "ms": 382,
+   "out": "[inksoc] zlib1.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\neza - A modern, maintained replacement for ls\nv0.20.10 [+git]\nhttps://github.com/eza-community/eza\n"
   }
  },
- "date": "2026-11-12T11:53:02.880Z"
+ "date": "2026-11-12T12:20:49.399Z"
 }

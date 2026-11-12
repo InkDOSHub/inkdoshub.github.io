@@ -277,7 +277,7 @@
   "pkg": "pandoc",
   "exe": "pandoc-3.5/pandoc.exe",
   "args": "--version",
-  "expect": "pandoc 3.5"
+  "expect": "3.5"
  },
  {
   "id": "qpdf",

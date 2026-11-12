@@ -408,6 +408,16 @@ fn step(e: &mut Engine) {
             g!(e, e.set(Loc::Reg(m.reg, false), osz, a));
             e.cpu.rip = next;
         }
+        0x8C => {
+            // mov r/m, segment register: the usual x64 user-mode selectors
+            let m = modrm(&mut d, e, rex);
+            let next = rip + d.p as u64;
+            let v = [0x2Bu64, 0x33, 0x2B, 0x2B, 0x53, 0x2B, 0, 0][(m.reg & 7) as usize];
+            let size = if m.md == 3 { osz } else { 16 };
+            g!(e, e.set(rm_loc(e, &m, next, size, rex), size, v));
+            e.cpu.rip = next;
+        }
+        0x8E => { let _ = modrm(&mut d, e, rex); e.cpu.rip = rip + d.p as u64; }
         0x8F => {
             let m = modrm(&mut d, e, rex);
             let next = rip + d.p as u64;
@@ -492,6 +502,18 @@ fn step(e: &mut Engine) {
                     e.cpu.cf = if c <= size { (a >> (size - c)) & 1 != 0 } else { false };
                     e.szp(r, size);
                     e.cpu.of = (r & sign(size) != 0) != e.cpu.cf;
+                    r
+                }
+                2 | 3 => {
+                    // rcl / rcr: rotate through carry (size + 1 bits)
+                    let n = size + 1;
+                    let c = if size < 32 { c % n } else { c };
+                    let full: u128 = (a as u128) | ((e.cpu.cf as u128) << size);
+                    let wm: u128 = (1u128 << n) - 1;
+                    let rot = if c == 0 { full } else if m.reg & 7 == 2 { ((full << c) | (full >> (n - c))) & wm } else { ((full >> c) | (full << (n - c))) & wm };
+                    let r = (rot as u64) & msk;
+                    e.cpu.cf = (rot >> size) & 1 != 0;
+                    e.cpu.of = if m.reg & 7 == 2 { (r & sign(size) != 0) != e.cpu.cf } else { ((r >> (size - 1)) ^ (r >> (size - 2))) & 1 != 0 };
                     r
                 }
                 5 => { let r = a >> c; e.cpu.cf = (a >> (c - 1)) & 1 != 0; e.szp(r, size); e.cpu.of = a & sign(size) != 0; r }
@@ -714,6 +736,20 @@ fn two_byte(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, osz:
             if m.md != 3 {
                 let a = ea(e, &m, next);
                 match m.reg & 7 {
+                    0 => {
+                        // fxsave: control words, MXCSR and the XMM registers
+                        let mut b = [0u8; 512];
+                        b[0..2].copy_from_slice(&0x027Fu16.to_le_bytes());
+                        b[24..28].copy_from_slice(&0x1F80u32.to_le_bytes());
+                        b[28..32].copy_from_slice(&0xFFFFu32.to_le_bytes());
+                        for i in 0..16 { b[160 + 16 * i..176 + 16 * i].copy_from_slice(&e.cpu.xmm[i].to_le_bytes()); }
+                        tryf!(e, e.mmu.write_bytes(a, &b), a);
+                    }
+                    1 => {
+                        let mut b = [0u8; 512];
+                        tryf!(e, e.mmu.read_bytes(a, &mut b), a);
+                        for i in 0..16 { e.cpu.xmm[i] = u128::from_le_bytes(b[160 + 16 * i..176 + 16 * i].try_into().unwrap()); }
+                    }
                     2 => {}
                     3 => { tryf!(e, e.mmu.write32(a, 0x1F80), a); }
                     _ => e.unsupported(buf),

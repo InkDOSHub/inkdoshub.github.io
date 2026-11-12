@@ -26,19 +26,15 @@ for (const p of list) {
   const files = [exe];
   for (const f of fs.readdirSync(dir)) if (/\.(dll|pyd|zip|_pth)$/i.test(f)) files.push(path.join(dir, f));
   for (const f of fs.readdirSync(path.join(HERE, 'data'))) files.push(path.join(HERE, 'data', f));
-  // Wine's CRT DLLs (run as program code) for programs built with the Universal CRT
-  const blob = files.filter((f) => /\.(exe|dll|pyd)$/i.test(f)).map((f) => fs.readFileSync(f).toString('latin1').toLowerCase()).join('');
+  // Wine 9.0's DLLs: the engine takes from them every function it does not implement itself
   const have = new Set(files.map((f) => path.basename(f).toLowerCase()));
-  const wine = [];
-  if (/api-ms-win-crt-|ucrtbase|msvcp140/.test(blob)) wine.push('ucrtbase.dll');
-  if (blob.includes('msvcp140')) wine.push('msvcp140.dll');
-  for (const w of wine) if (!have.has(w)) files.push(path.join(ENGINE, 'bin', 'wine', w));
+  for (const f of fs.readdirSync(path.join(ENGINE, 'bin', 'wine'))) if (!have.has(f)) files.push(path.join(ENGINE, 'bin', 'wine', f));
   const t0 = Date.now();
   const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--one', JSON.stringify({ files, exe: path.basename(exe), args: p.args })], { encoding: 'utf8', timeout: (LIMIT_S + 30) * 1000, maxBuffer: 64 << 20 });
   let o;
   try { o = JSON.parse(r.stdout.slice(r.stdout.lastIndexOf('\n{"status"') + 1)); }
   catch { o = { status: 'crash', error: (r.error ? 'runner: ' + r.error.code : (r.stderr || '').split('\n').slice(-3).join(' ')).slice(0, 300), out: '' }; }
-  const text = o.out || '';
+  const text = (o.out || '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
   const found = text.includes(p.expect) || (o.files || []).includes(p.expect);
   const ok = o.status === 'exit' && o.exitCode === 0 && found;
   const res = { ok, status: o.status, exitCode: o.exitCode, error: o.error || (o.status === 'exit' && !found ? 'expected output not found' : ''), missing: o.missing || [], mips: o.mips, ms: Date.now() - t0, out: text.slice(-600) };

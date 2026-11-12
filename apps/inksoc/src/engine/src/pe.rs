@@ -25,7 +25,7 @@ fn u64_at(b: &[u8], o: usize) -> Result<u64, String> {
     Ok(u32_at(b, o)? as u64 | (u32_at(b, o + 4)? as u64) << 32)
 }
 
-pub const NATIVE_DLLS: &[&str] = &["kernel32.dll", "kernelbase.dll", "ntdll.dll", "msvcrt.dll", "oleaut32.dll", "advapi32.dll", "vcruntime140.dll", "vcruntime140_1.dll", "shell32.dll", "shlwapi.dll", "bcrypt.dll", "bcryptprimitives.dll", "version.dll", "winmm.dll"];
+pub const NATIVE_DLLS: &[&str] = &["kernel32.dll", "kernelbase.dll", "ntdll.dll", "oleaut32.dll", "advapi32.dll", "vcruntime140.dll", "vcruntime140_1.dll", "shell32.dll", "shlwapi.dll", "bcrypt.dll", "bcryptprimitives.dll", "version.dll", "winmm.dll", "win32u.dll"];
 
 pub fn find_module(e: &Engine, name: &str) -> Option<usize> {
     let n = norm(name);
@@ -48,9 +48,20 @@ pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     if let Some(bytes) = e.s.files.get(&n).cloned() {
         return load_image(e, &n, &bytes, false);
     }
+    // a DLL the engine does not implement at all: Wine's, as program code
+    if !NATIVE_DLLS.contains(&n.as_str()) {
+        if let Some(bytes) = e.s.files.get(&format!("wine-{}", n)).cloned() {
+            // window-system DLLs: their DllMain needs the graphics kernel, which console programs never use
+            let gui = ["user32.dll", "gdi32.dll", "shell32.dll", "ole32.dll", "combase.dll", "imm32.dll", "comctl32.dll", "winmm.dll", "setupapi.dll", "shcore.dll"].contains(&n.as_str());
+            let r = load_image(e, &n, &bytes, false)?;
+            // only the window DLL itself skips DllMain: the DLLs it pulled in still start normally
+            if gui { let b = e.s.modules[r].base; e.s.init_queue.retain(|&(_, base)| base != b); }
+            return Ok(r);
+        }
+    }
     // native module: a small reserved range serves as its handle
     let base = e.alloc(0x10000).ok_or("out of memory")?;
-    if !NATIVE_DLLS.contains(&n.as_str()) && !n.starts_with("api-ms-win-") {
+    if !NATIVE_DLLS.contains(&n.as_str()) && !n.starts_with("api-ms-win-") && !e.s.files.contains_key(&format!("wine-{}", n)) {
         crate::console(&format!("[inksoc] {} is not available yet: its functions will stop the program when called\n", n));
     }
     e.s.modules.push(Module { name: n, base, size: 0x10000, entry: 0, exports: HashMap::new(), native: true, fwd: HashMap::new() });
@@ -217,6 +228,6 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
         if index_at != 0 { e.mmu.write32(index_at, i as u32).map_err(|_| "tls")?; }
         e.tls_block(crate::TEB, i);
     }
-    if !is_exe && e.s.modules[idx].entry != 0 { e.s.init_queue.push((e.s.modules[idx].entry, base)); }
+    if !is_exe && !e.s.no_init && e.s.modules[idx].entry != 0 { e.s.init_queue.push((e.s.modules[idx].entry, base)); }
     Ok(idx)
 }

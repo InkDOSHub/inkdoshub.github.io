@@ -21,6 +21,8 @@ mod pe;
 mod sched;
 mod sse;
 mod winapi;
+mod winefb;
+mod ntsys;
 
 use cpu::Cpu;
 use mmu::Mmu;
@@ -45,6 +47,7 @@ pub const RET_LOADLIB: u64 = THUNK_BASE + 0xFFD0;
 pub const RET_INITTERM: u64 = THUNK_BASE + 0xFFC0;
 pub const RET_EH: u64 = THUNK_BASE + 0xFFB0;
 pub const RET_THREAD: u64 = THUNK_BASE + 0xFFA0;
+pub const RET_FBINIT: u64 = THUNK_BASE + 0xFF90;
 pub const TEB: u64 = 0x7FFD_0000_0000;
 pub const PEB: u64 = 0x7FFD_0001_0000;
 const STACK_SIZE: u64 = 1 << 20;
@@ -77,8 +80,16 @@ pub struct Shared {
     thunk_ids: HashMap<String, u64>,
     pub heap: heap::Heap,
     pub tls_used: u64,
+    pub no_init: bool,
+    pub thunk_fb: HashMap<usize, u64>,
+    pub wine_fb: HashMap<String, u64>,
+    pub env_block: u64,
     pub tls_tmpl: Vec<(u64, u64, u64)>, // static TLS of the images: (template, size, zero fill)
     pub init_queue: Vec<(u64, u64)>,
+    pub resume: Vec<winefb::Resume>,
+    pub user_shared: bool,
+    pub wine_exports: HashMap<String, std::collections::HashSet<String>>,
+    pub ldr_entries: HashMap<u64, u64>,
     pub loadlib: Vec<(u64, u64)>, // (module handle, caller rsp) while a DllMain runs
     pub stack_top: u64,
     pub exe_entry: u64,
@@ -135,8 +146,8 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             bridge_calls: 0,
             files: HashMap::new(), modules: Vec::new(),
             thunks: Vec::new(), thunk_ids: HashMap::new(),
-            heap: heap::Heap::default(), tls_used: 0, tls_tmpl: Vec::new(),
-            init_queue: Vec::new(), loadlib: Vec::new(),
+            heap: heap::Heap::default(), tls_used: 0, no_init: false, thunk_fb: HashMap::new(), wine_fb: HashMap::new(), env_block: 0, tls_tmpl: Vec::new(),
+            init_queue: Vec::new(), resume: Vec::new(), user_shared: false, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
         });
@@ -227,6 +238,7 @@ pub extern "C" fn run(budget: u32) -> i32 {
     let mut idle = false;
     let start = e.cpu.icount;
     let mut done_other = 0u64; // instructions of threads this core switched away from
+    if e.s.lx.is_none() && e.s.user_shared { e.shared_time(); }
     while left > 0 && !e.s.exited && e.s.error.is_none() {
         if e.want_switch {
             let before = e.cpu.icount;
@@ -365,7 +377,12 @@ impl Engine {
         // a Linux child process that crashes ends alone (like a signal), the shell goes on
         if self.s.lx.is_some() && linux::crash(self, &m) { return; }
         let _g = lock::lock();
-        if self.s.error.is_none() { self.s.error = Some(m); }
+        if self.s.error.is_none() {
+            // where it happened: module + offset (Windows programs)
+            let rip = self.cpu.rip;
+            let at = if self.s.lx.is_none() { self.s.modules.iter().find(|x| !x.native && rip >= x.base && rip < x.base + x.size).map(|x| format!(" [in {}+0x{:x}]", x.name, rip - x.base)) } else { None };
+            self.s.error = Some(m + &at.unwrap_or_default());
+        }
     }
 
     /// VirtualAlloc-style reservation: 64 KB aligned, committed lazily.
@@ -449,6 +466,9 @@ impl Engine {
         if bytes.starts_with(b"\x7fELF") { return self.linux_boot(name, cmd); }
         // before the imports are bound: msvcrt's _acmdln points at it
         self.s.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
+        self.process_parameters(name);
+        self.teb_extras(TEB);
+        self.shared_data();
         let idx = pe::load_image(self, name, &bytes, true)?;
         self.s.exe_base = self.s.modules[idx].base;
         self.s.exe_entry = self.s.modules[idx].entry;
@@ -506,6 +526,7 @@ impl Engine {
         match self.cpu.rip {
             RET_EXIT => { self.s.exited = true; self.s.exit_code = self.cpu.regs[0] as u32; return; }
             RET_INIT => { self.next_init(); return; }
+            RET_FBINIT => { self.init_next(); return; }
             RET_INITTERM => { msvcrt::initterm_next(self); return; }
             RET_EH => { self.eh_next(); return; }
             RET_THREAD => { let c = self.cpu.regs[0] as u32; self.exit_thread(c); return; }
@@ -518,10 +539,12 @@ impl Engine {
             _ => {}
         }
         let idx = ((self.cpu.rip - THUNK_BASE) / 16) as usize;
+        if let Some(&a) = self.s.thunk_fb.get(&idx) { self.cpu.rip = a; return; }
         let Some((dll, name)) = self.s.thunks.get(idx).cloned() else {
             self.set_error(format!("jump into the native area at 0x{:x}", self.cpu.rip));
             return;
         };
+        let name = match winefb::alias(&name) { Some(n) if dll == "ntdll.dll" => n.to_string(), _ => name };
         let r = match name.as_str() {
             // Wine-side functions compiled from C to wasm
             "lstrlenA" => { self.s.bridge_calls += 1; Some(unsafe { wine_lstrlenA(self.arg(0)) } as u32 as u64) }
@@ -534,13 +557,29 @@ impl Engine {
             _ if dll == "msvcrt.dll" => msvcrt::call(self, &name),
             _ if dll == "oleaut32.dll" => oleaut::call(self, &name),
             _ if dll.starts_with("vcruntime140") => msvcrt::call(self, &name),
-            _ => sched::call(self, &name).or_else(|| files::call(self, &name)).or_else(|| kernel32::call(self, &name)).or_else(|| winapi::call(self, &name)),
+            // the window system's kernel side: console programs get "nothing there"
+            _ if dll == "win32u.dll" => Some(0),
+            _ => sched::call(self, &name).or_else(|| files::call(self, &name)).or_else(|| kernel32::call(self, &name)).or_else(|| winapi::call(self, &name)).or_else(|| ntsys::call(self, &name)),
         };
         if self.s.error.is_some() || self.s.exited { return; }
         match r {
             Some(kernel32::NO_RETURN) | Some(sched::BLOCK) => {}
             Some(v) => self.do_ret(v),
-            None => self.set_error(format!("not implemented yet: {}!{}", dll, name)),
+            None => {
+                // not native: Wine's own version, run as program code
+                let before = self.s.init_queue.len();
+                match self.wine_fallback(&dll, &name, self.cpu.rip) {
+                    Some(a) => {
+                        self.s.thunk_fb.insert(idx, a);
+                        // DLLs that came in for it start first
+                        if self.s.init_queue.len() > before {
+                            let pending: Vec<(u64, u64)> = self.s.init_queue.drain(before..).collect();
+                            self.run_inits(pending, a, None);
+                        } else { self.cpu.rip = a }
+                    }
+                    None => self.set_error(format!("not implemented yet: {}!{}", dll, name)),
+                }
+            }
         }
     }
 }

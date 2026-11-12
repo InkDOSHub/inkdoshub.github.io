@@ -28,11 +28,7 @@ impl Engine {
                 if self.s.init_queue.len() > before {
                     // run the new DllMain(s), then return h to the caller
                     let pending: Vec<(u64, u64)> = self.s.init_queue.drain(before..).collect();
-                    let caller_sp = self.cpu.regs[4];
-                    // simple case: one new DLL (dependencies' DllMains are skipped for now)
-                    let (entry, base) = pending[pending.len() - 1];
-                    self.s.loadlib.push((h, caller_sp));
-                    self.call_guest(entry, [base, 1, 0], RET_LOADLIB);
+                    self.run_inits(pending, 0, Some(h));
                     return NO_RETURN;
                 }
                 h
@@ -125,7 +121,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "RegCloseKey" => 0,
         "GetProcessTimes" | "GetThreadTimes" => { for i in 1..5 { let p = e.arg(i); e.w64(p, 0); } 1 }
         "SetUnhandledExceptionFilter" | "UnhandledExceptionFilter" => 0,
-        "RaiseException" => { e.set_error(format!("the program raised exception 0x{:x}", a0 as u32)); return Some(NO_RETURN); }
         "GetVersion" => (19045 << 16) | 10,
 
         // ---- time ----
@@ -238,6 +233,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetProcAddress" => {
             let f = if e.arg(1) >> 16 == 0 { format!("#{}", e.arg(1)) } else { let p = e.arg(1); e.read_cstr(p, 256) };
             match e.module_by_handle(a0) {
+                Some(i) if e.s.modules[i].native && !{ let d = e.s.modules[i].name.clone(); e.wine_has(&d, &f) } => { e.set_last_error(127); 0 }
                 Some(i) => pe::proc_address(e, i, &f).unwrap_or_else(|| { e.set_last_error(127); 0 }),
                 None => { e.set_last_error(126); 0 }
             }

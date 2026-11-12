@@ -68,7 +68,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=4' : 'inksoc.wasm?v=17', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=5' : 'inksoc.wasm?v=18', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -192,7 +192,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=17').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=18').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -261,6 +261,14 @@ async function runExec(d) {
   if (!files) {
     const names = d.exe === 'stage1.exe' || !d.exe ? ['stage1.exe', 'testdll.dll'] : [d.exe];
     files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
+  }
+  else {
+    // the rest of Windows: Wine 9.0's DLLs (cached by the browser after the first run)
+    post('log', { text: '[engine] loading the Wine DLLs (25 MB the first time)\n' });
+    const list = await fetch('bin/wine/list.json?v=1').then((r) => r.json());
+    const have = new Set(files.map((f) => f.name.toLowerCase()));
+    const wine = await Promise.all(list.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch('bin/wine/' + name + '?v=1').then((r) => r.arrayBuffer()) })));
+    files = files.concat(wine);
   }
   return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores });
 }

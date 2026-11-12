@@ -335,7 +335,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "RtlSecondsSince1970ToTime" => { let o = e.arg(1); e.wr64(o, (a0 as u32 as u64 + 11_644_473_600) * 10_000_000); 0 }
 
         // ---- environment ----
-        "GetEnvironmentStringsW" | "GetEnvironmentStringsA" | "GetEnvironmentStrings" => e.env_block(name.ends_with('W')),
+        "GetEnvironmentStringsW" => e.s.env_block,
+        "GetEnvironmentStringsA" | "GetEnvironmentStrings" => e.env_block(false),
         "FreeEnvironmentStringsW" | "FreeEnvironmentStringsA" => 1,
         "SetEnvironmentVariableW" | "SetEnvironmentVariableA" => 1,
         "ExpandEnvironmentStringsW" => {
@@ -362,9 +363,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "DisableThreadLibraryCalls" => 1,
         "RtlPcToFileHeader" => { let b = e.module_at(a0).unwrap_or(0); let o = e.arg(1); e.wr64(o, b); b }
-        "RtlAddFunctionTable" | "RtlDeleteFunctionTable" | "RtlInstallFunctionTableCallback" => 1,
-        "AddVectoredExceptionHandler" | "AddVectoredContinueHandler" => 0x5EC0_0001,
-        "RemoveVectoredExceptionHandler" | "RemoveVectoredContinueHandler" => 1,
         "SetThreadStackGuarantee" => { e.wr32(a0, 0); 1 }
         "GetCurrentThreadStackLimits" => { let (lo, hi) = (e.mmu.read64(e.cpu.gs_base + 0x10).unwrap_or(0), e.mmu.read64(e.cpu.gs_base + 0x08).unwrap_or(0)); let b = e.arg(1); e.wr64(a0, lo); e.wr64(b, hi); 0 }
         "DelayLoadFailureHook" => 0,
@@ -408,6 +406,22 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "ReadConsoleA" | "ReadConsoleW" => { let p = e.arg(3); e.wr32(p, 0); 1 }
         "GetConsoleScreenBufferInfoEx" => { e.last_err(6); 0 }
         "Beep" => 1,
+        // known folders: everything lives in the program folder for now
+        "SHGetKnownFolderPath" => {
+            let out = e.arg(3);
+            let w: Vec<u16> = "C:\\InkSoC".encode_utf16().chain([0]).collect();
+            let b = e.heap_alloc(2 * w.len() as u64, false);
+            for (k, c) in w.iter().enumerate() { let _ = e.mmu.write16(b + 2 * k as u64, *c); }
+            let _ = e.mmu.write64(out, b);
+            0
+        }
+        "SHGetFolderPathW" | "SHGetFolderPathA" | "SHGetSpecialFolderPathW" | "SHGetSpecialFolderPathA" => {
+            let buf = if name.starts_with("SHGetSpecial") { e.arg(1) } else { e.arg(4) };
+            let p = "C:\\InkSoC";
+            if name.ends_with('W') { for (k, c) in p.encode_utf16().chain([0]).enumerate() { let _ = e.mmu.write16(buf + 2 * k as u64, c); } }
+            else { let _ = e.mmu.write_bytes(buf, p.as_bytes()); let _ = e.mmu.write8(buf + p.len() as u64, 0); }
+            if name.starts_with("SHGetSpecial") { 1 } else { 0 }
+        }
         "DebugBreak" => { e.set_error("the program called DebugBreak".into()); return Some(crate::kernel32::NO_RETURN); }
         "GetTempFileNameW" | "GetTempFileNameA" => {
             let (pre, uniq, out) = (e.arg(1), e.arg(2) as u32, e.arg(3));
