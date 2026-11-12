@@ -309,12 +309,37 @@ $('combo').onclick = async () => {
   const drawMode = $('combo-draw').value;
   step('canvas context (' + drawMode + ')');
   const cv = $('combo-cv');
-  const off = drawMode === 'page' ? null : new OffscreenCanvas(cv.width, cv.height);
-  const ctx = (off || cv).getContext('webgpu');
+  // page: WebGPU on the page canvas | copy: OffscreenCanvas -> bitmaprenderer | 2d: OffscreenCanvas -> drawImage
+  // read: render into a texture, copy to a buffer, mapAsync, putImageData (no WebGPU canvas at all) | off: no picture
+  const W = cv.width, H = cv.height;
+  const read = drawMode === 'read';
+  const off = (drawMode === 'page' || read) ? null : new OffscreenCanvas(W, H);
+  const ctx = read ? null : (off || cv).getContext('webgpu');
   const show = drawMode === 'copy' ? cv.getContext('bitmaprenderer') : null;
-  const format = navigator.gpu.getPreferredCanvasFormat();
+  const c2d = (drawMode === '2d' || read) ? cv.getContext('2d') : null;
+  const format = read ? 'rgba8unorm' : navigator.gpu.getPreferredCanvasFormat();
+  let rt = null, rbuf = null, rbusy = false, rframes = 0;
+  if (read) {
+    rt = dev.createTexture({ size: [W, H], format, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+    rbuf = dev.createBuffer({ size: W * H * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+  }
+  const targetView = () => read ? rt.createView() : ctx.getCurrentTexture().createView();
+  const present = (enc) => {
+    if (read && !rbusy) enc.copyTextureToBuffer({ texture: rt }, { buffer: rbuf, bytesPerRow: W * 4 }, [W, H]);
+  };
+  const afterSubmit = () => {
+    if (show) show.transferFromImageBitmap(off.transferToImageBitmap());
+    else if (drawMode === '2d') c2d.drawImage(off, 0, 0);
+    else if (read && !rbusy) {
+      rbusy = true;
+      rbuf.mapAsync(GPUMapMode.READ).then(() => {
+        c2d.putImageData(new ImageData(new Uint8ClampedArray(rbuf.getMappedRange().slice(0)), W, H), 0, 0);
+        rbuf.unmap(); rbusy = false; rframes++;
+      }, (e) => log('Readback error: ' + e.message));
+    }
+  };
   step('configure');
-  ctx.configure({ device: dev, format });
+  if (ctx) ctx.configure({ device: dev, format });
   step('shader');
   const mod = dev.createShaderModule({ code: `
     @group(0) @binding(0) var t: texture_2d<f32>;
@@ -376,7 +401,7 @@ $('combo').onclick = async () => {
       pos += 0.5; // the "camera" moves through the textures: ~30 new textures per second at 60 fps
       const base = Math.floor(pos);
       const enc = dev.createCommandEncoder();
-      const pass = enc.beginRenderPass({ colorAttachments: [{ view: ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }] });
+      const pass = enc.beginRenderPass({ colorAttachments: [{ view: targetView(), loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }] });
       pass.setPipeline(pipe);
       for (let i = 0; i < SHOW; i++) {
         const id = (base + i) % count;
@@ -394,8 +419,9 @@ $('combo').onclick = async () => {
         if (!where.has(id) && !pending.has(id)) { pending.add(id); io.postMessage({ type: 'tex-get', id }); }
       }
       pass.end();
+      present(enc);
       dev.queue.submit([enc.finish()]);
-      if (show) show.transferFromImageBitmap(off.transferToImageBitmap());
+      afterSubmit();
       const sec = (now - t0) / 1000;
       if (sec - lastMark >= 1) {
         lastMark = sec;
@@ -408,6 +434,7 @@ $('combo').onclick = async () => {
   });
   const secs = (performance.now() - t0) / 1000;
   log(`\nSurvived ${secs.toFixed(0)} s.`);
+  if (read) log(`Pictures read back from the GPU: ${rframes} (${(rframes / secs).toFixed(0)} per second)`);
   log(`Frames: ${(frame / secs).toFixed(1)} fps average, worst frame ${worst.toFixed(0)} ms`);
   log(`Streamed ${fmt(loads * 4)} MB (${loads} textures, ${(loads * 4 / secs).toFixed(0)} MB/s) through a ${gpu} MB pool`);
   log(`Per 4 MB texture: OPFS read ${(readMs / Math.max(loads, 1)).toFixed(2)} ms, GPU upload ${(upMs / Math.max(loads, 1)).toFixed(2)} ms`);
