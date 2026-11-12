@@ -296,6 +296,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "RtlGetNtVersionNumbers" => { let (b, c) = (e.arg(1), e.arg(2)); e.wr32(a0, 10); e.wr32(b, 0); e.wr32(c, 0xF000_0000 | 19045); 0 }
         "VerSetConditionMask" => a0,
         "VerifyVersionInfoW" | "VerifyVersionInfoA" => 1,
+        "RtlVerifyVersionInfo" => 0, // we are Windows 10: every check passes
         "GetComputerNameW" | "GetComputerNameExW" => {
             let (buf, np) = if name == "GetComputerNameW" { (a0, e.arg(1)) } else { (e.arg(1), e.arg(2)) };
             let n = e.mmu.read32(np).unwrap_or(0) as u64;
@@ -338,7 +339,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetEnvironmentStringsW" => e.s.env_block,
         "GetEnvironmentStringsA" | "GetEnvironmentStrings" => e.env_block(false),
         "FreeEnvironmentStringsW" | "FreeEnvironmentStringsA" => 1,
-        "SetEnvironmentVariableW" | "SetEnvironmentVariableA" => 1,
+        "SetEnvironmentVariableW" | "SetEnvironmentVariableA" => {
+            let wide = name.ends_with('W');
+            let n = if wide { e.read_wstr(a0, 32767) } else { e.read_cstr(a0, 32767) };
+            let v = e.arg(1);
+            let v = if v == 0 { None } else if wide { Some(e.read_wstr(v, 32767)) } else { Some(e.read_cstr(v, 32767)) };
+            e.env_set(&n, v.as_deref());
+            1
+        }
         "ExpandEnvironmentStringsW" => {
             let s = e.read_wstr(a0, 32768);
             let (buf, n) = (e.arg(1), e.arg(2));
@@ -382,7 +390,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             e.wr64(slot, addr);
             addr
         }
-        "SetProcessDEPPolicy" | "SetSearchPathMode" | "AddDllDirectory" | "RemoveDllDirectory" => 1,
+        "AddDllDirectory" => {
+            let p = e.read_wstr(a0, 32767);
+            if let Some(k) = crate::files::key_of(&p) { if !e.s.dll_dirs.contains(&k) { e.s.dll_dirs.push(k); } }
+            0x0D11_0000 + e.s.dll_dirs.len() as u64
+        }
+        "SetProcessDEPPolicy" | "SetSearchPathMode" | "RemoveDllDirectory" => 1,
         "SetProcessMitigationPolicy" | "SetProcessPriorityBoost" | "SetPriorityClass" | "SetThreadPriority" | "SetThreadPriorityBoost" | "SetThreadIdealProcessor" => 1,
         "GetPriorityClass" => 0x20,
         "GetThreadPriority" => 0,
@@ -395,9 +408,59 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         // ---- handles and processes ----
         "DuplicateHandle" => { let (h, out) = (e.arg(1), e.arg(3)); let h = e.dup_handle(h); e.wr64(out, h); 1 }
         "CreatePipe" => { let (pr, pw) = (e.arg(0), e.arg(1)); let (r, w) = e.new_pipe(); e.wr64(pr, r); e.wr64(pw, w); 1 }
-        "CreateProcessW" | "CreateProcessA" | "CreateProcessAsUserW" | "ShellExecuteW" | "ShellExecuteExW" => { e.last_err(ERROR_FILE_NOT_FOUND); 0 }
-        "GetExitCodeProcess" => { let p = e.arg(1); e.wr32(p, 0); 1 }
-        "SetStdHandle" | "SetHandleInformation" => 1,
+        "CreateProcessW" | "CreateProcessA" | "CreateProcessAsUserW" => {
+            // (app, cmdline, process attrs, thread attrs, inherit, flags, env, dir, startup info, process info); AsUser has a token first
+            let o = if name == "CreateProcessAsUserW" { 1 } else { 0 };
+            let wide = !name.ends_with('A');
+            let rd = |e: &mut Engine, p: u64| if p == 0 { String::new() } else if wide { e.read_wstr(p, 32767) } else { e.read_cstr(p, 32767) };
+            let (app, cmd) = (e.arg(o), e.arg(o + 1));
+            let (app, cmd) = (rd(e, app), rd(e, cmd));
+            let (flags, envp, si, pi) = (e.arg(o + 5) as u32, e.arg(o + 6), e.arg(o + 8), e.arg(o + 9));
+            // the program: the application name, or the first word of the command line
+            let first = if !app.is_empty() { app.clone() } else if let Some(r) = cmd.strip_prefix('"') { r.split('"').next().unwrap_or("").to_string() } else { cmd.split_whitespace().next().unwrap_or("").to_string() };
+            let mut exe = crate::pe::norm(first.rsplit(['\\', '/']).next().unwrap_or(&first));
+            if !e.s.files.contains_key(&exe) && !exe.ends_with(".exe") { exe.push_str(".exe"); }
+            if !e.s.files.contains_key(&exe) { e.last_err(ERROR_FILE_NOT_FOUND); return Some(0); }
+            let cmd = if cmd.is_empty() { first.clone() } else { cmd };
+            // environment: the one given (Unicode with flag 0x400), else a copy of ours
+            let env: Vec<u16> = if envp == 0 { e.env_vec() } else {
+                let mut v = Vec::new();
+                let uni = flags & 0x400 != 0;
+                for k in 0..0x40000u64 {
+                    let c = if uni { e.mmu.read16(envp + 2 * k).unwrap_or(0) } else { e.mmu.read8(envp + k).unwrap_or(0) as u16 };
+                    v.push(c);
+                    let n = v.len();
+                    if c == 0 && (n >= 2 && v[n - 2] == 0 || n == 1) { break; }
+                }
+                if v.len() == 1 { v.push(0); }
+                v
+            };
+            // standard handles: given ones (STARTF_USESTDHANDLES), else ours
+            let mut std = e.s.std;
+            if si != 0 && e.mmu.read32(si + 60).unwrap_or(0) & 0x100 != 0 {
+                for k in 0..3 { std[k] = e.mmu.read64(si + 80 + 8 * k as u64).unwrap_or(0); }
+            }
+            match e.create_process(&exe, &cmd, env, std, flags & 4 != 0) {
+                Ok((pid, tid, th)) => {
+                    let ph = e.new_handle(crate::files::Handle::Process { pid });
+                    e.wr64(pi, ph); e.wr64(pi + 8, th); e.wr32(pi + 16, pid); e.wr32(pi + 20, tid);
+                    1
+                }
+                Err(m) => { crate::console(&format!("[inksoc] CreateProcess {}: {}\n", exe, m)); e.last_err(ERROR_FILE_NOT_FOUND); 0 }
+            }
+        }
+        "ShellExecuteW" | "ShellExecuteExW" => { e.last_err(ERROR_FILE_NOT_FOUND); 0 }
+        "GetExitCodeProcess" => {
+            let p = e.arg(1);
+            let code = match e.s.fs.handles.get(&a0) {
+                Some(crate::files::Handle::Process { pid }) => e.s.pinfo.get(pid).and_then(|i| i.exit).unwrap_or(259),
+                _ => if a0 == u64::MAX { 259 } else { 0 },
+            };
+            e.wr32(p, code); 1
+        }
+        "GetProcessId" => match e.s.fs.handles.get(&a0) { Some(crate::files::Handle::Process { pid }) => *pid as u64, _ => if a0 == u64::MAX { e.s.wpid.max(4) as u64 } else { 0 } },
+        "SetStdHandle" => { let k = match a0 as u32 as i32 { -10 => 0, -11 => 1, -12 => 2, _ => return Some(0) }; e.s.std[k] = e.arg(1); 1 }
+        "SetHandleInformation" => 1,
         "GetHandleInformation" => { let p = e.arg(1); e.wr32(p, 0); 1 }
         "LockFile" | "UnlockFile" | "LockFileEx" | "UnlockFileEx" => 1,
         "VerifyConsoleIoHandle" => (a0 <= 3) as u64,
@@ -522,6 +585,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "SystemFunction036" | "RtlGenRandom" | "ProcessPrng" => {
             let (p, n) = (a0, e.arg(1) as u32 as u64);
             let mut x = (unsafe { crate::host_epoch_ms() } as u64) ^ 0x9E37_79B9_7F4A_7C15 ^ e.cpu.icount;
+            for i in 0..n { x ^= x << 13; x ^= x >> 7; x ^= x << 17; let _ = e.mmu.write8(p + i, x as u8); }
+            1
+        }
+        // the old CryptoAPI: only its random numbers (Python seeds its hashes with them)
+        "CryptAcquireContextW" | "CryptAcquireContextA" => { e.wr64(a0, 0xC0FFEE); 1 }
+        "CryptReleaseContext" => 1,
+        "CryptGenRandom" => {
+            let (n, p) = (e.arg(1) as u32 as u64, e.arg(2));
+            let mut x = (unsafe { crate::host_epoch_ms() } as u64) ^ 0x6A09_E667_F3BC_C909 ^ e.cpu.icount;
             for i in 0..n { x ^= x << 13; x ^= x >> 7; x ^= x << 17; let _ = e.mmu.write8(p + i, x as u8); }
             1
         }

@@ -21,7 +21,7 @@ const TLB_SIZE: usize = 8192;
 struct Pte { frame: u32, slot: u32 }
 
 #[derive(Clone, Copy)]
-struct Frame { vpn: u64, used: bool, referenced: bool, dirty: bool }
+struct Frame { vpn: u64, used: bool, referenced: bool, dirty: bool, asid: u32 }
 
 // layout read by JIT code: tag @0, off @8, writable @12 (16 bytes)
 #[derive(Clone, Copy)]
@@ -32,6 +32,7 @@ pub struct Fault;
 
 /// What every core shares: the frames of real RAM and the page table.
 pub struct MmuShared {
+    asid: u32,
     pool: Vec<u8>,
     frames: Vec<Frame>,
     free: Vec<u32>,
@@ -62,8 +63,9 @@ impl Mmu {
     pub fn new(pool_mb: usize, target_mb: u64) -> Mmu {
         let n = pool_mb * 256;
         let sh = Box::leak(Box::new(MmuShared {
+            asid: 0,
             pool: vec![0u8; n * PAGE as usize],
-            frames: vec![Frame { vpn: 0, used: false, referenced: false, dirty: false }; n],
+            frames: vec![Frame { vpn: 0, used: false, referenced: false, dirty: false, asid: 0 }; n],
             free: (0..n as u32).rev().collect(),
             hand: 0,
             table: HashMap::new(),
@@ -140,6 +142,8 @@ impl Mmu {
         } else { false }
     }
 
+    /// Which process's pages new frames belong to (eviction only takes the running one's).
+    pub fn set_asid(&mut self, a: u32) { self.sh.asid = a; }
     pub fn flush_tlb(&mut self) { for t in self.tlb.iter_mut() { t.tag = u64::MAX; } }
 
     /// Moves the current address space out (another process is going to run).
@@ -163,7 +167,7 @@ impl Mmu {
             };
             let (src, dst) = (pte.frame as usize * PAGE as usize, f as usize * PAGE as usize);
             self.sh.pool.copy_within(src..src + PAGE as usize, dst);
-            self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: true };
+            self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: true, asid: self.sh.asid };
             table.insert(vpn, Pte { frame: f, slot: NONE });
         }
         Some(Space { table, regions: self.sh.regions.clone(), committed: self.sh.committed })
@@ -188,6 +192,8 @@ impl Mmu {
             self.sh.hand = (self.sh.hand + 1) % self.sh.frames.len();
             let f = self.sh.frames[i];
             if !f.used { return i as u32; }
+            // a page of a parked process (Windows child processes): its table is not here
+            if f.asid != self.sh.asid { continue; }
             let t = (f.vpn as usize) & (TLB_SIZE - 1);
             if f.referenced {
                 // second chance; drop the TLB entry so the next access marks it again
@@ -241,7 +247,7 @@ impl Mmu {
             } else {
                 self.sh.pool[off..off + PAGE as usize].fill(0);
             }
-            self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: false };
+            self.sh.frames[f as usize] = Frame { vpn, used: true, referenced: false, dirty: false, asid: self.sh.asid };
             self.sh.table.get_mut(&vpn).unwrap().frame = f;
             f
         };

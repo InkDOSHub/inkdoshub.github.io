@@ -22,6 +22,13 @@ impl Engine {
 
     fn load_library(&mut self, name: &str) -> u64 {
         let before = self.s.init_queue.len();
+        // a DLL nobody provides: fail like Windows (programs probe for optional DLLs)
+        let n = pe::norm(name);
+        let known = pe::find_module(self, &n).is_some() || pe::NATIVE_DLLS.contains(&n.as_str()) || n.starts_with("api-ms-win-") || n.starts_with("ext-ms-")
+            || self.s.files.contains_key(&n) || self.s.files.contains_key(&format!("wine-{}", n))
+            || crate::files::key_of(name).map_or(false, |k| self.s.files.contains_key(&k))
+            || self.s.dll_dirs.iter().any(|d| self.s.files.contains_key(&format!("{}\\{}", d, n)));
+        if !known { self.set_last_error(126); return 0; }
         match pe::load_by_name(self, name) {
             Ok(i) => {
                 let h = self.s.modules[i].base;
@@ -63,7 +70,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
     let a0 = e.arg(0);
     let r = match name {
         // ---- console & process ----
-        "GetStdHandle" => match a0 as u32 as i32 { -11 => 1, -12 => 2, -10 => 3, _ => u64::MAX },
+        "GetStdHandle" => match a0 as u32 as i32 { -10 => e.s.std[0], -11 => e.s.std[1], -12 => e.s.std[2], _ => u64::MAX },
         "WriteFile" | "WriteConsoleA" => {
             let (p, n, w) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
             if e.write_out(a0, p, n) { e.w32(w, n as u32); 1 } else { e.set_last_error(6); 0 }
@@ -82,18 +89,42 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetFileType" => if a0 <= 3 { 2 } else { 0 },
         "FlushFileBuffers" => 1,
         "OutputDebugStringA" => { let s = e.read_cstr(a0, 4096); console(&format!("[debug] {}", s)); 0 }
-        "ExitProcess" => { e.s.exited = true; e.s.exit_code = a0 as u32; return Some(NO_RETURN); }
-        "TerminateProcess" => { e.s.exited = true; e.s.exit_code = e.arg(1) as u32; return Some(NO_RETURN); }
+        "ExitProcess" => { e.exit_process(a0 as u32); return Some(NO_RETURN); }
+        "TerminateProcess" => {
+            let code = e.arg(1) as u32;
+            match e.s.fs.handles.get(&a0) {
+                Some(crate::files::Handle::Process { pid }) => { let p = *pid; if let Some(i) = e.s.pinfo.get_mut(&p) { if i.exit.is_none() { i.exit = Some(code); } } for t in e.s.sched.th.iter_mut() { if t.wpid == p { t.st = crate::sched::St::Done; } } 1 }
+                _ => { e.exit_process(code); return Some(NO_RETURN); }
+            }
+        }
         "GetCurrentProcessId" => 4,
         "GetCurrentThreadId" => 8,
         "GetCurrentProcess" => u64::MAX,
         "GetCurrentThread" => u64::MAX - 1,
         "GetCommandLineA" => e.s.cmdline.0,
         "GetCommandLineW" => e.s.cmdline.1,
-        "GetEnvironmentVariableA" | "GetEnvironmentVariableW" => { e.set_last_error(ERROR_ENVVAR_NOT_FOUND); 0 }
+        "GetEnvironmentVariableA" | "GetEnvironmentVariableW" => {
+            let wide = name.ends_with('W');
+            let n = if wide { e.read_wstr(a0, 32767) } else { e.read_cstr(a0, 32767) };
+            let (buf, size) = (e.arg(1), e.arg(2) as u32 as u64);
+            match e.env_get(&n) {
+                None => { e.set_last_error(ERROR_ENVVAR_NOT_FOUND); 0 }
+                Some(v) => {
+                    let len = if wide { v.encode_utf16().count() } else { v.len() } as u64;
+                    if buf == 0 || size <= len { len + 1 }
+                    else if wide { for (k, c) in v.encode_utf16().chain([0]).enumerate() { let _ = e.mmu.write16(buf + 2 * k as u64, c); } len }
+                    else { let _ = e.mmu.write_bytes(buf, v.as_bytes()); let _ = e.mmu.write8(buf + len, 0); len }
+                }
+            }
+        }
         "GetStartupInfoA" | "GetStartupInfoW" => { e.zero(a0, 104); e.w32(a0, 104); 0 }
         "IsDebuggerPresent" => 0,
-        "SetDefaultDllDirectories" | "SetDllDirectoryW" | "SetDllDirectoryA" => 1,
+        "SetDllDirectoryW" | "SetDllDirectoryA" => {
+            let p = if a0 == 0 { String::new() } else if name.ends_with('W') { e.read_wstr(a0, 32767) } else { e.read_cstr(a0, 32767) };
+            if let Some(k) = crate::files::key_of(&p) { if !e.s.dll_dirs.contains(&k) { e.s.dll_dirs.push(k); } }
+            1
+        }
+        "SetDefaultDllDirectories" => 1,
         "SetFileApisToOEM" | "SetFileApisToANSI" => 0,
         "AreFileApisANSI" => 1,
         "GetConsoleCursorInfo" => { let p = e.arg(1); if a0 == 0 || a0 > 3 || p == 0 { e.set_last_error(6); return Some(0); } let _ = e.mmu.write32(p, 25); let _ = e.mmu.write32(p + 4, 1); 1 }

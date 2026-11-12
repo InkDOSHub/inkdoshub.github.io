@@ -29,6 +29,10 @@ pub enum Handle {
     Pipe { id: u64, write: bool },
     /// a section (file mapping): a file's contents or plain shared memory (`base` once mapped)
     Section { file: Option<String>, size: u64, base: u64 },
+    /// a Windows child process
+    Process { pid: u32 },
+    /// a socket (\\Device\\Afd): it can be made, not used yet (no network)
+    Afd,
 }
 
 /// Anonymous pipe: bytes in flight and how many write ends are open.
@@ -51,11 +55,28 @@ pub struct Files {
 }
 
 /// File name (key in the engine's file table) of a Windows path; None for the folder itself.
-fn key_of(path: &str) -> Option<String> {
-    let p = path.trim_end_matches(['\\', '/']);
-    let base = p.rsplit(['\\', '/']).next().unwrap_or(p).to_ascii_lowercase();
-    if base.is_empty() || base == "." || base == "inksoc" || base.ends_with(':') || p.is_empty() { None } else { Some(base) }
+/// A Windows path as the file table names it, keeping its case: the path under
+/// C:\InkSoC\ ('\\'-separated, "." and ".." resolved). Relative paths start there
+/// too; a path elsewhere (C:\Windows\...) reduces to its file name.
+/// None = the C:\InkSoC folder itself.
+pub fn case_of(path: &str) -> Option<String> {
+    let mut p = path.replace('/', "\\");
+    for pre in ["\\??\\", "\\\\?\\", "\\\\.\\"] { if let Some(r) = p.strip_prefix(pre) { p = r.to_string(); } }
+    let abs = p.len() >= 2 && p.as_bytes()[1] == b':';
+    if abs { p = p[2..].to_string(); }
+    let rooted = abs || p.starts_with('\\');
+    let mut parts: Vec<&str> = Vec::new();
+    for c in p.split('\\') {
+        match c { "" | "." => {} ".." => { parts.pop(); } _ => parts.push(c) }
+    }
+    if rooted {
+        if parts.first().map_or(false, |c| c.eq_ignore_ascii_case("inksoc")) { parts.remove(0); }
+        else if !parts.is_empty() { let last = parts[parts.len() - 1]; parts = vec![last]; }
+    }
+    if parts.is_empty() { None } else { Some(parts.join("\\")) }
 }
+/// File table key of a path (lowercase `case_of`).
+pub fn key_of(path: &str) -> Option<String> { case_of(path).map(|s| s.to_ascii_lowercase()) }
 
 fn wild(p: &[u8], s: &[u8]) -> bool {
     match (p.first(), s.first()) {
@@ -136,9 +157,40 @@ impl Engine {
     }
 
     /// WIN32_FIND_DATAW for one entry.
+    /// A folder: made by the program, or holding files.
+    pub fn is_dir(&self, k: &str) -> bool {
+        if self.s.fs.dirs.contains(k) { return true; }
+        let pre = format!("{}\\", k);
+        self.s.files.keys().any(|f| f.starts_with(&pre)) || self.s.fs.dirs.iter().any(|d| d.starts_with(&pre))
+    }
+    /// The file or folder name of a key, with the case it was created with.
+    pub fn shown(&self, k: &str) -> String {
+        let depth = k.matches('\\').count();
+        let pre = format!("{}\\", k);
+        let full = self.s.names.get(k).cloned().or_else(|| self.s.names.iter().find(|(f, _)| f.starts_with(&pre)).map(|(_, v)| v.clone()));
+        match full {
+            Some(f) if f.matches('\\').count() >= depth => f.split('\\').nth(depth).unwrap_or(k).to_string(),
+            _ => k.rsplit('\\').next().unwrap_or(k).to_string(),
+        }
+    }
+    /// Keys of what a folder holds ("" = C:\InkSoC).
+    pub fn list_dir(&self, dir: &str) -> Vec<String> {
+        let pre = if dir.is_empty() { String::new() } else { format!("{}\\", dir) };
+        let mut v: Vec<String> = self.s.files.keys().chain(self.s.fs.dirs.iter())
+            .filter_map(|f| f.strip_prefix(&pre).map(|r| format!("{}{}", pre, r.split('\\').next().unwrap_or(r))))
+            .collect();
+        v.sort();
+        v.dedup();
+        v
+    }
+    pub fn note_case(&mut self, k: &str, path: &str) {
+        if let Some(c) = case_of(path) { if c.to_ascii_lowercase() == k { self.s.names.insert(k.to_string(), c); } }
+    }
+
     fn find_data(&mut self, a: u64, name: &str) {
         for i in 0..592 / 8 { let _ = self.mmu.write64(a + 8 * i, 0); }
         let (attr, size) = match self.s.files.get(name) { Some(d) => (ATTR_NORMAL, d.len() as u64), None => (ATTR_DIR, 0) };
+        let name = &self.shown(name);
         let ft = file_time_now();
         let _ = self.mmu.write32(a, attr);
         for o in [4, 12, 20] { let _ = self.mmu.write64(a + o, ft); }
@@ -195,7 +247,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetTempPathW" => { let b = e.arg(1); e.put_wstr(b, "C:\\InkSoC\\", a0) }
         "GetFullPathNameW" => {
             let p = e.path_arg(0, true);
-            let full = match key_of(&p) { Some(k) => format!("{}\\{}", DIR, k), None => DIR.to_string() };
+            let full = match case_of(&p) { Some(k) => format!("{}\\{}", DIR, k), None => DIR.to_string() };
             let (n, buf, fp) = (e.arg(1), e.arg(2), e.arg(3));
             if n <= full.encode_utf16().count() as u64 { return Some(full.encode_utf16().count() as u64 + 1); }
             let k = e.put_wstr(buf, &full, n);
@@ -217,7 +269,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let p = e.path_arg(0, wide);
             match key_of(&p) {
                 None => ATTR_DIR as u64,
-                Some(k) if e.s.fs.dirs.contains(&k) => ATTR_DIR as u64,
+                Some(k) if e.is_dir(&k) => ATTR_DIR as u64,
                 Some(k) if e.s.files.contains_key(&k) || e.s.files.contains_key(&pe::norm(&k)) => ATTR_NORMAL as u64,
                 _ => { e.set_err(2); 0xFFFF_FFFF }
             }
@@ -228,7 +280,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let out = e.arg(2);
             let found = match key_of(&p) {
                 None => Some((ATTR_DIR, 0u64)),
-                Some(k) if e.s.fs.dirs.contains(&k) => Some((ATTR_DIR, 0u64)),
+                Some(k) if e.is_dir(&k) => Some((ATTR_DIR, 0u64)),
                 Some(k) => e.s.files.get(&k).or_else(|| e.s.files.get(&pe::norm(&k))).map(|d| (ATTR_NORMAL, d.len() as u64)),
             };
             match found {
@@ -249,12 +301,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let out = e.arg(if name == "FindFirstFileW" { 1 } else { 2 });
             let names: Vec<String> = match key_of(&p) {
                 None => vec!["inksoc".into()],
-                Some(pat) if pat.contains(['*', '?']) => {
-                    let mut v: Vec<String> = e.s.files.keys().filter(|n| wild(pat.as_bytes(), n.as_bytes())).cloned().collect();
-                    v.sort();
-                    v
+                Some(k) => {
+                    let (dir, pat) = match k.rfind('\\') { Some(i) => (k[..i].to_string(), k[i + 1..].to_string()), None => (String::new(), k.clone()) };
+                    if pat.contains(['*', '?']) {
+                        let all = pat == "*" || pat == "*.*";
+                        let mut v: Vec<String> = e.list_dir(&dir).into_iter().filter(|n| all || wild(pat.as_bytes(), n.rsplit('\\').next().unwrap_or(n).as_bytes())).collect();
+                        if !dir.is_empty() && all { v.insert(0, format!("{}\\..", dir)); v.insert(0, format!("{}\\.", dir)); }
+                        v
+                    } else if e.s.files.contains_key(&k) || e.is_dir(&k) { vec![k] } else { vec![] }
                 }
-                Some(k) => if e.s.files.contains_key(&k) { vec![k] } else { vec![] },
             };
             if names.is_empty() { e.set_err(2); return Some(INVALID); }
             let first = names[0].clone();
@@ -283,7 +338,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if k == "nul" { e.set_err(0); return Some(e.new_handle(Handle::Null)); }
             if k == "conin$" { e.set_err(0); return Some(3); }
             if k == "conout$" { e.set_err(0); return Some(1); }
-            if e.s.fs.dirs.contains(&k) {
+            if e.is_dir(&k) {
                 if flags & 0x0200_0000 != 0 { return Some(e.new_handle(Handle::Dir)); }
                 e.set_err(5); return Some(INVALID);
             }
@@ -291,8 +346,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             match disp {
                 1 if exists => { e.set_err(80); return Some(INVALID); }            // CREATE_NEW
                 3 | 5 if !exists => { e.set_err(2); return Some(INVALID); }        // OPEN_EXISTING, TRUNCATE_EXISTING
-                2 | 5 => { e.s.files.insert(k.clone(), Vec::new()); e.s.fs.written.insert(k.clone()); } // CREATE_ALWAYS
-                _ => { if !exists { e.s.files.insert(k.clone(), Vec::new()); e.s.fs.written.insert(k.clone()); } }
+                2 | 5 => { e.s.files.insert(k.clone(), Vec::new()); e.s.fs.written.insert(k.clone()); e.note_case(&k, &p); } // CREATE_ALWAYS
+                _ => { if !exists { e.s.files.insert(k.clone(), Vec::new()); e.s.fs.written.insert(k.clone()); e.note_case(&k, &p); } }
             }
             if disp == 2 || disp == 4 { e.set_err(if exists { 183 } else { 0 }); } else { e.set_err(0); }
             let _ = access;
@@ -335,7 +390,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if done != 0 { let _ = e.mmu.write32(done, n as u32); }
             1
         }
-        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(Handle::Pipe { .. }) => 3, Some(_) => 1, None => return None },
+        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(Handle::Pipe { .. } | Handle::Afd) => 3, Some(_) => 1, None => return None },
         "PeekNamedPipe" => {
             let Some(id) = e.pipe_id(a0) else { e.set_err(6); return Some(0) };
             let (buf, n, read, avail, left) = (e.arg(1), e.arg(2) as u32 as usize, e.arg(3), e.arg(4), e.arg(5));
@@ -400,7 +455,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "CreateDirectoryW" | "CreateDirectoryA" | "CreateDirectoryExW" => {
             let p = e.path_arg(if name == "CreateDirectoryExW" { 1 } else { 0 }, wide);
             match key_of(&p) {
-                Some(k) if !e.s.fs.dirs.contains(&k) && !e.s.files.contains_key(&k) => { e.s.fs.dirs.insert(k); 1 }
+                Some(k) if !e.is_dir(&k) && !e.s.files.contains_key(&k) => { e.note_case(&k, &p); e.s.fs.dirs.insert(k); 1 }
                 _ => { e.set_err(183); 0 }
             }
         }
@@ -408,7 +463,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "MoveFileW" | "MoveFileWithProgressW" | "MoveFileExW" => {
             let (from, to) = (e.path_arg(0, true), e.path_arg(1, true));
             match (key_of(&from), key_of(&to)) {
-                (Some(f), Some(t)) => match e.s.files.remove(&f) { Some(d) => { e.s.fs.written.remove(&f); e.s.fs.written.insert(t.clone()); e.s.files.insert(t, d); 1 } None => { e.set_err(2); 0 } },
+                (Some(f), Some(t)) => match e.s.files.remove(&f) { Some(d) => { e.s.fs.written.remove(&f); e.s.fs.written.insert(t.clone()); e.note_case(&t, &to); e.s.files.insert(t, d); 1 } None => { e.set_err(2); 0 } },
                 _ => { e.set_err(5); 0 }
             }
         }

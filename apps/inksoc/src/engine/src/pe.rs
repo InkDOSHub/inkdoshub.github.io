@@ -45,8 +45,26 @@ pub fn norm(name: &str) -> String {
 pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     let n = norm(name);
     if let Some(i) = find_module(e, &n) { return Ok(i); }
-    if let Some(bytes) = e.s.files.get(&n).cloned() {
+    // API-set DLLs that programs ship (forwarders without relocations): ours stand in for them
+    let api_set = n.starts_with("api-ms-win-") || n.starts_with("ext-ms-");
+    if let Some(bytes) = e.s.files.get(&n).cloned().filter(|_| !api_set) {
         return load_image(e, &n, &bytes, false);
+    }
+    // a DLL in a folder (LoadLibrary with a path)
+    if name.contains(['\\', '/']) {
+        if let Some(k) = crate::files::key_of(name) {
+            if let Some(bytes) = e.s.files.get(&k).cloned() {
+                // its folder is searched for the DLLs it needs (LOAD_WITH_ALTERED_SEARCH_PATH)
+                if let Some(i) = k.rfind('\\') { let d = k[..i].to_string(); if !e.s.dll_dirs.contains(&d) { e.s.dll_dirs.push(d); } }
+                return load_image(e, &n, &bytes, false);
+            }
+        }
+    }
+    if !api_set {
+        let dirs = e.s.dll_dirs.clone();
+        for d in dirs.iter().rev() {
+            if let Some(bytes) = e.s.files.get(&format!("{}\\{}", d, n)).cloned() { return load_image(e, &n, &bytes, false); }
+        }
     }
     // a DLL the engine does not implement at all: Wine's, as program code
     if !NATIVE_DLLS.contains(&n.as_str()) {
@@ -125,7 +143,9 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
 
     // Executables sit at their preferred base; DLLs go to our own range and
     // get relocated (this also exercises relocations on every run).
-    let base = if is_exe && !e.mmu.overlaps(pref, pref + image_size) {
+    // images without relocations (some DLLs) can only sit at their preferred base
+    let fixed = dir(5)?.1 == 0;
+    let base = if (is_exe || fixed) && !e.mmu.overlaps(pref, pref + image_size) {
         e.mmu.add_region(pref, image_size);
         pref
     } else {

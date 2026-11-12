@@ -25,6 +25,7 @@ mod winefb;
 mod ntsys;
 mod winsys;
 mod wingdi;
+mod proc;
 
 use cpu::Cpu;
 use mmu::Mmu;
@@ -52,7 +53,7 @@ pub const RET_THREAD: u64 = THUNK_BASE + 0xFFA0;
 pub const RET_FBINIT: u64 = THUNK_BASE + 0xFF90;
 pub const TEB: u64 = 0x7FFD_0000_0000;
 pub const PEB: u64 = 0x7FFD_0001_0000;
-const STACK_SIZE: u64 = 1 << 20;
+pub(crate) const STACK_SIZE: u64 = 1 << 20;
 
 /// One core: the program thread it is running and its private caches.
 pub struct Engine {
@@ -111,6 +112,14 @@ pub struct Shared {
     pub jit_on: bool,
     pub lx: Option<Box<linux::Lx>>,
     pub names: HashMap<String, String>, // file key -> name as given (Linux keeps case, no .dll)
+    /// Windows processes: the running one, the parked ones, and what is known of each child
+    pub wpid: u32,
+    pub procs: HashMap<u32, proc::ProcSave>,
+    pub pinfo: HashMap<u32, proc::ProcInfo>,
+    /// GetStdHandle: input, output, error
+    pub std: [u64; 3],
+    /// folders searched for DLLs after C:\InkSoC (SetDllDirectory, AddDllDirectory, folders DLLs were loaded from)
+    pub dll_dirs: Vec<String>,
 }
 
 #[cfg_attr(target_feature = "atomics", thread_local)]
@@ -157,6 +166,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), win_ki: 0, recent: [(0, 0); 16], recent_n: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
+            wpid: 0, procs: HashMap::new(), pinfo: HashMap::new(), std: [3, 1, 2], dll_dirs: Vec::new(),
         });
         ENGINE = Some(Engine {
             mmu: Mmu::new(pool_mb as usize, target_mb as u64),
@@ -534,7 +544,7 @@ impl Engine {
     }
 
     /// Runs the next pending DllMain, or the program entry when none is left.
-    fn next_init(&mut self) {
+    pub(crate) fn next_init(&mut self) {
         self.cpu.regs[4] = self.s.stack_top;
         if !self.s.init_queue.is_empty() {
             let (entry, base) = self.s.init_queue.remove(0);
@@ -566,7 +576,7 @@ impl Engine {
 
     fn call_native(&mut self) {
         match self.cpu.rip {
-            RET_EXIT => { self.s.exited = true; self.s.exit_code = self.cpu.regs[0] as u32; return; }
+            RET_EXIT => { let c = self.cpu.regs[0] as u32; self.exit_process(c); return; }
             RET_INIT => { self.next_init(); return; }
             RET_FBINIT => { self.init_next(); return; }
             RET_INITTERM => { msvcrt::initterm_next(self); return; }

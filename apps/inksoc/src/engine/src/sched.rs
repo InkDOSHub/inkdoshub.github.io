@@ -57,6 +57,7 @@ pub struct Thread {
     suspend: u32,
     on_core: u32, // core whose registers hold this thread (NO_CORE = saved in cpu)
     pub pid: u32, // Linux process (0 = Windows program)
+    pub wpid: u32, // Windows process (0 = the first program)
 }
 const NO_CORE: u32 = u32::MAX;
 
@@ -78,7 +79,7 @@ impl Engine {
     pub fn sched_init(&mut self) {
         self.s.sched.th.push(Thread {
             id: MAIN_TID, teb: TEB, cpu: Box::new(Cpu::new()), eh: Default::default(), st: St::Running,
-            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: 0, pid: 0,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: 0, pid: 0, wpid: 0,
         });
         self.cur = 0;
         self.slice = SLICE;
@@ -112,6 +113,7 @@ impl Engine {
             Some(Handle::Semaphore { count, .. }) => *count > 0,
             Some(Handle::Thread { tid }) => self.s.sched.th.iter().find(|t| t.id == *tid).map_or(true, |t| t.st == St::Done),
             Some(Handle::Timer { due, .. }) => now() >= *due,
+            Some(Handle::Process { pid }) => self.s.pinfo.get(pid).map_or(true, |i| i.exit.is_some()),
             _ => true,
         }
     }
@@ -230,7 +232,7 @@ impl Engine {
         let suspended = flags & 4 != 0;
         self.s.sched.th.push(Thread {
             id, teb, cpu, eh: Default::default(), st: if suspended { St::Suspended } else { St::Ready },
-            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE, pid: 0,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE, pid: 0, wpid: self.s.wpid,
         });
         if self.s.sched.th.len() == 2 { self.slice = SLICE; }
         crate::lock::kick();
@@ -238,12 +240,23 @@ impl Engine {
         Some((h, id))
     }
 
+    /// The main thread of a new Windows process.
+    pub fn add_thread(&mut self, cpu: Cpu, teb: u64, wpid: u32, suspended: bool) -> u32 {
+        let id = MAIN_TID + 4 * self.s.sched.th.len() as u32;
+        self.s.sched.th.push(Thread {
+            id, teb, cpu: Box::new(cpu), eh: Default::default(), st: if suspended { St::Suspended } else { St::Ready },
+            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE, pid: 0, wpid,
+        });
+        if self.s.sched.th.len() == 2 { self.slice = SLICE; }
+        crate::lock::kick();
+        id
+    }
     /// A new Linux thread (fork's child), ready to run.
     pub fn spawn_linux(&mut self, cpu: Cpu, pid: u32) {
         let id = MAIN_TID + 4 * self.s.sched.th.len() as u32;
         self.s.sched.th.push(Thread {
             id, teb: 0, cpu: Box::new(cpu), eh: Default::default(), st: St::Ready,
-            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: NO_CORE, pid,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: NO_CORE, pid, wpid: 0,
         });
         if self.s.sched.th.len() == 2 { self.slice = SLICE; }
     }
@@ -267,9 +280,9 @@ impl Engine {
         let c = self.cur;
         self.s.sched.th[c].st = St::Done;
         self.s.sched.th[c].exit = code;
-        if self.s.sched.th.iter().all(|t| t.st == St::Done) {
-            self.s.exited = true;
-            self.s.exit_code = code;
+        let wp = self.s.sched.th[c].wpid;
+        if self.s.sched.th.iter().filter(|t| t.wpid == wp).all(|t| t.st == St::Done) {
+            self.exit_process(code);
         }
         self.want_switch = true;
         crate::lock::kick();
@@ -286,6 +299,7 @@ impl Engine {
         let t_now = now();
         let mut soonest = f64::INFINITY;
         let mut held = false;
+        let orig = self.s.wpid;
         for k in 1..=n {
             let i = if c == usize::MAX { k - 1 } else { (c + k) % n };
             if i == c && running { return true; } // nobody else: keep going
@@ -296,6 +310,12 @@ impl Engine {
                 continue;
             }
             if self.core != 0 && t.pid != 0 { continue; } // Linux processes run on core 0 (one address space at a time)
+            // several Windows processes: one address space at a time, so only core 0 runs, and it
+            // changes process only when no other core still holds a thread
+            if t.wpid != self.s.wpid || (self.core != 0 && self.children_alive()) {
+                if self.core != 0 { continue; }
+                if self.s.sched.th.iter().any(|x| x.on_core != NO_CORE && x.on_core != self.core && x.st != St::Done) { held = true; continue; }
+            }
             match t.st {
                 St::Ready => return self.switch_to(i),
                 St::Wait if matches!(t.wait, Some(W::Lx(_))) => {
@@ -315,6 +335,9 @@ impl Engine {
                     let w = t.wait.clone().unwrap();
                     let id = t.id;
                     let dl = t.deadline;
+                    // a thread of another process: its wait reads that process's memory
+                    let other = t.wpid != self.s.wpid;
+                    if other { let wp = t.wpid; self.enter_proc(wp); }
                     let r = self.try_wait(&w, id).or_else(|| if t_now >= dl { Some(if matches!(w, W::Sleep | W::Addr { win: true, .. }) { 0 } else { WAIT_TIMEOUT }) } else { None });
                     if let Some(v) = r {
                         let t = &mut self.s.sched.th[i];
@@ -323,6 +346,7 @@ impl Engine {
                         t.pending = Some(v);
                         return self.switch_to(i);
                     }
+                    if other { self.enter_proc(orig); }
                     soonest = soonest.min(dl);
                     // a window thread: page input can come at any time, timers are due later
                     if matches!(w, W::Msg { .. } | W::MsgOrObjs { .. }) { soonest = soonest.min((t_now + 30.0).min(self.next_timer(id))); }
@@ -357,6 +381,8 @@ impl Engine {
         if i != c {
             self.materialize();
             if self.s.lx.is_some() { let pid = self.s.sched.th[i].pid; crate::linux::enter(self, pid); }
+            let wp = self.s.sched.th[i].wpid;
+            if wp != self.s.wpid { self.enter_proc(wp); }
             if c != usize::MAX {
                 core::mem::swap(&mut self.cpu, &mut *self.s.sched.th[c].cpu);
                 core::mem::swap(&mut self.eh, &mut self.s.sched.th[c].eh);
