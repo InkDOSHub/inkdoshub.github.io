@@ -26,6 +26,7 @@ async function save() {
       if (fh.createWritable) { const w = await fh.createWritable(); await w.write(data); await w.close(); }
       else { const h = await fh.createSyncAccessHandle(); h.truncate(0); h.write(data, { at: 0 }); h.flush(); h.close(); }
     }
+    info(data.length);
   } catch (e) { out('\r\n\x1b[2m[could not save the files: ' + e.message + ']\x1b[0m\r\n'); }
   saving = false;
 }
@@ -66,14 +67,32 @@ function pumpNet() {
 
 const yieldNow = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); });
 
-async function run({ rows, cols, network }) {
+/* swap file in OPFS (sync access in this worker); RAM if the browser has none */
+async function openSwap() {
+  try {
+    const root = await navigator.storage.getDirectory();
+    const h = await (await root.getFileHandle('alpine-swap.bin', { create: true })).createSyncAccessHandle();
+    h.truncate(0);
+    return h;
+  } catch (e) { return null; }
+}
+
+/* the user name and the size of the saved files, for the start panel */
+function info(bytes) {
+  const u = lx && lx.get('/etc/inksoc/user');
+  postMessage({ type: 'info', user: u ? dec.decode(u).trim() : '', bytes });
+}
+
+async function run({ rows, cols, network, poolMb, targetMb }) {
   if (network in NETS) net = network;
+  const swap = await openSwap(), ram = new Map();
+  const page = (p) => new Uint8Array(mem.buffer, p, 4096);
   const env = {
     host_console: (p, n) => out(dec.decode(new Uint8Array(mem.buffer, p, n).slice(), { stream: true })),
     host_now_ms: () => performance.now(),
     host_epoch_ms: () => Date.now(),
-    host_swap_write: () => { throw new Error('swap'); },
-    host_swap_read: () => { throw new Error('swap'); },
+    host_swap_write: (slot, p) => { if (swap) swap.write(page(p), { at: slot * 4096 }); else ram.set(slot, page(p).slice()); },
+    host_swap_read: (slot, p) => { if (swap) swap.read(page(p), { at: slot * 4096 }); else page(p).set(ram.get(slot) || new Uint8Array(4096)); },
     wine_call: () => 0,
     host_jit: (p, n) => {
       try {
@@ -87,8 +106,8 @@ async function run({ rows, cols, network }) {
   };
   const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(u + ': ' + r.status); return r; });
   const [wasm, busybox, overlay, saved] = await Promise.all([
-    get('engine.wasm?v=2').then((r) => r.arrayBuffer()), get('busybox?v=1').then((r) => r.arrayBuffer()),
-    get('overlay.tar?v=3').then((r) => r.arrayBuffer()), loadSaved()]);
+    get('engine.wasm?v=4').then((r) => r.arrayBuffer()), get('busybox?v=1').then((r) => r.arrayBuffer()),
+    get('overlay.tar?v=4').then((r) => r.arrayBuffer()), loadSaved()]);
   let rootfs = saved;
   if (!rootfs) {
     out('\x1b[2mDownloading Alpine Linux 3.21 (3.5 MB)…\x1b[0m\r\n');
@@ -101,12 +120,13 @@ async function run({ rows, cols, network }) {
     const nm = enc.encode(name), d = new Uint8Array(data), b = new Uint8Array(nm.length + 1 + d.length);
     b.set(nm); b.set(d, nm.length + 1); put(b); x.add_file();
   };
-  x.init(768, 4096);
+  x.init(poolMb || 256, targetMb || 8192);
   addFile('busybox', busybox); addFile('rootfs.tar', rootfs); addFile('zoverlay.tar', overlay);
   put(enc.encode('busybox\0sh /etc/inksoc/start'));
   if (x.start() !== 0) { postMessage({ type: 'done', error: dec.decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice()) }); return; }
   x.linux_winsize(rows || 30, cols || 100);
   x.linux_dirty(); // unpacking is not a change; the first save happens after the first real one
+  info(saved ? saved.byteLength : 0);
   let line = '', lastCr = false;
   const send = (t) => { const b = enc.encode(t); put(b); x.linux_stdin(b.length); };
   lx = {
@@ -158,5 +178,27 @@ onmessage = async (ev) => {
   if (d.type === 'net') { net = d.network; if (ws) { try { ws.close(); } catch (e) {} ws = null; } return; }
   if (d.type === 'save') { if (lx) { await save(); } postMessage({ type: 'saved' }); return; }
   if (d.type === 'reset') { const root = await opfs(); if (root) { try { await root.removeEntry(SAVE); } catch (e) {} } postMessage({ type: 'reset' }); return; }
+  if (d.type === 'calibrate') { calibrate(); return; }
   if (d.type === 'start') { try { await run(d); } catch (e) { postMessage({ type: 'done', error: e.message }); } }
 };
+
+/* Memory calibration, the same as InkSoC's: grow a wasm memory 128 MB at a time, filled with
+   random data (iOS compresses empty pages). The page saves each step; if the tab reloads,
+   the last step saved is this device's limit. */
+async function calibrate() {
+  const step = 128, pagesPerStep = step * 16;
+  const m = new WebAssembly.Memory({ initial: 16, maximum: 65536 });
+  let mb = 1, seed = 2463534242;
+  const touch = (fromMb, toMb) => {
+    const u32 = new Uint32Array(m.buffer, fromMb * 1048576, (toMb - fromMb) * 262144);
+    for (let i = 0; i < u32.length; i++) { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; u32[i] = seed; }
+  };
+  while (mb + step <= 4096) {
+    try { m.grow(pagesPerStep); } catch (e) { postMessage({ type: 'calib', mb, done: true }); return; }
+    touch(mb, mb + step);
+    mb += step;
+    postMessage({ type: 'calib', mb });
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  postMessage({ type: 'calib', mb, done: true });
+}

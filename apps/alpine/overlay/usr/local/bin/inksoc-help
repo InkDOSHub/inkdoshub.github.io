@@ -14,7 +14,7 @@ ${b}Packages (apk)${n}
   edge/testing:  echo https://dl-cdn.alpinelinux.org/alpine/edge/testing | sudo tee -a /etc/apk/repositories
 
 ${b}Network${n}
-  Goes out through a public wisp server (button at the top: wisp or off).
+  Goes out through a public wisp server (chosen in the start panel: wisp or none).
   wget, curl, git, apk, ssh to other machines work. Servers inside this
   terminal cannot be reached from outside.
 
@@ -29,7 +29,7 @@ ${b}Users${n}
 
 ${b}Files${n}
   The ⇡ button sends files from this device to your home folder; ⇣ downloads one.
-  ☰ > Reset Linux starts again from a clean Alpine.
+  The start panel's "Erase and start from zero" gives you a clean Alpine again.
 
 ${b}Speed${n}
   bench           CPU, memory, compression and file test, with times
