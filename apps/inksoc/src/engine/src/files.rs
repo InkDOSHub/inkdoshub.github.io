@@ -357,7 +357,27 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "SetEvent" => { if let Some(Handle::Event { set }) = e.fs.handles.get_mut(&a0) { *set = true; } 1 }
         "ResetEvent" => { if let Some(Handle::Event { set }) = e.fs.handles.get_mut(&a0) { *set = false; } 1 }
         "OpenEventW" | "OpenFileMappingW" => { e.set_err(2); 0 }
-        "FormatMessageW" | "FormatMessageA" => 0,
+        "FormatMessageW" | "FormatMessageA" => {
+            // system messages only (FORMAT_MESSAGE_FROM_SYSTEM)
+            let (flags, id, buf, size) = (a0 as u32, e.arg(2) as u32 & 0xFFFF, e.arg(4), e.arg(5));
+            let text = match id {
+                2 => "The system cannot find the file specified.", 3 => "The system cannot find the path specified.",
+                5 => "Access is denied.", 8 | 14 => "Not enough memory resources are available to process this command.",
+                32 => "The process cannot access the file because it is being used by another process.",
+                80 | 183 => "Cannot create a file when that file already exists.", 87 => "The parameter is incorrect.",
+                112 => "There is not enough space on the disk.", 1 => "Incorrect function.",
+                _ => { e.set_err(317); return Some(0); }
+            };
+            let text = format!("{}\r\n", text);
+            let n = text.encode_utf16().count() as u64;
+            let dst = if flags & 0x100 != 0 {
+                let p = e.heap_alloc(if wide { 2 * (n + 1) } else { n + 1 }, true);
+                let _ = e.mmu.write64(buf, p);
+                p
+            } else { if size <= n { e.set_err(122); return Some(0); } buf };
+            if wide { e.put_wstr(dst, &text, n + 1); } else { let _ = e.mmu.write_bytes(dst, text.as_bytes()); let _ = e.mmu.write8(dst + n, 0); }
+            n
+        }
         _ => return None,
     })
 }

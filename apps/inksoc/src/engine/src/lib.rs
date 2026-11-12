@@ -4,6 +4,7 @@
 // License: GPL-3.0-or-later.
 
 mod cpu;
+mod eh;
 mod files;
 mod heap;
 mod kernel32;
@@ -34,6 +35,7 @@ pub const RET_EXIT: u64 = THUNK_BASE + 0xFFF0;
 pub const RET_INIT: u64 = THUNK_BASE + 0xFFE0;
 pub const RET_LOADLIB: u64 = THUNK_BASE + 0xFFD0;
 pub const RET_INITTERM: u64 = THUNK_BASE + 0xFFC0;
+pub const RET_EH: u64 = THUNK_BASE + 0xFFB0;
 pub const TEB: u64 = 0x7FFD_0000_0000;
 pub const PEB: u64 = 0x7FFD_0001_0000;
 const STACK_SIZE: u64 = 1 << 20;
@@ -62,6 +64,7 @@ pub struct Engine {
     pub unknown_calls: u64,
     pub crt: msvcrt::Crt,
     pub fs: files::Files,
+    pub eh: eh::Eh,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -99,7 +102,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0,
             init_queue: Vec::new(), loadlib: Vec::new(),
-            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
+            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(), eh: Default::default(),
         });
     }
 }
@@ -225,6 +228,8 @@ impl Engine {
         Some(a)
     }
 
+    pub fn thunk_lookup(&self, dll: &str, func: &str) -> Option<u64> { self.thunk_ids.get(&format!("{}!{}", dll, func)).copied() }
+
     pub fn thunk(&mut self, dll: &str, func: &str) -> u64 {
         let key = format!("{}!{}", dll, func);
         if let Some(&a) = self.thunk_ids.get(&key) { return a; }
@@ -338,6 +343,7 @@ impl Engine {
             RET_EXIT => { self.exited = true; self.exit_code = self.cpu.regs[0] as u32; return; }
             RET_INIT => { self.next_init(); return; }
             RET_INITTERM => { msvcrt::initterm_next(self); return; }
+            RET_EH => { self.eh_next(); return; }
             RET_LOADLIB => {
                 let (h, sp) = self.loadlib.pop().unwrap_or((0, self.cpu.regs[4]));
                 self.cpu.regs[4] = sp;

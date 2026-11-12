@@ -507,7 +507,6 @@ fn step(e: &mut Engine) {
         0xF8 => { e.cpu.cf = false; e.cpu.rip = rip + d.p as u64; }
         // x87: only fninit / fnclex (startup code resets the FPU; SSE2 does the math)
         0xDB if d.b[d.p] == 0xE3 || d.b[d.p] == 0xE2 => { d.p += 1; e.cpu.rip = rip + d.p as u64; }
-        0x9B => { e.cpu.rip = rip + d.p as u64; } // fwait
         0xF9 => { e.cpu.cf = true; e.cpu.rip = rip + d.p as u64; }
         0xFC => { e.cpu.df = false; e.cpu.rip = rip + d.p as u64; }
         0xFD => { e.cpu.df = true; e.cpu.rip = rip + d.p as u64; }

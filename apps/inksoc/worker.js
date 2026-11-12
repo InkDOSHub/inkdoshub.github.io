@@ -46,7 +46,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
   };
   let wine;
-  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=8', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=9', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
   mem = x.memory;

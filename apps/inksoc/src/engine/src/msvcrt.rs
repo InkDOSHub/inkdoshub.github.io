@@ -259,6 +259,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if e.stream_write(f, &v) { count } else { 0 }
         }
         "fflush" => 0,
+        "_CxxThrowException" => match e.cxx_throw() {
+            Ok(()) => crate::kernel32::NO_RETURN,
+            Err(m) => { e.error = Some(m); crate::kernel32::NO_RETURN }
+        },
         // program startup (mingw and MSVC startup code)
         "__set_app_type" | "__setusermatherr" | "_cexit" | "_lock" | "_unlock" | "_c_exit" | "_setmode" => 0,
         "__getmainargs" => {
