@@ -149,6 +149,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     // let the other cores' output in (a message channel does not wait 4 ms like setTimeout)
     if (mt) await yieldNow();
   }
+  // the other cores' last output may still be on its way: let it arrive before stopping them
+  if (coreWorkers.length) await new Promise((r) => setTimeout(r, 300));
   coreWorkers.forEach((w) => w.terminate());
   post('stats', stats());
   if (swap) { swap.flush(); swap.truncate(0); swap.close(); }

@@ -31,7 +31,7 @@ async function start() {
   starting = true;
   term.write('\x1b[2mStarting Linux (BusyBox) on InkSoC…\x1b[0m\r\n');
   const data = await fetch('bin/busybox?v=1').then((r) => r.arrayBuffer());
-  w = new Worker('worker.js?v=18');
+  w = new Worker('worker.js?v=19');
   starting = false;
   fit();
   w.onmessage = (ev) => {
