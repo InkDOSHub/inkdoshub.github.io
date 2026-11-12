@@ -80,6 +80,7 @@ $('erase').onclick = () => {
   r.onmessage = () => { r.terminate(); pref.set('alpine-user', ''); showData(); };
   r.postMessage({ type: 'reset' });
 };
+fetch('engine-version.txt?x=' + Date.now()).then((r) => r.text()).then((v) => { $('engine-text').textContent = 'Engine: InkSoC ' + v.trim() + ' (the Windows engine version, plus the Linux part)'; }).catch(() => {});
 $('start').onclick = () => { $('panel').hidden = true; document.body.classList.remove('panel'); fit(); term.reset(); start(); term.focus(); };
 
 let w = null, starting = false;

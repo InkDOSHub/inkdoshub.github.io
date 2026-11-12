@@ -1,6 +1,6 @@
 diff -ruN -x target -x .gitignore -x Cargo.lock a/src/linux.rs b/src/linux.rs
---- a/src/linux.rs	2026-11-12 15:40:26.000000000 +0000
-+++ b/src/linux.rs	2026-11-12 16:09:09.463757496 +0000
+--- a/src/linux.rs	2026-11-12 16:25:20.000000000 +0000
++++ b/src/linux.rs	2026-11-12 16:26:59.714152001 +0000
 @@ -239,7 +239,7 @@
              }
          }
@@ -62,8 +62,8 @@ diff -ruN -x target -x .gitignore -x Cargo.lock a/src/linux.rs b/src/linux.rs
          137 | 138 => { let mut b = [0u8; 120]; b[0..8].copy_from_slice(&0xEF53u64.to_le_bytes()); b[8..16].copy_from_slice(&4096u64.to_le_bytes()); b[16..24].copy_from_slice(&(1u64 << 20).to_le_bytes()); b[24..32].copy_from_slice(&(1u64 << 19).to_le_bytes()); b[32..40].copy_from_slice(&(1u64 << 19).to_le_bytes()); b[56..64].copy_from_slice(&255u64.to_le_bytes()); let _ = e.mmu.write_bytes(a1, &b); 0 } // statfs
          158 => { // arch_prctl
 diff -ruN -x target -x .gitignore -x Cargo.lock a/src/mmu.rs b/src/mmu.rs
---- a/src/mmu.rs	2026-11-12 15:40:26.000000000 +0000
-+++ b/src/mmu.rs	2026-11-12 16:09:09.463471071 +0000
+--- a/src/mmu.rs	2026-11-12 16:25:20.000000000 +0000
++++ b/src/mmu.rs	2026-11-12 16:26:59.713804258 +0000
 @@ -21,7 +21,7 @@
  struct Pte { frame: u32, slot: u32 }
  
