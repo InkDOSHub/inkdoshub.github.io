@@ -285,7 +285,8 @@ $('combo').onclick = async () => {
   log(`Texture file ready in ${fmt(initMs)} ms.`);
 
   const adapter = await navigator.gpu.requestAdapter();
-  const astc = adapter.features.has('texture-compression-astc');
+  const astc = $('combo-astc').checked && adapter.features.has('texture-compression-astc');
+  if (!$('combo-astc').checked) log('ASTC check skipped.');
   const dev = await adapter.requestDevice({ requiredFeatures: astc ? ['texture-compression-astc'] : [] });
   let gpuErr = '';
   dev.onuncapturederror = (e) => { gpuErr = e.error.message; log('GPU error: ' + gpuErr); };
@@ -300,12 +301,16 @@ $('combo').onclick = async () => {
       t.destroy();
     }
     log(`ASTC: yes. Same pool holds ${gpu / 4 * 4} textures in ASTC 4x4 or ${gpu / 4 * 16} in ASTC 8x8 (vs ${gpu / 4} RGBA).`);
-  } else log('ASTC: not offered by this GPU/browser.');
+  } else if ($('combo-astc').checked) log('ASTC: not offered by this GPU/browser.');
 
   log('Creating the GPU pool...');
+  const step = (t) => { $('combo-live').textContent = 'step: ' + t; };
+  step('canvas context');
   const ctx = $('combo-cv').getContext('webgpu');
   const format = navigator.gpu.getPreferredCanvasFormat();
+  step('configure');
   ctx.configure({ device: dev, format });
+  step('shader');
   const mod = dev.createShaderModule({ code: `
     @group(0) @binding(0) var t: texture_2d<f32>;
     @group(0) @binding(1) var s: sampler;
@@ -316,7 +321,9 @@ $('combo').onclick = async () => {
       var o: O; o.p = vec4f((c + uv.x) / 4.0 - 1.0, 1.0 - (r + uv.y) / 3.0, 0, 1); o.uv = uv; return o;
     }
     @fragment fn fs(o: O) -> @location(0) vec4f { return textureSample(t, s, o.uv); }` });
+  step('pipeline');
   const pipe = dev.createRenderPipeline({ layout: 'auto', vertex: { module: mod, entryPoint: 'vs' }, fragment: { module: mod, entryPoint: 'fs', targets: [{ format }] } });
+  step('sampler + placeholder');
   const sampler = dev.createSampler({ magFilter: 'linear', minFilter: 'linear' });
   const bgFor = (tx) => dev.createBindGroup({ layout: pipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: tx.createView() }, { binding: 1, resource: sampler }] });
   const ph = dev.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
