@@ -166,6 +166,11 @@ impl Mmu {
         self.sh.table = sv.table; self.sh.regions = sv.regions; self.sh.committed = sv.committed;
         self.sh.cur = sp.id;
     }
+    /// Windows child processes name the running space by their id. Here spaces get their own
+    /// asid: a fresh one when the current space was just parked, nothing otherwise.
+    pub fn set_asid(&mut self, _a: u32) {
+        if self.sh.saved.contains_key(&self.sh.cur) { self.sh.cur = self.sh.next_asid; self.sh.next_asid += 1; }
+    }
     fn alloc_slot(&mut self) -> u32 {
         self.sh.free_slots.pop().unwrap_or_else(|| { let s = self.sh.swap_slots; self.sh.swap_slots += 1; s })
     }

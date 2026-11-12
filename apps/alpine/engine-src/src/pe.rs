@@ -45,8 +45,26 @@ pub fn norm(name: &str) -> String {
 pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     let n = norm(name);
     if let Some(i) = find_module(e, &n) { return Ok(i); }
-    if let Some(bytes) = e.s.files.get(&n).cloned() {
+    // API-set DLLs that programs ship (forwarders without relocations): ours stand in for them
+    let api_set = n.starts_with("api-ms-win-") || n.starts_with("ext-ms-");
+    if let Some(bytes) = e.s.files.get(&n).cloned().filter(|_| !api_set) {
         return load_image(e, &n, &bytes, false);
+    }
+    // a DLL in a folder (LoadLibrary with a path)
+    if name.contains(['\\', '/']) {
+        if let Some(k) = crate::files::key_of(name) {
+            if let Some(bytes) = e.s.files.get(&k).cloned() {
+                // its folder is searched for the DLLs it needs (LOAD_WITH_ALTERED_SEARCH_PATH)
+                if let Some(i) = k.rfind('\\') { let d = k[..i].to_string(); if !e.s.dll_dirs.contains(&d) { e.s.dll_dirs.push(d); } }
+                return load_image(e, &n, &bytes, false);
+            }
+        }
+    }
+    if !api_set {
+        let dirs = e.s.dll_dirs.clone();
+        for d in dirs.iter().rev() {
+            if let Some(bytes) = e.s.files.get(&format!("{}\\{}", d, n)).cloned() { return load_image(e, &n, &bytes, false); }
+        }
     }
     // a DLL the engine does not implement at all: Wine's, as program code
     if !NATIVE_DLLS.contains(&n.as_str()) {
@@ -64,6 +82,24 @@ pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     if !NATIVE_DLLS.contains(&n.as_str()) && !n.starts_with("api-ms-win-") && !e.s.files.contains_key(&format!("wine-{}", n)) {
         crate::console(&format!("[inksoc] {} is not available yet: its functions will stop the program when called\n", n));
     }
+    // a minimal PE header, for programs that read their DLLs' headers (PHP checks the
+    // runtime's linker version: 14.x like Visual C++ 2015-2022)
+    let mut h = [0u8; 0x150];
+    h[0] = b'M'; h[1] = b'Z'; h[0x3C] = 0x40;
+    h[0x40..0x44].copy_from_slice(b"PE\0\0");
+    h[0x44..0x46].copy_from_slice(&0x8664u16.to_le_bytes());
+    h[0x54..0x56].copy_from_slice(&0xF0u16.to_le_bytes()); // optional header size
+    h[0x56..0x58].copy_from_slice(&0x2022u16.to_le_bytes()); // DLL, executable, large addresses
+    h[0x58..0x5A].copy_from_slice(&0x20Bu16.to_le_bytes());
+    h[0x5A] = 14; h[0x5B] = 44;
+    h[0x58 + 24..0x58 + 32].copy_from_slice(&base.to_le_bytes()); // ImageBase
+    h[0x58 + 32..0x58 + 36].copy_from_slice(&0x1000u32.to_le_bytes());
+    h[0x58 + 36..0x58 + 40].copy_from_slice(&0x200u32.to_le_bytes());
+    h[0x58 + 40] = 6; h[0x58 + 48] = 6; // OS and subsystem version 6.0
+    h[0x58 + 56..0x58 + 60].copy_from_slice(&0x10000u32.to_le_bytes()); // SizeOfImage
+    h[0x58 + 60..0x58 + 64].copy_from_slice(&0x1000u32.to_le_bytes());
+    h[0x58 + 68] = 3; // console
+    let _ = e.mmu.write_bytes(base, &h);
     e.s.modules.push(Module { name: n, base, size: 0x10000, entry: 0, exports: HashMap::new(), native: true, fwd: HashMap::new() });
     Ok(e.s.modules.len() - 1)
 }
@@ -107,7 +143,9 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
 
     // Executables sit at their preferred base; DLLs go to our own range and
     // get relocated (this also exercises relocations on every run).
-    let base = if is_exe && !e.mmu.overlaps(pref, pref + image_size) {
+    // images without relocations (some DLLs) can only sit at their preferred base
+    let fixed = dir(5)?.1 == 0;
+    let base = if (is_exe || fixed) && !e.mmu.overlaps(pref, pref + image_size) {
         e.mmu.add_region(pref, image_size);
         pref
     } else {
