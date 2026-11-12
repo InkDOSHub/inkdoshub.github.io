@@ -259,12 +259,13 @@ impl Engine {
         w(self, TEB + 0x60, PEB);
         self.cpu.gs_base = TEB;
         let bytes = self.files.get(name).cloned().ok_or_else(|| format!("{} not found", name))?;
+        // before the imports are bound: msvcrt's _acmdln points at it
+        self.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
         let idx = pe::load_image(self, name, &bytes, true)?;
         self.exe_base = self.modules[idx].base;
         self.exe_entry = self.modules[idx].entry;
         w(self, PEB + 0x10, self.exe_base);
         w(self, PEB + 0x30, 0x0000_0000_00AA_0000); // ProcessHeap handle
-        self.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
         self.cpu.regs[4] = self.stack_top;
         self.next_init();
         Ok(())

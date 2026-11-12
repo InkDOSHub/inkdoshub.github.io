@@ -97,6 +97,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetEnvironmentVariableA" | "GetEnvironmentVariableW" => { e.set_last_error(ERROR_ENVVAR_NOT_FOUND); 0 }
         "GetStartupInfoA" | "GetStartupInfoW" => { e.zero(a0, 104); e.w32(a0, 104); 0 }
         "IsDebuggerPresent" => 0,
+        "SetDefaultDllDirectories" | "SetDllDirectoryW" | "SetDllDirectoryA" => 1,
         "SetUnhandledExceptionFilter" | "UnhandledExceptionFilter" => 0,
         "RaiseException" => { e.error = Some(format!("the program raised exception 0x{:x}", a0 as u32)); return Some(NO_RETURN); }
         "GetVersion" => (19045 << 16) | 10,
