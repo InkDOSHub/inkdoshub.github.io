@@ -33,10 +33,10 @@ function budgetMb() {
 function showBudget() { const b = budgetMb(); $('budget').textContent = 'Memory: program sees 8 GB; ' + b.note + '; the rest goes to swap.'; }
 
 function runExec(files, exe, args) {
-  $('exec').disabled = $('exec2').disabled = $('exec4').disabled = true;
+  $('exec').disabled = $('exec2').disabled = $('exec4').disabled = $('exec7z').disabled = true;
   $('exec-out').textContent = '';
   const b = budgetMb();
-  const w = new Worker('worker.js?v=19');
+  const w = new Worker('worker.js?v=21');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('exec-out').textContent += d.text;
@@ -50,7 +50,7 @@ function runExec(files, exe, args) {
         a.textContent = `\nDownload ${f.name} (${fmt(f.data.length)} bytes)`;
         $('exec-out').append(a);
       }
-      $('exec').disabled = $('exec2').disabled = $('exec4').disabled = false;
+      $('exec').disabled = $('exec2').disabled = $('exec4').disabled = $('exec7z').disabled = false;
       w.terminate();
     }
   };
@@ -59,6 +59,10 @@ function runExec(files, exe, args) {
 $('exec').onclick = () => runExec(null, 'stage1.exe');
 $('exec2').onclick = () => runExec(null, 'stage2.exe');
 $('exec4').onclick = () => runExec(null, 'stage4.exe');
+$('exec7z').onclick = async () => {
+  const data = await fetch('bin/7za.exe?v=1').then((r) => r.arrayBuffer());
+  runExec([{ name: '7za.exe', data }], '7za.exe', $('args').value.trim() || 'b -md18 -mmt' + $('cores').value);
+};
 // Picked files add up: a DLL or data file picked later joins the .exe picked before
 // (some browsers hand over only one file per pick). Names like "7z (1).dll" are fixed.
 const picked = new Map();
@@ -80,7 +84,7 @@ $('pick').onchange = async (ev) => {
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=19');
+  const w = new Worker('worker.js?v=21');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
@@ -99,7 +103,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=19');
+  const w = new Worker('worker.js?v=21');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -211,7 +215,7 @@ function showLimits() {
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=19');
+  const w = new Worker('worker.js?v=21');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -294,11 +298,11 @@ $('combo').onclick = async () => {
   const log = (t) => { out.textContent += t + '\n'; };
   out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
 
-  const holder = new Worker('worker.js?v=19');
+  const holder = new Worker('worker.js?v=21');
   if (ram > 0) await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
   log(`RAM: ${ram} MB reserved and filled.`);
 
-  const io = new Worker('worker.js?v=19');
+  const io = new Worker('worker.js?v=21');
   log(`Writing ${texMb} MB of textures to OPFS...`);
   const initMs = await new Promise((r) => { io.onmessage = (e) => r(e.data.ms || 0); io.postMessage({ type: 'tex-init', count, size: BYTES }); });
   log(`Texture file ready in ${fmt(initMs)} ms.`);

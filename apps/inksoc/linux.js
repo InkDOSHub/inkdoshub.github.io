@@ -38,7 +38,7 @@ async function start() {
     const tar = await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
     files.push({ name: 'rootfs.tar', data: tar });
   } catch (e) { term.write('\x1b[2m(Alpine files unavailable: BusyBox only)\x1b[0m\r\n'); }
-  w = new Worker('worker.js?v=20');
+  w = new Worker('worker.js?v=21');
   starting = false;
   fit();
   w.onmessage = (ev) => {

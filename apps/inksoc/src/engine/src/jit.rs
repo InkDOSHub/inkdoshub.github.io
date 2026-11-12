@@ -158,6 +158,7 @@ struct Ins {
     seg: bool,
     a67: bool,
     lock: bool,
+    p66: bool,
     m: Option<ModRm>,
     imm: u64,
 }
@@ -198,7 +199,7 @@ fn decode(e: &mut Engine, rip: u64) -> Option<Ins> {
     let w = rex & 8 != 0;
     let osz: u32 = if w { 64 } else if p66 { 16 } else { 32 };
     let immz = if osz == 16 { 2 } else { 4 };
-    let mut ins = Ins { rip, next: 0, op: op as u32, rex, osz, rep, seg, a67, lock, m: None, imm: 0 };
+    let mut ins = Ins { rip, next: 0, op: op as u32, rex, osz, rep, seg, a67, lock, p66, m: None, imm: 0 };
     let mut imm_n = 0; // bytes of immediate
     if op == 0x0F {
         let op2 = d.u8();
@@ -266,7 +267,8 @@ fn flag_use(i: &Ins) -> (bool, bool) {
         0xF6 | 0xF7 => (false, sub != 2),
         0xFE | 0xFF if sub < 2 => (true, true),
         0xC0 | 0xC1 | 0xD0 | 0xD1 => (sub < 4 || i.imm & 31 == 0 && i.op < 0xD0, true),
-        0x0FAF | 0x69 | 0x6B => (false, true),
+        0x0FAF | 0x69 | 0x6B | 0x0F2E | 0x0F2F | 0x0FB8 => (false, true),
+        0x0F10..=0x0F17 | 0x0F28..=0x0F2D | 0x0F50..=0x0F7F | 0x0FC2 | 0x0FC6 | 0x0FD0..=0x0FFF => (false, false),
         0x50..=0x5F | 0x63 | 0x68 | 0x6A | 0x88..=0x8B | 0x8D | 0x90 | 0x98 | 0x99 | 0xB0..=0xBF | 0xC6 | 0xC7
         | 0xE8 | 0xE9 | 0xEB | 0xC2 | 0xC3 | 0x0F1F | 0x0FB6 | 0x0FB7 | 0x0FBE | 0x0FBF | 0x0FC8..=0x0FCF => (false, false),
         0xFF => (false, false),
@@ -665,7 +667,7 @@ fn reg_opd(r: u8, size: u32, rex: u8) -> Opd {
 }
 
 /// Emits an instruction natively; false = not supported (nothing usable emitted).
-fn native(g: &mut G, i: &Ins, live: bool) -> bool {
+fn native(g: &mut G, i: &Ins, live: bool, n: u32) -> bool {
     // atomic instructions run in the interpreter, which makes them atomic across cores
     if i.lock && crate::lock::MT { return false; }
     if i.a67 && !(i.op == 0x8D && !i.m.unwrap().riprel) { return false; }
@@ -674,6 +676,8 @@ fn native(g: &mut G, i: &Ins, live: bool) -> bool {
     let m = i.m;
     let has_mem = m.map_or(false, |m| m.md != 3);
     if i.seg && has_mem { return false; }
+    if let Some(ok) = sse(g, i) { return ok; }
+    if i.op == 0x0FB8 && i.rep == 0xF3 { return popcnt(g, i, live); }
     if i.rep != 0 && !(i.op == 0x90) { return false; }
     // memory operand address into L_A
     let rm = |g: &mut G, size: u32| -> Opd {
@@ -908,6 +912,7 @@ fn native(g: &mut G, i: &Ins, live: bool) -> bool {
                     g.opd_put(r, size, res);
                     g.set_prod(LZ_SUB, size, a, b, res);
                 }
+                4..=7 if size >= 32 => return muldiv(g, i, sub, size, live, n),
                 _ => return false,
             }
         }
@@ -1000,6 +1005,384 @@ fn native(g: &mut G, i: &Ins, live: bool) -> bool {
             g.wr_reg(r, false, osz, L_T);
         }
         _ => return false,
+    }
+    true
+}
+
+// ---- SSE, mul/div and popcnt ----
+
+const V128: u8 = 0x7B; const DROP: u8 = 0x1A;
+const F32LOAD: u8 = 0x2A; const F64LOAD: u8 = 0x2B; const F32STORE: u8 = 0x38; const F64STORE: u8 = 0x39; const I32STORE8: u8 = 0x3A;
+const F32R: u8 = 0xBE; const F64R: u8 = 0xBF; const I64RF64: u8 = 0xBD;
+
+impl G {
+    fn xa(&self, r: u8) -> u32 { self.cpu + off!(xmm) + 16 * r as u32 }
+    fn simd(&mut self, op: u32) { self.b(0xFD); self.u(op as u64); }
+    /// Pushes xmm r (v128).
+    fn x_ld(&mut self, r: u8) { let a = self.xa(r); self.i32c(0); self.simd(0x00); self.u(0); self.u(a as u64); }
+    /// Stores the v128 on the stack (after st_base) into xmm r.
+    fn x_st(&mut self, r: u8) { let a = self.xa(r); self.simd(0x0B); self.u(0); self.u(a as u64); }
+    fn x_lo64(&mut self, r: u8) { let a = self.xa(r); self.i32c(0); self.mem(I64LOAD, 3, a); }
+    fn x_zero_hi(&mut self, r: u8) { let a = self.xa(r) + 8; self.st_base(); self.i64c(0); self.mem(I64STORE, 3, a); }
+    fn vconst(&mut self, b: [u8; 16]) { self.simd(0x0C); self.bs(&b); }
+    fn f64c(&mut self, v: f64) { self.b(0x44); self.bs(&v.to_bits().to_le_bytes()); }
+    /// Pushes the 16 bytes at address local `a`.
+    fn load128(&mut self, a: u32) {
+        self.tlb_check(a, 16, false);
+        self.b(IF); self.b(V128);
+        self.host(a); self.simd(0x00); self.u(0); self.u(self.pool as u64);
+        self.b(ELSE);
+        self.get(a); self.i32c(64); self.call(F_RD); self.simd(0x12);
+        self.get(a); self.i64c(8); self.b(I64ADD); self.i32c(64); self.call(F_RD); self.simd(0x1E); self.b(1);
+        self.b(END);
+    }
+    /// Stores xmm r at address local `a`.
+    fn store128(&mut self, a: u32, r: u8) {
+        let xa = self.xa(r);
+        self.tlb_check(a, 16, true);
+        self.b(IF); self.b(VOID);
+        self.host(a); self.x_ld(r); self.simd(0x0B); self.u(0); self.u(self.pool as u64);
+        self.b(ELSE);
+        self.get(a); self.i32c(0); self.mem(I64LOAD, 3, xa); self.i32c(64); self.call(F_WR);
+        self.get(a); self.i64c(8); self.b(I64ADD); self.i32c(0); self.mem(I64LOAD, 3, xa + 8); self.i32c(64); self.call(F_WR);
+        self.b(END);
+    }
+    /// Inside an `if`: runs instruction i in the interpreter and leaves the module.
+    fn step_exit(&mut self, i: &Ins, n: u32) {
+        self.flush();
+        self.exit_flags();
+        self.set_rip_const(i.rip);
+        self.i64c(i.next); self.call(F_STEP); self.b(DROP);
+        self.add_icount(n);
+        self.b(RET);
+    }
+    /// Stores flag byte (i32 on the stack after st_base).
+    fn st_flag(&mut self, off: u32) { let a = self.cpu + off; self.mem(I32STORE8, 0, a); }
+    /// Flags now live in the cpu fields (no lazy producer).
+    fn flags_direct(&mut self) {
+        let c = self.cpu;
+        self.st_base(); self.i32c(0); self.mem(I32STORE, 2, c + off!(lz_op));
+        self.prod = Prod::Unknown;
+    }
+}
+
+/// SSE instructions on xmm registers kept in the cpu struct. None = not an SSE opcode handled here.
+fn sse(g: &mut G, i: &Ins) -> Option<bool> {
+    if i.op & 0xFFFF00 != 0x0F00 { return None; }
+    let op = (i.op & 0xFF) as u8;
+    if !matches!(op, 0x10 | 0x11 | 0x28 | 0x29 | 0x2A..=0x2F | 0x51 | 0x54..=0x5A | 0x5C..=0x5F | 0x60..=0x62 | 0x68..=0x76 | 0x7E | 0x7F
+        | 0xD4 | 0xD6 | 0xD7 | 0xDB | 0xDF | 0xE7 | 0xEB | 0xEF | 0xF8..=0xFE) { return None; }
+    let m = i.m.unwrap();
+    let w = i.rex & 8 != 0;
+    let kind = if i.rep == 0xF3 { 2 } else if i.rep == 0xF2 { 3 } else if i.p66 { 1 } else { 0 };
+    let mem = m.md != 3;
+    let (r, x) = (m.reg, m.rm);
+    if mem { g.ea(&m, i.next); g.set(L_A); }
+    let src_v = |g: &mut G| if mem { g.load128(L_A) } else { g.x_ld(x) };
+    let src64 = |g: &mut G| if mem { g.load(L_A, 64) } else { g.x_lo64(x) };
+    let src32 = |g: &mut G| if mem { g.load(L_A, 32); g.b(I32WRAP) } else { let a = g.xa(x); g.i32c(0); g.mem(I32LOAD, 2, a) };
+    let src_f = |g: &mut G, dbl: bool| if dbl { src64(g); g.b(F64R) } else { src32(g); g.b(F32R) };
+    let gpr = |_g: &mut G, size: u32| -> Opd { if mem { Opd::Mem(L_A) } else { reg_opd(x, size, i.rex) } };
+    let packed = |g: &mut G, sop: u32, swap: bool| {
+        g.st_base();
+        if swap { src_v(g); g.x_ld(r); } else { g.x_ld(r); src_v(g); }
+        g.simd(sop); g.x_st(r);
+    };
+    let ok = match op {
+        // moves into xmm r
+        0x10 | 0x28 | 0x6F => match (op, kind) {
+            (0x10, 0 | 1) | (0x28, 0 | 1) | (0x6F, 1 | 2) => { g.st_base(); src_v(g); g.x_st(r); true }
+            (0x10, 2) => {
+                let a = g.xa(r);
+                if mem { g.st_base(); g.load(L_A, 32); g.mem(I64STORE, 3, a); g.x_zero_hi(r); }
+                else { g.st_base(); src32(g); g.mem(I32STORE, 2, a); }
+                true
+            }
+            (0x10, 3) => { let a = g.xa(r); g.st_base(); src64(g); g.mem(I64STORE, 3, a); if mem { g.x_zero_hi(r); } true }
+            _ => false,
+        },
+        // moves from xmm r
+        0x11 | 0x29 | 0x7F | 0x2B | 0xE7 => match (op, kind) {
+            (0x11, 2 | 3) => {
+                let size = if kind == 2 { 32 } else { 64 };
+                if mem { g.x_lo64(r); g.set(L_T); g.store(L_A, L_T, size); }
+                else if size == 32 { let (s, d) = (g.xa(r), g.xa(x)); g.st_base(); g.i32c(0); g.mem(I32LOAD, 2, s); g.mem(I32STORE, 2, d); }
+                else { let d = g.xa(x); g.st_base(); g.x_lo64(r); g.mem(I64STORE, 3, d); }
+                true
+            }
+            (0x11 | 0x29 | 0x2B, 0 | 1) | (0x7F, 1 | 2) | (0xE7, 1) => {
+                if mem { g.store128(L_A, r); } else { g.st_base(); g.x_ld(r); g.x_st(x); }
+                true
+            }
+            _ => false,
+        },
+        0x6E if kind == 1 => {
+            let size = if w { 64 } else { 32 };
+            let o = gpr(g, size);
+            let a = g.xa(r);
+            g.st_base(); g.opd_get(o, size); g.mem(I64STORE, 3, a); g.x_zero_hi(r);
+            true
+        }
+        0x7E if kind == 1 => {
+            let size = if w { 64 } else { 32 };
+            let o = gpr(g, size);
+            g.x_lo64(r); g.set(L_T); g.opd_put(o, size, L_T);
+            true
+        }
+        0x7E if kind == 2 => { let a = g.xa(r); g.st_base(); src64(g); g.mem(I64STORE, 3, a); g.x_zero_hi(r); true }
+        0xD6 if kind == 1 => {
+            if mem { g.x_lo64(r); g.set(L_T); g.store(L_A, L_T, 64); }
+            else { let d = g.xa(x); g.st_base(); g.x_lo64(r); g.mem(I64STORE, 3, d); g.x_zero_hi(x); }
+            true
+        }
+        // logic
+        0x54..=0x57 if kind < 2 => { let (sop, swap) = [(0x4E, false), (0x4F, true), (0x50, false), (0x51, false)][(op - 0x54) as usize]; packed(g, sop, swap); true }
+        0xDB | 0xDF | 0xEB | 0xEF if kind == 1 => { let (sop, swap) = match op { 0xDB => (0x4E, false), 0xDF => (0x4F, true), 0xEB => (0x50, false), _ => (0x51, false) }; packed(g, sop, swap); true }
+        // float arithmetic
+        0x51 | 0x58 | 0x59 | 0x5C..=0x5F => {
+            let k = match op { 0x58 => 0, 0x5C => 1, 0x59 => 2, 0x5E => 3, 0x5D => 4, 0x5F => 5, _ => 6 };
+            match kind {
+                0 | 1 => {
+                    let ops: [u32; 7] = if kind == 0 { [0xE4, 0xE5, 0xE6, 0xE7, 0xEA, 0xEB, 0xE3] } else { [0xF0, 0xF1, 0xF2, 0xF3, 0xF6, 0xF7, 0xEF] };
+                    if k == 6 { g.st_base(); src_v(g); g.simd(ops[6]); g.x_st(r); } else { packed(g, ops[k], k >= 4); }
+                }
+                _ => {
+                    let dbl = kind == 3;
+                    let a = g.xa(r);
+                    let (ld, st, al) = if dbl { (F64LOAD, F64STORE, 3) } else { (F32LOAD, F32STORE, 2) };
+                    if k == 4 || k == 5 {
+                        // min/max: x86 returns the source unless dst < src (or dst > src)
+                        let (ta, tb) = (g.tmp(), g.tmp());
+                        if dbl { g.x_lo64(r); } else { g.i32c(0); g.mem(I32LOAD, 2, a); g.b(I64EXTU); }
+                        g.set(ta);
+                        if dbl { src64(g); } else { src32(g); g.b(I64EXTU); }
+                        g.set(tb);
+                        let fv = |g: &mut G, t: u32| { g.get(t); if dbl { g.b(F64R); } else { g.b(I32WRAP); g.b(F32R); } };
+                        g.st_base();
+                        fv(g, ta); fv(g, tb);
+                        fv(g, ta); fv(g, tb);
+                        g.b(match (dbl, k) { (true, 4) => 0x63, (true, _) => 0x64, (false, 4) => 0x5D, _ => 0x5E });
+                        g.b(SELECT);
+                        g.mem(st, al, a);
+                    } else {
+                        g.st_base();
+                        if k != 6 { g.i32c(0); g.mem(ld, al, a); }
+                        src_f(g, dbl);
+                        let base = if dbl { 0xA0 } else { 0x92 };
+                        g.b(match k { 6 => base - 1, _ => base + k as u8 });
+                        g.mem(st, al, a);
+                    }
+                }
+            }
+            true
+        }
+        0x5A if kind >= 2 => {
+            let a = g.xa(r);
+            g.st_base();
+            if kind == 2 { src_f(g, false); g.b(0xBB); g.mem(F64STORE, 3, a); } else { src_f(g, true); g.b(0xB6); g.mem(F32STORE, 2, a); }
+            true
+        }
+        0x2A if kind >= 2 => {
+            let size = if w { 64 } else { 32 };
+            let o = gpr(g, size);
+            let a = g.xa(r);
+            g.st_base(); g.opd_get(o, size);
+            if !w { g.b(I32WRAP); }
+            if kind == 3 { g.b(if w { 0xB9 } else { 0xB7 }); g.mem(F64STORE, 3, a); } else { g.b(if w { 0xB4 } else { 0xB2 }); g.mem(F32STORE, 2, a); }
+            true
+        }
+        0x2C | 0x2D if kind >= 2 => {
+            let t = g.tmp();
+            src_f(g, kind == 3);
+            if kind == 2 { g.b(0xBB); }
+            if op == 0x2D { g.b(0x9E); }
+            g.b(I64RF64); g.set(t);
+            let res = g.tmp();
+            g.get(t); g.b(F64R); g.b(0xFC); g.u(if w { 6 } else { 2 });
+            if !w { g.b(I64EXTU); }
+            g.i64c(if w { 1 << 63 } else { 0x8000_0000 });
+            if w {
+                g.get(t); g.b(F64R); g.f64c(-9223372036854775808.0); g.b(0x66);
+                g.get(t); g.b(F64R); g.f64c(9223372036854775808.0); g.b(0x63);
+            } else {
+                g.get(t); g.b(F64R); g.f64c(-2147483649.0); g.b(0x64);
+                g.get(t); g.b(F64R); g.f64c(2147483648.0); g.b(0x63);
+            }
+            g.b(I32AND);
+            g.b(SELECT); g.set(res);
+            g.wr_reg(r, false, if w { 64 } else { 32 }, res);
+            true
+        }
+        0x2E | 0x2F if kind < 2 => {
+            let dbl = kind == 1;
+            let (ta, tb) = (g.tmp(), g.tmp());
+            if dbl { g.x_lo64(r); } else { let a = g.xa(r); g.i32c(0); g.mem(F32LOAD, 2, a); g.b(0xBB); g.b(I64RF64); }
+            g.set(ta);
+            src_f(g, dbl); if !dbl { g.b(0xBB); } else { g.b(I64RF64); g.b(F64R); }
+            g.b(I64RF64); g.set(tb);
+            let fv = |g: &mut G, t: u32| { g.get(t); g.b(F64R); };
+            // unordered
+            fv(g, ta); fv(g, ta); g.b(0x62); fv(g, tb); fv(g, tb); g.b(0x62); g.b(I32OR); g.set(L_C);
+            g.st_base(); g.get(L_C); fv(g, ta); fv(g, tb); g.b(0x63); g.b(I32OR); g.st_flag(off!(cf));
+            g.st_base(); g.get(L_C); fv(g, ta); fv(g, tb); g.b(0x61); g.b(I32OR); g.st_flag(off!(zf));
+            g.st_base(); g.get(L_C); g.st_flag(off!(pf));
+            g.st_base(); g.i32c(0); g.st_flag(off!(of));
+            g.st_base(); g.i32c(0); g.st_flag(off!(sf));
+            g.flags_direct();
+            true
+        }
+        // packed integers (66 prefix)
+        0xD4 | 0xFC..=0xFE | 0xF8..=0xFB | 0x74..=0x76 if kind == 1 => {
+            let sop = match op { 0xFC => 0x6E, 0xFD => 0x8E, 0xFE => 0xAE, 0xD4 => 0xCE, 0xF8 => 0x71, 0xF9 => 0x91, 0xFA => 0xB1, 0xFB => 0xD1, 0x74 => 0x23, 0x75 => 0x2D, _ => 0x37 };
+            packed(g, sop, false);
+            true
+        }
+        0x60..=0x62 | 0x68..=0x6A | 0x6C | 0x6D if kind == 1 => {
+            let es = match op { 0x60 | 0x68 => 1, 0x61 | 0x69 => 2, 0x62 | 0x6A => 4, _ => 8 };
+            let hi = matches!(op, 0x68..=0x6A | 0x6D);
+            let ne = 8 / es;
+            let mut l = [0u8; 16];
+            let mut p = 0;
+            for j in 0..ne {
+                let e = if hi { ne + j } else { j };
+                for b in 0..es { l[p] = (e * es + b) as u8; p += 1; }
+                for b in 0..es { l[p] = (16 + e * es + b) as u8; p += 1; }
+            }
+            g.st_base(); g.x_ld(r); src_v(g); g.simd(0x0D); g.bs(&l); g.x_st(r);
+            true
+        }
+        0x70 if kind == 1 => {
+            let imm = i.imm as u8;
+            let mut l = [0u8; 16];
+            for j in 0..4 { let s = (imm >> (2 * j)) & 3; for b in 0..4 { l[4 * j + b] = 4 * s + b as u8; } }
+            g.st_base(); src_v(g); src_v(g); g.simd(0x0D); g.bs(&l); g.x_st(r);
+            true
+        }
+        0x71..=0x73 if kind == 1 && !mem => {
+            let cnt = (i.imm & 0xFF) as u32;
+            let sub = m.reg & 7;
+            match (op, sub) {
+                (0x73, 3 | 7) => {
+                    let n = cnt.min(16) as usize;
+                    let mut l = [16u8; 16];
+                    for j in 0..16 { if sub == 3 { if j + n < 16 { l[j] = (j + n) as u8; } } else if j >= n { l[j] = (j - n) as u8; } }
+                    g.st_base(); g.x_ld(x); g.vconst([0; 16]); g.simd(0x0D); g.bs(&l); g.x_st(x);
+                    true
+                }
+                _ => {
+                    let width = match op { 0x71 => 16, 0x72 => 32, _ => 64 };
+                    let sop = match (op, sub) {
+                        (0x71, 2) => 0x8D, (0x71, 4) => 0x8C, (0x71, 6) => 0x8B,
+                        (0x72, 2) => 0xAD, (0x72, 4) => 0xAC, (0x72, 6) => 0xAB,
+                        (0x73, 2) => 0xCD, (0x73, 6) => 0xCB,
+                        _ => 0,
+                    };
+                    if sop == 0 { false } else {
+                        g.st_base();
+                        if cnt >= width && sub != 4 { g.vconst([0; 16]); }
+                        else { g.x_ld(x); g.i32c(cnt.min(width - 1) as i32); g.simd(sop); }
+                        g.x_st(x);
+                        true
+                    }
+                }
+            }
+        }
+        0xD7 if kind == 1 && !mem => {
+            g.x_ld(x); g.simd(0x64); g.b(I64EXTU); g.set(L_T);
+            g.wr_reg(r, false, 32, L_T);
+            true
+        }
+        _ => false,
+    };
+    Some(ok)
+}
+
+/// mul / imul / div / idiv (32 and 64 bits); rare cases (overflow, divide error, 128-bit) run in the interpreter.
+fn muldiv(g: &mut G, i: &Ins, sub: u8, size: u32, live: bool, n: u32) -> bool {
+    let m = i.m.unwrap();
+    let o = if m.md == 3 { reg_opd(m.rm, size, i.rex) } else { g.ea(&m, i.next); g.set(L_A); Opd::Mem(L_A) };
+    let s = g.val(o, size);
+    const I64DIVS: u8 = 0x7F; const I64DIVU: u8 = 0x80; const I64REMS: u8 = 0x81; const I64REMU: u8 = 0x82;
+    const I64NE: u8 = 0x52; const I64GTU: u8 = 0x56;
+    let (q, rm) = (g.tmp(), g.tmp());
+    match (sub, size) {
+        (4 | 5, 32) => {
+            let p = g.tmp();
+            g.rd_reg(0, false, 32); if sub == 5 { g.b(I64EXT32S); }
+            g.get(s); if sub == 5 { g.b(I64EXT32S); }
+            g.b(I64MUL); g.set(p);
+            g.get(p); g.i64c(32); g.b(I64SHRU); g.set(rm);
+            if live {
+                // cf = of = the high half is not just the extension of the low half
+                g.st_base();
+                if sub == 4 { g.get(rm); g.b(I64EQZ); g.b(I32EQZ); } else { g.get(p); g.get(p); g.b(I64EXT32S); g.b(I64NE); }
+                g.tee(L_C); g.st_flag(off!(cf));
+                g.st_base(); g.get(L_C); g.st_flag(off!(of));
+                g.flags_direct();
+            }
+            g.wr_reg(0, false, 32, p);
+            g.wr_reg(2, false, 32, rm);
+        }
+        (6, 32) => {
+            g.rd_reg(2, false, 32); g.get(s); g.b(I64GEU);
+            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            let d = g.tmp();
+            g.rd_reg(2, false, 32); g.i64c(32); g.b(I64SHL); g.rd_reg(0, false, 32); g.b(I64OR); g.set(d);
+            g.get(d); g.get(s); g.b(I64DIVU); g.set(q);
+            g.get(d); g.get(s); g.b(I64REMU); g.set(rm);
+            g.wr_reg(0, false, 32, q);
+            g.wr_reg(2, false, 32, rm);
+        }
+        (7, 32) => {
+            let (d, ss) = (g.tmp(), g.tmp());
+            g.get(s); g.b(I64EXT32S); g.set(ss);
+            g.rd_reg(2, false, 32); g.i64c(32); g.b(I64SHL); g.rd_reg(0, false, 32); g.b(I64OR); g.set(d);
+            g.get(ss); g.b(I64EQZ);
+            g.get(d); g.i64c(1 << 63); g.b(I64EQ); g.get(ss); g.i64c(u64::MAX); g.b(I64EQ); g.b(I32AND);
+            g.b(I32OR);
+            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.get(d); g.get(ss); g.b(I64DIVS); g.set(q);
+            g.get(q); g.i64c(0x8000_0000); g.b(I64ADD); g.i64c(0xFFFF_FFFF); g.b(I64GTU);
+            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.get(d); g.get(ss); g.b(I64REMS); g.set(rm);
+            g.wr_reg(0, false, 32, q);
+            g.wr_reg(2, false, 32, rm);
+        }
+        (6, 64) => {
+            g.rd_reg(2, false, 64); g.i64c(0); g.b(I64NE); g.get(s); g.b(I64EQZ); g.b(I32OR);
+            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.rd_reg(0, false, 64); g.get(s); g.b(I64DIVU); g.set(q);
+            g.rd_reg(0, false, 64); g.get(s); g.b(I64REMU); g.set(rm);
+            g.wr_reg(0, false, 64, q);
+            g.wr_reg(2, false, 64, rm);
+        }
+        (7, 64) => {
+            g.get(s); g.b(I64EQZ);
+            g.rd_reg(2, false, 64); g.rd_reg(0, false, 64); g.i64c(63); g.b(I64SHRS); g.b(I64NE); g.b(I32OR);
+            g.rd_reg(0, false, 64); g.i64c(1 << 63); g.b(I64EQ); g.get(s); g.i64c(u64::MAX); g.b(I64EQ); g.b(I32AND); g.b(I32OR);
+            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.rd_reg(0, false, 64); g.get(s); g.b(I64DIVS); g.set(q);
+            g.rd_reg(0, false, 64); g.get(s); g.b(I64REMS); g.set(rm);
+            g.wr_reg(0, false, 64, q);
+            g.wr_reg(2, false, 64, rm);
+        }
+        _ => return false,
+    }
+    true
+}
+
+/// popcnt r, r/m
+fn popcnt(g: &mut G, i: &Ins, live: bool) -> bool {
+    let m = i.m.unwrap();
+    let size = i.osz;
+    let o = if m.md == 3 { reg_opd(m.rm, size, i.rex) } else { g.ea(&m, i.next); g.set(L_A); Opd::Mem(L_A) };
+    let s = g.val(o, size);
+    g.get(s); g.b(0x7B); g.set(L_T);
+    g.wr_reg(m.reg, false, size, L_T);
+    if live {
+        g.st_base(); g.get(s); g.b(I64EQZ); g.st_flag(off!(zf));
+        for f in [off!(cf), off!(of), off!(sf), off!(pf)] { g.st_base(); g.i32c(0); g.st_flag(f); }
+        g.flags_direct();
     }
     true
 }
@@ -1142,7 +1525,7 @@ fn emit_block(g: &mut G, b: Block) {
             _ => {}
         }
         let snap = (g.c.len(), g.ntmp, g.valid, g.dirty, g.prod);
-        if !native(g, i, live[k]) {
+        if !native(g, i, live[k], n) {
             g.c.truncate(snap.0);
             (g.ntmp, g.valid, g.dirty, g.prod) = (snap.1, snap.2, snap.3, snap.4);
             g.fallback(i, n);

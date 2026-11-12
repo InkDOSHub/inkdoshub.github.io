@@ -36,11 +36,12 @@
 
 <section>
   <h2>Run a Windows program</h2>
-  <p class="n">The stage 1 test is a normal 64-bit program with a DLL: integers, floating point (SSE2), sorting through function pointers, heap, TLS, TEB/PEB and memory checks, each compared with the expected result. The stage 2 test uses the real msvcrt.dll API: printf and the string functions run Wine's own msvcrt code compiled to wasm, reading the program's memory through the engine's page table. "Open .exe" runs your own console program: select the .exe, its DLLs and any data files together, type its arguments in the box (for 7-Zip: <code>i</code>, <code>b -md18</code>, <code>x file.zip -y</code>, <code>a out.7z file.txt</code>); files it creates can be downloaded at the end; it stops at the first Windows function that does not exist here yet and names it.</p>
+  <p class="n">The stage 1 test is a normal 64-bit program with a DLL: integers, floating point (SSE2), sorting through function pointers, heap, TLS, TEB/PEB and memory checks, each compared with the expected result. The stage 2 test uses the real msvcrt.dll API: printf and the string functions run Wine's own msvcrt code compiled to wasm, reading the program's memory through the engine's page table. "Run 7-Zip benchmark" runs 7-Zip 23.01 (7za.exe, one file, LGPL; license in <code>bin/7za-license.txt</code>) with <code>b -md18 -mmt</code> and the chosen cores, or with the arguments in the box. "Open .exe" runs your own console program: select the .exe, its DLLs and any data files together, type its arguments in the box (for 7-Zip: <code>i</code>, <code>b -md18</code>, <code>x file.zip -y</code>, <code>a out.7z file.txt</code>); files it creates can be downloaded at the end; it stops at the first Windows function that does not exist here yet and names it.</p>
   <div class="row">
     <button id="exec">Run stage 1 test</button>
     <button id="exec2">Run stage 2 test</button>
     <button id="exec4">Run stage 4 test (threads)</button>
+    <button id="exec7z">Run 7-Zip benchmark</button>
     <input id="args" placeholder="arguments (optional)" style="min-width:10em">
     <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="jit" checked>JIT</label>
     <label style="flex-direction:row;align-items:center;gap:4px" title="Program threads run at the same time on several cores; needs hub.inkdos.workers.dev (on other addresses 1 core is used)">Cores <select id="cores"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
@@ -107,6 +108,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=26"></script>
+<script src="inksoc.js?v=27"></script>
 </body>
 </html>
