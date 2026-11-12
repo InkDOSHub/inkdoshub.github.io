@@ -18,7 +18,10 @@ async function openSwap(name) {
 }
 
 /* Runs a program on the engine. files: [{ name, data }], exe: file name to start. */
-async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared }) {
+async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared, cores }) {
+  // several cores need a shared memory, which needs an isolated page (hub.inkdos.workers.dev)
+  if (cores > 1 && !self.crossOriginIsolated) { post('log', { text: '[engine] several cores need an isolated page (open it on hub.inkdos.workers.dev); using 1 core\n' }); cores = 1; }
+  const mt = cores > 1;
   const swap = await openSwap('inksoc-swap.bin');
   const ram = new Map();
   let mem, swapMs = 0, outBytes = 0, tooMuch = false;
@@ -31,6 +34,11 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared 
       post('log', { text: new TextDecoder().decode(new Uint8Array(mem.buffer, p, n).slice()) });
     },
     host_now_ms: () => performance.now(),
+    host_console_text: (t) => {
+      outBytes += t.length;
+      if (outBytes > 1 << 20) { tooMuch = true; return; }
+      post('log', { text: t });
+    },
     host_epoch_ms: () => Date.now(),
     host_swap_write: (slot, p) => {
       const t = performance.now();
@@ -60,9 +68,14 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared 
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=12', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=1' : 'inksoc.wasm?v=13', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
-  if (shared) {
+  if (mt) {
+    importScripts('sharedmem.js?v=1');
+    wineWasm = inkShared.importer(wineWasm);
+    shared = true;
+    env.memory = new WebAssembly.Memory({ initial: 80, maximum: (poolMb + 256) * 16, shared: true });
+  } else if (shared) {
     if (!self.crossOriginIsolated) post('log', { text: '[engine] shared memory needs an isolated page (open it on hub.inkdos.workers.dev); using normal memory\n' });
     else {
       importScripts('sharedmem.js?v=1');
@@ -70,16 +83,18 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared 
       wineWasm = inkShared.importer(wineWasm);
     }
   }
-  shared = shared && self.crossOriginIsolated;
+  shared = mt || (shared && self.crossOriginIsolated);
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
-  mem = x.memory;
+  mem = mt ? env.memory : x.memory;
+  if (mt) x.__wasm_init_tls(x.core_alloc(x.__tls_size.value + x.__tls_align.value));
   const put = (bytes) => { const p = x.buffer(bytes.length); new Uint8Array(mem.buffer, p, bytes.length).set(bytes); };
   const enc = (t) => new TextEncoder().encode(t);
   const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice());
   x.init(poolMb, targetMb);
-  if (shared) x.set_shared_mem(1);
+  if (shared && !mt) x.set_shared_mem(1);
   if (jit === false) x.set_jit(0);
+  if (mt) x.set_cores(cores);
   // Wine's msvcrt shares the engine's memory; its pointers go through the engine's page table
   wine = (await WebAssembly.instantiate(wineWasm, { env: {
     memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc,
@@ -90,9 +105,31 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared 
     b.set(name); b.set(data, name.length + 1);
     put(b); x.add_file();
   }
+  // extra cores: each gets a stack and TLS block here, and is ready before the program starts
+  const coreWorkers = [];
+  if (mt) {
+    const ready = [];
+    for (let id = 1; id < cores; id++) {
+      const stack = 1 << 20, base = x.core_alloc(stack), tls = x.core_alloc(x.__tls_size.value + x.__tls_align.value);
+      const w = new Worker('core.js?v=1');
+      ready.push(new Promise((res, rej) => {
+        w.onmessage = (ev) => {
+          const m = ev.data;
+          if (m.ready) res();
+          else if (m.failed) rej(new Error('core ' + id + ': ' + m.failed));
+          else if (m.out) env.host_console_text(m.out);
+        };
+        w.onerror = (e) => rej(new Error('core ' + id + ': ' + (e.message || 'worker failed')));
+      }));
+      w.postMessage({ wasm, wineWasm, memory: mem, id, stackTop: base + stack - 16, tls });
+      coreWorkers.push(w);
+    }
+    await Promise.all(ready);
+  }
   put(enc(exe + '\0' + (cmd || exe)));
-  post('log', { text: `[engine] real RAM ${poolMb} MB (fixed), memory target ${targetMb} MB, wasm memory ${(mem.buffer.byteLength >> 20)} MB\n` });
-  if (x.start() !== 0) { post('done', { ok: false, error: msg() }); return; }
+  post('log', { text: `[engine] real RAM ${poolMb} MB (fixed), memory target ${targetMb} MB, wasm memory ${(mem.buffer.byteLength >> 20)} MB${mt ? `, ${cores} cores` : ''}\n` });
+  if (x.start() !== 0) { coreWorkers.forEach((w) => w.terminate()); post('done', { ok: false, error: msg() }); return; }
+  for (const w of coreWorkers) w.postMessage('go');
   if (poke) x.poke32(poke[0], poke[1]);
   const t0 = performance.now();
   let st;
@@ -100,7 +137,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared 
     insns: x.stat(0), faults: x.stat(1), swapIn: x.stat(2), swapOut: x.stat(3),
     resident: x.stat(4), frames: x.stat(5), bridge: x.stat(7), slots: x.stat(8),
     modules: x.stat(9), thunks: x.stat(10),
-    shared: !!shared, jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16), threads: x.stat(18), switches: x.stat(19),
+    shared: !!shared, cores: cores || 1, jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16), threads: x.stat(18), switches: x.stat(19),
     ms: performance.now() - t0, swapMs, opfs: !!swap,
   });
   // 3 = every program thread is waiting (Sleep, a timeout): wait that long without spinning
@@ -109,7 +146,10 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared 
     if (st === 3) { await new Promise((r) => setTimeout(r, Math.max(0, x.stat(17)))); continue; }
     if (st !== 0) break;
     post('stats', stats());
+    // let the other cores' output in (a message channel does not wait 4 ms like setTimeout)
+    if (mt) await yieldNow();
   }
+  coreWorkers.forEach((w) => w.terminate());
   post('stats', stats());
   if (swap) { swap.flush(); swap.truncate(0); swap.close(); }
   // files the program created or changed, offered for download
@@ -123,6 +163,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared 
   post('done', { ok: !tooMuch && st === 1 && x.stat(6) === 0, error, exitCode: x.stat(6), out });
 }
 
+const yieldNow = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); });
+
 async function runProof({ poolMb, targetMb, testMb }) {
   const data = await fetch('test.exe?v=1').then((r) => r.arrayBuffer());
   return runEngine({ files: [{ name: 'test.exe', data }], exe: 'test.exe', poolMb, targetMb, poke: [0x140002000, testMb] });
@@ -134,7 +176,7 @@ async function runExec(d) {
     const names = d.exe === 'stage1.exe' || !d.exe ? ['stage1.exe', 'testdll.dll'] : [d.exe];
     files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
   }
-  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared });
+  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores });
 }
 
 /* Random 4 KB reads/writes on a 64 MB OPFS file: the real cost of one swap page. */

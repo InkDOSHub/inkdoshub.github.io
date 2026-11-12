@@ -66,7 +66,7 @@ macro_rules! tryf {
 pub fn step_block(e: &mut Engine, n: u64) -> u64 {
     e.materialize();
     let mut done = 0;
-    while done < n && !e.exited && e.error.is_none() {
+    while done < n && !e.s.exited && e.s.error.is_none() {
         if e.cpu.rip >= crate::THUNK_BASE { break; }
         step(e);
         done += 1;
@@ -80,7 +80,7 @@ pub fn step_block(e: &mut Engine, n: u64) -> u64 {
 pub fn step_trace(e: &mut Engine, n: u64) -> u64 {
     e.materialize();
     let mut done = 0;
-    while done < n && !e.exited && e.error.is_none() {
+    while done < n && !e.s.exited && e.s.error.is_none() {
         let r0 = e.cpu.rip;
         if r0 >= crate::THUNK_BASE { break; }
         step(e);
@@ -217,7 +217,7 @@ impl Engine {
         c.cf = f & 1 != 0; c.pf = f & 4 != 0; c.zf = f & 0x40 != 0; c.sf = f & 0x80 != 0; c.df = f & 0x400 != 0; c.of = f & 0x800 != 0;
     }
     pub(crate) fn unsupported(&mut self, b: &[u8; 16]) {
-        self.error = Some(format!("unsupported instruction at 0x{:x}: {:02x?}", self.cpu.rip, &b[..8]));
+        self.set_error(format!("unsupported instruction at 0x{:x}: {:02x?}", self.cpu.rip, &b[..8]));
     }
 }
 
@@ -274,6 +274,7 @@ fn step(e: &mut Engine) {
     let mut op;
     e.cpu.seg = 0;
     let mut p66 = false;
+    let mut locked = false;
     loop {
         op = d.u8();
         match op {
@@ -281,11 +282,14 @@ fn step(e: &mut Engine) {
             0xF2 | 0xF3 => rep = op,
             0x64 => e.cpu.seg = e.cpu.fs_base,
             0x65 => e.cpu.seg = e.cpu.gs_base,
-            0x2E | 0x3E | 0x26 | 0x36 | 0x67 | 0xF0 => {}
+            0xF0 => locked = true,
+            0x2E | 0x3E | 0x26 | 0x36 | 0x67 => {}
             _ => break,
         }
     }
     if (0x40..0x50).contains(&op) { rex = op; op = d.u8(); }
+    // lock prefix (and xchg with memory): atomic against the other cores
+    let _atomic = if crate::lock::MT && (locked || ((op == 0x86 || op == 0x87) && d.b[d.p.min(15)] >> 6 != 3)) { Some(crate::lock::lock()) } else { None };
     let w = rex & 8 != 0;
     let osz: u32 = if w { 64 } else if opsize16 { 16 } else { 32 };
 
@@ -559,7 +563,7 @@ fn step(e: &mut Engine) {
                 _ => e.unsupported(&buf),
             }
         }
-        0xCC => { e.error = Some(format!("breakpoint at 0x{:x}", rip)); }
+        0xCC => { e.set_error(format!("breakpoint at 0x{:x}", rip)); }
         0x9C => { let f = e.flags(); e.cpu.rip = rip + d.p as u64; g!(e, e.push(f)); }
         0x9D => { let f = g!(e, e.pop()); e.set_flags(f); e.cpu.rip = rip + d.p as u64; }
         0x9E => { let ah = (e.cpu.regs[0] >> 8) & 0xFF; let f = (e.flags() & !0xFF) | ah; e.set_flags(f); e.cpu.rip = rip + d.p as u64; }
@@ -647,7 +651,7 @@ fn muldiv(e: &mut Engine, sub: u8, src: u64, size: u32) -> bool {
             4 => { let r = al * src; let _ = e.set(Loc::Reg(0, false), 16, r); let o = r > 0xFF; e.cpu.cf = o; e.cpu.of = o; }
             5 => { let r = (sx(al, 8) * sx(src, 8)) as u64 & 0xFFFF; let _ = e.set(Loc::Reg(0, false), 16, r); let o = sx(r, 16) != sx(r, 8); e.cpu.cf = o; e.cpu.of = o; }
             _ => {
-                if src == 0 { e.error = Some("integer divide by zero".into()); return false; }
+                if src == 0 { e.set_error("integer divide by zero".into()); return false; }
                 let (q, r) = if sub == 6 { (ax / src, ax % src) } else { let (a, b) = (sx(ax, 16), sx(src, 8)); ((a / b) as u64, (a % b) as u64) };
                 let _ = e.set(Loc::Reg(0, false), 16, (q & 0xFF) | ((r & 0xFF) << 8));
             }
@@ -672,7 +676,7 @@ fn muldiv(e: &mut Engine, sub: u8, src: u64, size: u32) -> bool {
             let o = sx(lo, size) as i128 != p; e.cpu.cf = o; e.cpu.of = o;
         }
         _ => {
-            if src == 0 { e.error = Some("integer divide by zero".into()); return false; }
+            if src == 0 { e.set_error("integer divide by zero".into()); return false; }
             let n = ((dhi as u128) << size) | a as u128;
             let (q, r) = if sub == 6 {
                 (n / src as u128, n % src as u128)
@@ -693,7 +697,7 @@ fn two_byte(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, osz:
     if crate::sse::sse(e, d, buf, rip, rex, p66, rep, op) { return; }
     match op {
         0x1F => { let m = modrm(d, e, rex); let _ = m; e.cpu.rip = rip + d.p as u64; }
-        0x0B => { e.error = Some(format!("ud2 at 0x{:x}", rip)); }
+        0x0B => { e.set_error(format!("ud2 at 0x{:x}", rip)); }
         0x0D | 0x18..=0x1E => { let _ = modrm(d, e, rex); e.cpu.rip = rip + d.p as u64; }
         0xAE => {
             let m = modrm(d, e, rex);

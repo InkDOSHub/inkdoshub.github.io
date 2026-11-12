@@ -131,8 +131,8 @@ pub extern "C" fn jit_step(next: u64) -> u32 {
     let e = crate::eng();
     e.materialize();
     crate::cpu::step_one(e);
-    if e.error.is_some() { e.cpu.jit_limit = 0; }
-    (e.error.is_some() || e.exited || e.cpu.rip != next) as u32
+    if e.s.error.is_some() { e.cpu.jit_limit = 0; }
+    (e.s.error.is_some() || e.s.exited || e.cpu.rip != next) as u32
 }
 
 #[no_mangle]
@@ -154,6 +154,7 @@ struct Ins {
     rep: u8,
     seg: bool,
     a67: bool,
+    lock: bool,
     m: Option<ModRm>,
     imm: u64,
 }
@@ -174,7 +175,7 @@ fn decode(e: &mut Engine, rip: u64) -> Option<Ins> {
     let mut b = [0u8; 16];
     e.mmu.fetch16(rip, &mut b).ok()?;
     let mut d = Dec { b: &b, p: 0 };
-    let (mut p66, mut rep, mut seg, mut a67) = (false, 0u8, false, false);
+    let (mut p66, mut rep, mut seg, mut a67, mut lock) = (false, 0u8, false, false, false);
     let mut op;
     loop {
         op = d.u8();
@@ -183,7 +184,8 @@ fn decode(e: &mut Engine, rip: u64) -> Option<Ins> {
             0xF2 | 0xF3 => rep = op,
             0x64 | 0x65 => seg = true,
             0x67 => a67 = true,
-            0x2E | 0x3E | 0x26 | 0x36 | 0xF0 => {}
+            0xF0 => lock = true,
+            0x2E | 0x3E | 0x26 | 0x36 => {}
             _ => break,
         }
         if d.p > 14 { return None; }
@@ -193,7 +195,7 @@ fn decode(e: &mut Engine, rip: u64) -> Option<Ins> {
     let w = rex & 8 != 0;
     let osz: u32 = if w { 64 } else if p66 { 16 } else { 32 };
     let immz = if osz == 16 { 2 } else { 4 };
-    let mut ins = Ins { rip, next: 0, op: op as u32, rex, osz, rep, seg, a67, m: None, imm: 0 };
+    let mut ins = Ins { rip, next: 0, op: op as u32, rex, osz, rep, seg, a67, lock, m: None, imm: 0 };
     let mut imm_n = 0; // bytes of immediate
     if op == 0x0F {
         let op2 = d.u8();
@@ -655,6 +657,8 @@ fn reg_opd(r: u8, size: u32, rex: u8) -> Opd {
 
 /// Emits an instruction natively; false = not supported (nothing usable emitted).
 fn native(g: &mut G, i: &Ins, live: bool) -> bool {
+    // atomic instructions run in the interpreter, which makes them atomic across cores
+    if i.lock && crate::lock::MT { return false; }
     if i.a67 && !(i.op == 0x8D && !i.m.unwrap().riprel) { return false; }
     let rex = i.rex;
     let osz = i.osz;
@@ -1105,7 +1109,7 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     let name = |v: &mut Vec<u8>, s: &str| { leb_u(v, s.len() as u64); v.extend_from_slice(s.as_bytes()); };
     name(&mut imp, "env"); name(&mut imp, "memory");
     // a shared memory must be imported as shared (flags 3, max 65536 pages)
-    if unsafe { SHARED_MEM } { imp.extend_from_slice(&[0x02, 0x03, 0x00, 0x80, 0x80, 0x04]); } else { imp.extend_from_slice(&[0x02, 0x00, 0x00]); }
+    if unsafe { SHARED_MEM } || crate::lock::MT { imp.extend_from_slice(&[0x02, 0x03, 0x00, 0x80, 0x80, 0x04]); } else { imp.extend_from_slice(&[0x02, 0x00, 0x00]); }
     for (k, f) in ["rd", "wr", "step", "cond"].iter().enumerate() {
         name(&mut imp, "env"); name(&mut imp, f); imp.push(0x00); imp.push(k as u8 + 1);
     }

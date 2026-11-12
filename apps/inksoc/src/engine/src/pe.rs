@@ -28,7 +28,7 @@ pub const NATIVE_DLLS: &[&str] = &["kernel32.dll", "kernelbase.dll", "ntdll.dll"
 
 pub fn find_module(e: &Engine, name: &str) -> Option<usize> {
     let n = norm(name);
-    e.modules.iter().position(|m| m.name == n)
+    e.s.modules.iter().position(|m| m.name == n)
 }
 
 pub fn norm(name: &str) -> String {
@@ -41,7 +41,7 @@ pub fn norm(name: &str) -> String {
 pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     let n = norm(name);
     if let Some(i) = find_module(e, &n) { return Ok(i); }
-    if let Some(bytes) = e.files.get(&n).cloned() {
+    if let Some(bytes) = e.s.files.get(&n).cloned() {
         return load_image(e, &n, &bytes, false);
     }
     // native module: a small reserved range serves as its handle
@@ -49,18 +49,18 @@ pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     if !NATIVE_DLLS.contains(&n.as_str()) && !n.starts_with("api-ms-win-") {
         crate::console(&format!("[inksoc] {} is not available yet: its functions will stop the program when called\n", n));
     }
-    e.modules.push(Module { name: n, base, size: 0x10000, entry: 0, exports: HashMap::new(), native: true });
-    Ok(e.modules.len() - 1)
+    e.s.modules.push(Module { name: n, base, size: 0x10000, entry: 0, exports: HashMap::new(), native: true });
+    Ok(e.s.modules.len() - 1)
 }
 
 /// Address of an exported function (creates a native thunk when needed).
 pub fn proc_address(e: &mut Engine, idx: usize, func: &str) -> Option<u64> {
-    if e.modules[idx].native {
-        let dll = e.modules[idx].name.clone();
+    if e.s.modules[idx].native {
+        let dll = e.s.modules[idx].name.clone();
         if let Some(a) = crate::msvcrt::data_export(e, &dll, func) { return Some(a); }
         return Some(e.thunk(&dll, func));
     }
-    let a = *e.modules[idx].exports.get(func)?;
+    let a = *e.s.modules[idx].exports.get(func)?;
     if a == 0 { return None; }
     Some(a)
 }
@@ -90,8 +90,8 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
         e.mmu.add_region(pref, image_size);
         pref
     } else {
-        let a = e.next_dll;
-        e.next_dll += image_size + 0x10000;
+        let a = e.s.next_dll;
+        e.s.next_dll += image_size + 0x10000;
         e.mmu.add_region(a, image_size);
         a
     };
@@ -160,8 +160,8 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
         for i in 0..nfun { let t = target(e, i)?; exports.insert(format!("#{}", ord_base + i), t); }
     }
 
-    let idx = e.modules.len();
-    e.modules.push(Module { name: name.to_string(), base, size: image_size, entry: if entry_rva != 0 { base + entry_rva } else { 0 }, exports, native: false });
+    let idx = e.s.modules.len();
+    e.s.modules.push(Module { name: name.to_string(), base, size: image_size, entry: if entry_rva != 0 { base + entry_rva } else { 0 }, exports, native: false });
 
     // Imports (load dependencies first, then bind)
     let (imp_rva, _) = dir(1)?;
@@ -182,7 +182,7 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
                 let fname = if ent >> 63 == 1 { format!("#{}", ent & 0xFFFF) } else { e.read_cstr(base + (ent & 0x7FFF_FFFF) + 2, 256) };
                 let addr = match proc_address(e, m, &fname) {
                     Some(a) => a,
-                    None => { let dn = e.modules[m].name.clone(); e.thunk(&dn, &format!("{} (missing export)", fname)) }
+                    None => { let dn = e.s.modules[m].name.clone(); e.thunk(&dn, &format!("{} (missing export)", fname)) }
                 };
                 e.mmu.write64(base + iat + 8 * k, addr).map_err(|_| "iat")?;
                 k += 1;
@@ -190,6 +190,6 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
             d += 20;
         }
     }
-    if !is_exe && e.modules[idx].entry != 0 { e.init_queue.push((e.modules[idx].entry, base)); }
+    if !is_exe && e.s.modules[idx].entry != 0 { e.s.init_queue.push((e.s.modules[idx].entry, base)); }
     Ok(idx)
 }

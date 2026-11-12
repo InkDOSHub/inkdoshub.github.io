@@ -294,7 +294,7 @@ pub fn sse(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, p66: 
             });
         }
     }
-    if e.error.is_some() { return true; }
+    if e.s.error.is_some() { return true; }
     if let Some(v) = out { e.cpu.xmm[r] = v; }
     e.cpu.rip = next;
     let _ = reg_loc;

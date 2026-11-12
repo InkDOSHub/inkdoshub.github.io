@@ -37,7 +37,7 @@ fn bounce() -> u64 { unsafe { BOUNCE.as_ptr() as u64 } }
 
 impl Engine {
     fn flush_pending(&mut self) {
-        if let Some((a, n)) = self.crt.pending.take() {
+        if let Some((a, n)) = self.s.crt.pending.take() {
             for i in 0..n as u64 {
                 let v = unsafe { *(bounce() as *const u8).add(i as usize) };
                 if self.mmu.write8(a + i, v).is_err() { self.fault(a + i); }
@@ -53,7 +53,7 @@ impl Engine {
         }
         // crosses a page: go through the bounce buffer
         if write {
-            self.crt.pending = Some((addr, bytes));
+            self.s.crt.pending = Some((addr, bytes));
         } else {
             for i in 0..bytes as u64 {
                 let v = match self.mmu.read8(addr + i) { Ok(v) => v, Err(_) => { self.fault(addr + i); 0 } };
@@ -72,15 +72,15 @@ impl Engine {
     }
 
     fn wine(&mut self, id: i32, a: u64, b: u64, c: u64, d: u64) -> u64 {
-        self.bridge_calls += 1;
+        self.s.bridge_calls += 1;
         let r = unsafe { wine_call(id, a, b, c, d) };
         self.flush_pending();
         r
     }
 
     fn iob(&mut self) -> u64 {
-        if self.crt.iob == 0 { self.crt.iob = self.heap_alloc(3 * FILE_SIZE, true); }
-        self.crt.iob
+        if self.s.crt.iob == 0 { self.s.crt.iob = self.heap_alloc(3 * FILE_SIZE, true); }
+        self.s.crt.iob
     }
 
     /// Writes to a FILE*: stdout/stderr go to the console, others to their file.
@@ -90,7 +90,7 @@ impl Engine {
             console(&String::from_utf8_lossy(data));
             return true;
         }
-        match self.crt.streams.get_mut(&f) {
+        match self.s.crt.streams.get_mut(&f) {
             Some(s) if s.write => {
                 let end = s.pos + data.len();
                 if s.data.len() < end { s.data.resize(end, 0); }
@@ -161,22 +161,22 @@ pub extern "C" fn wine_output(stream: u64, buf: u64, len: i32) {
 pub fn data_export(e: &mut Engine, dll: &str, name: &str) -> Option<u64> {
     if dll != "msvcrt.dll" { return None; }
     if !["_fmode", "_commode", "__initenv", "_environ", "__argc", "__argv", "_iob", "__mb_cur_max", "_acmdln"].contains(&name) { return None; }
-    if let Some(&a) = e.crt.data.get(name) { return Some(a); }
+    if let Some(&a) = e.s.crt.data.get(name) { return Some(a); }
     let a = if name == "_iob" { e.iob() } else { e.heap_alloc(16, true) };
     if name == "__mb_cur_max" { let _ = e.mmu.write32(a, 1); }
-    if name == "_acmdln" { let c = e.cmdline.0; let _ = e.mmu.write64(a, c); }
-    e.crt.data.insert(name.to_string(), a);
+    if name == "_acmdln" { let c = e.s.cmdline.0; let _ = e.mmu.write64(a, c); }
+    e.s.crt.data.insert(name.to_string(), a);
     Some(a)
 }
 
 /// Runs the next constructor of an _initterm list, or returns to its caller.
 pub fn initterm_next(e: &mut Engine) {
-    let Some((list, sp)) = e.crt.initterm.last_mut() else { e.error = Some("bad _initterm return".into()); return };
+    let Some((list, sp)) = e.s.crt.initterm.last_mut() else { e.set_error("bad _initterm return".into()); return };
     if let Some(f) = list.pop() {
         e.call_guest(f, [0, 0, 0], RET_INITTERM);
     } else {
         let sp = *sp;
-        e.crt.initterm.pop();
+        e.s.crt.initterm.pop();
         e.cpu.regs[4] = sp;
         e.do_ret(0);
     }
@@ -242,8 +242,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         // process
         "exit" | "_exit" | "abort" => {
-            e.exited = true;
-            e.exit_code = if name == "abort" { 3 } else { a0 as u32 };
+            e.s.exited = true;
+            e.s.exit_code = if name == "abort" { 3 } else { a0 as u32 };
             crate::kernel32::NO_RETURN
         }
         "_errno" => { e.iob(); e.cpu.gs_base + 0x68 }
@@ -261,12 +261,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "fflush" => 0,
         "_CxxThrowException" => match e.cxx_throw() {
             Ok(()) => crate::kernel32::NO_RETURN,
-            Err(m) => { e.error = Some(m); crate::kernel32::NO_RETURN }
+            Err(m) => { e.set_error(m); crate::kernel32::NO_RETURN }
         },
         // program startup (mingw and MSVC startup code)
         "__set_app_type" | "__setusermatherr" | "_cexit" | "_lock" | "_unlock" | "_c_exit" | "_setmode" => 0,
         "__getmainargs" => {
-            let cmd = { let c = e.cmdline.0; e.read_cstr(c, 32768) };
+            let cmd = { let c = e.s.cmdline.0; e.read_cstr(c, 32768) };
             let args = split_cmdline(&cmd);
             let argv = e.heap_alloc(8 * (args.len() as u64 + 1), true);
             for (i, a) in args.iter().enumerate() { let s = e.put_str(a, false); let _ = e.mmu.write64(argv + 8 * i as u64, s); }
@@ -275,7 +275,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let _ = e.mmu.write32(a0, args.len() as u32);
             let _ = e.mmu.write64(pargv, argv);
             let _ = e.mmu.write64(penv, env);
-            if let Some(&v) = e.crt.data.get("__initenv") { let _ = e.mmu.write64(v, env); }
+            if let Some(&v) = e.s.crt.data.get("__initenv") { let _ = e.mmu.write64(v, env); }
             0
         }
         "_initterm" => {
@@ -285,56 +285,56 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             while p < end { let f = e.mmu.read64(p).unwrap_or(0); if f != 0 && f != u64::MAX { list.push(f); } p += 8; }
             list.reverse();
             let sp = e.cpu.regs[4];
-            e.crt.initterm.push((list, sp));
+            e.s.crt.initterm.push((list, sp));
             initterm_next(e);
             crate::kernel32::NO_RETURN
         }
         "_onexit" | "__dllonexit" => a0,
-        "_amsg_exit" => { e.exited = true; e.exit_code = 255; crate::kernel32::NO_RETURN }
+        "_amsg_exit" => { e.s.exited = true; e.s.exit_code = 255; crate::kernel32::NO_RETURN }
         "signal" => 0,
         "_isatty" => (a0 <= 2) as u64,
         "_get_osfhandle" => match a0 { 0 => 3, 1 => 1, 2 => 2, _ => u64::MAX },
         "_fileno" => { let iob = e.iob(); if a0 >= iob && a0 < iob + 3 * FILE_SIZE { (a0 - iob) / FILE_SIZE } else { 3 } }
         "___lc_codepage_func" => 0,
         "___mb_cur_max_func" => 1,
-        "strerror" => { if e.crt.strerror == 0 { e.crt.strerror = e.put_str("error", false); } e.crt.strerror }
+        "strerror" => { if e.s.crt.strerror == 0 { e.s.crt.strerror = e.put_str("error", false); } e.s.crt.strerror }
         "atexit" => 0,
         "localeconv" => {
             // a "C" locale lconv: decimal point "."
-            if e.crt.lconv == 0 {
+            if e.s.crt.lconv == 0 {
                 let l = e.heap_alloc(0x60, true);
                 let dot = e.put_str(".", false);
                 let empty = e.put_str("", false);
                 let _ = e.mmu.write64(l, dot);
                 for i in 1..10 { let _ = e.mmu.write64(l + 8 * i, empty); }
-                e.crt.lconv = l;
+                e.s.crt.lconv = l;
             }
-            e.crt.lconv
+            e.s.crt.lconv
         }
         "fopen" => {
             let path = e.read_cstr(a0, 260);
             let mode = { let a1 = e.arg(1); e.read_cstr(a1, 8) };
             let key = crate::pe::norm(&path);
             let write = mode.contains('w') || mode.contains('a');
-            let data = match e.files.get(&key) {
+            let data = match e.s.files.get(&key) {
                 Some(d) if !mode.contains('w') => d.clone(),
                 None if !write => { let _ = e.mmu.write32(e.cpu.gs_base + 0x68, 2); return Some(0); } // ENOENT
                 _ => Vec::new(),
             };
             let f = e.heap_alloc(FILE_SIZE, true);
             let pos = if mode.contains('a') { data.len() } else { 0 };
-            e.crt.streams.insert(f, Stream { data, pos, name: key, write, eof: false });
+            e.s.crt.streams.insert(f, Stream { data, pos, name: key, write, eof: false });
             f
         }
         "fclose" => {
-            match e.crt.streams.remove(&a0) {
-                Some(s) => { if s.write { e.fs.written.insert(s.name.clone()); e.files.insert(s.name, s.data); } e.heap_free(a0); 0 }
+            match e.s.crt.streams.remove(&a0) {
+                Some(s) => { if s.write { e.s.fs.written.insert(s.name.clone()); e.s.files.insert(s.name, s.data); } e.heap_free(a0); 0 }
                 None => u32::MAX as u64,
             }
         }
         "fread" => {
             let (size, count, f) = (e.arg(1), e.arg(2), e.arg(3));
-            let Some(s) = e.crt.streams.get_mut(&f) else { return Some(0) };
+            let Some(s) = e.s.crt.streams.get_mut(&f) else { return Some(0) };
             let want = (size * count) as usize;
             let n = want.min(s.data.len().saturating_sub(s.pos));
             let chunk = s.data[s.pos..s.pos + n].to_vec();
@@ -345,7 +345,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "fgets" => {
             let (n, f) = (e.arg(1) as usize, e.arg(2));
-            let Some(s) = e.crt.streams.get_mut(&f) else { return Some(0) };
+            let Some(s) = e.s.crt.streams.get_mut(&f) else { return Some(0) };
             if s.pos >= s.data.len() || n == 0 { s.eof = true; return Some(0); }
             let mut line = Vec::new();
             while s.pos < s.data.len() && line.len() + 1 < n {
@@ -357,14 +357,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             a0
         }
         "fgetc" | "getc" => {
-            let Some(s) = e.crt.streams.get_mut(&a0) else { return Some(u32::MAX as u64) };
+            let Some(s) = e.s.crt.streams.get_mut(&a0) else { return Some(u32::MAX as u64) };
             if s.pos < s.data.len() { s.pos += 1; s.data[s.pos - 1] as u64 } else { s.eof = true; u32::MAX as u64 }
         }
-        "feof" => e.crt.streams.get(&a0).map(|s| s.eof as u64).unwrap_or(0),
-        "ftell" => e.crt.streams.get(&a0).map(|s| s.pos as u64).unwrap_or(u32::MAX as u64),
+        "feof" => e.s.crt.streams.get(&a0).map(|s| s.eof as u64).unwrap_or(0),
+        "ftell" => e.s.crt.streams.get(&a0).map(|s| s.pos as u64).unwrap_or(u32::MAX as u64),
         "fseek" => {
             let (off, whence) = (e.arg(1) as i32 as i64, e.arg(2));
-            let Some(s) = e.crt.streams.get_mut(&a0) else { return Some(u32::MAX as u64) };
+            let Some(s) = e.s.crt.streams.get_mut(&a0) else { return Some(u32::MAX as u64) };
             let base = match whence { 1 => s.pos as i64, 2 => s.data.len() as i64, _ => 0 };
             s.pos = (base + off).max(0) as usize;
             s.eof = false;

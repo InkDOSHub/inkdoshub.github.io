@@ -16,22 +16,22 @@ impl Engine {
     pub(crate) fn zero(&mut self, a: u64, n: u64) { for i in 0..n { let _ = self.mmu.write8(a + i, 0); } }
 
     fn module_by_handle(&self, h: u64) -> Option<usize> {
-        if h == 0 { return self.modules.iter().position(|m| m.base == self.exe_base); }
-        self.modules.iter().position(|m| m.base == h)
+        if h == 0 { return self.s.modules.iter().position(|m| m.base == self.s.exe_base); }
+        self.s.modules.iter().position(|m| m.base == h)
     }
 
     fn load_library(&mut self, name: &str) -> u64 {
-        let before = self.init_queue.len();
+        let before = self.s.init_queue.len();
         match pe::load_by_name(self, name) {
             Ok(i) => {
-                let h = self.modules[i].base;
-                if self.init_queue.len() > before {
+                let h = self.s.modules[i].base;
+                if self.s.init_queue.len() > before {
                     // run the new DllMain(s), then return h to the caller
-                    let pending: Vec<(u64, u64)> = self.init_queue.drain(before..).collect();
+                    let pending: Vec<(u64, u64)> = self.s.init_queue.drain(before..).collect();
                     let caller_sp = self.cpu.regs[4];
                     // simple case: one new DLL (dependencies' DllMains are skipped for now)
                     let (entry, base) = pending[pending.len() - 1];
-                    self.loadlib.push((h, caller_sp));
+                    self.s.loadlib.push((h, caller_sp));
                     self.call_guest(entry, [base, 1, 0], RET_LOADLIB);
                     return NO_RETURN;
                 }
@@ -56,7 +56,7 @@ impl Engine {
         self.w64(a + 8, 0x10000);
         self.w64(a + 16, 0x7FFF_FFFE_FFFF);
         self.w64(a + 24, 1);
-        self.w32(a + 32, 1); // processors (one core for now)
+        self.w32(a + 32, self.s.cores); // processors: one per engine core
         self.w32(a + 36, 8664);
         self.w32(a + 40, 0x10000);
         let _ = self.mmu.write16(a + 44, 6);
@@ -86,14 +86,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetFileType" => if a0 <= 3 { 2 } else { 0 },
         "FlushFileBuffers" => 1,
         "OutputDebugStringA" => { let s = e.read_cstr(a0, 4096); console(&format!("[debug] {}", s)); 0 }
-        "ExitProcess" => { e.exited = true; e.exit_code = a0 as u32; return Some(NO_RETURN); }
-        "TerminateProcess" => { e.exited = true; e.exit_code = e.arg(1) as u32; return Some(NO_RETURN); }
+        "ExitProcess" => { e.s.exited = true; e.s.exit_code = a0 as u32; return Some(NO_RETURN); }
+        "TerminateProcess" => { e.s.exited = true; e.s.exit_code = e.arg(1) as u32; return Some(NO_RETURN); }
         "GetCurrentProcessId" => 4,
         "GetCurrentThreadId" => 8,
         "GetCurrentProcess" => u64::MAX,
         "GetCurrentThread" => u64::MAX - 1,
-        "GetCommandLineA" => e.cmdline.0,
-        "GetCommandLineW" => e.cmdline.1,
+        "GetCommandLineA" => e.s.cmdline.0,
+        "GetCommandLineW" => e.s.cmdline.1,
         "GetEnvironmentVariableA" | "GetEnvironmentVariableW" => { e.set_last_error(ERROR_ENVVAR_NOT_FOUND); 0 }
         "GetStartupInfoA" | "GetStartupInfoW" => { e.zero(a0, 104); e.w32(a0, 104); 0 }
         "IsDebuggerPresent" => 0,
@@ -101,7 +101,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "SetFileApisToOEM" | "SetFileApisToANSI" => 0,
         "AreFileApisANSI" => 1,
         "GetConsoleScreenBufferInfo" => { e.set_last_error(6); 0 }
-        "GetProcessAffinityMask" => { let (p, s) = (e.arg(1), e.arg(2)); e.w64(p, 1); e.w64(s, 1); 1 }
+        "GetProcessAffinityMask" => { let (p, s) = (e.arg(1), e.arg(2)); let m = (1u64 << e.s.cores) - 1; e.w64(p, m); e.w64(s, m); 1 }
         "SetProcessAffinityMask" | "SetThreadAffinityMask" => 1,
         "GetLargePageMinimum" => 0,
         // user32 text helpers (no windows needed)
@@ -118,14 +118,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
         }
         "GetActiveProcessorGroupCount" | "GetMaximumProcessorGroupCount" => 1,
-        "GetActiveProcessorCount" | "GetMaximumProcessorCount" => 1,
+        "GetActiveProcessorCount" | "GetMaximumProcessorCount" => e.s.cores as u64,
         // advapi32: no security tokens or registry yet; callers handle the failure
         "OpenProcessToken" | "OpenThreadToken" | "LookupPrivilegeValueW" | "LookupPrivilegeValueA" | "AdjustTokenPrivileges" => { e.set_last_error(5); 0 }
         "RegOpenKeyExW" | "RegOpenKeyExA" | "RegQueryValueExW" | "RegQueryValueExA" => 2,
         "RegCloseKey" => 0,
         "GetProcessTimes" | "GetThreadTimes" => { for i in 1..5 { let p = e.arg(i); e.w64(p, 0); } 1 }
         "SetUnhandledExceptionFilter" | "UnhandledExceptionFilter" => 0,
-        "RaiseException" => { e.error = Some(format!("the program raised exception 0x{:x}", a0 as u32)); return Some(NO_RETURN); }
+        "RaiseException" => { e.set_error(format!("the program raised exception 0x{:x}", a0 as u32)); return Some(NO_RETURN); }
         "GetVersion" => (19045 << 16) | 10,
 
         // ---- time ----
@@ -144,12 +144,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetSystemInfo" | "GetNativeSystemInfo" => { e.get_system_info(a0); 0 }
         "GlobalMemoryStatusEx" => {
             // the program sees the memory target, not the real RAM pool
-            let total = e.mmu.target_bytes;
-            let free = total.saturating_sub(e.mmu.committed);
-            e.w32(a0 + 4, (e.mmu.committed * 100 / total.max(1)) as u32);
+            let total = e.mmu.sh.target_bytes;
+            let free = total.saturating_sub(e.mmu.sh.committed);
+            e.w32(a0 + 4, (e.mmu.sh.committed * 100 / total.max(1)) as u32);
             e.w64(a0 + 8, total); e.w64(a0 + 16, free);
             e.w64(a0 + 24, total); e.w64(a0 + 32, free);
-            e.w64(a0 + 40, 0x7FFF_FFFE_0000); e.w64(a0 + 48, 0x7FFF_FFFE_0000 - e.mmu.committed);
+            e.w64(a0 + 40, 0x7FFF_FFFE_0000); e.w64(a0 + 48, 0x7FFF_FFFE_0000 - e.mmu.sh.committed);
             e.w64(a0 + 56, 0);
             1
         }
@@ -159,12 +159,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
 
         // ---- TLS / FLS (64 slots in the TEB) ----
         "TlsAlloc" | "FlsAlloc" => {
-            match (0..64).find(|i| e.tls_used & (1 << i) == 0) {
-                Some(i) => { e.tls_used |= 1 << i; let _ = e.mmu.write64(e.cpu.gs_base + 0x1480 + 8 * i, 0); i }
+            match (0..64).find(|i| e.s.tls_used & (1 << i) == 0) {
+                Some(i) => { e.s.tls_used |= 1 << i; let _ = e.mmu.write64(e.cpu.gs_base + 0x1480 + 8 * i, 0); i }
                 None => 0xFFFF_FFFF,
             }
         }
-        "TlsFree" | "FlsFree" => { if a0 < 64 { e.tls_used &= !(1 << a0); } 1 }
+        "TlsFree" | "FlsFree" => { if a0 < 64 { e.s.tls_used &= !(1 << a0); } 1 }
         "TlsGetValue" | "FlsGetValue" => { e.set_last_error(0); if a0 < 64 { e.mmu.read64(e.cpu.gs_base + 0x1480 + 8 * a0).unwrap_or(0) } else { 0 } }
         "TlsSetValue" | "FlsSetValue" => { let v = e.arg(1); if a0 < 64 { let _ = e.mmu.write64(e.cpu.gs_base + 0x1480 + 8 * a0, v); 1 } else { 0 } }
 
@@ -217,14 +217,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
 
         // ---- modules ----
         "GetModuleHandleA" | "GetModuleHandleW" => {
-            if a0 == 0 { e.exe_base } else {
+            if a0 == 0 { e.s.exe_base } else {
                 let n = if name.ends_with('W') { e.read_wstr(a0, 260) } else { e.read_cstr(a0, 260) };
-                match pe::find_module(e, &n) { Some(i) => e.modules[i].base, None => { e.set_last_error(126); 0 } }
+                match pe::find_module(e, &n) { Some(i) => e.s.modules[i].base, None => { e.set_last_error(126); 0 } }
             }
         }
         "GetModuleFileNameA" | "GetModuleFileNameW" => {
             let (buf, n) = (e.arg(1), e.arg(2));
-            let path = match e.module_by_handle(a0) { Some(i) => format!("C:\\InkSoC\\{}", e.modules[i].name), None => { e.set_last_error(126); return Some(0); } };
+            let path = match e.module_by_handle(a0) { Some(i) => format!("C:\\InkSoC\\{}", e.s.modules[i].name), None => { e.set_last_error(126); return Some(0); } };
             let k = (path.len() as u64).min(n.saturating_sub(1));
             if name.ends_with('W') {
                 for (i, c) in path.encode_utf16().take(k as usize).enumerate() { let _ = e.mmu.write16(buf + 2 * i as u64, c); }

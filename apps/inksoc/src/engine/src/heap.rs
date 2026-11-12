@@ -23,48 +23,48 @@ impl Engine {
     pub fn heap_alloc(&mut self, size: u64, zero: bool) -> u64 {
         if size > MAX_SMALL {
             let Some(a) = self.alloc(size) else { return 0 };
-            self.heap.large.insert(a, size);
-            self.heap.sizes.insert(a, size);
+            self.s.heap.large.insert(a, size);
+            self.s.heap.sizes.insert(a, size);
             return a;
         }
         let c = class(size);
         let csize = 16u64 << c;
-        if self.heap.free.len() <= c { self.heap.free.resize(c + 1, Vec::new()); }
-        let a = if let Some(a) = self.heap.free[c].pop() {
+        if self.s.heap.free.len() <= c { self.s.heap.free.resize(c + 1, Vec::new()); }
+        let a = if let Some(a) = self.s.heap.free[c].pop() {
             if zero { for i in (0..csize).step_by(8) { let _ = self.mmu.write64(a + i, 0); } }
             a
         } else {
-            if self.heap.bump + csize > self.heap.bump_end {
+            if self.s.heap.bump + csize > self.s.heap.bump_end {
                 let Some(r) = self.alloc(ARENA) else { return 0 };
-                self.heap.bump = r;
-                self.heap.bump_end = r + ARENA;
+                self.s.heap.bump = r;
+                self.s.heap.bump_end = r + ARENA;
             }
-            let a = self.heap.bump;
-            self.heap.bump += csize;
+            let a = self.s.heap.bump;
+            self.s.heap.bump += csize;
             a // fresh arena memory is already zero
         };
-        self.heap.sizes.insert(a, size);
+        self.s.heap.sizes.insert(a, size);
         a
     }
 
     pub fn heap_free(&mut self, a: u64) -> bool {
-        let Some(size) = self.heap.sizes.remove(&a) else { return false };
-        if self.heap.large.remove(&a).is_some() {
+        let Some(size) = self.s.heap.sizes.remove(&a) else { return false };
+        if self.s.heap.large.remove(&a).is_some() {
             self.mmu.release_region(a);
         } else {
-            self.heap.free[class(size)].push(a);
+            self.s.heap.free[class(size)].push(a);
         }
         true
     }
 
-    pub fn heap_size(&self, a: u64) -> u64 { self.heap.sizes.get(&a).copied().unwrap_or(u64::MAX) }
+    pub fn heap_size(&self, a: u64) -> u64 { self.s.heap.sizes.get(&a).copied().unwrap_or(u64::MAX) }
 
     pub fn heap_realloc(&mut self, a: u64, size: u64, zero: bool) -> u64 {
         let old = self.heap_size(a);
         if old == u64::MAX { return 0; }
         if size <= MAX_SMALL && old <= MAX_SMALL && class(size) == class(old) {
             if zero && size > old { for i in old..size { let _ = self.mmu.write8(a + i, 0); } }
-            self.heap.sizes.insert(a, size);
+            self.s.heap.sizes.insert(a, size);
             return a;
         }
         let n = self.heap_alloc(size, zero);

@@ -31,7 +31,7 @@ impl Engine {
     fn r64(&mut self, a: u64) -> u64 { self.mmu.read64(a).unwrap_or(0) }
 
     fn image_of(&self, ip: u64) -> Option<u64> {
-        self.modules.iter().find(|m| !m.native && ip >= m.base && ip < m.base + m.size).map(|m| m.base)
+        self.s.modules.iter().find(|m| !m.native && ip >= m.base && ip < m.base + m.size).map(|m| m.base)
     }
 
     /// RUNTIME_FUNCTION covering `ip` in the image at `base`.
