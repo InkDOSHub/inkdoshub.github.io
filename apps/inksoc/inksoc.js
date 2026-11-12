@@ -12,7 +12,7 @@ const fmt = (n) => Math.round(n).toLocaleString('en-US');
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=4');
+  const w = new Worker('worker.js?v=5');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
@@ -39,7 +39,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=4');
+  const w = new Worker('worker.js?v=5');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -146,7 +146,7 @@ function showLimits() {
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=4');
+  const w = new Worker('worker.js?v=5');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -229,11 +229,11 @@ $('combo').onclick = async () => {
   const log = (t) => { out.textContent += t + '\n'; };
   out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
 
-  const holder = new Worker('worker.js?v=4');
+  const holder = new Worker('worker.js?v=5');
   await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
   log(`RAM: ${ram} MB reserved and filled.`);
 
-  const io = new Worker('worker.js?v=4');
+  const io = new Worker('worker.js?v=5');
   log(`Writing ${texMb} MB of textures to OPFS...`);
   const initMs = await new Promise((r) => { io.onmessage = (e) => r(e.data.ms || 0); io.postMessage({ type: 'tex-init', count, size: BYTES }); });
   log(`Texture file ready in ${fmt(initMs)} ms.`);
@@ -242,17 +242,21 @@ $('combo').onclick = async () => {
   const astc = adapter.features.has('texture-compression-astc');
   const dev = await adapter.requestDevice({ requiredFeatures: astc ? ['texture-compression-astc'] : [] });
   let gpuErr = '';
-  dev.onuncapturederror = (e) => { gpuErr = e.error.message; };
+  dev.onuncapturederror = (e) => { gpuErr = e.error.message; log('GPU error: ' + gpuErr); };
+  dev.lost.then((i) => log('GPU device lost: ' + (i.reason || '') + ' ' + (i.message || '')));
+  const waitGpu = (what) => Promise.race([dev.queue.onSubmittedWorkDone(), new Promise((r) => setTimeout(() => { log('(GPU did not answer in 10 s after: ' + what + ')'); r(); }, 10000))]);
   if (astc) {
     // ASTC 4x4 = 16 bytes per 4x4 block (1 byte/pixel), 8x8 = 16 bytes per 8x8 block (0.25 byte/pixel)
     for (const [fmtName, blk] of [['astc-4x4-unorm', 4], ['astc-8x8-unorm', 8]]) {
       const t = dev.createTexture({ size: [SIZE, SIZE], format: fmtName, usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
       dev.queue.writeTexture({ texture: t }, new Uint8Array((SIZE / blk) * (SIZE / blk) * 16), { bytesPerRow: (SIZE / blk) * 16 }, [SIZE, SIZE]);
+      await waitGpu(fmtName);
       t.destroy();
     }
     log(`ASTC: yes. Same pool holds ${gpu / 4 * 4} textures in ASTC 4x4 or ${gpu / 4 * 16} in ASTC 8x8 (vs ${gpu / 4} RGBA).`);
   } else log('ASTC: not offered by this GPU/browser.');
 
+  log('Creating the GPU pool...');
   const ctx = $('combo-cv').getContext('webgpu');
   const format = navigator.gpu.getPreferredCanvasFormat();
   ctx.configure({ device: dev, format });
@@ -276,10 +280,11 @@ $('combo').onclick = async () => {
   const nSlots = gpu / 4;
   const slots = [];
   for (let i = 0; i < nSlots; i++) {
+    if (i % 16 === 0) { $('combo-live').textContent = `GPU pool: ${i}/${nSlots}`; await waitGpu('texture ' + i); }
     const tx = dev.createTexture({ size: [SIZE, SIZE], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
     slots.push({ tx, bg: bgFor(tx), id: -1, used: -1 });
   }
-  await dev.queue.onSubmittedWorkDone();
+  await waitGpu('pool');
   log(`GPU pool: ${nSlots} textures (${gpu} MB) created.${gpuErr ? ' Error: ' + gpuErr : ''}`);
 
   const where = new Map(); // texture id -> slot index
