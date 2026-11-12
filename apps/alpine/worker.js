@@ -1,11 +1,11 @@
 /* Alpine Linux terminal: the engine (engine.wasm, a fixed copy of InkSoC kept for this app)
    runs Alpine's programs; this worker feeds it keys, saves the files in OPFS and carries
-   the sockets over a wisp tunnel (our server or a public one). */
+   the sockets over a public wisp tunnel. */
 'use strict';
-const NETS = { hub: 'wss://hub.inkdos.workers.dev/net/wisp/', wisp: 'wss://wisp.mercurywork.shop/v86/', off: null };
+const NETS = { wisp: 'wss://wisp.mercurywork.shop/v86/', off: null };
 const SAVE = 'alpine-fs.tar';
 const out = (t) => postMessage({ type: 'out', text: t });
-let x, mem, lx = null, keys = [], net = 'hub';
+let x, mem, lx = null, keys = [], net = 'wisp';
 const enc = new TextEncoder(), dec = new TextDecoder();
 const put = (b) => { const p = x.buffer(b.length); new Uint8Array(mem.buffer, p, b.length).set(b); };
 
@@ -88,7 +88,7 @@ async function run({ rows, cols, network }) {
   const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(u + ': ' + r.status); return r; });
   const [wasm, busybox, overlay, saved] = await Promise.all([
     get('engine.wasm?v=2').then((r) => r.arrayBuffer()), get('busybox?v=1').then((r) => r.arrayBuffer()),
-    get('overlay.tar?v=2').then((r) => r.arrayBuffer()), loadSaved()]);
+    get('overlay.tar?v=3').then((r) => r.arrayBuffer()), loadSaved()]);
   let rootfs = saved;
   if (!rootfs) {
     out('\x1b[2mDownloading Alpine Linux 3.21 (3.5 MB)…\x1b[0m\r\n');

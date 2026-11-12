@@ -31,8 +31,8 @@
 </style>
 </head>
 <body>
-<header><a href="../../">&lt; InkDOS Hub</a><b>Alpine Linux</b><button id="net" title="How Linux reaches the internet (tap to switch)">Hub</button><button id="up" title="Send a file to your home folder">⇡</button><button id="down" title="Download a file">⇣</button><button id="i" title="About">i</button><button id="menu" title="Menu">☰</button></header>
-<div id="info">Alpine Linux 3.21 (x86-64) on InkSoC, our own engine: it plays the part of the Linux kernel, like WSL 1, and runs Alpine's real programs. The first start creates your user and password. Your files are kept in this browser between visits. Type <code>help</code> for the guide. Network (top button): <b>Hub</b> = our server, <b>wisp</b> = a public server, <b>off</b> = none. ⇡ sends files to your home folder, ⇣ downloads one. BusyBox is GPL-2.0 (busybox.net); Alpine's packages keep their own licenses (alpinelinux.org).</div>
+<header><a href="../../">&lt; InkDOS Hub</a><b>Alpine Linux</b><button id="net" title="How Linux reaches the internet (tap to switch)">wisp</button><button id="up" title="Send a file to your home folder">⇡</button><button id="down" title="Download a file">⇣</button><button id="i" title="About">i</button><button id="menu" title="Menu">☰</button></header>
+<div id="info">Alpine Linux 3.21 (x86-64) on InkSoC, our own engine: it plays the part of the Linux kernel, like WSL 1, and runs Alpine's real programs. The first start creates your user and password. Your files are kept in this browser between visits. Type <code>help</code> for the guide. Network (top button): <b>wisp</b> = a public wisp server (the one used by v86 Linux terminals), or none. ⇡ sends files to your home folder, ⇣ downloads one. BusyBox is GPL-2.0 (busybox.net); Alpine's packages keep their own licenses (alpinelinux.org).</div>
 <div id="menubox"><button id="save">Save files now</button><button id="reset">Reset Linux (erase everything)</button></div>
 <div id="box"><div id="term"></div></div>
 <div id="keys">
@@ -43,6 +43,6 @@
 </div>
 <input type="file" id="file" multiple hidden>
 <script src="vendor/xterm.js?v=1"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
