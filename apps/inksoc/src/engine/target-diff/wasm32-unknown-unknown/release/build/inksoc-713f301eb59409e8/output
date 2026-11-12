@@ -1,5 +1,0 @@
-cargo:rustc-link-arg=/home/user/Inkterminal.github.io/apps/inksoc/src/engine/target-diff/wasm32-unknown-unknown/release/build/inksoc-713f301eb59409e8/out/wine.o
-cargo:rustc-link-arg=--global-base=4194304
-cargo:rustc-link-arg=--export-table
-cargo:rustc-link-arg=--growable-table
-cargo:rerun-if-changed=wine/ntdll_proof.c

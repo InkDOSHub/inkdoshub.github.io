@@ -1,3 +1,4 @@
 src/engine/target/
 src/wine/.cache/
 src/engine/target-mt/
+src/engine/target-diff/
