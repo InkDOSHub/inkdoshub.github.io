@@ -156,6 +156,26 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 _ => { e.set_err(2); 0xFFFF_FFFF }
             }
         }
+        "GetFileAttributesExW" | "GetFileAttributesExA" => {
+            // WIN32_FILE_ATTRIBUTE_DATA: attributes, 3 file times, size high/low
+            let p = e.path_arg(0, name.ends_with("ExW"));
+            let out = e.arg(2);
+            let found = match key_of(&p) {
+                None => Some((ATTR_DIR, 0u64)),
+                Some(k) => e.s.files.get(&k).or_else(|| e.s.files.get(&pe::norm(&k))).map(|d| (ATTR_NORMAL, d.len() as u64)),
+            };
+            match found {
+                Some((attr, size)) => {
+                    let ft = file_time_now();
+                    let _ = e.mmu.write32(out, attr);
+                    for o in [4, 12, 20] { let _ = e.mmu.write64(out + o, ft); }
+                    let _ = e.mmu.write32(out + 28, (size >> 32) as u32);
+                    let _ = e.mmu.write32(out + 32, size as u32);
+                    1
+                }
+                None => { e.set_err(2); 0 }
+            }
+        }
         "SetFileAttributesW" | "SetFileTime" | "SetFileAttributesA" => 1,
         "FindFirstFileW" | "FindFirstFileExW" => {
             let p = e.path_arg(0, true);

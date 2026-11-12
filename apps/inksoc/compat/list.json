@@ -1,0 +1,562 @@
+[
+ {
+  "id": "7za",
+  "name": "7-Zip 23.01",
+  "lang": "C++",
+  "url": "https://www.7-zip.org/a/7z2301-extra.7z",
+  "pkg": "7za",
+  "exe": "7za.exe",
+  "args": "a out.7z in.txt",
+  "expect": "Everything is Ok"
+ },
+ {
+  "id": "jq",
+  "name": "jq 1.7.1",
+  "lang": "C",
+  "url": "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-windows-amd64.exe",
+  "pkg": "jq",
+  "exe": "jq.exe",
+  "args": "\".a | add\" in.json",
+  "expect": "6"
+ },
+ {
+  "id": "ripgrep",
+  "name": "ripgrep 14.1.1 (MSVC)",
+  "lang": "Rust",
+  "url": "https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-pc-windows-msvc.zip",
+  "pkg": "ripgrep",
+  "exe": "ripgrep-14.1.1-x86_64-pc-windows-msvc/rg.exe",
+  "args": "-n hello in.txt",
+  "expect": "hello again"
+ },
+ {
+  "id": "ripgrep-gnu",
+  "name": "ripgrep 14.1.1 (GNU)",
+  "lang": "Rust",
+  "url": "https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-pc-windows-gnu.zip",
+  "pkg": "ripgrep-gnu",
+  "exe": "ripgrep-14.1.1-x86_64-pc-windows-gnu/rg.exe",
+  "args": "-n hello in.txt",
+  "expect": "hello again"
+ },
+ {
+  "id": "fd",
+  "name": "fd 10.2.0",
+  "lang": "Rust",
+  "url": "https://github.com/sharkdp/fd/releases/download/v10.2.0/fd-v10.2.0-x86_64-pc-windows-msvc.zip",
+  "pkg": "fd",
+  "exe": "fd-v10.2.0-x86_64-pc-windows-msvc/fd.exe",
+  "args": "--version",
+  "expect": "fd 10.2.0"
+ },
+ {
+  "id": "bat",
+  "name": "bat 0.24.0",
+  "lang": "Rust",
+  "url": "https://github.com/sharkdp/bat/releases/download/v0.24.0/bat-v0.24.0-x86_64-pc-windows-msvc.zip",
+  "pkg": "bat",
+  "exe": "bat-v0.24.0-x86_64-pc-windows-msvc/bat.exe",
+  "args": "--plain --color never in.txt",
+  "expect": "mango"
+ },
+ {
+  "id": "hyperfine",
+  "name": "hyperfine 1.19.0",
+  "lang": "Rust",
+  "url": "https://github.com/sharkdp/hyperfine/releases/download/v1.19.0/hyperfine-v1.19.0-x86_64-pc-windows-msvc.zip",
+  "pkg": "hyperfine",
+  "exe": "hyperfine-v1.19.0-x86_64-pc-windows-msvc/hyperfine.exe",
+  "args": "--version",
+  "expect": "hyperfine 1.19.0"
+ },
+ {
+  "id": "hexyl",
+  "name": "hexyl 0.16.0",
+  "lang": "Rust",
+  "url": "https://github.com/sharkdp/hexyl/releases/download/v0.16.0/hexyl-v0.16.0-x86_64-pc-windows-msvc.zip",
+  "pkg": "hexyl",
+  "exe": "hexyl-v0.16.0-x86_64-pc-windows-msvc/hexyl.exe",
+  "args": "--color never in.txt",
+  "expect": "68 65 6c 6c"
+ },
+ {
+  "id": "zstd",
+  "name": "zstd 1.5.6",
+  "lang": "C",
+  "url": "https://github.com/facebook/zstd/releases/download/v1.5.6/zstd-v1.5.6-win64.zip",
+  "pkg": "zstd",
+  "exe": "zstd-v1.5.6-win64/zstd.exe",
+  "args": "-f in.txt -o in.zst",
+  "expect": "in.zst"
+ },
+ {
+  "id": "lz4",
+  "name": "LZ4 1.10.0",
+  "lang": "C",
+  "url": "https://github.com/lz4/lz4/releases/download/v1.10.0/lz4_win64_v1_10_0.zip",
+  "pkg": "lz4",
+  "exe": "lz4.exe",
+  "args": "-f in.txt in.lz4",
+  "expect": "in.lz4"
+ },
+ {
+  "id": "brotli",
+  "name": "Brotli 1.1.0",
+  "lang": "C",
+  "url": "https://github.com/google/brotli/releases/download/v1.1.0/brotli-x64-windows-static.zip",
+  "pkg": "brotli",
+  "exe": "brotli.exe",
+  "args": "-f -o in.br in.txt",
+  "expect": "in.br"
+ },
+ {
+  "id": "upx",
+  "name": "UPX 4.2.4",
+  "lang": "C++",
+  "url": "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-win64.zip",
+  "pkg": "upx",
+  "exe": "upx-4.2.4-win64/upx.exe",
+  "args": "--version",
+  "expect": "upx 4.2.4"
+ },
+ {
+  "id": "ninja",
+  "name": "Ninja 1.12.1",
+  "lang": "C++",
+  "url": "https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-win.zip",
+  "pkg": "ninja",
+  "exe": "ninja.exe",
+  "args": "--version",
+  "expect": "1.12.1"
+ },
+ {
+  "id": "yq",
+  "name": "yq 4.44.3",
+  "lang": "Go",
+  "url": "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_windows_amd64.exe",
+  "pkg": "yq",
+  "exe": "yq.exe",
+  "args": ".b in.json",
+  "expect": "x"
+ },
+ {
+  "id": "fzf",
+  "name": "fzf 0.56.3",
+  "lang": "Go",
+  "url": "https://github.com/junegunn/fzf/releases/download/v0.56.3/fzf-0.56.3-windows_amd64.zip",
+  "pkg": "fzf",
+  "exe": "fzf.exe",
+  "args": "--version",
+  "expect": "0.56.3"
+ },
+ {
+  "id": "coreutils",
+  "name": "uutils coreutils 0.0.28",
+  "lang": "Rust",
+  "url": "https://github.com/uutils/coreutils/releases/download/0.0.28/coreutils-0.0.28-x86_64-pc-windows-msvc.zip",
+  "pkg": "coreutils",
+  "exe": "coreutils-0.0.28-x86_64-pc-windows-msvc/coreutils.exe",
+  "args": "sort in.txt",
+  "expect": "apple"
+ },
+ {
+  "id": "tokei",
+  "name": "tokei 12.1.2",
+  "lang": "Rust",
+  "url": "https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-pc-windows-msvc.exe",
+  "pkg": "tokei",
+  "exe": "tokei.exe",
+  "args": "in.c",
+  "expect": " C "
+ },
+ {
+  "id": "sd",
+  "name": "sd 1.0.0",
+  "lang": "Rust",
+  "url": "https://github.com/chmln/sd/releases/download/v1.0.0/sd-v1.0.0-x86_64-pc-windows-msvc.zip",
+  "pkg": "sd",
+  "exe": "sd-v1.0.0-x86_64-pc-windows-msvc/sd.exe",
+  "args": "-p hello bye in.txt",
+  "expect": "bye"
+ },
+ {
+  "id": "dust",
+  "name": "dust 1.1.1",
+  "lang": "Rust",
+  "url": "https://github.com/bootandy/dust/releases/download/v1.1.1/dust-v1.1.1-x86_64-pc-windows-msvc.zip",
+  "pkg": "dust",
+  "exe": "dust-v1.1.1-x86_64-pc-windows-msvc/dust.exe",
+  "args": "--version",
+  "expect": "Dust 1.1.1"
+ },
+ {
+  "id": "delta",
+  "name": "delta 0.18.2",
+  "lang": "Rust",
+  "url": "https://github.com/dandavison/delta/releases/download/0.18.2/delta-0.18.2-x86_64-pc-windows-msvc.zip",
+  "pkg": "delta",
+  "exe": "delta-0.18.2-x86_64-pc-windows-msvc/delta.exe",
+  "args": "--version",
+  "expect": "delta 0.18.2"
+ },
+ {
+  "id": "oxipng",
+  "name": "oxipng 9.1.2",
+  "lang": "Rust",
+  "url": "https://github.com/shssoichiro/oxipng/releases/download/v9.1.2/oxipng-9.1.2-x86_64-pc-windows-msvc.zip",
+  "pkg": "oxipng",
+  "exe": "oxipng-9.1.2-x86_64-pc-windows-msvc/oxipng.exe",
+  "args": "-o 1 --out out.png in.png",
+  "expect": "out.png"
+ },
+ {
+  "id": "age",
+  "name": "age 1.2.0",
+  "lang": "Go",
+  "url": "https://github.com/FiloSottile/age/releases/download/v1.2.0/age-v1.2.0-windows-amd64.zip",
+  "pkg": "age",
+  "exe": "age/age.exe",
+  "args": "--version",
+  "expect": "v1.2.0"
+ },
+ {
+  "id": "rclone",
+  "name": "rclone 1.68.2",
+  "lang": "Go",
+  "url": "https://downloads.rclone.org/v1.68.2/rclone-v1.68.2-windows-amd64.zip",
+  "pkg": "rclone",
+  "exe": "rclone-v1.68.2-windows-amd64/rclone.exe",
+  "args": "version",
+  "expect": "rclone v1.68.2"
+ },
+ {
+  "id": "hugo",
+  "name": "Hugo 0.139.3",
+  "lang": "Go",
+  "url": "https://github.com/gohugoio/hugo/releases/download/v0.139.3/hugo_0.139.3_windows-amd64.zip",
+  "pkg": "hugo",
+  "exe": "hugo.exe",
+  "args": "version",
+  "expect": "hugo v0.139.3"
+ },
+ {
+  "id": "gh",
+  "name": "GitHub CLI 2.62.0",
+  "lang": "Go",
+  "url": "https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_windows_amd64.zip",
+  "pkg": "gh",
+  "exe": "bin/gh.exe",
+  "args": "--version",
+  "expect": "gh version 2.62.0"
+ },
+ {
+  "id": "restic",
+  "name": "restic 0.17.3",
+  "lang": "Go",
+  "url": "https://github.com/restic/restic/releases/download/v0.17.3/restic_0.17.3_windows_amd64.zip",
+  "pkg": "restic",
+  "exe": "restic_0.17.3_windows_amd64.exe",
+  "args": "version",
+  "expect": "restic 0.17.3"
+ },
+ {
+  "id": "shellcheck",
+  "name": "ShellCheck 0.10.0",
+  "lang": "Haskell",
+  "url": "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.zip",
+  "pkg": "shellcheck",
+  "exe": "shellcheck.exe",
+  "args": "--version",
+  "expect": "0.10.0"
+ },
+ {
+  "id": "pandoc",
+  "name": "pandoc 3.5",
+  "lang": "Haskell",
+  "url": "https://github.com/jgm/pandoc/releases/download/3.5/pandoc-3.5-windows-x86_64.zip",
+  "pkg": "pandoc",
+  "exe": "pandoc-3.5/pandoc.exe",
+  "args": "--version",
+  "expect": "pandoc 3.5"
+ },
+ {
+  "id": "qpdf",
+  "name": "qpdf 11.9.1",
+  "lang": "C++",
+  "url": "https://github.com/qpdf/qpdf/releases/download/v11.9.1/qpdf-11.9.1-mingw64.zip",
+  "pkg": "qpdf",
+  "exe": "qpdf-11.9.1-mingw64/bin/qpdf.exe",
+  "args": "--version",
+  "expect": "qpdf version 11.9.1"
+ },
+ {
+  "id": "sqlite",
+  "name": "SQLite 3.47.1",
+  "lang": "C",
+  "url": "https://www.sqlite.org/2024/sqlite-tools-win-x64-3470100.zip",
+  "pkg": "sqlite",
+  "exe": "sqlite3.exe",
+  "args": ":memory: \"select 6*7;\"",
+  "expect": "42"
+ },
+ {
+  "id": "python",
+  "name": "Python 3.12.7 (embeddable)",
+  "lang": "C",
+  "url": "https://www.python.org/ftp/python/3.12.7/python-3.12.7-embed-amd64.zip",
+  "pkg": "python",
+  "exe": "python.exe",
+  "args": "-c \"print(6*7)\"",
+  "expect": "42"
+ },
+ {
+  "id": "ffmpeg",
+  "name": "FFmpeg (essentials)",
+  "lang": "C",
+  "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+  "pkg": "ffmpeg",
+  "exe": "ffmpeg-9.0.2-essentials_build/bin/ffmpeg.exe",
+  "args": "-version",
+  "expect": "ffmpeg version"
+ },
+ {
+  "id": "nasm",
+  "name": "NASM 2.16.03",
+  "lang": "C",
+  "url": "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip",
+  "pkg": "nasm",
+  "exe": "nasm-2.16.03/nasm.exe",
+  "args": "-v",
+  "expect": "NASM version 2.16.03"
+ },
+ {
+  "id": "tcc",
+  "name": "Tiny C Compiler 0.9.27",
+  "lang": "C",
+  "url": "https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27-win64-bin.zip",
+  "pkg": "tcc",
+  "exe": "tcc/tcc.exe",
+  "args": "-v",
+  "expect": "tcc version 0.9.27"
+ },
+ {
+  "id": "node",
+  "name": "Node.js 22.11.0",
+  "lang": "C++",
+  "url": "https://nodejs.org/dist/v22.11.0/win-x64/node.exe",
+  "pkg": "node",
+  "exe": "node.exe",
+  "args": "-e \"console.log(6*7)\"",
+  "expect": "42"
+ },
+ {
+  "id": "deno",
+  "name": "Deno 2.1.1",
+  "lang": "Rust",
+  "url": "https://github.com/denoland/deno/releases/download/v2.1.1/deno-x86_64-pc-windows-msvc.zip",
+  "pkg": "deno",
+  "exe": "deno.exe",
+  "args": "--version",
+  "expect": "deno 2.1.1"
+ },
+ {
+  "id": "cwebp",
+  "name": "libwebp cwebp 1.4.0",
+  "lang": "C",
+  "url": "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.4.0-windows-x64.zip",
+  "pkg": "webp",
+  "exe": "libwebp-1.4.0-windows-x64/bin/cwebp.exe",
+  "args": "-version",
+  "expect": "1.4.0"
+ },
+ {
+  "id": "git",
+  "name": "Git 2.47.1 (MinGit)",
+  "lang": "C",
+  "url": "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip",
+  "pkg": "mingit",
+  "exe": "mingw64/bin/git.exe",
+  "args": "--version",
+  "expect": "git version 2.47.1"
+ },
+ {
+  "id": "cmake",
+  "name": "CMake 3.31.0",
+  "lang": "C++",
+  "url": "https://github.com/Kitware/CMake/releases/download/v3.31.0/cmake-3.31.0-windows-x86_64.zip",
+  "pkg": "cmake",
+  "exe": "cmake-3.31.0-windows-x86_64/bin/cmake.exe",
+  "args": "--version",
+  "expect": "cmake version 3.31.0"
+ },
+ {
+  "id": "tidy",
+  "name": "HTML Tidy 5.8.0",
+  "lang": "C",
+  "url": "https://github.com/htacg/tidy-html5/releases/download/5.8.0/tidy-5.8.0-win64.zip",
+  "pkg": "tidy",
+  "exe": "tidy-5.8.0-win64/bin/tidy.exe",
+  "args": "-v",
+  "expect": "5.8.0"
+ },
+ {
+  "id": "dos2unix",
+  "name": "dos2unix 7.5.2",
+  "lang": "C",
+  "url": "https://sourceforge.net/projects/dos2unix/files/dos2unix/7.5.2/dos2unix-7.5.2-win64.zip/download",
+  "pkg": "dos2unix",
+  "exe": "bin/dos2unix.exe",
+  "args": "--version",
+  "expect": "7.5.2"
+ },
+ {
+  "id": "ytdlp",
+  "name": "yt-dlp 2024.11.18",
+  "lang": "Python",
+  "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2024.11.18/yt-dlp.exe",
+  "pkg": "ytdlp",
+  "exe": "ytdlp.exe",
+  "args": "--version",
+  "expect": "2024.11.18"
+ },
+ {
+  "id": "micro",
+  "name": "micro 2.0.14",
+  "lang": "Go",
+  "url": "https://github.com/zyedidia/micro/releases/download/v2.0.14/micro-2.0.14-win64.zip",
+  "pkg": "micro",
+  "exe": "micro-2.0.14/micro.exe",
+  "args": "-version",
+  "expect": "2.0.14"
+ },
+ {
+  "id": "gron",
+  "name": "gron 0.7.1",
+  "lang": "Go",
+  "url": "https://github.com/tomnomnom/gron/releases/download/v0.7.1/gron-windows-amd64-0.7.1.zip",
+  "pkg": "gron",
+  "exe": "gron.exe",
+  "args": "in.json",
+  "expect": "json.a"
+ },
+ {
+  "id": "duckdb",
+  "name": "DuckDB 1.1.3",
+  "lang": "C++",
+  "url": "https://github.com/duckdb/duckdb/releases/download/v1.1.3/duckdb_cli-windows-amd64.zip",
+  "pkg": "duckdb",
+  "exe": "duckdb.exe",
+  "args": "-c \"select 6*7\"",
+  "expect": "42"
+ },
+ {
+  "id": "starship",
+  "name": "Starship 1.21.1",
+  "lang": "Rust",
+  "url": "https://github.com/starship/starship/releases/download/v1.21.1/starship-x86_64-pc-windows-msvc.zip",
+  "pkg": "starship",
+  "exe": "starship.exe",
+  "args": "--version",
+  "expect": "starship 1.21.1"
+ },
+ {
+  "id": "zoxide",
+  "name": "zoxide 0.9.6",
+  "lang": "Rust",
+  "url": "https://github.com/ajeetdsouza/zoxide/releases/download/v0.9.6/zoxide-0.9.6-x86_64-pc-windows-msvc.zip",
+  "pkg": "zoxide",
+  "exe": "zoxide.exe",
+  "args": "--version",
+  "expect": "zoxide 0.9.6"
+ },
+ {
+  "id": "lazygit",
+  "name": "lazygit 0.44.1",
+  "lang": "Go",
+  "url": "https://github.com/jesseduffield/lazygit/releases/download/v0.44.1/lazygit_0.44.1_Windows_x86_64.zip",
+  "pkg": "lazygit",
+  "exe": "lazygit.exe",
+  "args": "--version",
+  "expect": "0.44.1"
+ },
+ {
+  "id": "php",
+  "name": "PHP 8.3.13",
+  "lang": "C",
+  "url": "https://windows.php.net/downloads/releases/archives/php-8.3.13-nts-Win32-vs16-x64.zip",
+  "pkg": "php",
+  "exe": "php.exe",
+  "args": "-r \"echo 6*7;\"",
+  "expect": "42"
+ },
+ {
+  "id": "qjs",
+  "name": "QuickJS 2024-01-13",
+  "lang": "C",
+  "url": "https://bellard.org/quickjs/binary_releases/quickjs-win-x86_64-2024-01-13.zip",
+  "pkg": "qjs",
+  "exe": "qjs.exe",
+  "args": "-e \"console.log(6*7)\"",
+  "expect": "42"
+ },
+ {
+  "id": "just",
+  "name": "just 1.37.0",
+  "lang": "Rust",
+  "url": "https://github.com/casey/just/releases/download/1.37.0/just-1.37.0-x86_64-pc-windows-msvc.zip",
+  "pkg": "just",
+  "exe": "just.exe",
+  "args": "--version",
+  "expect": "just 1.37.0"
+ },
+ {
+  "id": "xh",
+  "name": "xh 0.23.0",
+  "lang": "Rust",
+  "url": "https://github.com/ducaale/xh/releases/download/v0.23.0/xh-v0.23.0-x86_64-pc-windows-msvc.zip",
+  "pkg": "xh",
+  "exe": "xh-v0.23.0-x86_64-pc-windows-msvc/xh.exe",
+  "args": "--version",
+  "expect": "xh 0.23.0"
+ },
+ {
+  "id": "glow",
+  "name": "Glow 2.0.0",
+  "lang": "Go",
+  "url": "https://github.com/charmbracelet/glow/releases/download/v2.0.0/glow_2.0.0_Windows_x86_64.zip",
+  "pkg": "glow",
+  "exe": "glow_2.0.0_Windows_x86_64/glow.exe",
+  "args": "--version",
+  "expect": "2.0.0"
+ },
+ {
+  "id": "mkcert",
+  "name": "mkcert 1.4.4",
+  "lang": "Go",
+  "url": "https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-windows-amd64.exe",
+  "pkg": "mkcert",
+  "exe": "mkcert.exe",
+  "args": "-version",
+  "expect": "v1.4.4"
+ },
+ {
+  "id": "procs",
+  "name": "procs 0.14.8",
+  "lang": "Rust",
+  "url": "https://github.com/dalance/procs/releases/download/v0.14.8/procs-v0.14.8-x86_64-windows.zip",
+  "pkg": "procs",
+  "exe": "procs.exe",
+  "args": "--version",
+  "expect": "procs"
+ },
+ {
+  "id": "eza",
+  "name": "eza 0.20.10",
+  "lang": "Rust",
+  "url": "https://github.com/eza-community/eza/releases/download/v0.20.10/eza.exe_x86_64-pc-windows-gnu.zip",
+  "pkg": "eza",
+  "exe": "eza.exe",
+  "args": "--version",
+  "expect": "v0.20.10"
+ }
+]

@@ -170,6 +170,7 @@ impl Engine {
         w(self, teb + 0x48, id as u64);
         w(self, teb + 0x58, teb + 0x1800);
         w(self, teb + 0x60, PEB);
+        self.tls_blocks(teb);
         let mut cpu = Box::new(Cpu::new());
         let sp = st + size - 0x100;
         w(self, sp, RET_THREAD);
@@ -406,7 +407,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 _ => 0,
             }
         }
-        "InitializeCriticalSection" | "InitializeCriticalSectionAndSpinCount" | "InitializeCriticalSectionEx" => { e.zero(a0, 40); 1 }
+        "InitializeCriticalSection" | "InitializeCriticalSectionAndSpinCount" | "InitializeCriticalSectionEx" => {
+            // DebugInfo: some code (Wine's CRT) writes a name into it
+            e.zero(a0, 40); let d = e.heap_alloc(64, true); let _ = e.mmu.write64(a0, d); 1
+        }
         "DeleteCriticalSection" => 0,
         "EnterCriticalSection" => e.wait_on(W::Cs(a0), u64::MAX),
         "TryEnterCriticalSection" => (e.try_wait(&W::Cs(a0), me).is_some()) as u64,

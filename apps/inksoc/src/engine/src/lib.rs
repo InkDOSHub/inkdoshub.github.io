@@ -20,6 +20,7 @@ mod oleaut;
 mod pe;
 mod sched;
 mod sse;
+mod winapi;
 
 use cpu::Cpu;
 use mmu::Mmu;
@@ -76,6 +77,7 @@ pub struct Shared {
     thunk_ids: HashMap<String, u64>,
     pub heap: heap::Heap,
     pub tls_used: u64,
+    pub tls_tmpl: Vec<(u64, u64, u64)>, // static TLS of the images: (template, size, zero fill)
     pub init_queue: Vec<(u64, u64)>,
     pub loadlib: Vec<(u64, u64)>, // (module handle, caller rsp) while a DllMain runs
     pub stack_top: u64,
@@ -133,7 +135,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             bridge_calls: 0,
             files: HashMap::new(), modules: Vec::new(),
             thunks: Vec::new(), thunk_ids: HashMap::new(),
-            heap: heap::Heap::default(), tls_used: 0,
+            heap: heap::Heap::default(), tls_used: 0, tls_tmpl: Vec::new(),
             init_queue: Vec::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
@@ -376,6 +378,18 @@ impl Engine {
         Some(a)
     }
 
+    /// Static TLS blocks of every image for the thread whose TEB is `teb`.
+    pub fn tls_blocks(&mut self, teb: u64) {
+        for i in 0..self.s.tls_tmpl.len() { self.tls_block(teb, i); }
+    }
+    pub fn tls_block(&mut self, teb: u64, i: usize) {
+        let (t, n, z) = self.s.tls_tmpl[i];
+        let b = self.heap_alloc((n + z).max(16), true);
+        let mut v = vec![0u8; n as usize];
+        if self.mmu.read_bytes(t, &mut v).is_ok() { let _ = self.mmu.write_bytes(b, &v); }
+        let _ = self.mmu.write64(teb + 0x1800 + 8 * i as u64, b);
+    }
+
     pub fn thunk_lookup(&self, dll: &str, func: &str) -> Option<u64> { self.s.thunk_ids.get(&format!("{}!{}", dll, func)).copied() }
 
     pub fn thunk(&mut self, dll: &str, func: &str) -> u64 {
@@ -519,7 +533,8 @@ impl Engine {
             _ if name.starts_with("_beginthread") || name.starts_with("_endthread") => sched::call(self, &name),
             _ if dll == "msvcrt.dll" => msvcrt::call(self, &name),
             _ if dll == "oleaut32.dll" => oleaut::call(self, &name),
-            _ => sched::call(self, &name).or_else(|| files::call(self, &name)).or_else(|| kernel32::call(self, &name)),
+            _ if dll.starts_with("vcruntime140") => msvcrt::call(self, &name),
+            _ => sched::call(self, &name).or_else(|| files::call(self, &name)).or_else(|| kernel32::call(self, &name)).or_else(|| winapi::call(self, &name)),
         };
         if self.s.error.is_some() || self.s.exited { return; }
         match r {

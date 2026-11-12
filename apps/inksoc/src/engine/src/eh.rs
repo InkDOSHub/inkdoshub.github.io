@@ -57,7 +57,7 @@ impl Engine {
             let d = self.r32(h + 2) as i32 as i64;
             self.r64((h as i64 + 6 + d) as u64)
         } else { h };
-        ["__CxxFrameHandler", "__CxxFrameHandler3", "__CxxFrameHandler4"].iter().any(|n| self.thunk_lookup("msvcrt.dll", n) == Some(target))
+        ["__CxxFrameHandler", "__CxxFrameHandler3", "__CxxFrameHandler4"].iter().any(|n| ["msvcrt.dll", "vcruntime140.dll", "vcruntime140_1.dll"].iter().any(|d| self.thunk_lookup(d, n) == Some(target)))
     }
 
     /// One step of virtual unwind: returns this frame's description and moves ctx to the caller.
