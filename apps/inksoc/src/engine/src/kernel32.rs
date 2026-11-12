@@ -162,7 +162,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "OpenProcessToken" | "OpenThreadToken" | "LookupPrivilegeValueW" | "LookupPrivilegeValueA" | "AdjustTokenPrivileges" => { e.set_last_error(5); 0 }
         "RegOpenKeyExW" | "RegOpenKeyExA" | "RegQueryValueExW" | "RegQueryValueExA" => 2,
         "RegCloseKey" => 0,
-        "GetProcessTimes" | "GetThreadTimes" => { for i in 1..5 { let p = e.arg(i); e.w64(p, 0); } 1 }
+        "GetProcessTimes" | "GetThreadTimes" => {
+            let h = e.arg(0);
+            let Some((c, u)) = e.cpu_times(h, name == "GetProcessTimes") else { e.set_last_error(6); return Some(0) };
+            for (i, v) in [(1, c), (2, 0), (3, 0), (4, u)] { let p = e.arg(i); e.w64(p, v); }
+            1
+        }
         "SetUnhandledExceptionFilter" | "UnhandledExceptionFilter" => 0,
         "GetVersion" => (19045 << 16) | 10,
 

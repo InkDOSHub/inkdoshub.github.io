@@ -58,6 +58,8 @@ pub struct Thread {
     on_core: u32, // core whose registers hold this thread (NO_CORE = saved in cpu)
     pub pid: u32, // Linux process (0 = Windows program)
     pub wpid: u32, // Windows process (0 = the first program)
+    cpu_ms: f64, // time spent on a core (ms), for GetThreadTimes
+    ran: f64,    // when it last went on a core (that core's clock)
 }
 const NO_CORE: u32 = u32::MAX;
 
@@ -79,7 +81,7 @@ impl Engine {
     pub fn sched_init(&mut self) {
         self.s.sched.th.push(Thread {
             id: MAIN_TID, teb: TEB, cpu: Box::new(Cpu::new()), eh: Default::default(), st: St::Running,
-            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: 0, pid: 0, wpid: 0,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: 0, pid: 0, wpid: 0, cpu_ms: 0.0, ran: now(),
         });
         self.cur = 0;
         self.slice = SLICE;
@@ -96,6 +98,24 @@ impl Engine {
     }
     /// How many instructions the current thread may still run in its slice.
     pub fn slice_left(&self) -> u64 { if self.s.sched.th.len() > 1 { self.slice.max(1) } else { u64::MAX } }
+
+    fn off_core(&mut self, c: usize) {
+        let t = &mut self.s.sched.th[c];
+        t.cpu_ms += (now() - t.ran).max(0.0);
+    }
+    fn cpu_ms_of(&self, i: usize) -> f64 {
+        let t = &self.s.sched.th[i];
+        t.cpu_ms + if i == self.cur && t.on_core == self.core { (now() - t.ran).max(0.0) } else { 0.0 }
+    }
+    /// GetThreadTimes / GetProcessTimes: (creation FILETIME, user time in 100 ns); all time counts as user time.
+    pub(crate) fn cpu_times(&self, h: u64, process: bool) -> Option<(u64, u64)> {
+        let ms = if process {
+            let id = if h == u64::MAX { self.s.wpid } else { match self.s.fs.handles.get(&h) { Some(crate::files::Handle::Process { pid }) => *pid, _ => return None } };
+            (0..self.s.sched.th.len()).filter(|&i| self.s.sched.th[i].wpid == id && self.s.sched.th[i].pid == 0).map(|i| self.cpu_ms_of(i)).sum()
+        } else { self.cpu_ms_of(self.thread_of(h)?) };
+        let created = ((unsafe { crate::host_epoch_ms() } - now()) as i64 + 11_644_473_600_000) as u64 * 10_000;
+        Some((created, (ms * 10_000.0) as u64))
+    }
 
     fn thread_of(&self, h: u64) -> Option<usize> {
         if h == u64::MAX - 1 { return Some(self.cur); }
@@ -232,7 +252,7 @@ impl Engine {
         let suspended = flags & 4 != 0;
         self.s.sched.th.push(Thread {
             id, teb, cpu, eh: Default::default(), st: if suspended { St::Suspended } else { St::Ready },
-            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE, pid: 0, wpid: self.s.wpid,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE, pid: 0, wpid: self.s.wpid, cpu_ms: 0.0, ran: 0.0,
         });
         if self.s.sched.th.len() == 2 { self.slice = SLICE; }
         crate::lock::kick();
@@ -245,7 +265,7 @@ impl Engine {
         let id = MAIN_TID + 4 * self.s.sched.th.len() as u32;
         self.s.sched.th.push(Thread {
             id, teb, cpu: Box::new(cpu), eh: Default::default(), st: if suspended { St::Suspended } else { St::Ready },
-            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE, pid: 0, wpid,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: STILL_ACTIVE as u32, suspend: suspended as u32, on_core: NO_CORE, pid: 0, wpid, cpu_ms: 0.0, ran: 0.0,
         });
         if self.s.sched.th.len() == 2 { self.slice = SLICE; }
         crate::lock::kick();
@@ -256,7 +276,7 @@ impl Engine {
         let id = MAIN_TID + 4 * self.s.sched.th.len() as u32;
         self.s.sched.th.push(Thread {
             id, teb: 0, cpu: Box::new(cpu), eh: Default::default(), st: St::Ready,
-            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: NO_CORE, pid, wpid: 0,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: NO_CORE, pid, wpid: 0, cpu_ms: 0.0, ran: 0.0,
         });
         if self.s.sched.th.len() == 2 { self.slice = SLICE; }
     }
@@ -364,6 +384,7 @@ impl Engine {
             core::mem::swap(&mut self.cpu, &mut *self.s.sched.th[c].cpu);
             core::mem::swap(&mut self.eh, &mut self.s.sched.th[c].eh);
             self.s.sched.th[c].on_core = NO_CORE;
+            self.off_core(c);
             self.cur = usize::MAX;
         }
         self.want_switch = true;
@@ -388,11 +409,13 @@ impl Engine {
                 core::mem::swap(&mut self.eh, &mut self.s.sched.th[c].eh);
                 if self.s.sched.th[c].st == St::Running { self.s.sched.th[c].st = St::Ready; }
                 self.s.sched.th[c].on_core = NO_CORE;
+                self.off_core(c);
             }
             core::mem::swap(&mut self.cpu, &mut *self.s.sched.th[i].cpu);
             core::mem::swap(&mut self.eh, &mut self.s.sched.th[i].eh);
             self.cur = i;
             self.s.sched.th[i].on_core = self.core;
+            self.s.sched.th[i].ran = now();
             self.s.sched.switches += 1;
             if c != usize::MAX { crate::lock::kick(); }
         }

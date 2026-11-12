@@ -450,6 +450,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             match class {
                 0 => { let _ = e.mmu.write64(buf + 8, crate::PEB); let _ = e.mmu.write64(buf + 16, (1u64 << e.s.cores) - 1); let _ = e.mmu.write32(buf + 24, 8); let _ = e.mmu.write64(buf + 32, 4); }
                 31 => { let _ = e.mmu.write32(buf, 1); } // ProcessDebugFlags: no debugger
+                4 => if let Some((c, u)) = e.cpu_times(a0, true) { let _ = e.mmu.write64(buf, c); let _ = e.mmu.write64(buf + 24, u); } // ProcessTimes
                 36 => { let _ = e.mmu.write32(buf, 0x1234_5678); } // ProcessCookie
                 _ => {}
             }
@@ -472,6 +473,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     let _ = e.mmu.write64(buf + 24, tid);
                     let _ = e.mmu.write64(buf + 32, 1);
                     if ret != 0 { let _ = e.mmu.write32(ret, 48); }
+                    OK
+                }
+                1 => { // ThreadTimes
+                    if len < 32 { return Some(INFO_LENGTH_MISMATCH); }
+                    e.zero_n(buf, 32);
+                    if let Some((c, u)) = e.cpu_times(a0, false) { let _ = e.mmu.write64(buf, c); let _ = e.mmu.write64(buf + 24, u); }
+                    if ret != 0 { let _ = e.mmu.write32(ret, 32); }
                     OK
                 }
                 _ => { e.zero_n(buf, len.min(64)); if ret != 0 { let _ = e.mmu.write32(ret, len.min(64) as u32); } OK }
