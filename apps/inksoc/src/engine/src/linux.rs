@@ -134,6 +134,53 @@ impl Lx {
         self.fs.range(pre.clone()..).take_while(|(k, _)| k.starts_with(&pre))
             .filter(|(k, _)| !k[pre.len()..].contains('/')).map(|(k, _)| k[pre.len()..].to_string()).collect()
     }
+    /// Unpacks a tar archive (ustar, GNU long names, pax paths) at /.
+    pub fn untar(&mut self, t: &[u8]) {
+        let num = |b: &[u8]| -> usize {
+            if b[0] & 0x80 != 0 { return b[1..].iter().fold(0usize, |a, &c| (a << 8) | c as usize); }
+            let s = String::from_utf8_lossy(b); usize::from_str_radix(s.trim_matches(|c: char| c == '\0' || c == ' '), 8).unwrap_or(0)
+        };
+        let cstr = |b: &[u8]| String::from_utf8_lossy(&b[..b.iter().position(|&c| c == 0).unwrap_or(b.len())]).to_string();
+        let (mut o, mut long, mut longlink) = (0usize, None::<String>, None::<String>);
+        while o + 512 <= t.len() {
+            let h = &t[o..o + 512];
+            if h.iter().all(|&c| c == 0) { break; }
+            let size = num(&h[124..136]);
+            let ty = h[156];
+            let data = &t[(o + 512).min(t.len())..(o + 512 + size).min(t.len())];
+            o += 512 + (size + 511) / 512 * 512;
+            let mut name = cstr(&h[0..100]);
+            if &h[257..262] == b"ustar" { let pre = cstr(&h[345..500]); if !pre.is_empty() { name = format!("{}/{}", pre, name); } }
+            let mut link = cstr(&h[157..257]);
+            match ty {
+                b'L' => { long = Some(cstr(data)); continue; }
+                b'K' => { longlink = Some(cstr(data)); continue; }
+                b'x' => {
+                    for rec in String::from_utf8_lossy(data).lines() {
+                        if let Some((_, kv)) = rec.split_once(' ') {
+                            if let Some(p) = kv.strip_prefix("path=") { long = Some(p.to_string()); }
+                            if let Some(p) = kv.strip_prefix("linkpath=") { longlink = Some(p.to_string()); }
+                        }
+                    }
+                    continue;
+                }
+                b'g' => continue,
+                _ => {}
+            }
+            if let Some(n) = long.take() { name = n; }
+            if let Some(n) = longlink.take() { link = n; }
+            let path = self.abs(&format!("/{}", name));
+            if path == "/" { continue; }
+            if let Some((dir, _)) = path.rsplit_once('/') { self.mkdirs(dir); }
+            match ty {
+                b'5' => { self.mkdirs(&path); }
+                b'2' => { self.fs.insert(path, Node::Link(link)); }
+                b'1' => { let src = self.abs(&format!("/{}", link)); if let Some(Node::File(d)) = self.fs.get(&src) { let d = d.clone(); self.fs.insert(path, Node::File(d)); } }
+                b'0' | 0 | b'7' => { self.fs.insert(path, Node::File(data.to_vec())); }
+                _ => {}
+            }
+        }
+    }
     fn new_fd(&mut self, f: Fd) -> i32 {
         let mut n = 0;
         while self.fds.contains_key(&n) { n += 1; }
@@ -159,7 +206,8 @@ impl Engine {
         let files: Vec<(String, Vec<u8>)> = self.s.files.iter().map(|(k, v)| (nm(self, k), v.clone())).collect();
         let bytes = self.s.files.get(name).cloned().ok_or_else(|| format!("{} not found", name))?;
         let name = nm(self, name);
-        for (k, v) in files { if k != name { l.put(&format!("/root/{}", k), v); } }
+        // a .tar is a root file system (e.g. Alpine's minirootfs): it is unpacked at /
+        for (k, v) in files { if k.ends_with(".tar") { l.untar(&v); } else if k != name { l.put(&format!("/root/{}", k), v); } }
         let exe = format!("/bin/{}", name);
         l.put(&exe, bytes.clone());
         l.fds.insert(0, Fd::Tty); l.fds.insert(1, Fd::Tty); l.fds.insert(2, Fd::Tty);
@@ -179,22 +227,19 @@ impl Engine {
         self.load_elf(&bytes, &exe, &args, &env)
     }
 
-    /// Maps an ELF program into the (empty) current address space and builds its start stack.
-    fn load_elf(&mut self, bytes: &[u8], exe: &str, args: &[String], env: &[String]) -> Result<(), String> {
-        lx(self).exe = exe.to_string();
-        let b = bytes;
+    /// Maps the PT_LOAD segments of an ELF at `base` (0 for fixed programs).
+    /// Returns (entry, phdr, phent, phnum, end, interpreter path).
+    fn map_elf(&mut self, b: &[u8], base: u64) -> Result<(u64, u64, u64, u64, u64, Option<String>), String> {
         let u16_ = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as u64;
         let u32_ = |o: usize| u32::from_le_bytes(b[o..o + 4].try_into().unwrap()) as u64;
         let u64_ = |o: usize| u64::from_le_bytes(b[o..o + 8].try_into().unwrap());
-        if b.len() < 64 || b[4] != 2 || u16_(18) != 62 { return Err("not an x86-64 ELF program".into()); }
-        let ty = u16_(16);
+        if b.len() < 64 || &b[0..4] != b"\x7fELF" || b[4] != 2 || u16_(18) != 62 { return Err("not an x86-64 ELF program".into()); }
+        let base = if u16_(16) == 3 { base } else { 0 };
         let (phoff, phent, phnum) = (u64_(32) as usize, u16_(54) as usize, u16_(56) as usize);
-        let mut base = 0u64;
-        if ty == 3 { base = 0x5555_5555_4000; }
-        let mut end = 0u64;
-        let mut phdr = 0u64;
+        let (mut end, mut phdr, mut interp) = (0u64, 0u64, None);
         for k in 0..phnum {
             let p = phoff + k * phent;
+            if p + 56 > b.len() { return Err("bad ELF header".into()); }
             match u32_(p) {
                 1 => {
                     let (off, va, fsz, msz) = (u64_(p + 8), u64_(p + 16) + base, u64_(p + 32), u64_(p + 40));
@@ -202,19 +247,45 @@ impl Engine {
                     let stop = align(va + msz);
                     // segments may share a page: only add what is not mapped yet
                     let mut a = start;
-                    while a < stop && self.mmu.region_of(a).is_some() { a += PAGE; }
-                    if a < stop { self.mmu.add_region(a, stop - a); }
+                    while a < stop {
+                        if self.mmu.region_of(a).is_none() {
+                            let mut z = a;
+                            while z < stop && self.mmu.region_of(z).is_none() { z += PAGE; }
+                            self.mmu.add_region(a, z - a);
+                            a = z;
+                        } else { a += PAGE; }
+                    }
                     let data = b.get(off as usize..(off + fsz) as usize).ok_or("ELF segment outside the file")?;
                     self.mmu.write_bytes(va, data).map_err(|_| "out of memory")?;
-                    if off == 0 { phdr = va + phoff as u64; }
+                    if off == 0 && phdr == 0 { phdr = va + phoff as u64; }
                     end = end.max(stop);
                 }
-                3 => return Err("this program needs a dynamic loader (ld.so); only static programs run for now".into()),
+                3 => {
+                    let (off, sz) = (u64_(p + 8) as usize, u64_(p + 32) as usize);
+                    let s = b.get(off..off + sz).ok_or("bad interpreter path")?;
+                    interp = Some(String::from_utf8_lossy(s).trim_end_matches('\0').to_string());
+                }
                 6 => phdr = u64_(p + 16) + base,
                 _ => {}
             }
         }
-        let entry = u64_(24) + base;
+        Ok((u64_(24) + base, phdr, phent as u64, phnum as u64, end, interp))
+    }
+
+    /// Maps an ELF program into the (empty) current address space and builds its start stack.
+    /// A dynamic program also gets its loader (e.g. /lib/ld-musl-x86_64.so.1), which starts first.
+    fn load_elf(&mut self, bytes: &[u8], exe: &str, args: &[String], env: &[String]) -> Result<(), String> {
+        lx(self).exe = exe.to_string();
+        let (entry, phdr, phent, phnum, end, interp) = self.map_elf(bytes, 0x5555_5555_4000)?;
+        let (mut start_ip, mut ld_base) = (entry, 0u64);
+        if let Some(ip) = interp {
+            let l = lx(self);
+            let q = l.resolve(&ip, true);
+            let d = match l.fs.get(&q) { Some(Node::File(d)) => d.clone(), _ => return Err(format!("needs {} (its dynamic loader), which is not installed", ip)) };
+            ld_base = 0x7F00_0000_0000;
+            let r = self.map_elf(&d, ld_base)?;
+            start_ip = r.0;
+        }
         let l = lx(self);
         l.brk_start = end; l.brk = end; l.mmap_next = MMAP_BASE;
 
@@ -227,7 +298,7 @@ impl Engine {
         let plat = put(self, b"x86_64");
         let rnd = put(self, b"0123456789abcdef");
         let exe_p = put(self, exe.as_bytes());
-        let aux: [(u64, u64); 15] = [(3, phdr), (4, phent as u64), (5, phnum as u64), (6, PAGE), (7, 0), (8, 0), (9, entry),
+        let aux: [(u64, u64); 15] = [(3, phdr), (4, phent), (5, phnum), (6, PAGE), (7, ld_base), (8, 0), (9, entry),
             (11, 0), (12, 0), (13, 0), (14, 0), (16, 0x178bfbff), (17, 100), (25, rnd), (31, exe_p)];
         let words = 1 + argp.len() + 1 + envp.len() + 1 + 2 * (aux.len() + 2);
         let mut p = (sp - 8 * words as u64) & !15;
@@ -244,7 +315,7 @@ impl Engine {
         self.cpu.regs = [0; 16];
         self.cpu.fs_base = 0;
         self.cpu.regs[4] = start;
-        self.cpu.rip = entry;
+        self.cpu.rip = start_ip;
         Ok(())
     }
 }

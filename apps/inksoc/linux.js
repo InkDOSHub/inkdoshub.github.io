@@ -29,9 +29,16 @@ const send = (t) => { if (w) w.postMessage({ type: 'key', data: t }); };
 async function start() {
   if (starting || w) return;
   starting = true;
-  term.write('\x1b[2mStarting Linux (BusyBox) on InkSoC…\x1b[0m\r\n');
+  term.write('\x1b[2mStarting Alpine Linux on InkSoC…\x1b[0m\r\n');
   const data = await fetch('bin/busybox?v=1').then((r) => r.arrayBuffer());
-  w = new Worker('worker.js?v=19');
+  // Alpine's minirootfs (musl, apk): unpacked at / by the engine; its programs use the shared libraries
+  const files = [{ name: 'busybox', data }];
+  try {
+    const r = await fetch('bin/alpine-rootfs.tar.gz?v=1');
+    const tar = await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    files.push({ name: 'rootfs.tar', data: tar });
+  } catch (e) { term.write('\x1b[2m(Alpine files unavailable: BusyBox only)\x1b[0m\r\n'); }
+  w = new Worker('worker.js?v=20');
   starting = false;
   fit();
   w.onmessage = (ev) => {
@@ -50,7 +57,7 @@ async function start() {
       w = null;
     }
   };
-  w.postMessage({ type: 'linux', files: [{ name: 'busybox', data }], cmd: 'sh -l', poolMb: 256, jit: true, rows: term.rows, cols: term.cols }, [data]);
+  w.postMessage({ type: 'linux', files, cmd: 'sh -l', poolMb: 512, jit: true, rows: term.rows, cols: term.cols }, files.map((f) => f.data));
 }
 
 term.onData((d) => {
