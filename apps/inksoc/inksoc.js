@@ -222,7 +222,7 @@ $('combo').onclick = async () => {
   if (!navigator.gpu) { out.textContent = 'This test needs WebGPU.'; return; }
   btn.disabled = true;
   const total = Math.floor(s0.calib.mb * 0.7);
-  const ram = Math.floor(total * 0.65 / 64) * 64, gpu = Math.floor((total - ram) / 4) * 4;
+  const ram = Math.floor(total * 0.65 / 64) * 64, gpu = +$('combo-gpu').value || Math.floor((total - ram) / 4) * 4;
   const texMb = +$('combo-tex').value, SIZE = 1024, BYTES = SIZE * SIZE * 4, count = texMb / 4, SHOW = 48;
   const mark = (extra) => { const s = store.get(); s.combo = Object.assign({ ram, gpu, texMb, sec: 0, running: true }, s.combo && s.combo.running ? s.combo : {}, extra); store.set(s); };
   store.set(Object.assign(store.get(), { combo: { ram, gpu, texMb, sec: 0, running: true } }));
