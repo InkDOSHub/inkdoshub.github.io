@@ -286,6 +286,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "_onexit" => a0,
         "_amsg_exit" => { e.exited = true; e.exit_code = 255; crate::kernel32::NO_RETURN }
         "signal" => 0,
+        "_isatty" => (a0 <= 2) as u64,
+        "_get_osfhandle" => match a0 { 0 => 3, 1 => 1, 2 => 2, _ => u64::MAX },
+        "_fileno" => { let iob = e.iob(); if a0 >= iob && a0 < iob + 3 * FILE_SIZE { (a0 - iob) / FILE_SIZE } else { 3 } }
         "___lc_codepage_func" => 0,
         "___mb_cur_max_func" => 1,
         "strerror" => { if e.crt.strerror == 0 { e.crt.strerror = e.put_str("error", false); } e.crt.strerror }

@@ -98,6 +98,17 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetStartupInfoA" | "GetStartupInfoW" => { e.zero(a0, 104); e.w32(a0, 104); 0 }
         "IsDebuggerPresent" => 0,
         "SetDefaultDllDirectories" | "SetDllDirectoryW" | "SetDllDirectoryA" => 1,
+        "SetFileApisToOEM" | "SetFileApisToANSI" => 0,
+        "AreFileApisANSI" => 1,
+        "GetConsoleScreenBufferInfo" => { e.set_last_error(6); 0 }
+        "GetProcessAffinityMask" => { let (p, s) = (e.arg(1), e.arg(2)); e.w64(p, 1); e.w64(s, 1); 1 }
+        "SetProcessAffinityMask" | "SetThreadAffinityMask" => 1,
+        "GetLargePageMinimum" => 0,
+        // advapi32: no security tokens or registry yet; callers handle the failure
+        "OpenProcessToken" | "OpenThreadToken" | "LookupPrivilegeValueW" | "LookupPrivilegeValueA" | "AdjustTokenPrivileges" => { e.set_last_error(5); 0 }
+        "RegOpenKeyExW" | "RegOpenKeyExA" | "RegQueryValueExW" | "RegQueryValueExA" => 2,
+        "RegCloseKey" => 0,
+        "GetProcessTimes" | "GetThreadTimes" => { for i in 1..5 { let p = e.arg(i); e.w64(p, 0); } 1 }
         "SetUnhandledExceptionFilter" | "UnhandledExceptionFilter" => 0,
         "RaiseException" => { e.error = Some(format!("the program raised exception 0x{:x}", a0 as u32)); return Some(NO_RETURN); }
         "GetVersion" => (19045 << 16) | 10,
