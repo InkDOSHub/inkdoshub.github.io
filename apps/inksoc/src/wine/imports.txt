@@ -1,0 +1,7 @@
+# Functions wine.wasm takes from the engine (anything else undefined is a build error)
+malloc
+free
+sse2_memmove
+__inksoc_teb
+ink_output
+ink_log10

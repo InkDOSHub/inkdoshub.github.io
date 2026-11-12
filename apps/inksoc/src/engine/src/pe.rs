@@ -24,7 +24,7 @@ fn u64_at(b: &[u8], o: usize) -> Result<u64, String> {
     Ok(u32_at(b, o)? as u64 | (u32_at(b, o + 4)? as u64) << 32)
 }
 
-pub const NATIVE_DLLS: &[&str] = &["kernel32.dll", "kernelbase.dll", "ntdll.dll"];
+pub const NATIVE_DLLS: &[&str] = &["kernel32.dll", "kernelbase.dll", "ntdll.dll", "msvcrt.dll"];
 
 pub fn find_module(e: &Engine, name: &str) -> Option<usize> {
     let n = norm(name);
@@ -57,6 +57,7 @@ pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
 pub fn proc_address(e: &mut Engine, idx: usize, func: &str) -> Option<u64> {
     if e.modules[idx].native {
         let dll = e.modules[idx].name.clone();
+        if let Some(a) = crate::msvcrt::data_export(e, &dll, func) { return Some(a); }
         return Some(e.thunk(&dll, func));
     }
     let a = *e.modules[idx].exports.get(func)?;

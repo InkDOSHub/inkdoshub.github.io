@@ -230,6 +230,13 @@ impl Mmu {
         match size { 8 => self.write8(a, v as u8), 16 => self.wr::<2>(a, v), 32 => self.wr::<4>(a, v), _ => self.wr::<8>(a, v) }
     }
 
+    /// Address in wasm memory of a program byte (for Wine code compiled to wasm).
+    #[inline(always)]
+    pub fn host_addr(&mut self, a: u64, write: bool) -> Result<u64, Fault> {
+        let o = self.tr(a, write)?;
+        Ok(self.pool.as_ptr() as u64 + o as u64)
+    }
+
     /// Bulk copy into program memory, one page at a time.
     pub fn write_bytes(&mut self, mut a: u64, mut data: &[u8]) -> Result<(), Fault> {
         while !data.is_empty() {

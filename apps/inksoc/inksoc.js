@@ -31,23 +31,24 @@ function budgetMb() {
 function showBudget() { const b = budgetMb(); $('budget').textContent = 'Memory: program sees 8 GB; ' + b.note + '; the rest goes to swap.'; }
 
 function runExec(files, exe) {
-  $('exec').disabled = true;
+  $('exec').disabled = $('exec2').disabled = true;
   $('exec-out').textContent = '';
   const b = budgetMb();
-  const w = new Worker('worker.js?v=6');
+  const w = new Worker('worker.js?v=7');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('exec-out').textContent += d.text;
     else if (d.type === 'stats') $('exec-stats').innerHTML = statsHtml(d);
     else if (d.type === 'done') {
       $('exec-out').innerHTML += d.ok ? '<b class="ok">\nFinished (exit code 0).</b>' : '<b class="bad">\n' + (d.error ? 'Stopped: ' + d.error : 'Exit code ' + d.exitCode) + '</b>';
-      $('exec').disabled = false;
+      $('exec').disabled = $('exec2').disabled = false;
       w.terminate();
     }
   };
   w.postMessage({ type: 'exec', files, exe, poolMb: b.pool, targetMb: 8192 }, files ? files.map((f) => f.data) : []);
 }
 $('exec').onclick = () => runExec(null, 'stage1.exe');
+$('exec2').onclick = () => runExec(null, 'stage2.exe');
 $('pick').onchange = async (ev) => {
   const list = [...ev.target.files];
   const exe = list.find((f) => /\.exe$/i.test(f.name));
@@ -61,7 +62,7 @@ $('pick').onchange = async (ev) => {
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=6');
+  const w = new Worker('worker.js?v=7');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
@@ -80,7 +81,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=6');
+  const w = new Worker('worker.js?v=7');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -192,7 +193,7 @@ function showLimits() {
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=6');
+  const w = new Worker('worker.js?v=7');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -275,11 +276,11 @@ $('combo').onclick = async () => {
   const log = (t) => { out.textContent += t + '\n'; };
   out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
 
-  const holder = new Worker('worker.js?v=6');
+  const holder = new Worker('worker.js?v=7');
   if (ram > 0) await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
   log(`RAM: ${ram} MB reserved and filled.`);
 
-  const io = new Worker('worker.js?v=6');
+  const io = new Worker('worker.js?v=7');
   log(`Writing ${texMb} MB of textures to OPFS...`);
   const initMs = await new Promise((r) => { io.onmessage = (e) => r(e.data.ms || 0); io.postMessage({ type: 'tex-init', count, size: BYTES }); });
   log(`Texture file ready in ${fmt(initMs)} ms.`);

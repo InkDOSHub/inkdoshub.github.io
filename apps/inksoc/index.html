@@ -35,9 +35,10 @@
 
 <section>
   <h2>Run a Windows program</h2>
-  <p class="n">The stage 1 test is a normal 64-bit program with a DLL: integers, floating point (SSE2), sorting through function pointers, heap, TLS, TEB/PEB and memory checks, each compared with the expected result. "Open .exe" runs your own console program (select the .exe and its DLLs together); it stops at the first Windows function that does not exist here yet and names it.</p>
+  <p class="n">The stage 1 test is a normal 64-bit program with a DLL: integers, floating point (SSE2), sorting through function pointers, heap, TLS, TEB/PEB and memory checks, each compared with the expected result. The stage 2 test uses the real msvcrt.dll API: printf and the string functions run Wine's own msvcrt code compiled to wasm, reading the program's memory through the engine's page table. "Open .exe" runs your own console program (select the .exe and its DLLs together); it stops at the first Windows function that does not exist here yet and names it.</p>
   <div class="row">
     <button id="exec">Run stage 1 test</button>
+    <button id="exec2">Run stage 2 test</button>
     <label class="btnlike">Open .exe…<input type="file" id="pick" multiple accept=".exe,.dll" hidden></label>
   </div>
   <p class="n" id="budget"></p>
@@ -101,6 +102,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=12"></script>
+<script src="inksoc.js?v=13"></script>
 </body>
 </html>

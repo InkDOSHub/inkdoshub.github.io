@@ -7,6 +7,7 @@ mod cpu;
 mod heap;
 mod kernel32;
 mod mmu;
+mod msvcrt;
 mod pe;
 mod sse;
 
@@ -30,6 +31,7 @@ pub const THUNK_BASE: u64 = 0x7FFE_0000_0000;
 pub const RET_EXIT: u64 = THUNK_BASE + 0xFFF0;
 pub const RET_INIT: u64 = THUNK_BASE + 0xFFE0;
 pub const RET_LOADLIB: u64 = THUNK_BASE + 0xFFD0;
+pub const RET_INITTERM: u64 = THUNK_BASE + 0xFFC0;
 pub const TEB: u64 = 0x7FFD_0000_0000;
 pub const PEB: u64 = 0x7FFD_0001_0000;
 const STACK_SIZE: u64 = 1 << 20;
@@ -56,6 +58,7 @@ pub struct Engine {
     pub exe_base: u64,
     pub cmdline: (u64, u64),
     pub unknown_calls: u64,
+    pub crt: msvcrt::Crt,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -63,7 +66,7 @@ static mut BUF: Vec<u8> = Vec::new();
 static mut MSG: Vec<u8> = Vec::new();
 
 #[allow(static_mut_refs)]
-fn eng() -> &'static mut Engine { unsafe { ENGINE.as_mut().unwrap() } }
+pub(crate) fn eng() -> &'static mut Engine { unsafe { ENGINE.as_mut().unwrap() } }
 
 pub fn console(s: &str) { unsafe { host_console(s.as_ptr(), s.len() as u32) } }
 
@@ -93,7 +96,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0,
             init_queue: Vec::new(), loadlib: Vec::new(),
-            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0,
+            stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(),
         });
     }
 }
@@ -158,6 +161,8 @@ pub extern "C" fn stat(i: u32) -> f64 {
         8 => e.mmu.swap_slots as f64,
         9 => e.modules.len() as f64,
         10 => e.thunks.len() as f64,
+        11 => e.cpu.rip as f64,
+        12 => e.cpu.regs[4] as f64,
         _ => 0.0,
     }
 }
@@ -299,7 +304,7 @@ impl Engine {
         }
     }
 
-    fn do_ret(&mut self, v: u64) {
+    pub fn do_ret(&mut self, v: u64) {
         self.cpu.regs[0] = v;
         let rsp = self.cpu.regs[4];
         match self.mmu.read64(rsp) {
@@ -312,6 +317,7 @@ impl Engine {
         match self.cpu.rip {
             RET_EXIT => { self.exited = true; self.exit_code = self.cpu.regs[0] as u32; return; }
             RET_INIT => { self.next_init(); return; }
+            RET_INITTERM => { msvcrt::initterm_next(self); return; }
             RET_LOADLIB => {
                 let (h, sp) = self.loadlib.pop().unwrap_or((0, self.cpu.regs[4]));
                 self.cpu.regs[4] = sp;
@@ -333,6 +339,7 @@ impl Engine {
                 let (a, b, c) = (self.arg(0) as u32, self.arg(1), self.arg(2) as i32);
                 Some(unsafe { wine_RtlComputeCrc32(a, b, c) } as u64)
             }
+            _ if dll == "msvcrt.dll" => msvcrt::call(self, &name),
             _ => kernel32::call(self, &name),
         };
         if self.error.is_some() || self.exited { return; }

@@ -6,7 +6,17 @@ This folder holds the first proof:
 - `src/engine/`: Rust → wasm engine. PE32+ loader, x86-64 interpreter, 64-bit page
   table with a fixed pool of real RAM and swap to OPFS, and a bridge to "Wine side"
   C code compiled to wasm (`wine/ntdll_proof.c`).
+- `src/wine/`: Wine's msvcrt (string functions, printf, ctype; Wine 10.0, LGPL)
+  compiled to `wine.wasm`. The C files are compiled as x86-64 Windows code (so
+  structs and `va_list` match the program exactly), retargeted to wasm64, and every
+  load/store is routed through the engine's page table (`wasm-opt
+  --instrument-memory`, then `--memory64-lowering`). Program pointers are used as
+  is, even when their page is in swap. `glue.c` gives it a fixed "C" locale and
+  the entry point `ink_call`. Wine's own data and stack sit at 1-4 MB of the
+  engine's memory (the engine is linked with `--global-base=4194304`).
 - `src/test/test.c`: the x86-64 test program (`test.exe`).
+- `src/test64/`: stage 1 test (`main.c` + `testdll.c`) and stage 2 test (`stage2.c`,
+  real msvcrt.dll API).
 - `index.html`, `inksoc.js`, `worker.js`: test page (engine proof, OPFS swap cost,
   draw calls per frame, memory and GPU texture limits).
 
@@ -14,8 +24,13 @@ Build:
 
 ```
 cd src/engine && cargo build --release --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/release/inksoc.wasm ../../
+src/wine/build.sh   # needs clang/llc/wasm-ld 18, binaryen, git (fetches Wine 10.0)
+cd src/test64 && x86_64-w64-mingw32-gcc -O2 -D__USE_MINGW_ANSI_STDIO=0 -nostartfiles -fno-builtin -fno-stack-protector -mno-stack-arg-probe -fno-asynchronous-unwind-tables -e start -Wl,--no-insert-timestamp -o ../../stage2.exe stage2.c -lmingw32 -lmsvcrt -lkernel32
 cd ../test && x86_64-w64-mingw32-gcc -O2 -nostdlib -ffreestanding -fno-builtin -fno-stack-protector -mgeneral-regs-only -mno-stack-arg-probe -fno-asynchronous-unwind-tables -e start -Wl,--no-insert-timestamp -o ../../test.exe test.c -lkernel32 -lntdll
 ```
+
+Own programs: build with `-D__USE_MINGW_ANSI_STDIO=0` so printf comes from msvcrt.dll
+(mingw's own printf uses x87 instructions, not supported yet).
 
 `worker.js` patches `test_mb` at 0x140002000 (check with `x86_64-w64-mingw32-nm test.exe`).
 

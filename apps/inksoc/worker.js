@@ -37,8 +37,11 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
       if (swap) swap.read(view(p), { at: slot * PAGE }); else view(p).set(ram.get(slot));
       swapMs += performance.now() - t;
     },
+    // msvcrt calls into Wine's code (wine.wasm), instantiated below
+    wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
   };
-  const wasm = await fetch('inksoc.wasm?v=2').then((r) => r.arrayBuffer());
+  let wine;
+  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=3', 'wine.wasm?v=1'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
   mem = x.memory;
@@ -46,6 +49,11 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
   const enc = (t) => new TextEncoder().encode(t);
   const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice());
   x.init(poolMb, targetMb);
+  // Wine's msvcrt shares the engine's memory; its pointers go through the engine's page table
+  wine = (await WebAssembly.instantiate(wineWasm, { env: {
+    memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc,
+    free: x.wine_free, sse2_memmove: x.wine_memmove, __inksoc_teb: x.wine_teb, ink_output: x.wine_output,
+  } })).instance.exports;
   for (const f of files) {
     const name = enc(f.name), data = new Uint8Array(f.data), b = new Uint8Array(name.length + 1 + data.length);
     b.set(name); b.set(data, name.length + 1);
@@ -77,7 +85,8 @@ async function runProof({ poolMb, targetMb, testMb }) {
 async function runExec(d) {
   let files = d.files;
   if (!files) {
-    files = await Promise.all(['stage1.exe', 'testdll.dll'].map(async (name) => ({ name, data: await fetch(name + '?v=1').then((r) => r.arrayBuffer()) })));
+    const names = d.exe === 'stage2.exe' ? ['stage2.exe'] : ['stage1.exe', 'testdll.dll'];
+    files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
   }
   return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb });
 }

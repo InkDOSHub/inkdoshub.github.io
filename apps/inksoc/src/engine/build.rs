@@ -8,5 +8,7 @@ fn main() {
         .status().expect("clang").success();
     assert!(ok, "clang failed");
     println!("cargo:rustc-link-arg={}", obj);
+    // keep 1-4 MB of wasm memory free for wine.wasm (its data and stack)
+    println!("cargo:rustc-link-arg=--global-base=4194304");
     println!("cargo:rerun-if-changed=wine/ntdll_proof.c");
 }
