@@ -7,39 +7,44 @@ use crate::Engine;
 pub struct Cpu {
     pub regs: [u64; 16],
     pub rip: u64,
-    cf: bool, zf: bool, sf: bool, of: bool, pf: bool, df: bool,
+    pub cf: bool, pub zf: bool, pub sf: bool, pub of: bool, pub pf: bool, pub df: bool,
     pub icount: u64,
+    pub xmm: [u128; 16],
+    pub gs_base: u64,
+    pub fs_base: u64,
+    pub seg: u64, // segment base of the current instruction (fs:/gs: prefix)
 }
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { regs: [0; 16], rip: 0, cf: false, zf: false, sf: false, of: false, pf: false, df: false, icount: 0 }
+        Cpu { regs: [0; 16], rip: 0, cf: false, zf: false, sf: false, of: false, pf: false, df: false, icount: 0, xmm: [0; 16], gs_base: 0, fs_base: 0, seg: 0 }
     }
 }
 
 #[derive(Clone, Copy)]
-enum Loc { Reg(u8, bool), Mem(u64) }
+pub(crate) enum Loc { Reg(u8, bool), Mem(u64) }
 
-struct ModRm { md: u8, reg: u8, rm: u8, base: Option<u8>, index: Option<u8>, scale: u8, disp: i64, riprel: bool }
+pub(crate) struct ModRm { pub md: u8, pub reg: u8, pub rm: u8, base: Option<u8>, index: Option<u8>, scale: u8, disp: i64, riprel: bool }
 
-struct Dec<'a> { b: &'a [u8; 16], p: usize }
+pub(crate) struct Dec<'a> { pub b: &'a [u8; 16], pub p: usize }
 impl<'a> Dec<'a> {
-    fn u8(&mut self) -> u8 { let v = self.b[self.p.min(15)]; self.p += 1; v }
-    fn i8(&mut self) -> i64 { self.u8() as i8 as i64 }
+    pub fn u8(&mut self) -> u8 { let v = self.b[self.p.min(15)]; self.p += 1; v }
+    pub fn i8(&mut self) -> i64 { self.u8() as i8 as i64 }
     fn i16(&mut self) -> i64 { let v = u16::from_le_bytes([self.u8(), self.u8()]); v as i16 as i64 }
-    fn i32(&mut self) -> i64 { let v = u32::from_le_bytes([self.u8(), self.u8(), self.u8(), self.u8()]); v as i32 as i64 }
+    pub fn i32(&mut self) -> i64 { let v = u32::from_le_bytes([self.u8(), self.u8(), self.u8(), self.u8()]); v as i32 as i64 }
+    pub fn u64_full(&mut self) -> u64 { self.u64() }
     fn u64(&mut self) -> u64 { let lo = self.i32() as u32 as u64; let hi = self.i32() as u32 as u64; lo | hi << 32 }
-    fn imm(&mut self, size: u32) -> u64 {
+    pub fn imm(&mut self, size: u32) -> u64 {
         match size { 8 => self.i8() as u64, 16 => self.i16() as u64, _ => self.i32() as u64 }
     }
 }
 
 #[inline(always)]
-fn mask(size: u32) -> u64 { if size == 64 { u64::MAX } else { (1u64 << size) - 1 } }
+pub(crate) fn mask(size: u32) -> u64 { if size == 64 { u64::MAX } else { (1u64 << size) - 1 } }
 #[inline(always)]
 fn sign(size: u32) -> u64 { 1u64 << (size - 1) }
 #[inline(always)]
-fn sx(v: u64, size: u32) -> i64 { let s = 64 - size; ((v << s) as i64) >> s }
+pub(crate) fn sx(v: u64, size: u32) -> i64 { let s = 64 - size; ((v << s) as i64) >> s }
 
 macro_rules! tryf {
     ($e:expr, $x:expr, $addr:expr) => {
@@ -60,7 +65,7 @@ pub fn step_block(e: &mut Engine, n: u64) -> u64 {
 }
 
 impl Engine {
-    fn get(&mut self, l: Loc, size: u32) -> Result<u64, ()> {
+    pub(crate) fn get(&mut self, l: Loc, size: u32) -> Result<u64, ()> {
         match l {
             Loc::Reg(r, hi) => {
                 let v = self.cpu.regs[r as usize];
@@ -69,7 +74,7 @@ impl Engine {
             Loc::Mem(a) => self.mmu.read_sized(a, size).map_err(|_| self.fault(a)),
         }
     }
-    fn set(&mut self, l: Loc, size: u32, v: u64) -> Result<(), ()> {
+    pub(crate) fn set(&mut self, l: Loc, size: u32, v: u64) -> Result<(), ()> {
         match l {
             Loc::Reg(r, hi) => {
                 let r = &mut self.cpu.regs[r as usize];
@@ -85,27 +90,27 @@ impl Engine {
             Loc::Mem(a) => self.mmu.write_sized(a, size, v).map_err(|_| self.fault(a)),
         }
     }
-    fn push(&mut self, v: u64) -> Result<(), ()> {
+    pub(crate) fn push(&mut self, v: u64) -> Result<(), ()> {
         let sp = self.cpu.regs[4].wrapping_sub(8);
         self.mmu.write64(sp, v).map_err(|_| self.fault(sp))?;
         self.cpu.regs[4] = sp;
         Ok(())
     }
-    fn pop(&mut self) -> Result<u64, ()> {
+    pub(crate) fn pop(&mut self) -> Result<u64, ()> {
         let sp = self.cpu.regs[4];
         let v = self.mmu.read64(sp).map_err(|_| self.fault(sp))?;
         self.cpu.regs[4] = sp + 8;
         Ok(v)
     }
 
-    fn szp(&mut self, r: u64, size: u32) {
+    pub(crate) fn szp(&mut self, r: u64, size: u32) {
         let c = &mut self.cpu;
         c.zf = r & mask(size) == 0;
         c.sf = r & sign(size) != 0;
         c.pf = (r as u8).count_ones() % 2 == 0;
     }
 
-    fn alu(&mut self, op: u8, a: u64, b: u64, size: u32) -> u64 {
+    pub(crate) fn alu(&mut self, op: u8, a: u64, b: u64, size: u32) -> u64 {
         let m = mask(size);
         let (a, b) = (a & m, b & m);
         let r = match op {
@@ -132,7 +137,7 @@ impl Engine {
         r
     }
 
-    fn cond(&self, cc: u8) -> bool {
+    pub(crate) fn cond(&self, cc: u8) -> bool {
         let c = &self.cpu;
         let r = match cc >> 1 {
             0 => c.of, 1 => c.cf, 2 => c.zf, 3 => c.cf || c.zf,
@@ -141,12 +146,20 @@ impl Engine {
         if cc & 1 == 1 { !r } else { r }
     }
 
-    fn unsupported(&mut self, b: &[u8; 16]) {
+    pub(crate) fn flags(&self) -> u64 {
+        let c = &self.cpu;
+        2 | c.cf as u64 | (c.pf as u64) << 2 | (c.zf as u64) << 6 | (c.sf as u64) << 7 | 1 << 9 | (c.df as u64) << 10 | (c.of as u64) << 11
+    }
+    pub(crate) fn set_flags(&mut self, f: u64) {
+        let c = &mut self.cpu;
+        c.cf = f & 1 != 0; c.pf = f & 4 != 0; c.zf = f & 0x40 != 0; c.sf = f & 0x80 != 0; c.df = f & 0x400 != 0; c.of = f & 0x800 != 0;
+    }
+    pub(crate) fn unsupported(&mut self, b: &[u8; 16]) {
         self.error = Some(format!("unsupported instruction at 0x{:x}: {:02x?}", self.cpu.rip, &b[..8]));
     }
 }
 
-fn modrm(d: &mut Dec, e: &Engine, rex: u8) -> ModRm {
+pub(crate) fn modrm(d: &mut Dec, e: &Engine, rex: u8) -> ModRm {
     let m = d.u8();
     let md = m >> 6;
     let reg = ((m >> 3) & 7) | ((rex & 4) << 1);
@@ -171,18 +184,18 @@ fn modrm(d: &mut Dec, e: &Engine, rex: u8) -> ModRm {
     r
 }
 
-fn ea(e: &Engine, m: &ModRm, next: u64) -> u64 {
-    if m.riprel { return next.wrapping_add(m.disp as u64); }
-    let mut a = m.disp as u64;
+pub(crate) fn ea(e: &Engine, m: &ModRm, next: u64) -> u64 {
+    if m.riprel { return next.wrapping_add(m.disp as u64).wrapping_add(e.cpu.seg); }
+    let mut a = (m.disp as u64).wrapping_add(e.cpu.seg);
     if let Some(b) = m.base { a = a.wrapping_add(e.cpu.regs[b as usize]); }
     if let Some(i) = m.index { a = a.wrapping_add(e.cpu.regs[i as usize] << m.scale); }
     a
 }
 
-fn rm_loc(e: &Engine, m: &ModRm, next: u64, size: u32, rex: u8) -> Loc {
+pub(crate) fn rm_loc(e: &Engine, m: &ModRm, next: u64, size: u32, rex: u8) -> Loc {
     if m.md == 3 { reg_loc(m.rm, size, rex) } else { Loc::Mem(ea(e, m, next)) }
 }
-fn reg_loc(r: u8, size: u32, rex: u8) -> Loc {
+pub(crate) fn reg_loc(r: u8, size: u32, rex: u8) -> Loc {
     if size == 8 && rex == 0 && (4..8).contains(&r) { Loc::Reg(r - 4, true) } else { Loc::Reg(r, false) }
 }
 
@@ -197,12 +210,16 @@ fn step(e: &mut Engine) {
     let mut opsize16 = false;
     let mut rep = 0u8;
     let mut op;
+    e.cpu.seg = 0;
+    let mut p66 = false;
     loop {
         op = d.u8();
         match op {
-            0x66 => opsize16 = true,
+            0x66 => { opsize16 = true; p66 = true; }
             0xF2 | 0xF3 => rep = op,
-            0x2E | 0x3E | 0x26 | 0x36 | 0x64 | 0x65 | 0x67 | 0xF0 => {}
+            0x64 => e.cpu.seg = e.cpu.fs_base,
+            0x65 => e.cpu.seg = e.cpu.gs_base,
+            0x2E | 0x3E | 0x26 | 0x36 | 0x67 | 0xF0 => {}
             _ => break,
         }
     }
@@ -312,6 +329,7 @@ fn step(e: &mut Engine) {
         0x8D => {
             let m = modrm(&mut d, e, rex);
             let next = rip + d.p as u64;
+            e.cpu.seg = 0;
             let a = ea(e, &m, next);
             g!(e, e.set(Loc::Reg(m.reg, false), osz, a));
             e.cpu.rip = next;
@@ -480,7 +498,68 @@ fn step(e: &mut Engine) {
             }
         }
         0xCC => { e.error = Some(format!("breakpoint at 0x{:x}", rip)); }
-        0x0F => two_byte(e, &mut d, &buf, rip, rex, osz, rep),
+        0x9C => { let f = e.flags(); e.cpu.rip = rip + d.p as u64; g!(e, e.push(f)); }
+        0x9D => { let f = g!(e, e.pop()); e.set_flags(f); e.cpu.rip = rip + d.p as u64; }
+        0x9E => { let ah = (e.cpu.regs[0] >> 8) & 0xFF; let f = (e.flags() & !0xFF) | ah; e.set_flags(f); e.cpu.rip = rip + d.p as u64; }
+        0x9F => { let f = e.flags() & 0xFF; e.cpu.regs[0] = (e.cpu.regs[0] & !0xFF00) | (f << 8); e.cpu.rip = rip + d.p as u64; }
+        0x9B => { e.cpu.rip = rip + d.p as u64; }
+        0xF5 => { e.cpu.cf = !e.cpu.cf; e.cpu.rip = rip + d.p as u64; }
+        0xF8 => { e.cpu.cf = false; e.cpu.rip = rip + d.p as u64; }
+        0xF9 => { e.cpu.cf = true; e.cpu.rip = rip + d.p as u64; }
+        0xFC => { e.cpu.df = false; e.cpu.rip = rip + d.p as u64; }
+        0xFD => { e.cpu.df = true; e.cpu.rip = rip + d.p as u64; }
+        0xE3 => {
+            let rel = d.i8(); let next = rip + d.p as u64;
+            e.cpu.rip = if e.cpu.regs[1] == 0 { next.wrapping_add(rel as u64) } else { next };
+        }
+        0xE0..=0xE2 => {
+            let rel = d.i8(); let next = rip + d.p as u64;
+            e.cpu.regs[1] = e.cpu.regs[1].wrapping_sub(1);
+            let go = e.cpu.regs[1] != 0 && match op { 0xE0 => !e.cpu.zf, 0xE1 => e.cpu.zf, _ => true };
+            e.cpu.rip = if go { next.wrapping_add(rel as u64) } else { next };
+        }
+        0xA0..=0xA3 => {
+            let size = if op & 1 == 0 { 8 } else { osz };
+            let a = d.u64_full().wrapping_add(e.cpu.seg);
+            e.cpu.rip = rip + d.p as u64;
+            if op < 0xA2 { let v = g!(e, e.get(Loc::Mem(a), size)); g!(e, e.set(Loc::Reg(0, false), size, v)); }
+            else { let v = e.cpu.regs[0]; g!(e, e.set(Loc::Mem(a), size, v)); }
+        }
+        0xA6 | 0xA7 | 0xAE | 0xAF | 0xAC | 0xAD => {
+            let size = if op & 1 == 0 { 8 } else { osz };
+            let st = (size / 8) as u64;
+            let st = if e.cpu.df { st.wrapping_neg() } else { st };
+            loop {
+                if rep != 0 && e.cpu.regs[1] == 0 { break; }
+                match op {
+                    0xAC | 0xAD => {
+                        let si = e.cpu.regs[6];
+                        let v = tryf!(e, e.mmu.read_sized(si.wrapping_add(e.cpu.seg), size), si);
+                        let _ = e.set(Loc::Reg(0, false), size, v);
+                        e.cpu.regs[6] = si.wrapping_add(st);
+                    }
+                    0xAE | 0xAF => {
+                        let di = e.cpu.regs[7];
+                        let v = tryf!(e, e.mmu.read_sized(di, size), di);
+                        let a = e.cpu.regs[0];
+                        e.alu(7, a, v, size);
+                        e.cpu.regs[7] = di.wrapping_add(st);
+                    }
+                    _ => {
+                        let si = e.cpu.regs[6]; let di = e.cpu.regs[7];
+                        let a = tryf!(e, e.mmu.read_sized(si.wrapping_add(e.cpu.seg), size), si);
+                        let b = tryf!(e, e.mmu.read_sized(di, size), di);
+                        e.alu(7, a, b, size);
+                        e.cpu.regs[6] = si.wrapping_add(st); e.cpu.regs[7] = di.wrapping_add(st);
+                    }
+                }
+                if rep == 0 { break; }
+                e.cpu.regs[1] -= 1;
+                if op != 0xAC && op != 0xAD && ((rep == 0xF3 && !e.cpu.zf) || (rep == 0xF2 && e.cpu.zf)) { break; }
+            }
+            e.cpu.rip = rip + d.p as u64;
+        }
+        0x0F => two_byte(e, &mut d, &buf, rip, rex, osz, rep, p66),
         _ => e.unsupported(&buf),
     }
 }
@@ -545,18 +624,131 @@ fn muldiv(e: &mut Engine, sub: u8, src: u64, size: u32) -> bool {
     true
 }
 
-fn two_byte(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, osz: u32, _rep: u8) {
+fn two_byte(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, osz: u32, rep: u8, p66: bool) {
     let op = d.u8();
+    if crate::sse::sse(e, d, buf, rip, rex, p66, rep, op) { return; }
     match op {
         0x1F => { let m = modrm(d, e, rex); let _ = m; e.cpu.rip = rip + d.p as u64; }
         0x0B => { e.error = Some(format!("ud2 at 0x{:x}", rip)); }
+        0x0D | 0x18..=0x1E => { let _ = modrm(d, e, rex); e.cpu.rip = rip + d.p as u64; }
+        0xAE => {
+            let m = modrm(d, e, rex);
+            let next = rip + d.p as u64;
+            e.cpu.rip = next;
+            if m.md != 3 {
+                let a = ea(e, &m, next);
+                match m.reg & 7 {
+                    2 => {}
+                    3 => { tryf!(e, e.mmu.write32(a, 0x1F80), a); }
+                    _ => e.unsupported(buf),
+                }
+            }
+        }
+        0xA3 | 0xAB | 0xB3 | 0xBB | 0xBA => {
+            let m = modrm(d, e, rex);
+            let (bit, kind) = if op == 0xBA { (d.u8() as u64, m.reg & 7) } else {
+                (e.cpu.regs[m.reg as usize], match op { 0xA3 => 4, 0xAB => 5, 0xB3 => 6, _ => 7 })
+            };
+            let next = rip + d.p as u64;
+            if kind < 4 { e.unsupported(buf); return; }
+            let (l, b) = if m.md == 3 { (reg_loc(m.rm, osz, rex), bit % osz as u64) } else {
+                let base = ea(e, &m, next);
+                let off = if op == 0xBA { 0 } else { (sx(bit, osz) >> 3) & !((osz as i64 / 8) - 1) };
+                (Loc::Mem(base.wrapping_add(off as u64)), bit % osz as u64)
+            };
+            let v = g!(e, e.get(l, osz));
+            e.cpu.cf = (v >> b) & 1 != 0;
+            let nv = match kind { 5 => v | 1 << b, 6 => v & !(1 << b), 7 => v ^ 1 << b, _ => v };
+            if kind != 4 { g!(e, e.set(l, osz, nv)); }
+            e.cpu.rip = next;
+        }
+        0xA4 | 0xA5 | 0xAC | 0xAD => {
+            let m = modrm(d, e, rex);
+            let cnt = if op & 1 == 0 { d.u8() as u32 } else { e.cpu.regs[1] as u32 } & if osz == 64 { 63 } else { 31 };
+            let next = rip + d.p as u64;
+            let l = rm_loc(e, &m, next, osz, rex);
+            let a = g!(e, e.get(l, osz));
+            let b = e.cpu.regs[m.reg as usize] & mask(osz);
+            e.cpu.rip = next;
+            if cnt == 0 { return; }
+            let r = if op < 0xAC {
+                e.cpu.cf = (a >> (osz - cnt)) & 1 != 0;
+                ((a << cnt) | (b >> (osz - cnt))) & mask(osz)
+            } else {
+                e.cpu.cf = (a >> (cnt - 1)) & 1 != 0;
+                ((a >> cnt) | (b << (osz - cnt))) & mask(osz)
+            };
+            e.szp(r, osz);
+            g!(e, e.set(l, osz, r));
+        }
+        0xB0 | 0xB1 => {
+            let size = if op == 0xB0 { 8 } else { osz };
+            let m = modrm(d, e, rex);
+            let next = rip + d.p as u64;
+            let l = rm_loc(e, &m, next, size, rex);
+            let v = g!(e, e.get(l, size));
+            let a = e.cpu.regs[0];
+            e.alu(7, a, v, size);
+            if e.cpu.zf { let s = g!(e, e.get(reg_loc(m.reg, size, rex), size)); g!(e, e.set(l, size, s)); }
+            else { g!(e, e.set(Loc::Reg(0, false), size, v)); }
+            e.cpu.rip = next;
+        }
+        0xC0 | 0xC1 => {
+            let size = if op == 0xC0 { 8 } else { osz };
+            let m = modrm(d, e, rex);
+            let next = rip + d.p as u64;
+            let l = rm_loc(e, &m, next, size, rex);
+            let rg = reg_loc(m.reg, size, rex);
+            let a = g!(e, e.get(l, size));
+            let b = g!(e, e.get(rg, size));
+            let r = e.alu(0, a, b, size);
+            g!(e, e.set(rg, size, a));
+            g!(e, e.set(l, size, r));
+            e.cpu.rip = next;
+        }
+        0xB8 | 0xBC | 0xBD => {
+            let m = modrm(d, e, rex);
+            let next = rip + d.p as u64;
+            let v = g!(e, e.get(rm_loc(e, &m, next, osz, rex), osz));
+            let r = match (op, rep) {
+                (0xB8, 0xF3) => { let r = v.count_ones() as u64; e.cpu.zf = v == 0; e.cpu.cf = false; e.cpu.of = false; e.cpu.sf = false; e.cpu.pf = false; r }
+                (0xBC, 0xF3) => { let r = if v == 0 { osz as u64 } else { v.trailing_zeros() as u64 }; e.cpu.cf = v == 0; e.cpu.zf = r == 0; r }
+                (0xBD, 0xF3) => { let r = if v == 0 { osz as u64 } else { (v.leading_zeros() - (64 - osz)) as u64 }; e.cpu.cf = v == 0; e.cpu.zf = r == 0; r }
+                (0xBC, _) => { e.cpu.zf = v == 0; if v == 0 { e.cpu.rip = next; return; } v.trailing_zeros() as u64 }
+                (0xBD, _) => { e.cpu.zf = v == 0; if v == 0 { e.cpu.rip = next; return; } (63 - v.leading_zeros()) as u64 }
+                _ => { e.unsupported(buf); return; }
+            };
+            let _ = e.set(Loc::Reg(m.reg, false), osz, r);
+            e.cpu.rip = next;
+        }
+        0xC8..=0xCF => {
+            let r = ((op & 7) | ((rex & 1) << 3)) as usize;
+            let v = e.cpu.regs[r];
+            e.cpu.regs[r] = if osz == 64 { v.swap_bytes() } else { (v as u32).swap_bytes() as u64 };
+            e.cpu.rip = rip + d.p as u64;
+        }
+        0xC3 => {
+            let m = modrm(d, e, rex);
+            let next = rip + d.p as u64;
+            let v = e.cpu.regs[m.reg as usize];
+            g!(e, e.set(rm_loc(e, &m, next, osz, rex), osz, v));
+            e.cpu.rip = next;
+        }
         0x31 => {
             let t = (unsafe { crate::host_now_ms() } * 1e6) as u64;
             e.cpu.regs[0] = t & 0xFFFF_FFFF; e.cpu.regs[2] = t >> 32;
             e.cpu.rip = rip + d.p as u64;
         }
         0xA2 => {
-            for r in [0usize, 1, 2, 3] { e.cpu.regs[r] = 0; }
+            let leaf = e.cpu.regs[0] as u32;
+            let (a, b, c, dd): (u32, u32, u32, u32) = match leaf {
+                0 => (1, 0x6B6E_4920, 0x2020_2020, 0x436F_5353), // "InkSoC" + spaces
+                1 => (0x0006_06A0, 0, 1 << 23, (1 << 0) | (1 << 4) | (1 << 8) | (1 << 15) | (1 << 24) | (1 << 25) | (1 << 26)),
+                0x8000_0000 => (0x8000_0001, 0, 0, 0),
+                0x8000_0001 => (0, 0, 1 << 5, (1 << 11) | (1 << 20) | (1 << 29)),
+                _ => (0, 0, 0, 0),
+            };
+            e.cpu.regs[0] = a as u64; e.cpu.regs[3] = b as u64; e.cpu.regs[1] = c as u64; e.cpu.regs[2] = dd as u64;
             e.cpu.rip = rip + d.p as u64;
         }
         0x40..=0x4F => {

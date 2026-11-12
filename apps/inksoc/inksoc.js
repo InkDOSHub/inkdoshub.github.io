@@ -8,24 +8,65 @@ const store = {
 };
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
 
+function statsHtml(s) {
+  return [
+    ['Instructions', fmt(s.insns) + ' (' + (s.insns / s.ms / 1000).toFixed(1) + ' MIPS, interpreter)'],
+    ['Real RAM in use', fmt(s.resident * 4 / 1024) + ' / ' + fmt(s.frames * 4 / 1024) + ' MB'],
+    ['Page faults', fmt(s.faults)],
+    ['Swap', fmt(s.swapOut) + ' pages out, ' + fmt(s.swapIn) + ' in, ' + fmt(s.slots * 4 / 1024) + ' MB on ' + (s.opfs ? 'OPFS' : 'RAM (no OPFS)')],
+    ['Time in swap I/O', fmt(s.swapMs) + ' ms of ' + fmt(s.ms) + ' ms'],
+    ['Modules / native functions', (s.modules || 0) + ' / ' + (s.thunks || 0)],
+    ['Bridge calls (wasm "Wine")', fmt(s.bridge)],
+  ].map((r) => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('');
+}
+
+/* ---------- memory budget: conservative, from the lowest limit seen on this device ---------- */
+function budgetMb() {
+  const s = store.get();
+  const lim = s.minLimit || (s.calib && !s.calib.running && s.calib.mb) || 0;
+  if (!lim) return { pool: 256, note: 'no calibration yet: using a safe 256 MB (run "Calibrate memory" below)' };
+  const pool = Math.max(128, Math.min(2048, Math.floor(lim * 0.5 / 64) * 64));
+  return { pool, note: `lowest tab limit seen on this device ${fmt(lim)} MB → fixed real RAM ${pool} MB (50%)` };
+}
+function showBudget() { const b = budgetMb(); $('budget').textContent = 'Memory: program sees 8 GB; ' + b.note + '; the rest goes to swap.'; }
+
+function runExec(files, exe) {
+  $('exec').disabled = true;
+  $('exec-out').textContent = '';
+  const b = budgetMb();
+  const w = new Worker('worker.js?v=6');
+  w.onmessage = (ev) => {
+    const d = ev.data;
+    if (d.type === 'log') $('exec-out').textContent += d.text;
+    else if (d.type === 'stats') $('exec-stats').innerHTML = statsHtml(d);
+    else if (d.type === 'done') {
+      $('exec-out').innerHTML += d.ok ? '<b class="ok">\nFinished (exit code 0).</b>' : '<b class="bad">\n' + (d.error ? 'Stopped: ' + d.error : 'Exit code ' + d.exitCode) + '</b>';
+      $('exec').disabled = false;
+      w.terminate();
+    }
+  };
+  w.postMessage({ type: 'exec', files, exe, poolMb: b.pool, targetMb: 8192 }, files ? files.map((f) => f.data) : []);
+}
+$('exec').onclick = () => runExec(null, 'stage1.exe');
+$('pick').onchange = async (ev) => {
+  const list = [...ev.target.files];
+  const exe = list.find((f) => /\.exe$/i.test(f.name));
+  if (!exe) { $('exec-out').textContent = 'Select an .exe (and its DLLs, if any).'; return; }
+  const files = await Promise.all(list.map(async (f) => ({ name: f.name, data: await f.arrayBuffer() })));
+  ev.target.value = '';
+  runExec(files, exe.name);
+};
+
 /* ---------- 1. engine proof ---------- */
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=5');
+  const w = new Worker('worker.js?v=6');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
     else if (d.type === 'stats') {
-      const s = d;
-      $('stats').innerHTML = [
-        ['Instructions', fmt(s.insns) + ' (' + (s.insns / s.ms / 1000).toFixed(1) + ' MIPS, interpreter)'],
-        ['Real RAM in use', fmt(s.resident * 4 / 1024) + ' / ' + fmt(s.frames * 4 / 1024) + ' MB'],
-        ['Page faults', fmt(s.faults)],
-        ['Swap', fmt(s.swapOut) + ' pages out, ' + fmt(s.swapIn) + ' in, ' + fmt(s.slots * 4 / 1024) + ' MB on ' + (s.opfs ? 'OPFS' : 'RAM (no OPFS)')],
-        ['Time in swap I/O', fmt(s.swapMs) + ' ms of ' + fmt(s.ms) + ' ms'],
-        ['Bridge calls (wasm "Wine")', fmt(s.bridge)],
-      ].map((r) => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('');
+      $('stats').innerHTML = statsHtml(d);
     } else if (d.type === 'done') {
       $('out').innerHTML += d.ok ? '<b class="ok">\nProof passed.</b>' : '<b class="bad">\nFailed: ' + (d.error || 'exit code ' + d.exitCode) + '</b>';
       $('run').disabled = false;
@@ -39,7 +80,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=5');
+  const w = new Worker('worker.js?v=6');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -130,6 +171,11 @@ $('draw').onclick = async () => {
 /* ---------- 4. limits ---------- */
 function showLimits() {
   const s = store.get(), lines = [];
+  if (s.calib && s.calib.mb && (s.calib.running || s.calib.note)) {
+    const m = Math.min(s.minLimit || Infinity, s.calib.mb);
+    if (m !== s.minLimit) { s.minLimit = m; store.set(s); }
+  }
+  if (typeof showBudget === 'function') showBudget();
   const desc = (k, label) => {
     const v = s[k];
     if (!v) return;
@@ -146,7 +192,7 @@ function showLimits() {
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=5');
+  const w = new Worker('worker.js?v=6');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -195,7 +241,7 @@ $('tex').onclick = async () => {
   $('tex').disabled = false;
 };
 
-$('clear').onclick = () => { store.set({}); showLimits(); };
+$('clear').onclick = () => { const m = store.get().minLimit; store.set(m ? { minLimit: m } : {}); showLimits(); };
 
 /* ---------- browser features ---------- */
 (function features() {
@@ -229,11 +275,11 @@ $('combo').onclick = async () => {
   const log = (t) => { out.textContent += t + '\n'; };
   out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
 
-  const holder = new Worker('worker.js?v=5');
+  const holder = new Worker('worker.js?v=6');
   await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
   log(`RAM: ${ram} MB reserved and filled.`);
 
-  const io = new Worker('worker.js?v=5');
+  const io = new Worker('worker.js?v=6');
   log(`Writing ${texMb} MB of textures to OPFS...`);
   const initMs = await new Promise((r) => { io.onmessage = (e) => r(e.data.ms || 0); io.postMessage({ type: 'tex-init', count, size: BYTES }); });
   log(`Texture file ready in ${fmt(initMs)} ms.`);

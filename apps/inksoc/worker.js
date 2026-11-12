@@ -17,7 +17,8 @@ async function openSwap(name) {
   }
 }
 
-async function runProof({ poolMb, targetMb, testMb }) {
+/* Runs a program on the engine. files: [{ name, data }], exe: file name to start. */
+async function runEngine({ files, exe, cmd, poolMb, targetMb, poke }) {
   const swap = await openSwap('inksoc-swap.bin');
   const ram = new Map();
   let mem, swapMs = 0;
@@ -25,6 +26,7 @@ async function runProof({ poolMb, targetMb, testMb }) {
   const env = {
     host_console: (p, n) => post('log', { text: new TextDecoder().decode(new Uint8Array(mem.buffer, p, n).slice()) }),
     host_now_ms: () => performance.now(),
+    host_epoch_ms: () => Date.now(),
     host_swap_write: (slot, p) => {
       const t = performance.now();
       if (swap) swap.write(view(p), { at: slot * PAGE }); else ram.set(slot, view(p).slice());
@@ -36,30 +38,48 @@ async function runProof({ poolMb, targetMb, testMb }) {
       swapMs += performance.now() - t;
     },
   };
-  const [wasm, exe] = await Promise.all([
-    fetch('inksoc.wasm?v=1').then((r) => r.arrayBuffer()),
-    fetch('test.exe?v=1').then((r) => r.arrayBuffer()),
-  ]);
+  const wasm = await fetch('inksoc.wasm?v=2').then((r) => r.arrayBuffer());
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
   mem = x.memory;
-  const p = x.exe_buffer(exe.byteLength);
-  new Uint8Array(mem.buffer, p, exe.byteLength).set(new Uint8Array(exe));
+  const put = (bytes) => { const p = x.buffer(bytes.length); new Uint8Array(mem.buffer, p, bytes.length).set(bytes); };
+  const enc = (t) => new TextEncoder().encode(t);
   const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice());
-  if (x.init(poolMb, targetMb) !== 0) { post('done', { ok: false, error: msg() }); return; }
-  x.poke32(0x140002000, testMb); // test_mb inside test.exe
+  x.init(poolMb, targetMb);
+  for (const f of files) {
+    const name = enc(f.name), data = new Uint8Array(f.data), b = new Uint8Array(name.length + 1 + data.length);
+    b.set(name); b.set(data, name.length + 1);
+    put(b); x.add_file();
+  }
+  put(enc(exe + '\0' + (cmd || exe)));
   post('log', { text: `[engine] real RAM ${poolMb} MB (fixed), memory target ${targetMb} MB, wasm memory ${(mem.buffer.byteLength >> 20)} MB\n` });
+  if (x.start() !== 0) { post('done', { ok: false, error: msg() }); return; }
+  if (poke) x.poke32(poke[0], poke[1]);
   const t0 = performance.now();
   let st;
   const stats = () => ({
     insns: x.stat(0), faults: x.stat(1), swapIn: x.stat(2), swapOut: x.stat(3),
     resident: x.stat(4), frames: x.stat(5), bridge: x.stat(7), slots: x.stat(8),
+    modules: x.stat(9), thunks: x.stat(10),
     ms: performance.now() - t0, swapMs, opfs: !!swap,
   });
   while ((st = x.run(2000000)) === 0) post('stats', stats());
   post('stats', stats());
   if (swap) { swap.flush(); swap.truncate(0); swap.close(); }
   post('done', { ok: st === 1 && x.stat(6) === 0, error: st === 2 ? msg() : '', exitCode: x.stat(6) });
+}
+
+async function runProof({ poolMb, targetMb, testMb }) {
+  const data = await fetch('test.exe?v=1').then((r) => r.arrayBuffer());
+  return runEngine({ files: [{ name: 'test.exe', data }], exe: 'test.exe', poolMb, targetMb, poke: [0x140002000, testMb] });
+}
+
+async function runExec(d) {
+  let files = d.files;
+  if (!files) {
+    files = await Promise.all(['stage1.exe', 'testdll.dll'].map(async (name) => ({ name, data: await fetch(name + '?v=1').then((r) => r.arrayBuffer()) })));
+  }
+  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb });
 }
 
 /* Random 4 KB reads/writes on a 64 MB OPFS file: the real cost of one swap page. */
@@ -149,6 +169,6 @@ async function texDone() {
 
 onmessage = (ev) => {
   const d = ev.data;
-  const go = { proof: runProof, opfs: opfsLatency, calibrate, hold, 'tex-init': texInit, 'tex-get': texGet, 'tex-done': texDone }[d.type];
+  const go = { proof: runProof, exec: runExec, opfs: opfsLatency, calibrate, hold, 'tex-init': texInit, 'tex-get': texGet, 'tex-done': texDone }[d.type];
   if (go) go(d).catch((e) => post('done', { ok: false, error: String(e && e.message || e) }));
 };

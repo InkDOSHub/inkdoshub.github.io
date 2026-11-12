@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
-<title>InkSoC proof · InkDOS Hub</title>
+<title>InkSoC · InkDOS Hub</title>
 <style>
   :root{--bg:#fff;--fg:#111;--muted:#666;--card:#f5f5f7;--border:#ddd;--ok:#15803d;--bad:#b91c1c;--accent:#7c3aed}
   @media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#999;--card:#1c1c1e;--border:#333;--ok:#4ade80;--bad:#f87171}}
@@ -22,16 +22,30 @@
   select,button{font:inherit;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit}
   button{background:var(--accent);color:#fff;border:0;cursor:pointer}
   button:disabled{opacity:.5}
+  .btnlike{display:inline-block;font:inherit;font-size:15px;padding:7px 12px;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;flex-direction:row}
   pre{white-space:pre-wrap;word-break:break-word;font-size:12px;margin:8px 0 0;max-height:320px;overflow:auto}
   .ok{color:var(--ok)} .bad{color:var(--bad)}
   table{border-collapse:collapse;font-size:13px;width:100%} td{padding:2px 6px;border-bottom:1px solid var(--border)}
 </style>
 </head>
 <body>
-<header><a href="../../">&lt; InkDOS Hub</a><b>InkSoC proof</b><span style="width:80px"></span></header>
+<header><a href="../../">&lt; InkDOS Hub</a><b>InkSoC</b><span style="width:80px"></span></header>
 <main>
-<p class="n">Proof of our own engine: a 64-bit Windows .exe runs here without Wine or Linux, with a fixed amount of real RAM and the rest of its memory in swap on this device's storage (OPFS).</p>
+<p class="n">Our own engine for Windows programs: a 64-bit .exe runs here without Wine or Linux, with a fixed amount of real RAM and the rest of its memory in swap on this device's storage (OPFS). Stage 1: no windows yet, console programs only.</p>
 
+<section>
+  <h2>Run a Windows program</h2>
+  <p class="n">The stage 1 test is a normal 64-bit program with a DLL: integers, floating point (SSE2), sorting through function pointers, heap, TLS, TEB/PEB and memory checks, each compared with the expected result. "Open .exe" runs your own console program (select the .exe and its DLLs together); it stops at the first Windows function that does not exist here yet and names it.</p>
+  <div class="row">
+    <button id="exec">Run stage 1 test</button>
+    <label class="btnlike">Open .exe…<input type="file" id="pick" multiple accept=".exe,.dll" hidden></label>
+  </div>
+  <p class="n" id="budget"></p>
+  <table id="exec-stats"></table>
+  <pre id="exec-out"></pre>
+</section>
+
+<h2 style="margin:24px 0 0">Measurements</h2>
 <section>
   <h2>1. Engine proof</h2>
   <p class="n">test.exe (x86-64) runs a CPU loop, reserves more memory than the real RAM and checks every page, then calls a "Wine side" function compiled to wasm that reads its memory through the page table.</p>
@@ -84,6 +98,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=6"></script>
+<script src="inksoc.js?v=7"></script>
 </body>
 </html>

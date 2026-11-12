@@ -73,6 +73,44 @@ impl Mmu {
         self.regions.iter().any(|&(s, e)| addr >= s && addr < e)
     }
 
+    /// The region (start, end) holding `addr`, if any.
+    pub fn region_of(&self, addr: u64) -> Option<(u64, u64)> {
+        self.regions.iter().copied().find(|&(s, e)| addr >= s && addr < e)
+    }
+    pub fn overlaps(&self, start: u64, end: u64) -> bool {
+        self.regions.iter().any(|&(s, e)| start < e && end > s)
+    }
+
+    /// Drops the pages of [start, end): their frames go back to the pool and
+    /// their swap copies are forgotten, so they read as zero next time.
+    pub fn drop_pages(&mut self, start: u64, end: u64) {
+        let (first, last) = (start >> 12, (end + PAGE - 1) >> 12);
+        let vpns: Vec<u64> = if last - first > self.table.len() as u64 {
+            self.table.keys().copied().filter(|v| *v >= first && *v < last).collect()
+        } else {
+            (first..last).filter(|v| self.table.contains_key(v)).collect()
+        };
+        for vpn in vpns {
+            let pte = self.table.remove(&vpn).unwrap();
+            let t = (vpn as usize) & (TLB_SIZE - 1);
+            if self.tlb[t].tag == vpn { self.tlb[t].tag = u64::MAX; }
+            if pte.frame != NONE {
+                self.frames[pte.frame as usize].used = false;
+                self.free.push(pte.frame);
+            }
+        }
+    }
+
+    /// Releases a whole region (VirtualFree MEM_RELEASE).
+    pub fn release_region(&mut self, start: u64) -> bool {
+        if let Some(i) = self.regions.iter().position(|&(s, _)| s == start) {
+            let (s, e) = self.regions.swap_remove(i);
+            self.drop_pages(s, e);
+            self.committed = self.committed.saturating_sub(e - s);
+            true
+        } else { false }
+    }
+
     fn evict_one(&mut self) -> u32 {
         loop {
             let i = self.hand;
@@ -190,6 +228,29 @@ impl Mmu {
     }
     pub fn write_sized(&mut self, a: u64, size: u32, v: u64) -> Result<(), Fault> {
         match size { 8 => self.write8(a, v as u8), 16 => self.wr::<2>(a, v), 32 => self.wr::<4>(a, v), _ => self.wr::<8>(a, v) }
+    }
+
+    /// Bulk copy into program memory, one page at a time.
+    pub fn write_bytes(&mut self, mut a: u64, mut data: &[u8]) -> Result<(), Fault> {
+        while !data.is_empty() {
+            let room = (4096 - (a & 0xFFF) as usize).min(data.len());
+            let o = self.tr(a, true)?;
+            self.pool[o..o + room].copy_from_slice(&data[..room]);
+            a += room as u64;
+            data = &data[room..];
+        }
+        Ok(())
+    }
+    pub fn read_bytes(&mut self, mut a: u64, out: &mut [u8]) -> Result<(), Fault> {
+        let mut k = 0;
+        while k < out.len() {
+            let room = (4096 - (a & 0xFFF) as usize).min(out.len() - k);
+            let o = self.tr(a, false)?;
+            out[k..k + room].copy_from_slice(&self.pool[o..o + room]);
+            a += room as u64;
+            k += room;
+        }
+        Ok(())
     }
 
     /// Copies up to 16 instruction bytes starting at `a` (stops at a bad page).
