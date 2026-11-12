@@ -42,6 +42,7 @@
     <button id="exec2">Run stage 2 test</button>
     <button id="exec4">Run stage 4 test (threads)</button>
     <button id="exec7z">Run 7-Zip benchmark</button>
+    <button id="execmine">Run WineMine (window test)</button>
     <input id="args" placeholder="arguments (optional)" style="min-width:10em">
     <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="jit" checked>JIT</label>
     <label style="flex-direction:row;align-items:center;gap:4px" title="Program threads run at the same time on several cores; needs hub.inkdos.workers.dev (on other addresses 1 core is used)">Cores <select id="cores"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
@@ -49,6 +50,7 @@
   </div>
   <p class="n" id="budget"></p>
   <table id="exec-stats"></table>
+  <canvas id="screen" width="1024" height="768" tabindex="0" hidden style="display:block;width:100%;max-width:1024px;touch-action:none;outline:none;border:1px solid #888;margin:8px 0"></canvas>
   <pre id="exec-out"></pre>
 </section>
 
@@ -108,6 +110,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=29"></script>
+<script src="inksoc.js?v=30"></script>
 </body>
 </html>

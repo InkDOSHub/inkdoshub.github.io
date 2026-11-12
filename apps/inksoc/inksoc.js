@@ -32,15 +32,43 @@ function budgetMb() {
 }
 function showBudget() { const b = budgetMb(); $('budget').textContent = 'Memory: program sees 8 GB; ' + b.note + '; the rest goes to swap.'; }
 
+/* ---------- windows: the engine's screen on a canvas, mouse and keyboard back ---------- */
+let screenWorker = null;
+function showFrame(d, w) {
+  const c = $('screen');
+  if (c.hidden) { c.hidden = false; c.focus(); }
+  screenWorker = w;
+  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(d.data), d.w, d.h), 0, 0);
+}
+(() => {
+  const c = $('screen');
+  const send = (k, x, y, data) => { if (screenWorker) screenWorker.postMessage({ type: 'win', k, x, y, d: data }); };
+  const pos = (e) => { const r = c.getBoundingClientRect(); return [Math.round((e.clientX - r.left) * c.width / r.width), Math.round((e.clientY - r.top) * c.height / r.height)]; };
+  c.addEventListener('pointerdown', (e) => { c.focus(); c.setPointerCapture(e.pointerId); const [x, y] = pos(e); send(1, x, y, 0); send(2, x, y, e.button); e.preventDefault(); });
+  c.addEventListener('pointerup', (e) => { const [x, y] = pos(e); send(3, x, y, e.button); e.preventDefault(); });
+  c.addEventListener('pointermove', (e) => { const [x, y] = pos(e); send(1, x, y, 0); });
+  c.addEventListener('contextmenu', (e) => e.preventDefault());
+  const key = (kind) => (e) => {
+    const special = { Enter: 13, Backspace: 8, Tab: 9, Escape: 27 };
+    const ch = kind === 4 ? (e.key.length === 1 ? e.key.codePointAt(0) : special[e.key] || 0) : 0;
+    send(kind, 0, 0, (e.keyCode & 0xFF) | (ch << 16));
+    e.preventDefault();
+  };
+  c.addEventListener('keydown', key(4));
+  c.addEventListener('keyup', key(5));
+})();
+
 function runExec(files, exe, args) {
-  $('exec').disabled = $('exec2').disabled = $('exec4').disabled = $('exec7z').disabled = true;
+  $('screen').hidden = true;
+  $('exec').disabled = $('exec2').disabled = $('exec4').disabled = $('exec7z').disabled = $('execmine').disabled = true;
   $('exec-out').textContent = '';
   const b = budgetMb();
-  const w = new Worker('worker.js?v=23');
+  const w = new Worker('worker.js?v=24');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('exec-out').textContent += d.text;
     else if (d.type === 'stats') $('exec-stats').innerHTML = statsHtml(d);
+    else if (d.type === 'frame') showFrame(d, w);
     else if (d.type === 'done') {
       $('exec-out').innerHTML += d.ok ? '<b class="ok">\nFinished (exit code 0).</b>' : '<b class="bad">\n' + (d.error ? 'Stopped: ' + d.error : 'Exit code ' + d.exitCode) + '</b>';
       for (const f of d.out || []) {
@@ -50,7 +78,7 @@ function runExec(files, exe, args) {
         a.textContent = `\nDownload ${f.name} (${fmt(f.data.length)} bytes)`;
         $('exec-out').append(a);
       }
-      $('exec').disabled = $('exec2').disabled = $('exec4').disabled = $('exec7z').disabled = false;
+      $('exec').disabled = $('exec2').disabled = $('exec4').disabled = $('exec7z').disabled = $('execmine').disabled = false;
       w.terminate();
     }
   };
@@ -62,6 +90,11 @@ $('exec4').onclick = () => runExec(null, 'stage4.exe');
 $('exec7z').onclick = async () => {
   const data = await fetch('bin/7za.exe?v=1').then((r) => r.arrayBuffer());
   runExec([{ name: '7za.exe', data }], '7za.exe', $('args').value.trim() || 'b -md18 -mmt' + $('cores').value);
+};
+// Wine's own Minesweeper: the first program with windows
+$('execmine').onclick = async () => {
+  const data = await fetch('bin/winemine.exe?v=1').then((r) => r.arrayBuffer());
+  runExec([{ name: 'winemine.exe', data }], 'winemine.exe', '');
 };
 // Picked files add up: a DLL or data file picked later joins the .exe picked before
 // (some browsers hand over only one file per pick). Names like "7z (1).dll" are fixed.
@@ -84,7 +117,7 @@ $('pick').onchange = async (ev) => {
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=23');
+  const w = new Worker('worker.js?v=24');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
@@ -103,7 +136,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=23');
+  const w = new Worker('worker.js?v=24');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -215,7 +248,7 @@ function showLimits() {
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=23');
+  const w = new Worker('worker.js?v=24');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -298,11 +331,11 @@ $('combo').onclick = async () => {
   const log = (t) => { out.textContent += t + '\n'; };
   out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
 
-  const holder = new Worker('worker.js?v=23');
+  const holder = new Worker('worker.js?v=24');
   if (ram > 0) await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
   log(`RAM: ${ram} MB reserved and filled.`);
 
-  const io = new Worker('worker.js?v=23');
+  const io = new Worker('worker.js?v=24');
   log(`Writing ${texMb} MB of textures to OPFS...`);
   const initMs = await new Promise((r) => { io.onmessage = (e) => r(e.data.ms || 0); io.postMessage({ type: 'tex-init', count, size: BYTES }); });
   log(`Texture file ready in ${fmt(initMs)} ms.`);

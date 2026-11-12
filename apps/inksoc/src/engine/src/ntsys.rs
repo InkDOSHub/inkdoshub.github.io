@@ -153,6 +153,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "DbgPrint" | "DbgPrintEx" | "DbgBreakPoint" | "DbgUserBreakPoint" => 0,
         // ---- exceptions: Wine's ntdll dispatches them; these are its kernel side ----
+        "NtCallbackReturn" => { e.callback_return(); return Some(crate::kernel32::NO_RETURN); }
         "NtContinue" => { e.load_context(a0); return Some(crate::kernel32::NO_RETURN); }
         "NtRaiseException" => {
             let code = e.mmu.read32(a0).unwrap_or(0);

@@ -6,8 +6,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 6,
-   "ms": 483,
+   "mips": 5,
+   "ms": 435,
    "out": "\r\n7-Zip (a) 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\r\n\r\nScanning the drive:\r\n  0M Scan \r          \r1 file, 42 bytes (1 KiB)\r\n\r\nCreating archive: out.7z\r\n\r\nAdd new data to archive: 1 file, 42 bytes (1 KiB)\r\n\r\n  0%\r    \r\r\nFiles read from disk: 1\r\nArchive size: 168 bytes (1 KiB)\r\nEverything is Ok\r\n"
   },
   "jq": {
@@ -17,7 +17,7 @@
    "error": "expected output not found",
    "missing": [],
    "mips": 4,
-   "ms": 363,
+   "ms": 349,
    "out": "Assertion failed: block_is_single(binder), file src/compile.c, line 308\r\n\r\n"
   },
   "sqlite": {
@@ -27,7 +27,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 498,
+   "ms": 422,
    "out": "42\n\r"
   },
   "ripgrep": {
@@ -37,7 +37,7 @@
    "error": "",
    "missing": [],
    "mips": 9,
-   "ms": 530,
+   "ms": 537,
    "out": "1:hello world\n4:hello again\n"
   },
   "ripgrep-gnu": {
@@ -47,7 +47,7 @@
    "error": "",
    "missing": [],
    "mips": 8,
-   "ms": 721,
+   "ms": 752,
    "out": "1:hello world\n4:hello again\n"
   },
   "fd": {
@@ -59,7 +59,7 @@
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 412,
+   "ms": 389,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nfd 10.2.0\n"
   },
   "bat": {
@@ -68,8 +68,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 24,
-   "ms": 1948,
+   "mips": 30,
+   "ms": 1640,
    "out": "hello world\nzebra\napple\nhello again\nmango\n"
   },
   "hyperfine": {
@@ -78,8 +78,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 1,
-   "ms": 477,
+   "mips": 2,
+   "ms": 315,
    "out": "hyperfine 1.19.0\n"
   },
   "hexyl": {
@@ -89,7 +89,7 @@
    "error": "",
    "missing": [],
    "mips": 4,
-   "ms": 452,
+   "ms": 449,
    "out": "┌────────┬─────────────────────────┬─────────────────────────┬────────┬────────┐\n│00000000│ 68 65 6c 6c 6f 20 77 6f ┊ 72 6c 64 0a 7a 65 62 72 │hello wo┊rld_zebr│\n│00000010│ 61 0a 61 70 70 6c 65 0a ┊ 68 65 6c 6c 6f 20 61 67 │a_apple_┊hello ag│\n│00000020│ 61 69 6e 0a 6d 61 6e 67 ┊ 6f 0a                   │ain_mang┊o_      │\n└────────┴─────────────────────────┴─────────────────────────┴────────┴────────┘\n"
   },
   "zstd": {
@@ -99,7 +99,7 @@
    "error": "",
    "missing": [],
    "mips": 3,
-   "ms": 409,
+   "ms": 413,
    "out": "\r                                                                               \rRead:    42   B /    42   B ==> 121%\r                                                                               \rin.txt               :130.95%   (    42 B =>     55 B, in.zst) \r\n"
   },
   "lz4": {
@@ -109,7 +109,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 415,
+   "ms": 409,
    "out": "\rRead : 0 MiB   ==> 142.86%   \r                                                                               \rCompressed 42 bytes into 60 bytes ==> 142.86%\r\n"
   },
   "brotli": {
@@ -128,8 +128,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 99,
-   "ms": 610,
+   "mips": 142,
+   "ms": 539,
    "out": "upx 4.2.4\r\nNRV data compression library 0.84\r\nUCL data compression library 1.03\r\nzlib data compression library 1.3.1.1-motley\r\nLZMA SDK version 4.43\r\nCopyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer\r\nCopyright (C) 1996-2024 Laszlo Molnar\r\nCopyright (C) 2000-2024 John F. Reiser\r\nCopyright (C) 1995-2024 Jean-loup Gailly and Mark Adler\r\nCopyright (C) 1999-2006 Igor Pavlov\r\nUPX comes with ABSOLUTELY NO WARRANTY; for details type 'upx -L'.\r\n"
   },
   "ninja": {
@@ -139,7 +139,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 398,
+   "ms": 386,
    "out": "1.12.1\r\n"
   },
   "yq": {
@@ -148,8 +148,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 10,
-   "ms": 1061,
+   "mips": 8,
+   "ms": 1161,
    "out": "\"x\"\n"
   },
   "fzf": {
@@ -158,8 +158,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 598,
-   "ms": 992,
+   "mips": 392,
+   "ms": 1376,
    "out": "0.56.3 (add1aec)\n"
   },
   "coreutils": {
@@ -169,7 +169,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 424,
+   "ms": 448,
    "out": "apple\nhello again\nhello world\nmango\nzebra\n"
   },
   "tokei": {
@@ -181,7 +181,7 @@
     "coml2.dll"
    ],
    "mips": 3,
-   "ms": 447,
+   "ms": 433,
    "out": "unctions will stop the program when called\n===============================================================================\n Language            Files        Lines         Code     Comments       Blanks\n===============================================================================\n C                       1            2            2            0            0\n===============================================================================\n Total                   1            2            2            0            0\n===============================================================================\n"
   },
   "sd": {
@@ -191,7 +191,7 @@
    "error": "expected output not found",
    "missing": [],
    "mips": 1,
-   "ms": 425,
+   "ms": 418,
    "out": "error: Incorrect function. (os error 1)\n"
   },
   "dust": {
@@ -205,7 +205,7 @@
     "netutils.dll"
    ],
    "mips": 1,
-   "ms": 448,
+   "ms": 377,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] netutils.dll is not available yet: its functions will stop the program when called\nDust 1.1.1\n"
   },
   "delta": {
@@ -218,8 +218,8 @@
     "nsi.dll",
     "netutils.dll"
    ],
-   "mips": 6,
-   "ms": 511,
+   "mips": 7,
+   "ms": 440,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] netutils.dll is not available yet: its functions will stop the program when called\ndelta 0.18.2\n"
   },
   "oxipng": {
@@ -228,8 +228,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 16,
-   "ms": 591,
+   "mips": 23,
+   "ms": 456,
    "out": "Processing: in.png\n86 bytes (81.43% smaller): out.png\n"
   },
   "age": {
@@ -238,8 +238,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 6,
-   "ms": 616,
+   "mips": 8,
+   "ms": 489,
    "out": "v1.2.0\n"
   },
   "rclone": {
@@ -248,9 +248,9 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 126,
-   "ms": 4759,
-   "out": "2026/11/12 15:37:56 ERROR : Couldn't find configuration directory nor home directory: HOMEDRIVE, HOMEPATH, or USERPROFILE are blank\n2026/11/12 15:37:56 ERROR : Defaulting to storing config in current directory.\n2026/11/12 15:37:56 ERROR : Use --config flag to workaround.\nrclone v1.68.2\n- os/version: unknown\n- os/kernel: unknown\n- os/type: windows\n- os/arch: amd64\n- go/version: go1.23.3\n- go/linking: static\n- go/tags: cmount\n"
+   "mips": 134,
+   "ms": 4372,
+   "out": "2026/11/12 16:21:09 ERROR : Couldn't find configuration directory nor home directory: HOMEDRIVE, HOMEPATH, or USERPROFILE are blank\n2026/11/12 16:21:09 ERROR : Defaulting to storing config in current directory.\n2026/11/12 16:21:09 ERROR : Use --config flag to workaround.\nrclone v1.68.2\n- os/version: unknown\n- os/kernel: unknown\n- os/type: windows\n- os/arch: amd64\n- go/version: go1.23.3\n- go/linking: static\n- go/tags: cmount\n"
   },
   "hugo": {
    "ok": true,
@@ -258,8 +258,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 43,
-   "ms": 3734,
+   "mips": 46,
+   "ms": 3670,
    "out": "hugo v0.139.3-2f6864387cd31b975914e8373d4bf38bddbd47bc windows/amd64 BuildDate=2024-11-29T15:36:56Z VendorInfo=gohugoio\n"
   },
   "gh": {
@@ -268,8 +268,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 151,
-   "ms": 4399,
+   "mips": 113,
+   "ms": 5670,
    "out": "gh version 2.62.0 (2024-11-14)\nhttps://github.com/cli/cli/releases/tag/v2.62.0\n"
   },
   "restic": {
@@ -279,7 +279,7 @@
    "error": "",
    "missing": [],
    "mips": 13,
-   "ms": 1765,
+   "ms": 1790,
    "out": "restic 0.17.3 compiled with go1.23.3 on windows/amd64\n"
   },
   "shellcheck": {
@@ -293,7 +293,7 @@
     "coml2.dll"
    ],
    "mips": 2,
-   "ms": 505,
+   "ms": 461,
    "out": "[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] msacm32.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nShellCheck - shell script analysis tool\r\nversion: 0.10.0\r\nlicense: GNU General Public License, version 3\r\nwebsite: https://www.shellcheck.net\r\n"
   },
   "pandoc": {
@@ -304,8 +304,8 @@
    "missing": [
     "coml2.dll"
    ],
-   "mips": 2,
-   "ms": 1833,
+   "mips": 3,
+   "ms": 1531,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\npandoc.exe 3.5\r\nFeatures: +server +lua\r\nScripting engine: Lua 5.4\r\nUser data directory: C:\\InkSoC\\pandoc\r\nCopyright (C) 2006-2024 John MacFarlane. Web: https://pandoc.org\r\nThis is free software; see the source for copying conditions. There is no\r\nwarranty, not even for merchantability or fitness for a particular purpose.\r\n"
   },
   "qpdf": {
@@ -314,8 +314,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 6,
-   "ms": 798,
+   "mips": 8,
+   "ms": 646,
    "out": "qpdf version 11.9.1\r\nRun qpdf --copyright to see copyright and license information.\r\n"
   },
   "python": {
@@ -325,7 +325,7 @@
    "error": "",
    "missing": [],
    "mips": 21,
-   "ms": 3383,
+   "ms": 3313,
    "out": "42\r\n"
   },
   "ffmpeg": {
@@ -340,8 +340,8 @@
     "coml2.dll",
     "avicap32.dll"
    ],
-   "mips": 50,
-   "ms": 1265,
+   "mips": 56,
+   "ms": 1110,
    "out": "-enable-nvenc --enable-vaapi --enable-openal --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband\r\nlibavutil      61.  1.102 / 61.  1.102\r\nlibavcodec     63.  1.102 / 63.  1.102\r\nlibavformat    63.  1.102 / 63.  1.102\r\nlibavdevice    63.  1.102 / 63.  1.102\r\nlibavfilter    12.  1.102 / 12.  1.102\r\nlibswscale     10.  1.102 / 10.  1.102\r\nlibswresample   7.  1.102 /  7.  1.102\r\n\r\nExiting with exit code 0\r\n"
   },
   "nasm": {
@@ -351,7 +351,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 391,
+   "ms": 452,
    "out": "NASM version 2.16.03 compiled on Apr 17 2024\r\n"
   },
   "tcc": {
@@ -361,7 +361,7 @@
    "error": "",
    "missing": [],
    "mips": 4,
-   "ms": 428,
+   "ms": 415,
    "out": "tcc version 0.9.27 (x86_64 Windows)\r\n"
   },
   "node": {
@@ -373,8 +373,8 @@
     "coml2.dll",
     "nsi.dll"
    ],
-   "mips": 29,
-   "ms": 4725,
+   "mips": 27,
+   "ms": 5122,
    "out": "F (bad file descriptor)\n    at new WriteStream (node:tty:97:11)\n    at createWritableStdioStream (node:internal/bootstrap/switches/is_main_thread:56:16)\n    at process.getStdout [as stdout] (node:internal/bootstrap/switches/is_main_thread:153:12)\n    at console.get (node:internal/console/constructor:204:42)\n    at console.value (node:internal/console/constructor:329:50)\n    at console.log (node:internal/console/constructor:376:61)\n    at [eval]:1:9\n    at runScriptInThisContext (node:internal/vm:209:10)\n    at node:internal/process/execution:118:14\n    at [eval]-wrapper:6:24\n\nNode.js v22.11.0\n"
   },
   "deno": {
@@ -385,8 +385,8 @@
    "missing": [
     "coml2.dll"
    ],
-   "mips": 8,
-   "ms": 1203,
+   "mips": 7,
+   "ms": 1191,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\ndeno 2.1.1 (stable, release, x86_64-pc-windows-msvc)\nv8 13.0.245.12-rusty\ntypescript 5.6.2\n"
   },
   "cwebp": {
@@ -398,7 +398,7 @@
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 357,
+   "ms": 452,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n1.4.0\r\nlibsharpyuv: 0.4.0\r\n"
   },
   "git": {
@@ -408,7 +408,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 568,
+   "ms": 626,
    "out": "git version 2.47.1.windows.1\n"
   },
   "cmake": {
@@ -419,8 +419,8 @@
    "missing": [
     "coml2.dll"
    ],
-   "mips": 4,
-   "ms": 731,
+   "mips": 5,
+   "ms": 615,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nCMake Error: Could not find CMAKE_ROOT !!!\nCMake has most likely not been installed correctly.\nModules directory not found in\n\n"
   },
   "tidy": {
@@ -429,8 +429,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 2,
-   "ms": 345,
+   "mips": 1,
+   "ms": 394,
    "out": "HTML Tidy for Windows version 5.8.0\r\n"
   },
   "dos2unix": {
@@ -439,8 +439,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 4,
-   "ms": 420,
+   "mips": 3,
+   "ms": 425,
    "out": "dos2unix 7.5.2 (2024-01-22)\r\nWindows 64 bit version (MinGW-w64).\r\nWINVER 0x601\r\nWith Unicode UTF-16 support.\r\nWith Unicode file name support.\r\nWithout native language support.\r\nWithout support to preserve the user and group ownership of files.\r\nhttps://waterlan.home.xs4all.nl/dos2unix.html\r\nhttps://dos2unix.sourceforge.io/\r\n"
   },
   "ytdlp": {
@@ -449,9 +449,9 @@
    "exitCode": 4294967295,
    "error": "expected output not found",
    "missing": [],
-   "mips": 361,
-   "ms": 2013,
-   "out": "should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\INSTALLER\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\METADATA\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\RECORD\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\REQUESTED\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01B9.tmp\\wheel-0.45.0.dist-info\\WHEEL\r\n[PYI-4:ERROR] Failed to create child process!\r\nCreateProcessW: The system cannot find the file specified.\r\r\n"
+   "mips": 292,
+   "ms": 2395,
+   "out": "should not: C:\\InkSoC\\_ME01BF.tmp\\wheel-0.45.0.dist-info\\INSTALLER\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01BF.tmp\\wheel-0.45.0.dist-info\\METADATA\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01BF.tmp\\wheel-0.45.0.dist-info\\RECORD\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01BF.tmp\\wheel-0.45.0.dist-info\\REQUESTED\r\n[PYI-4:WARNING] File already exists but should not: C:\\InkSoC\\_ME01BF.tmp\\wheel-0.45.0.dist-info\\WHEEL\r\n[PYI-4:ERROR] Failed to create child process!\r\nCreateProcessW: The system cannot find the file specified.\r\r\n"
   },
   "micro": {
    "ok": true,
@@ -460,7 +460,7 @@
    "error": "",
    "missing": [],
    "mips": 8,
-   "ms": 1271,
+   "ms": 1124,
    "out": "Version: 2.0.14\nCommit hash: 04c57704\nCompiled on August 27, 2024\n"
   },
   "gron": {
@@ -469,8 +469,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 5,
-   "ms": 796,
+   "mips": 4,
+   "ms": 854,
    "out": "json = {};\njson.a = [];\njson.a[0] = 1;\njson.a[1] = 2;\njson.a[2] = 3;\njson.b = \"x\";\n"
   },
   "duckdb": {
@@ -481,8 +481,8 @@
    "missing": [
     "concrt140.dll"
    ],
-   "mips": 18,
-   "ms": 1672,
+   "mips": 15,
+   "ms": 2079,
    "out": "[inksoc] concrt140.dll is not available yet: its functions will stop the program when called\nâââââââââââ\r\nâ (6 * 7) â\r\nâ  int32  â\r\nâââââââââââ¤\r\nâ      42 â\r\nâââââââââââ\r\n"
   },
   "starship": {
@@ -494,7 +494,7 @@
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 437,
+   "ms": 487,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n"
   },
   "zoxide": {
@@ -506,7 +506,7 @@
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 415,
+   "ms": 452,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nzoxide 0.9.6\n"
   },
   "lazygit": {
@@ -517,8 +517,8 @@
    "missing": [
     "coml2.dll"
    ],
-   "mips": 299,
-   "ms": 1736,
+   "mips": 247,
+   "ms": 2096,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\ncommit=611fabde11d24d9acc71ee26077b9a1101f59f27, build date=2024-09-18T10:56:10Z, build source=binaryRelease, version=0.44.1, os=windows, arch=amd64, git version=\n"
   },
   "php": {
@@ -530,8 +530,8 @@
     "nsi.dll",
     "coml2.dll"
    ],
-   "mips": 5,
-   "ms": 615,
+   "mips": 4,
+   "ms": 732,
    "out": "[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nPHP Warning:  'C:\\InkSoC\\vcruntime140.dll' 0.0 is not compatible with this PHP build linked with 14.29 in Unknown on line 0\n"
   },
   "qjs": {
@@ -540,8 +540,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 5,
-   "ms": 564,
+   "mips": 4,
+   "ms": 612,
    "out": "42\r\n"
   },
   "just": {
@@ -552,8 +552,8 @@
    "missing": [
     "coml2.dll"
    ],
-   "mips": 2,
-   "ms": 377,
+   "mips": 1,
+   "ms": 461,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\njust 1.37.0\n"
   },
   "xh": {
@@ -566,7 +566,7 @@
     "coml2.dll"
    ],
    "mips": 4,
-   "ms": 597,
+   "ms": 609,
    "out": "[inksoc] nsi.dll is not available yet: its functions will stop the program when called\n[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nxh 0.23.0\n+native-tls +rustls\n"
   },
   "glow": {
@@ -577,8 +577,8 @@
    "missing": [
     "coml2.dll"
    ],
-   "mips": 47,
-   "ms": 2793,
+   "mips": 52,
+   "ms": 2543,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\nglow version 2.0.0 (67243bb)\n"
   },
   "mkcert": {
@@ -588,7 +588,7 @@
    "error": "",
    "missing": [],
    "mips": 4,
-   "ms": 606,
+   "ms": 644,
    "out": "v1.4.4\n"
   },
   "procs": {
@@ -601,7 +601,7 @@
     "nsi.dll"
    ],
    "mips": 1,
-   "ms": 418,
+   "ms": 435,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\n[inksoc] nsi.dll is not available yet: its functions will stop the program when called\nprocs \"0.14.8 ( rev: 368d14a, rustc: 1.82.0, build at: 2024/10/23 10:23:55 )\"\n"
   },
   "eza": {
@@ -613,9 +613,9 @@
     "coml2.dll"
    ],
    "mips": 1,
-   "ms": 405,
+   "ms": 417,
    "out": "[inksoc] coml2.dll is not available yet: its functions will stop the program when called\neza - A modern, maintained replacement for ls\nv0.20.10 [+git]\nhttps://github.com/eza-community/eza\n"
   }
  },
- "date": "2026-11-12T15:38:39.740Z"
+ "date": "2026-11-12T16:21:55.406Z"
 }

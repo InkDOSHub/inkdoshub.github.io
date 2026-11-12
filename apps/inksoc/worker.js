@@ -68,7 +68,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=6' : 'inksoc.wasm?v=19', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=7' : 'inksoc.wasm?v=20', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -141,11 +141,26 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     ms: performance.now() - t0, swapMs, opfs: !!swap,
   });
   // 3 = every program thread is waiting (Sleep, a timeout): wait that long without spinning
+  winX = x;
+  let lastFrame = 0;
+  // windows: send the screen when it changed (at most ~30 times a second)
+  const frame = () => {
+    const t = performance.now();
+    if (t - lastFrame < 33) return;
+    lastFrame = t;
+    const p = x.win_frame();
+    if (!p) return;
+    const b = new Uint8ClampedArray(new Uint8Array(mem.buffer, p, 1024 * 768 * 4));
+    postMessage({ type: 'frame', w: 1024, h: 768, data: b.buffer }, [b.buffer]);
+  };
   while (!tooMuch) {
     st = x.run(2000000);
-    if (st === 3) { await new Promise((r) => setTimeout(r, Math.max(0, x.stat(17)))); continue; }
+    frame();
+    if (st === 3) { await new Promise((r) => setTimeout(r, Math.min(30, Math.max(0, x.stat(17))))); continue; }
     if (st !== 0) break;
     post('stats', stats());
+    // a program with windows: let mouse and keyboard messages in
+    if (!mt && x.win_count()) await yieldNow();
     // let the other cores' output in (a message channel does not wait 4 ms like setTimeout)
     if (mt) await yieldNow();
   }
@@ -192,7 +207,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=19').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=20').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -263,9 +278,9 @@ async function runExec(d) {
     files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
   }
   else {
-    // the rest of Windows: Wine 9.0's DLLs (cached by the browser after the first run)
+    // the rest of Windows: Wine 11's DLLs (cached by the browser after the first run)
     post('log', { text: '[engine] loading the Wine DLLs (25 MB the first time)\n' });
-    const list = await fetch('bin/wine/list.json?v=2').then((r) => r.json());
+    const list = await fetch('bin/wine/list.json?v=3').then((r) => r.json());
     const have = new Set(files.map((f) => f.name.toLowerCase()));
     const wine = await Promise.all(list.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch('bin/wine/' + name + '?v=2').then((r) => r.arrayBuffer()) })));
     files = files.concat(wine);
@@ -358,8 +373,10 @@ async function texDone() {
   try { await root.removeEntry('inksoc-tex.bin'); } catch (e) {}
 }
 
+let winX = null;
 onmessage = (ev) => {
   const d = ev.data;
+  if (d.type === 'win') { if (winX) winX.win_input(d.k, d.x, d.y, d.d); return; }
   if (d.type === 'key') { if (lxs) lxs.key(d.data); return; }
   if (d.type === 'resize') { if (lxs) lxs.resize(d.rows, d.cols); return; }
   if (d.type === 'put') { if (lxs) lxs.put(d.name, d.data); return; }
