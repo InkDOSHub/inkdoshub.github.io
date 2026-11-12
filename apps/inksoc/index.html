@@ -42,6 +42,7 @@
     <button id="exec4">Run stage 4 test (threads)</button>
     <input id="args" placeholder="arguments (optional)" style="min-width:10em">
     <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="jit" checked>JIT</label>
+    <label style="flex-direction:row;align-items:center;gap:4px" title="Runs the engine on a shared memory (needed for several cores) to compare speed; works on hub.inkdos.workers.dev"><input type="checkbox" id="shared">Shared memory (test)</label>
     <label class="btnlike">Open .exe…<input type="file" id="pick" multiple accept=".exe,.dll" hidden></label>
   </div>
   <p class="n" id="budget"></p>
@@ -105,6 +106,6 @@
   <pre id="feat"></pre>
 </section>
 </main>
-<script src="inksoc.js?v=20"></script>
+<script src="inksoc.js?v=21"></script>
 </body>
 </html>

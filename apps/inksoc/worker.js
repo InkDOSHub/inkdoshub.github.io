@@ -18,7 +18,7 @@ async function openSwap(name) {
 }
 
 /* Runs a program on the engine. files: [{ name, data }], exe: file name to start. */
-async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit }) {
+async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared }) {
   const swap = await openSwap('inksoc-swap.bin');
   const ram = new Map();
   let mem, swapMs = 0, outBytes = 0, tooMuch = false;
@@ -34,12 +34,12 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit }) {
     host_epoch_ms: () => Date.now(),
     host_swap_write: (slot, p) => {
       const t = performance.now();
-      if (swap) swap.write(view(p), { at: slot * PAGE }); else ram.set(slot, view(p).slice());
+      if (swap) swap.write(shared ? view(p).slice() : view(p), { at: slot * PAGE }); else ram.set(slot, view(p).slice());
       swapMs += performance.now() - t;
     },
     host_swap_read: (slot, p) => {
       const t = performance.now();
-      if (swap) swap.read(view(p), { at: slot * PAGE }); else view(p).set(ram.get(slot));
+      if (swap) { if (shared) { const b = new Uint8Array(PAGE); swap.read(b, { at: slot * PAGE }); view(p).set(b); } else swap.read(view(p), { at: slot * PAGE }); } else view(p).set(ram.get(slot));
       swapMs += performance.now() - t;
     },
     // msvcrt calls into Wine's code (wine.wasm), instantiated below
@@ -60,7 +60,17 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit }) {
   };
   let jitErr = 0;
   let wine;
-  const [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=11', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all(['inksoc.wasm?v=12', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  // test: the same engine on a shared memory (what several cores need), to compare speed
+  if (shared) {
+    if (!self.crossOriginIsolated) post('log', { text: '[engine] shared memory needs an isolated page (open it on hub.inkdos.workers.dev); using normal memory\n' });
+    else {
+      importScripts('sharedmem.js?v=1');
+      wasm = inkShared.engine(wasm, (poolMb + 192) * 16);
+      wineWasm = inkShared.importer(wineWasm);
+    }
+  }
+  shared = shared && self.crossOriginIsolated;
   const { instance } = await WebAssembly.instantiate(wasm, { env });
   const x = instance.exports;
   mem = x.memory;
@@ -68,6 +78,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit }) {
   const enc = (t) => new TextEncoder().encode(t);
   const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice());
   x.init(poolMb, targetMb);
+  if (shared) x.set_shared_mem(1);
   if (jit === false) x.set_jit(0);
   // Wine's msvcrt shares the engine's memory; its pointers go through the engine's page table
   wine = (await WebAssembly.instantiate(wineWasm, { env: {
@@ -89,7 +100,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit }) {
     insns: x.stat(0), faults: x.stat(1), swapIn: x.stat(2), swapOut: x.stat(3),
     resident: x.stat(4), frames: x.stat(5), bridge: x.stat(7), slots: x.stat(8),
     modules: x.stat(9), thunks: x.stat(10),
-    jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16), threads: x.stat(18), switches: x.stat(19),
+    shared: !!shared, jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16), threads: x.stat(18), switches: x.stat(19),
     ms: performance.now() - t0, swapMs, opfs: !!swap,
   });
   // 3 = every program thread is waiting (Sleep, a timeout): wait that long without spinning
@@ -123,7 +134,7 @@ async function runExec(d) {
     const names = d.exe === 'stage1.exe' || !d.exe ? ['stage1.exe', 'testdll.dll'] : [d.exe];
     files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
   }
-  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit });
+  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared });
 }
 
 /* Random 4 KB reads/writes on a 64 MB OPFS file: the real cost of one swap page. */

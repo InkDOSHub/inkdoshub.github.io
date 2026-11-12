@@ -103,6 +103,11 @@ pub fn call(f: u32) {
     func();
 }
 
+static mut SHARED_MEM: bool = false;
+/// The page runs the engine on a shared memory (multi-core test).
+#[no_mangle]
+pub extern "C" fn set_shared_mem(on: u32) { unsafe { SHARED_MEM = on != 0; } }
+
 // ---- callbacks from JIT code (imported by every block module) ----
 
 #[no_mangle]
@@ -1098,7 +1103,9 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     section(&mut m, 1, types);
     let mut imp = vec![5u8];
     let name = |v: &mut Vec<u8>, s: &str| { leb_u(v, s.len() as u64); v.extend_from_slice(s.as_bytes()); };
-    name(&mut imp, "env"); name(&mut imp, "memory"); imp.extend_from_slice(&[0x02, 0x00, 0x00]);
+    name(&mut imp, "env"); name(&mut imp, "memory");
+    // a shared memory must be imported as shared (flags 3, max 65536 pages)
+    if unsafe { SHARED_MEM } { imp.extend_from_slice(&[0x02, 0x03, 0x00, 0x80, 0x80, 0x04]); } else { imp.extend_from_slice(&[0x02, 0x00, 0x00]); }
     for (k, f) in ["rd", "wr", "step", "cond"].iter().enumerate() {
         name(&mut imp, "env"); name(&mut imp, f); imp.push(0x00); imp.push(k as u8 + 1);
     }
