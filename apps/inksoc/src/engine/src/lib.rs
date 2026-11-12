@@ -93,6 +93,8 @@ pub struct Shared {
     pub win: winsys::Win,
     pub gdi: wingdi::Gdi,
     pub win_ki: u64,
+    pub recent: [(u32, u64); 16], // last native calls (thunk, return address), for error reports
+    pub recent_n: usize,
     pub wine_exports: HashMap<String, std::collections::HashSet<String>>,
     pub ldr_entries: HashMap<u64, u64>,
     pub loadlib: Vec<(u64, u64)>, // (module handle, caller rsp) while a DllMain runs
@@ -152,7 +154,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             files: HashMap::new(), modules: Vec::new(),
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0, no_init: false, thunk_fb: HashMap::new(), wine_fb: HashMap::new(), env_block: 0, tls_tmpl: Vec::new(),
-            init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), win_ki: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
+            init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), win_ki: 0, recent: [(0, 0); 16], recent_n: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
         });
@@ -292,6 +294,11 @@ pub extern "C" fn run(budget: u32) -> i32 {
     if e.s.error.is_some() { 2 } else if e.s.exited { 1 } else if idle { 3 } else { 0 }
 }
 
+static mut TRACE: bool = false;
+/// Prints every native call (debugging).
+#[no_mangle]
+pub extern "C" fn set_trace(on: u32) { unsafe { TRACE = on != 0; } }
+
 /// Turns the JIT on or off (call before start).
 #[no_mangle]
 pub extern "C" fn set_jit(on: u32) { let e = eng(); e.jit.on = on != 0; e.s.jit_on = on != 0; }
@@ -374,7 +381,16 @@ pub extern "C" fn guest_read32(addr: u64) -> u32 {
 
 impl Engine {
     pub fn fault(&mut self, addr: u64) {
-        let m = format!("access violation at 0x{:x} (rip 0x{:x})", addr, self.cpu.rip);
+        let mut m = format!("access violation at 0x{:x} (rip 0x{:x})", addr, self.cpu.rip);
+        // a jump to a null function pointer: say who called it
+        if self.cpu.rip < 0x10000 {
+            if let Ok(r) = self.mmu.read64(self.cpu.regs[4]) {
+                match self.s.modules.iter().find(|x| !x.native && r >= x.base && r < x.base + x.size) {
+                    Some(x) => m += &format!(" called from {}+0x{:x}", x.name, r - x.base),
+                    None => m += &format!(" [rsp]=0x{:x}", r),
+                }
+            }
+        }
         self.set_error(m);
     }
     /// Stops the program with a message (the first error wins).
@@ -386,7 +402,17 @@ impl Engine {
             // where it happened: module + offset (Windows programs)
             let rip = self.cpu.rip;
             let at = if self.s.lx.is_none() { self.s.modules.iter().find(|x| !x.native && rip >= x.base && rip < x.base + x.size).map(|x| format!(" [in {}+0x{:x}]", x.name, rip - x.base)) } else { None };
-            self.s.error = Some(m + &at.unwrap_or_default());
+            let mut calls = String::new();
+            if self.s.lx.is_none() && self.s.recent_n > 0 {
+                calls += "\nlast calls:";
+                for j in (self.s.recent_n.saturating_sub(16)..self.s.recent_n).rev() {
+                    let (t, ra) = self.s.recent[j % 16];
+                    let f = self.s.thunks.get(t as usize).map_or(String::from("?"), |(d, n)| format!("{}!{}", d, n));
+                    let at = self.s.modules.iter().find(|x| !x.native && ra >= x.base && ra < x.base + x.size).map_or(format!("0x{:x}", ra), |x| format!("{}+0x{:x}", x.name, ra - x.base));
+                    calls += &format!("\n  {} from {}", f, at);
+                }
+            }
+            self.s.error = Some(m + &at.unwrap_or_default() + &calls);
         }
     }
 
@@ -555,6 +581,9 @@ impl Engine {
         }
         let idx = ((self.cpu.rip - THUNK_BASE) / 16) as usize;
         if let Some(&a) = self.s.thunk_fb.get(&idx) { self.cpu.rip = a; return; }
+        let ra = self.mmu.read64(self.cpu.regs[4]).unwrap_or(0);
+        let k = self.s.recent_n % 16; self.s.recent[k] = (idx as u32, ra); self.s.recent_n += 1;
+        if unsafe { TRACE } { if let Some((d, n)) = self.s.thunks.get(idx) { console(&format!("[call] {}!{} rcx={:x} rdx={:x}\n", d, n, self.cpu.regs[1], self.cpu.regs[2])); } }
         let Some((dll, name)) = self.s.thunks.get(idx).cloned() else {
             self.set_error(format!("jump into the native area at 0x{:x}", self.cpu.rip));
             return;

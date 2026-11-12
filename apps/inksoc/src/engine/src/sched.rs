@@ -26,7 +26,7 @@ pub enum W {
     /// a Linux system call waiting (pipe, child, terminal input, sleep)
     Lx(crate::linux::Cond),
     /// WaitOnAddress: until the value changes or the address is woken
-    Addr { addr: u64, val: u64, size: u32, seq: u64 },
+    Addr { addr: u64, val: u64, size: u32, seq: u64, win: bool },
     /// keyed event: until a release with the same key
     Keyed(u64),
     /// completion port: until packets arrive (out = key*, apc*, iosb* or entries*, count, written*)
@@ -170,9 +170,9 @@ impl Engine {
                 Some(0)
             }
             W::Keyed(k) => match self.s.sched.keyed.get_mut(k) { Some(n) if *n > 0 => { *n -= 1; Some(0) } _ => None },
-            W::Addr { addr, val, size, seq } => {
+            W::Addr { addr, val, size, seq, win } => {
                 let cur = match size { 1 => self.mmu.read8(*addr).map(|v| v as u64), 2 => self.mmu.read16(*addr).map(|v| v as u64), 4 => self.mmu.read32(*addr).map(|v| v as u64), _ => self.mmu.read64(*addr) }.unwrap_or(0);
-                if cur != *val || self.s.sched.addr_seq.get(addr).copied().unwrap_or(0) != *seq { Some(0) } else { None }
+                if cur != *val || self.s.sched.addr_seq.get(addr).copied().unwrap_or(0) != *seq { Some(*win as u64) } else { None }
             }
             W::Msg { out, hwnd, first, last } => self.peek_tid(me, *out, *hwnd, *first, *last, true).map(|more| more as u64),
             W::MsgOrObjs { hs } => {
@@ -310,7 +310,7 @@ impl Engine {
                     let w = t.wait.clone().unwrap();
                     let id = t.id;
                     let dl = t.deadline;
-                    let r = self.try_wait(&w, id).or_else(|| if t_now >= dl { Some(if matches!(w, W::Sleep) { 0 } else { WAIT_TIMEOUT }) } else { None });
+                    let r = self.try_wait(&w, id).or_else(|| if t_now >= dl { Some(if matches!(w, W::Sleep | W::Addr { win: true, .. }) { 0 } else { WAIT_TIMEOUT }) } else { None });
                     if let Some(v) = r {
                         let t = &mut self.s.sched.th[i];
                         t.st = St::Ready;
@@ -407,8 +407,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let val = match size { 1 => e.mmu.read8(cmp).map(|v| v as u64), 2 => e.mmu.read16(cmp).map(|v| v as u64), 4 => e.mmu.read32(cmp).map(|v| v as u64), _ => e.mmu.read64(cmp) }.unwrap_or(0);
             let ms = if name == "WaitOnAddress" { e.arg(3) as u32 as u64 } else { let p = e.arg(3); nt_timeout(e, p) };
             let seq = e.s.sched.addr_seq.get(&a0).copied().unwrap_or(0);
-            let r = e.wait_on(W::Addr { addr: a0, val, size, seq }, ms);
-            if name == "WaitOnAddress" { (r == 0) as u64 } else { r }
+            let win = name == "WaitOnAddress";
+            let r = e.wait_on(W::Addr { addr: a0, val, size, seq, win }, ms);
+            if win && r == WAIT_TIMEOUT { e.set_last_error(1460); 0 } else { r }
         }
         "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Port { q: Default::default() }); let _ = e.mmu.write64(a0, h); 0 }
         "NtSetIoCompletion" => {

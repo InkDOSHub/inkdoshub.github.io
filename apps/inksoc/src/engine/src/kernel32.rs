@@ -96,7 +96,19 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "SetDefaultDllDirectories" | "SetDllDirectoryW" | "SetDllDirectoryA" => 1,
         "SetFileApisToOEM" | "SetFileApisToANSI" => 0,
         "AreFileApisANSI" => 1,
-        "GetConsoleScreenBufferInfo" => { e.set_last_error(6); 0 }
+        "GetConsoleCursorInfo" => { let p = e.arg(1); if a0 == 0 || a0 > 3 || p == 0 { e.set_last_error(6); return Some(0); } let _ = e.mmu.write32(p, 25); let _ = e.mmu.write32(p + 4, 1); 1 }
+        "SetConsoleCursorInfo" | "SetConsoleScreenBufferSize" | "SetConsoleWindowInfo" | "FillConsoleOutputCharacterW" | "FillConsoleOutputCharacterA" | "FillConsoleOutputAttribute" => {
+            // a count of written cells (fill functions): report all done
+            if name.starts_with("Fill") { let (n, out) = (e.arg(2), e.arg(4)); let _ = e.mmu.write32(out, n as u32); }
+            1
+        }
+        "GetConsoleScreenBufferInfo" => {
+            // the page's terminal: 120 x 30 (only for the console handles)
+            let p = e.arg(1);
+            if a0 == 0 || a0 > 3 || p == 0 { e.set_last_error(6); return Some(0); }
+            for (o, v) in [(0u64, 120u16), (2, 9000), (4, 0), (6, 0), (8, 7), (10, 0), (12, 0), (14, 119), (16, 29), (18, 120), (20, 30)] { let _ = e.mmu.write16(p + o, v); }
+            1
+        }
         "GetProcessAffinityMask" => { let (p, s) = (e.arg(1), e.arg(2)); let m = (1u64 << e.s.cores) - 1; e.w64(p, m); e.w64(s, m); 1 }
         "SetProcessAffinityMask" | "SetThreadAffinityMask" => 1,
         "GetLargePageMinimum" => 0,
