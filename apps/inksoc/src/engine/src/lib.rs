@@ -26,6 +26,7 @@ mod ntsys;
 mod winsys;
 mod wingdi;
 mod proc;
+mod wow64;
 
 use cpu::Cpu;
 use mmu::Mmu;
@@ -51,8 +52,12 @@ pub const RET_INITTERM: u64 = THUNK_BASE + 0xFFC0;
 pub const RET_EH: u64 = THUNK_BASE + 0xFFB0;
 pub const RET_THREAD: u64 = THUNK_BASE + 0xFFA0;
 pub const RET_FBINIT: u64 = THUNK_BASE + 0xFF90;
-pub const TEB: u64 = 0x7FFD_0000_0000;
-pub const PEB: u64 = 0x7FFD_0001_0000;
+// Below 4 GB (like Windows does for WoW64 processes): 32-bit code reaches its
+// TEB32 (TEB + 0x2000) and PEB32 through 32-bit pointers.
+pub const TEB: u64 = 0x7FF8_0000;
+pub const PEB: u64 = 0x7FF9_0000;
+pub const TEB32_OFF: u64 = 0x2000;
+pub const PEB32: u64 = 0x7FF9_1000;
 pub(crate) const STACK_SIZE: u64 = 1 << 20;
 
 /// One core: the program thread it is running and its private caches.
@@ -120,6 +125,12 @@ pub struct Shared {
     pub std: [u64; 3],
     /// folders searched for DLLs after C:\InkSoC (SetDllDirectory, AddDllDirectory, folders DLLs were loaded from)
     pub dll_dirs: Vec<String>,
+    /// 32-bit program (WoW64): its ntdll, and the CONTEXT passed to Wow64LdrpInitialize
+    pub wow64: bool,
+    pub wow64_ntdll: u64,
+    pub wow64_ctx: u64,
+    /// images mapped by map_image (base -> size)
+    pub images: HashMap<u64, u64>,
 }
 
 #[cfg_attr(target_feature = "atomics", thread_local)]
@@ -166,7 +177,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), win_ki: 0, recent: [(0, 0); 16], recent_n: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
-            wpid: 0, procs: HashMap::new(), pinfo: HashMap::new(), std: [3, 1, 2], dll_dirs: Vec::new(),
+            wpid: 0, procs: HashMap::new(), pinfo: HashMap::new(), std: [3, 1, 2], dll_dirs: Vec::new(), wow64: false, wow64_ntdll: 0, wow64_ctx: 0, images: HashMap::new(),
         });
         ENGINE = Some(Engine {
             mmu: Mmu::new(pool_mb as usize, target_mb as u64),
@@ -279,7 +290,7 @@ pub extern "C" fn run(budget: u32) -> i32 {
             if lock::MT { lock::kick(); }
             continue;
         }
-        if e.jit.on {
+        if e.jit.on && !e.cpu.mode32 { // 32-bit (WoW64) code runs in the interpreter for now
             let lim = left.min(e.slice_left());
             if let Some(f) = jit::Jit::lookup(e, rip) {
                 let before = e.cpu.icount;
@@ -505,6 +516,8 @@ impl Engine {
         // Thread and process blocks (reached by the program through gs:)
         self.mmu.add_region(TEB, 0x2000);
         self.mmu.add_region(PEB, 0x1000);
+        // a 32-bit program needs its memory below 2 GB: allocations start low
+        if self.s.files.get(name).map_or(false, |b| wow64::is_pe32(b)) { self.s.wow64 = true; self.s.next_alloc = wow64::LOW_ALLOC; }
         let stack = self.alloc(STACK_SIZE).ok_or("out of memory")?;
         self.s.stack_top = stack + STACK_SIZE - 0x100;
         let w = |e: &mut Engine, a: u64, v: u64| { let _ = e.mmu.write64(a, v); };
@@ -519,14 +532,19 @@ impl Engine {
         self.sched_init();
         let bytes = self.s.files.get(name).cloned().ok_or_else(|| format!("{} not found", name))?;
         if bytes.starts_with(b"\x7fELF") { return self.linux_boot(name, cmd); }
+        let wow = wow64::is_pe32(&bytes);
         // before the imports are bound: msvcrt's _acmdln points at it
         self.s.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
         self.process_parameters(name);
         self.teb_extras(TEB);
         self.shared_data();
-        let idx = pe::load_image(self, name, &bytes, true)?;
-        self.s.exe_base = self.s.modules[idx].base;
-        self.s.exe_entry = self.s.modules[idx].entry;
+        if wow {
+            self.wow64_boot(name, cmd, &bytes)?;
+        } else {
+            let idx = pe::load_image(self, name, &bytes, true)?;
+            self.s.exe_base = self.s.modules[idx].base;
+            self.s.exe_entry = self.s.modules[idx].entry;
+        }
         w(self, PEB + 0x10, self.s.exe_base);
         w(self, PEB + 0x30, 0x0000_0000_00AA_0000); // ProcessHeap handle
         self.cpu.regs[4] = self.s.stack_top;
@@ -553,7 +571,8 @@ impl Engine {
             let (entry, base) = self.s.init_queue.remove(0);
             self.call_guest(entry, [base, 1, 0], RET_INIT);
         } else {
-            self.call_guest(self.s.exe_entry, [PEB, 0, 0], RET_EXIT);
+            let a0 = if self.s.wow64 { self.s.wow64_ctx } else { PEB };
+            self.call_guest(self.s.exe_entry, [a0, 0, 0], RET_EXIT);
         }
     }
 

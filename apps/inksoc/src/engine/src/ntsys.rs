@@ -104,6 +104,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let n = n.rsplit(['\\', '/']).next().unwrap_or("").to_lowercase();
             let n = if n.contains('.') { n } else { format!("{}.dll", n) };
             if name != "LdrLoadDll" {
+                let n = if e.s.wow64 && n == "ntdll.dll" { "wine-ntdll.dll".to_string() } else { n };
                 let Some(i) = crate::pe::find_module(e, &n) else { return Some(0xC000_0135) };
                 let b = e.s.modules[i].base;
                 if out != 0 { let _ = e.mmu.write64(out, b); }
@@ -450,12 +451,33 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             match class {
                 0 => { let _ = e.mmu.write64(buf + 8, crate::PEB); let _ = e.mmu.write64(buf + 16, (1u64 << e.s.cores) - 1); let _ = e.mmu.write32(buf + 24, 8); let _ = e.mmu.write64(buf + 32, 4); }
                 31 => { let _ = e.mmu.write32(buf, 1); } // ProcessDebugFlags: no debugger
+                26 => { if e.s.wow64 { let _ = e.mmu.write64(buf, crate::PEB32); } } // ProcessWow64Information: the 32-bit PEB
                 4 => if let Some((c, u)) = e.cpu_times(a0, true) { let _ = e.mmu.write64(buf, c); let _ = e.mmu.write64(buf + 24, u); } // ProcessTimes
                 36 => { let _ = e.mmu.write32(buf, 0x1234_5678); } // ProcessCookie
                 _ => {}
             }
             if ret != 0 { let _ = e.mmu.write32(ret, need as u32); }
             if class == 30 { return Some(0xC000_0353); } // ProcessDebugObjectHandle: STATUS_PORT_NOT_SET
+            OK
+        }
+        // ThreadWow64Context: the 32-bit registers live in the thread's CPU area (TEB TlsSlots[1] + 4)
+        "NtSetInformationThread" if e.arg(1) == 0x1D => {
+            let Some(area) = e.wow_ctx_of(a0) else { return Some(INVALID_HANDLE) };
+            let mut b = vec![0u8; 0x2CC];
+            let src = e.arg(2);
+            if e.mmu.read_bytes(src, &mut b).is_err() { return Some(0xC000_0005); }
+            let _ = e.mmu.write_bytes(area, &b);
+            OK
+        }
+        "NtQueryInformationThread" if e.arg(1) == 0x1D => {
+            let Some(area) = e.wow_ctx_of(a0) else { return Some(INVALID_HANDLE) };
+            let mut b = vec![0u8; 0x2CC];
+            let _ = e.mmu.read_bytes(area, &mut b);
+            let (dst, rl) = (e.arg(2), e.arg(4));
+            let flags = e.mmu.read32(dst).unwrap_or(0x1003F);
+            let _ = e.mmu.write_bytes(dst, &b);
+            let _ = e.mmu.write32(dst, flags);
+            if rl != 0 { let _ = e.mmu.write32(rl, 0x2CC); }
             OK
         }
         "NtSetInformationProcess" | "NtSetInformationThread" | "NtSetInformationObject" => OK,
@@ -487,21 +509,23 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtQuerySystemInformation" | "NtQuerySystemInformationEx" => {
             let (class, buf, len, ret) = if name == "NtQuerySystemInformation" { (a0 as u32, e.arg(1), e.arg(2) as u32 as u64, e.arg(3)) } else { (a0 as u32, e.arg(3), e.arg(4) as u32 as u64, e.arg(5)) };
-            let need: u64 = match class { 0 => 64, 1 => 12, 3 => 48, 8 => 48 * e.s.cores as u64, 2 => 0x150, 0x67 => 8, _ => 0 };
+            let need: u64 = match class { 0 | 0x3E => 64, 1 | 0x3F => 12, 3 => 48, 8 => 48 * e.s.cores as u64, 2 => 0x150, 0x67 => 8, 0xB5 if e.s.wow64 => 12, _ => 0 };
             if need == 0 { return Some(INVALID_INFO_CLASS); }
             if ret != 0 { let _ = e.mmu.write32(ret, need as u32); }
             if len < need { return Some(INFO_LENGTH_MISMATCH); }
             e.zero_n(buf, need);
             match class {
-                0 => {
+                // SystemSupportedProcessorArchitectures: x86-64 native, i386 for this (WoW64) process
+                0xB5 => { let _ = e.mmu.write32(buf, 0x8664 | 7 << 16); let _ = e.mmu.write32(buf + 4, 0x14C | 2 << 16 | 1 << 19 | 1 << 20); }
+                0 | 0x3E => {
                     let w32 = |e: &mut Engine, o: u64, v: u32| { let _ = e.mmu.write32(buf + o, v); };
                     w32(e, 4, 156_250); w32(e, 8, 4096); w32(e, 12, 2 << 20); w32(e, 16, 1); w32(e, 20, 2 << 20); w32(e, 24, 0x10000);
                     let _ = e.mmu.write64(buf + 0x20, 0x10000);
-                    let _ = e.mmu.write64(buf + 0x28, 0x7FFF_FFFE_FFFF);
+                    let _ = e.mmu.write64(buf + 0x28, if class == 0x3E { 0x7FFE_FFFF } else { 0x7FFF_FFFE_FFFF });
                     let _ = e.mmu.write64(buf + 0x30, (1u64 << e.s.cores) - 1);
                     let _ = e.mmu.write8(buf + 0x38, e.s.cores as u8);
                 }
-                1 => { let _ = e.mmu.write16(buf, 9); let _ = e.mmu.write16(buf + 2, 6); let _ = e.mmu.write16(buf + 4, 0x9E00); let _ = e.mmu.write16(buf + 6, e.s.cores as u16); let _ = e.mmu.write32(buf + 8, 0x0000_3FFF); }
+                1 | 0x3F => { let _ = e.mmu.write16(buf, if class == 0x3F { 0 } else { 9 }); let _ = e.mmu.write16(buf + 2, 6); let _ = e.mmu.write16(buf + 4, 0x9E00); let _ = e.mmu.write16(buf + 6, e.s.cores as u16); let _ = e.mmu.write32(buf + 8, 0x0000_3FFF); }
                 3 => { let _ = e.mmu.write64(buf, now_ft()); let _ = e.mmu.write64(buf + 8, now_ft()); }
                 _ => {}
             }
@@ -560,6 +584,16 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtCreateSection" => {
             // (handle*, access, attributes, size*, protection, allocation, file)
             let (sp, file) = (e.arg(3), e.arg(6));
+            if file != 0 && e.arg(5) & 0x100_0000 != 0 {
+                // SEC_IMAGE: must be a PE file
+                let Some(Handle::File { name, .. }) = e.s.fs.handles.get(&file) else { return Some(INVALID_HANDLE) };
+                let name = name.clone();
+                let ok = e.s.files.get(&name).map_or(false, |d| d.len() > 0x40 && &d[..2] == b"MZ");
+                if !ok { return Some(0xC000_007B); } // STATUS_INVALID_IMAGE_FORMAT
+                let h = e.new_handle(Handle::ImageSection { file: name });
+                let _ = e.mmu.write64(a0, h);
+                return Some(OK);
+            }
             let want = if sp != 0 { e.mmu.read64(sp).unwrap_or(0) } else { 0 };
             let s = if file != 0 {
                 let Some(Handle::File { name, .. }) = e.s.fs.handles.get(&file) else { return Some(INVALID_HANDLE) };
@@ -583,6 +617,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (bp, op, vp) = if ex { (e.arg(2), e.arg(3), e.arg(4)) } else { (e.arg(2), e.arg(5), e.arg(6)) };
             let off = if op != 0 { e.mmu.read64(op).unwrap_or(0) } else { 0 };
             let want = if vp != 0 { e.mmu.read64(vp).unwrap_or(0) } else { 0 };
+            if let Some(Handle::ImageSection { file }) = e.s.fs.handles.get(&a0) {
+                let Some(b) = e.s.files.get(file).cloned() else { return Some(INVALID_HANDLE) };
+                let (a, sz, moved) = match crate::pe::map_image(e, &b) { Ok(v) => v, Err(_) => return Some(0xC000_007B) };
+                let _ = e.mmu.write64(bp, a);
+                if vp != 0 { let _ = e.mmu.write64(vp, sz); }
+                return Some(if moved { 0x4000_0003 } else { OK }); // STATUS_IMAGE_NOT_AT_BASE
+            }
             let (file, size, base) = match e.s.fs.handles.get(&a0) { Some(Handle::Section { file, size, base }) => (file.clone(), *size, *base), _ => return Some(INVALID_HANDLE) };
             if off > size { return Some(INVALID_PARAMETER); }
             let len = if want == 0 { size - off } else { want.min(size - off) };
@@ -608,6 +649,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUnmapViewOfSection" | "NtUnmapViewOfSectionEx" => {
             // a file view: its bytes go back to the file
             let a = e.arg(1);
+            if e.s.images.remove(&a).is_some() { e.mmu.release_region(a); return Some(OK); }
             if let Some((f, off, len)) = e.s.fs.views.remove(&a) {
                 let mut v = vec![0u8; len as usize];
                 if e.mmu.read_bytes(a, &mut v).is_ok() {
@@ -620,6 +662,46 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 e.mmu.release_region(a);
             }
             OK
+        }
+        "NtQuerySection" => {
+            // (section, class, info*, length, return length*)
+            let (cls, out, ret) = (e.arg(1), e.arg(2), e.arg(4));
+            let (img, size) = match e.s.fs.handles.get(&a0) {
+                Some(Handle::ImageSection { file }) => (e.s.files.get(file).cloned(), 0),
+                Some(Handle::Section { size, .. }) => (None, *size),
+                _ => return Some(INVALID_HANDLE),
+            };
+            let zero = [0u8; 0x40];
+            match (cls, img) {
+                (0, img) => {
+                    // SECTION_BASIC_INFORMATION
+                    let _ = e.mmu.write_bytes(out, &zero[..0x18]);
+                    let size = match &img { Some(b) => crate::pe::image_size(b).unwrap_or(0), None => size };
+                    let _ = e.mmu.write32(out + 8, if img.is_some() { 0x0100_0000 } else { 0x0800_0000 });
+                    let _ = e.mmu.write64(out + 0x10, size);
+                    if ret != 0 { let _ = e.mmu.write64(ret, 0x18); }
+                    OK
+                }
+                (1, Some(b)) => {
+                    // SECTION_IMAGE_INFORMATION
+                    let Some(i) = crate::pe::image_info(&b) else { return Some(0xC000_007B) };
+                    let _ = e.mmu.write_bytes(out, &zero);
+                    let _ = e.mmu.write64(out, i.entry);
+                    let _ = e.mmu.write64(out + 0x10, i.stack_reserve);
+                    let _ = e.mmu.write64(out + 0x18, i.stack_commit);
+                    let _ = e.mmu.write32(out + 0x20, i.subsystem as u32);
+                    let _ = e.mmu.write16(out + 0x24, i.subsys_minor);
+                    let _ = e.mmu.write16(out + 0x26, i.subsys_major);
+                    let _ = e.mmu.write16(out + 0x2C, i.characteristics);
+                    let _ = e.mmu.write16(out + 0x2E, i.dll_characteristics);
+                    let _ = e.mmu.write16(out + 0x30, i.machine);
+                    let _ = e.mmu.write8(out + 0x32, 1);
+                    let _ = e.mmu.write32(out + 0x38, b.len() as u32);
+                    if ret != 0 { let _ = e.mmu.write64(ret, 0x40); }
+                    OK
+                }
+                _ => INVALID_PARAMETER,
+            }
         }
         "NtGetNlsSectionPtr" | "NtInitializeNlsFiles" => NOT_IMPLEMENTED,
         "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); let _ = e.mmu.write64(a0, h); OK }

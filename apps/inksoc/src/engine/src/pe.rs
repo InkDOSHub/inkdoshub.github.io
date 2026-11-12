@@ -144,7 +144,8 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
     // Executables sit at their preferred base; DLLs go to our own range and
     // get relocated (this also exercises relocations on every run).
     // images without relocations (some DLLs) can only sit at their preferred base
-    let fixed = dir(5)?.1 == 0;
+    // wow64cpu's mode-switch code must sit below 4 GB (32-bit code jumps to it)
+    let fixed = dir(5)?.1 == 0 || name.ends_with("wow64cpu.dll");
     let base = if (is_exe || fixed) && !e.mmu.overlaps(pref, pref + image_size) {
         e.mmu.add_region(pref, image_size);
         pref
@@ -270,4 +271,100 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
     }
     if !is_exe && !e.s.no_init && e.s.modules[idx].entry != 0 { e.s.init_queue.push((e.s.modules[idx].entry, base)); }
     Ok(idx)
+}
+
+// ---- raw image mapping (32-bit or 64-bit), as NtMapViewOfSection(SEC_IMAGE) does ----
+
+fn hdr(b: &[u8]) -> Result<(usize, bool), String> {
+    if u16_at(b, 0)? != 0x5A4D { return Err("not an MZ file".into()); }
+    let pe = u32_at(b, 0x3C)? as usize;
+    if u32_at(b, pe)? != 0x4550 { return Err("not a PE file".into()); }
+    Ok((pe, u16_at(b, pe + 24)? == 0x10B))
+}
+pub fn subsystem(b: &[u8]) -> Option<u16> { let (pe, _) = hdr(b).ok()?; u16_at(b, pe + 24 + 68).ok() }
+pub fn image_size(b: &[u8]) -> Option<u64> { let (pe, _) = hdr(b).ok()?; Some((u32_at(b, pe + 24 + 56).ok()? as u64 + 0xFFF) & !0xFFF) }
+pub struct ImageInfo { pub entry: u64, pub stack_reserve: u64, pub stack_commit: u64, pub subsystem: u16, pub subsys_major: u16, pub subsys_minor: u16,
+                       pub characteristics: u16, pub dll_characteristics: u16, pub machine: u16 }
+/// What NtQuerySection(SectionImageInformation) reports (entry at the preferred base).
+pub fn image_info(b: &[u8]) -> Option<ImageInfo> {
+    let (pe, is32) = hdr(b).ok()?;
+    let o = pe + 24;
+    let pref = if is32 { u32_at(b, o + 28).ok()? as u64 } else { u64_at(b, o + 24).ok()? };
+    let (sr, sc) = if is32 { (u32_at(b, o + 72).ok()? as u64, u32_at(b, o + 76).ok()? as u64) } else { (u64_at(b, o + 72).ok()?, u64_at(b, o + 80).ok()?) };
+    let ent = u32_at(b, o + 16).ok()? as u64;
+    Some(ImageInfo { entry: if ent != 0 { pref + ent } else { 0 }, stack_reserve: sr, stack_commit: sc,
+        subsystem: u16_at(b, o + 68).ok()?, subsys_major: u16_at(b, o + 48).ok()?, subsys_minor: u16_at(b, o + 50).ok()?,
+        characteristics: u16_at(b, pe + 22).ok()?, dll_characteristics: u16_at(b, o + 70).ok()?, machine: u16_at(b, pe + 4).ok()? })
+}
+pub fn entry_rva(b: &[u8]) -> Option<u64> { let (pe, _) = hdr(b).ok()?; Some(u32_at(b, pe + 24 + 16).ok()? as u64) }
+
+/// Maps headers and sections at the preferred base when it is free (else below
+/// 2 GB for 32-bit images), applying relocations. Returns (base, size, moved).
+pub fn map_image(e: &mut Engine, b: &[u8]) -> Result<(u64, u64, bool), String> {
+    let (pe, is32) = hdr(b)?;
+    let opt = pe + 24;
+    let nsec = u16_at(b, pe + 6)? as usize;
+    let opt_size = u16_at(b, pe + 20)? as usize;
+    let pref = if is32 { u32_at(b, opt + 28)? as u64 } else { u64_at(b, opt + 24)? };
+    let size = (u32_at(b, opt + 56)? as u64 + 0xFFF) & !0xFFF;
+    let hsize = u32_at(b, opt + 60)? as usize;
+    let dirs = opt + if is32 { 96 } else { 112 };
+    let (rel_rva, rel_size) = (u32_at(b, dirs + 40)? as u64, u32_at(b, dirs + 44)? as u64);
+    let base = if pref != 0 && !e.mmu.overlaps(pref, pref + size) { e.mmu.add_region(pref, size); pref } else {
+        if rel_rva == 0 { return Err("image cannot be moved (no relocations)".into()); }
+        e.alloc(size).ok_or("out of memory")?
+    };
+    let err = |_| "mapping failed".to_string();
+    e.mmu.write_bytes(base, &b[..hsize.min(b.len())]).map_err(err)?;
+    let sec0 = opt + opt_size;
+    for i in 0..nsec {
+        let s = sec0 + i * 40;
+        let va = u32_at(b, s + 12)? as u64;
+        let (raw_size, raw_ptr) = (u32_at(b, s + 16)? as usize, u32_at(b, s + 20)? as usize);
+        if raw_size > 0 && raw_ptr < b.len() {
+            e.mmu.write_bytes(base + va, &b[raw_ptr..(raw_ptr + raw_size).min(b.len())]).map_err(err)?;
+        }
+    }
+    let delta = base.wrapping_sub(pref);
+    if delta != 0 && rel_rva != 0 {
+        let (mut p, end) = (base + rel_rva, base + rel_rva + rel_size);
+        while p + 8 <= end {
+            let page = e.mmu.read32(p).map_err(err)? as u64;
+            let bsize = e.mmu.read32(p + 4).map_err(err)? as u64;
+            if bsize < 8 { break; }
+            for k in 0..(bsize - 8) / 2 {
+                let ent = e.mmu.read16(p + 8 + 2 * k).map_err(err)?;
+                let at = base + page + (ent & 0xFFF) as u64;
+                match ent >> 12 {
+                    10 => { let v = e.mmu.read64(at).map_err(err)?; e.mmu.write64(at, v.wrapping_add(delta)).map_err(err)?; }
+                    3 => { let v = e.mmu.read32(at).map_err(err)?; e.mmu.write32(at, v.wrapping_add(delta as u32)).map_err(err)?; }
+                    _ => {}
+                }
+            }
+            p += bsize;
+        }
+        // the header's ImageBase follows the image
+        if is32 { e.mmu.write32(base + opt as u64 + 28, base as u32).map_err(err)?; } else { e.mmu.write64(base + opt as u64 + 24, base).map_err(err)?; }
+    }
+    e.s.images.insert(base, size);
+    Ok((base, size, delta != 0))
+}
+
+/// Address of an exported name of the image mapped at `base` (32 or 64-bit), read from memory.
+pub fn export_addr(e: &mut Engine, base: u64, name: &str) -> Option<u64> {
+    let pe = e.mmu.read32(base + 0x3C).ok()? as u64;
+    let is32 = e.mmu.read16(base + pe + 24).ok()? == 0x10B;
+    let dir = e.mmu.read32(base + pe + 24 + if is32 { 96 } else { 112 }).ok()? as u64;
+    if dir == 0 { return None; }
+    let d = base + dir;
+    let n = e.mmu.read32(d + 24).ok()? as u64;
+    let (funcs, names, ords) = (base + e.mmu.read32(d + 28).ok()? as u64, base + e.mmu.read32(d + 32).ok()? as u64, base + e.mmu.read32(d + 36).ok()? as u64);
+    for i in 0..n {
+        let nr = e.mmu.read32(names + 4 * i).ok()? as u64;
+        if e.read_cstr(base + nr, 256) == name {
+            let o = e.mmu.read16(ords + 2 * i).ok()? as u64;
+            return Some(base + e.mmu.read32(funcs + 4 * o).ok()? as u64);
+        }
+    }
+    None
 }
