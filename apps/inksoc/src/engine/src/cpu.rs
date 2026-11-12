@@ -110,6 +110,17 @@ pub fn step_trace(e: &mut Engine, n: u64) -> u64 {
 /// One instruction (JIT fallback). Flags must already be exact.
 pub fn step_one(e: &mut Engine) { step(e); }
 
+/// One instruction; a locked one whose write lost the race to another core is
+/// undone (the caller runs it again).
+#[inline(always)]
+fn step(e: &mut Engine) {
+    step_raw(e);
+    if crate::lock::MT && e.mmu.lk != 0 {
+        if e.mmu.lk == 3 { if let Some(c) = e.mmu.lk_snap.take() { e.cpu = *c; } }
+        e.mmu.lk = 0;
+    }
+}
+
 impl Engine {
     /// Turns lazy JIT flags into exact ones.
     #[inline(always)]
@@ -312,7 +323,7 @@ pub(crate) fn reg_loc(r: u8, size: u32, rex: u8) -> Loc {
 
 macro_rules! g { ($e:expr, $x:expr) => { match $x { Ok(v) => v, Err(_) => return } } }
 
-fn step(e: &mut Engine) {
+fn step_raw(e: &mut Engine) {
     let mut buf = [0u8; 16];
     let rip = e.cpu.rip;
     tryf!(e, e.mmu.fetch16(rip, &mut buf), rip);
@@ -338,7 +349,17 @@ fn step(e: &mut Engine) {
     }
     if (0x40..0x50).contains(&op) && !e.cpu.mode32 { rex = op; op = d.u8(); }
     // lock prefix (and xchg with memory): atomic against the other cores
-    let _atomic = if crate::lock::MT && (locked || ((op == 0x86 || op == 0x87) && d.b[d.p.min(15)] >> 6 != 3)) { crate::lock::count_locked(); Some(crate::lock::lock()) } else { None };
+    let _atomic = if crate::lock::MT && (locked || ((op == 0x86 || op == 0x87) && d.b[d.p.min(15)] >> 6 != 3)) {
+        crate::lock::count_locked();
+        let g = crate::lock::lock();
+        // its write becomes a compare-and-swap against what it read (JIT code on
+        // the other cores stores without the lock)
+        let mut c = e.mmu.lk_snap.take().unwrap_or_else(|| Box::new(e.cpu.clone()));
+        (*c).clone_from(&e.cpu);
+        e.mmu.lk_snap = Some(c);
+        e.mmu.lk = 1;
+        Some(g)
+    } else { None };
     let w = rex & 8 != 0;
     let osz: u32 = if w { 64 } else if opsize16 { 16 } else { 32 };
 

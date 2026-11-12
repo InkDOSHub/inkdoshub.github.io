@@ -206,6 +206,7 @@ static mut CORE0_MMU: usize = 0;
 pub extern "C" fn set_cores(n: u32) {
     let e = eng();
     e.s.cores = n.max(1);
+    mmu::set_strong(lock::MT && n > 1 && e.mmu.pool_addr() % 8 == 0);
     unsafe { CORE0_MMU = &e.mmu as *const Mmu as usize; }
 }
 
@@ -616,11 +617,12 @@ impl Engine {
         if let Some(&a) = self.s.thunk_fb.get(&idx) { self.cpu.rip = a; return; }
         let ra = self.mmu.read64(self.cpu.regs[4]).unwrap_or(0);
         let k = self.s.recent_n % 16; self.s.recent[k] = (idx as u32, ra); self.s.recent_n += 1;
-        if unsafe { TRACE } { if let Some((d, n)) = self.s.thunks.get(idx) {
+        if unsafe { TRACE } { if let Some((d, n)) = self.s.thunks.get(idx).cloned() {
             let t = self.cur_tid(); let p = self.cpu.regs[1];
             // first argument shown as text when it reads like a string
             let mut txt = String::new();
             if n.ends_with('W') { for i in 0..80 { match self.mmu.read16(p + 2 * i) { Ok(c) if c >= 32 && c < 0x7F => txt.push(c as u8 as char), _ => break } } }
+            else if n.contains("OpenFile") || n.contains("CreateFile") || n.contains("Key") { let oa = self.cpu.regs[8]; txt = self.oa_name(oa); }
             else if n.ends_with('A') { for i in 0..80 { match self.mmu.read8(p + i) { Ok(c) if c >= 32 && c < 0x7F => txt.push(c as char), _ => break } } }
             console(&format!("[call] t{} {}!{} rcx={:x} rdx={:x} r8={:x} ra={:x} {}\n", t, d, n, p, self.cpu.regs[2], self.cpu.regs[8], ra, txt));
         } }

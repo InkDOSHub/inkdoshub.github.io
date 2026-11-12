@@ -25,7 +25,7 @@ impl Engine {
     }
     fn zero_n(&mut self, a: u64, n: u64) { for i in 0..n { let _ = self.mmu.write8(a + i, 0); } }
     /// Name of an OBJECT_ATTRIBUTES (its UNICODE_STRING ObjectName).
-    fn oa_name(&mut self, oa: u64) -> String {
+    pub(crate) fn oa_name(&mut self, oa: u64) -> String {
         let us = self.mmu.read64(oa + 16).unwrap_or(0);
         if us == 0 { return String::new(); }
         let len = self.mmu.read16(us).unwrap_or(0) as usize / 2;
@@ -703,7 +703,26 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 _ => INVALID_PARAMETER,
             }
         }
-        "NtGetNlsSectionPtr" | "NtInitializeNlsFiles" => NOT_IMPLEMENTED,
+        "NtInitializeNlsFiles" | "NtGetNlsSectionPtr" => {
+            // Wine's .nls tables (only the 32-bit DLLs ask): mapped read-only copies
+            let (file, pp, sp) = if name == "NtInitializeNlsFiles" {
+                let lp = e.arg(1);
+                if lp != 0 { let _ = e.mmu.write32(lp, 0x409); }
+                ("locale.nls".to_string(), a0, e.arg(2))
+            } else {
+                let id = e.arg(1);
+                let f = match a0 { 9 => "sortdefault.nls".into(), 10 => "l_intl.nls".into(), 11 => format!("c_{:03}.nls", id),
+                    12 => match id { 1 => "normnfc.nls", 2 => "normnfd.nls", 5 => "normnfkc.nls", 6 => "normnfkd.nls", 13 => "normidna.nls", _ => "" }.into(),
+                    _ => String::new() };
+                (f, e.arg(3), e.arg(4))
+            };
+            let Some(d) = e.s.files.get(&file).cloned() else { return Some(OBJECT_NAME_NOT_FOUND) };
+            let Some(a) = e.alloc((d.len() as u64 + 0xFFF) & !0xFFF) else { return Some(0xC000_0017) };
+            let _ = e.mmu.write_bytes(a, &d);
+            let _ = e.mmu.write64(pp, a);
+            if sp != 0 { let _ = e.mmu.write64(sp, d.len() as u64); }
+            OK
+        }
         "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); let _ = e.mmu.write64(a0, h); OK }
         "NtSetIoCompletion" | "NtRemoveIoCompletion" | "NtRemoveIoCompletionEx" => NOT_IMPLEMENTED,
         "NtCreateKeyedEvent" | "NtOpenKeyedEvent" => { let _ = e.mmu.write64(a0, 0x7FF4); OK }

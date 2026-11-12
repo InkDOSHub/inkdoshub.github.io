@@ -79,7 +79,23 @@ pub struct Mmu {
     tlb: Vec<TlbEntry>,
     core: u32,
     pub sh: &'static mut MmuShared,
+    /// locked instruction in progress (several cores): 0 none, 1 armed, 2 its read
+    /// was recorded, 3 its write lost the race (the instruction is run again), 4 written
+    pub lk: u8,
+    lk_at: (u64, u64, usize),
+    /// the CPU state before the locked instruction (to run it again)
+    pub lk_snap: Option<Box<crate::cpu::Cpu>>,
 }
+
+// ---- x86 memory order (TSO) with several cores ----
+// Plain wasm loads/stores on ARM64 may be reordered (a store seen before an
+// earlier one), which x86 programs never see. With more than one core, the JIT
+// and the interpreter use atomic (sequentially consistent) accesses for
+// aligned data: ldar/stlr on ARM64, which keeps x86's order.
+static STRONG: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+pub fn set_strong(on: bool) { STRONG.store(on, Relaxed); }
+#[inline(always)]
+pub fn strong() -> bool { STRONG.load(Relaxed) }
 
 impl Mmu {
     pub fn new(pool_mb: usize, target_mb: u64) -> Mmu {
@@ -96,7 +112,7 @@ impl Mmu {
             target_bytes: target_mb << 20,
             faults: 0, swap_ins: 0, swap_outs: 0, swap_slots: 0, no_evict: false,
         }));
-        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core: 0, sh };
+        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core: 0, sh, lk: 0, lk_at: (0, 0, 0), lk_snap: None };
         TLBS[0].store(m.tlb.as_ptr() as u32, Release);
         m
     }
@@ -104,7 +120,7 @@ impl Mmu {
     /// Another core's view of the same memory (empty TLB).
     pub fn new_core(&self, core: u32) -> Mmu {
         let sh = unsafe { &mut *(self.sh as *const MmuShared as *mut MmuShared) };
-        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core, sh };
+        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core, sh, lk: 0, lk_at: (0, 0, 0), lk_snap: None };
         TLBS[core as usize].store(m.tlb.as_ptr() as u32, Release);
         m
     }
@@ -322,10 +338,50 @@ impl Mmu {
         Ok(self.fill(vpn, write)? + (addr & 0xFFF) as usize)
     }
 
+    /// Aligned atomic load of N bytes at pool offset o.
+    #[inline(always)]
+    fn ld_atomic<const N: usize>(&self, o: usize) -> u64 {
+        use core::sync::atomic::*;
+        let p = unsafe { self.sh.pool.as_ptr().add(o) };
+        unsafe { match N {
+            1 => (*(p as *const AtomicU8)).load(SeqCst) as u64,
+            2 => (*(p as *const AtomicU16)).load(SeqCst) as u64,
+            4 => (*(p as *const AtomicU32)).load(SeqCst) as u64,
+            _ => (*(p as *const AtomicU64)).load(SeqCst),
+        } }
+    }
+    #[inline(always)]
+    fn st_atomic<const N: usize>(&self, o: usize, v: u64) {
+        use core::sync::atomic::*;
+        let p = unsafe { self.sh.pool.as_ptr().add(o) };
+        unsafe { match N {
+            1 => (*(p as *const AtomicU8)).store(v as u8, SeqCst),
+            2 => (*(p as *const AtomicU16)).store(v as u16, SeqCst),
+            4 => (*(p as *const AtomicU32)).store(v as u32, SeqCst),
+            _ => (*(p as *const AtomicU64)).store(v, SeqCst),
+        } }
+    }
+    /// Compare-and-swap of N bytes at pool offset o; true = it was `old` and is now `new`.
+    fn cas<const N: usize>(&self, o: usize, old: u64, new: u64) -> bool {
+        use core::sync::atomic::*;
+        let p = unsafe { self.sh.pool.as_ptr().add(o) };
+        unsafe { match N {
+            1 => (*(p as *const AtomicU8)).compare_exchange(old as u8, new as u8, SeqCst, SeqCst).is_ok(),
+            2 => (*(p as *const AtomicU16)).compare_exchange(old as u16, new as u16, SeqCst, SeqCst).is_ok(),
+            4 => (*(p as *const AtomicU32)).compare_exchange(old as u32, new as u32, SeqCst, SeqCst).is_ok(),
+            _ => (*(p as *const AtomicU64)).compare_exchange(old, new, SeqCst, SeqCst).is_ok(),
+        } }
+    }
+
     #[inline(always)]
     fn rd<const N: usize>(&mut self, addr: u64) -> Result<u64, Fault> {
         if (addr & 0xFFF) as usize <= 4096 - N {
             let o = self.tr(addr, false)?;
+            if crate::lock::MT && (self.lk != 0 || strong()) && o % N == 0 {
+                let v = self.ld_atomic::<N>(o);
+                if self.lk == 1 { self.lk = 2; self.lk_at = (addr, v, N); }
+                return Ok(v);
+            }
             let mut b = [0u8; 8];
             b[..N].copy_from_slice(&self.sh.pool[o..o + N]);
             Ok(u64::from_le_bytes(b))
@@ -340,6 +396,17 @@ impl Mmu {
     fn wr<const N: usize>(&mut self, addr: u64, v: u64) -> Result<(), Fault> {
         if (addr & 0xFFF) as usize <= 4096 - N {
             let o = self.tr(addr, true)?;
+            if crate::lock::MT && (self.lk != 0 || strong()) && o % N == 0 {
+                match self.lk {
+                    3 => return Ok(()), // lost the race: nothing more is written
+                    2 if self.lk_at.0 == addr && self.lk_at.2 == N => {
+                        // the locked read-modify-write: only if no other core changed it meanwhile
+                        self.lk = if self.cas::<N>(o, self.lk_at.1, v) { 4 } else { 3 };
+                        return Ok(());
+                    }
+                    _ => { self.st_atomic::<N>(o, v); return Ok(()); }
+                }
+            }
             self.sh.pool[o..o + N].copy_from_slice(&v.to_le_bytes()[..N]);
             Ok(())
         } else {
@@ -349,9 +416,15 @@ impl Mmu {
     }
 
     #[inline(always)]
-    pub fn read8(&mut self, a: u64) -> Result<u8, Fault> { let o = self.tr(a, false)?; Ok(self.sh.pool[o]) }
+    pub fn read8(&mut self, a: u64) -> Result<u8, Fault> {
+        if crate::lock::MT && (self.lk != 0 || strong()) { return Ok(self.rd::<1>(a)? as u8); }
+        let o = self.tr(a, false)?; Ok(self.sh.pool[o])
+    }
     #[inline(always)]
-    pub fn write8(&mut self, a: u64, v: u8) -> Result<(), Fault> { let o = self.tr(a, true)?; self.sh.pool[o] = v; Ok(()) }
+    pub fn write8(&mut self, a: u64, v: u8) -> Result<(), Fault> {
+        if crate::lock::MT && (self.lk != 0 || strong()) { return self.wr::<1>(a, v as u64); }
+        let o = self.tr(a, true)?; self.sh.pool[o] = v; Ok(())
+    }
     pub fn read16(&mut self, a: u64) -> Result<u16, Fault> { Ok(self.rd::<2>(a)? as u16) }
     pub fn read32(&mut self, a: u64) -> Result<u32, Fault> { Ok(self.rd::<4>(a)? as u32) }
     pub fn read64(&mut self, a: u64) -> Result<u64, Fault> { self.rd::<8>(a) }
