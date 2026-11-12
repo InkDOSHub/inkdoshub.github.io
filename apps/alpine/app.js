@@ -47,7 +47,7 @@ function start() {
   if (starting || w) return;
   starting = true;
   term.write('\x1b[2mStarting Alpine Linux on InkSoC…\x1b[0m\r\n');
-  w = new Worker('worker.js?v=2');
+  w = new Worker('worker.js?v=3');
   starting = false;
   w.onmessage = (ev) => {
     const m = ev.data;
@@ -96,7 +96,7 @@ $('menu').onclick = () => $('menubox').classList.toggle('show');
 $('save').onclick = () => { $('menubox').classList.remove('show'); if (w) w.postMessage({ type: 'save' }); };
 $('reset').onclick = () => {
   if (!confirm('Erase your Linux user, files and installed programs, and start again from a clean Alpine?')) return;
-  const go = () => { const r = new Worker('worker.js?v=2'); r.onmessage = () => location.reload(); r.postMessage({ type: 'reset' }); };
+  const go = () => { const r = new Worker('worker.js?v=3'); r.onmessage = () => location.reload(); r.postMessage({ type: 'reset' }); };
   if (w) { w.terminate(); w = null; }
   go();
 };
