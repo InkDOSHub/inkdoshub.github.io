@@ -68,7 +68,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=16' : 'inksoc.wasm?v=29', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=17' : 'inksoc.wasm?v=30', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -207,7 +207,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=29').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=30').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -271,6 +271,13 @@ async function runProof({ poolMb, targetMb, testMb }) {
   return runEngine({ files: [{ name: 'test.exe', data }], exe: 'test.exe', poolMb, targetMb, poke: [0x140002000, testMb] });
 }
 
+function isPe32(buf) {
+  const b = new Uint8Array(buf);
+  if (b.length < 0x40 || b[0] !== 0x4D || b[1] !== 0x5A) return false;
+  const pe = b[0x3C] | b[0x3D] << 8 | b[0x3E] << 16 | b[0x3F] << 24;
+  return b.length > pe + 6 && b[pe] === 0x50 && b[pe + 1] === 0x45 && (b[pe + 4] | b[pe + 5] << 8) === 0x14C;
+}
+
 async function runExec(d) {
   let files = d.files;
   if (!files) {
@@ -284,6 +291,14 @@ async function runExec(d) {
     const have = new Set(files.map((f) => f.name.toLowerCase()));
     const wine = await Promise.all(list.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch('bin/wine/' + name + '?v=2').then((r) => r.arrayBuffer()) })));
     files = files.concat(wine);
+    // a 32-bit program (PE32, i386) also needs Wine's 32-bit DLLs and the WoW64 layer
+    const exe = files.find((f) => f.name.toLowerCase() === (d.exe || '').toLowerCase());
+    if (exe && isPe32(exe.data)) {
+      post('log', { text: '[engine] 32-bit program: loading the 32-bit Wine DLLs (35 MB the first time)\n' });
+      const l32 = await fetch('bin/wine32/list.json?v=1').then((r) => r.json());
+      const w32 = await Promise.all(l32.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch((name.startsWith('wine-') ? 'bin/wine/' : 'bin/wine32/') + name + '?v=1').then((r) => r.arrayBuffer()) })));
+      files = files.concat(w32);
+    }
   }
   return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores });
 }

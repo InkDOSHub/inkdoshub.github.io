@@ -614,7 +614,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "CoTaskMemFree" => 0,
         "timeBeginPeriod" | "timeEndPeriod" => 0,
         "timeGetTime" => unsafe { crate::host_now_ms() as u64 & 0xFFFF_FFFF },
-        "NtSetInformationThread" | "NtSetInformationProcess" => 0,
         _ => return None,
     };
     Some(r)

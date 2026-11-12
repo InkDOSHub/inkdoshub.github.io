@@ -163,10 +163,41 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let msg = match code {
                 0xC000_0005 => format!("access violation at 0x{:x}", info),
                 0xE06D_7363 => "unhandled C++ exception".to_string(),
+                0x8000_0100 => { // EXCEPTION_WINE_STUB: (dll, function)
+                    let f = e.mmu.read64(a0 + 40).unwrap_or(0);
+                    format!("unimplemented function {}!{}", e.read_cstr(info, 64), e.read_cstr(f, 64))
+                }
                 c => format!("unhandled exception 0x{:x}", c),
             };
             e.set_error(format!("{} (at 0x{:x})", msg, at));
             return Some(crate::kernel32::NO_RETURN);
+        }
+        // ---- atoms ----
+        "NtAddAtom" | "NtFindAtom" | "NtAddAtomEx" => {
+            // (name, length in bytes, atom*)
+            let (len, out) = (e.arg(1) as u32 as u64, e.arg(2));
+            let v: Vec<u16> = (0..len / 2).map(|i| e.mmu.read16(a0 + 2 * i).unwrap_or(0)).collect();
+            let n = String::from_utf16_lossy(&v);
+            let atom = if let Some(num) = n.strip_prefix('#').and_then(|d| d.parse::<u16>().ok()) { num as u64 }
+                else if let Some(i) = e.s.atoms.iter().position(|a| a.eq_ignore_ascii_case(&n)) { 0xC000 + i as u64 }
+                else if name == "NtFindAtom" { return Some(OBJECT_NAME_NOT_FOUND); }
+                else { e.s.atoms.push(n); 0xBFFF + e.s.atoms.len() as u64 };
+            if out != 0 { let _ = e.mmu.write16(out, atom as u16); }
+            OK
+        }
+        "NtDeleteAtom" => OK,
+        "NtQueryInformationAtom" => {
+            // (atom, class, info*, length, return length*): AtomBasicInformation
+            let (buf, len, ret) = (e.arg(2), e.arg(3) as u32 as u64, e.arg(4));
+            let name = if a0 >= 0xC000 { e.s.atoms.get((a0 - 0xC000) as usize).cloned() } else { Some(format!("#{}", a0)) };
+            let Some(n) = name else { return Some(INVALID_HANDLE) };
+            let w: Vec<u16> = n.encode_utf16().collect();
+            let need = 6 + 2 * w.len() as u64 + 2;
+            if len < need { return Some(0x8000_0005); } // STATUS_BUFFER_OVERFLOW
+            let _ = e.mmu.write16(buf, 1); let _ = e.mmu.write16(buf + 2, 0); let _ = e.mmu.write16(buf + 4, 2 * w.len() as u16);
+            for (k, c) in w.iter().chain([0u16].iter()).enumerate() { let _ = e.mmu.write16(buf + 6 + 2 * k as u64, *c); }
+            if ret != 0 { let _ = e.mmu.write32(ret, need as u32); }
+            OK
         }
         "NtQueryInformationJobObject" => { let (b, n, r) = (e.arg(2), e.arg(3) as u32 as u64, e.arg(4)); e.zero_n(b, n); if r != 0 { let _ = e.mmu.write32(r, n as u32); } OK }
         "NtIsProcessInJob" => 0x0000_0123, // STATUS_PROCESS_NOT_IN_JOB
@@ -466,6 +497,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let mut b = vec![0u8; 0x2CC];
             let src = e.arg(2);
             if e.mmu.read_bytes(src, &mut b).is_err() { return Some(0xC000_0005); }
+            // WOW64_CPURESERVED_FLAG_RESET_STATE: wow64cpu reloads every register on its way back
+            let fl = e.mmu.read16(area - 4).unwrap_or(0);
+            let _ = e.mmu.write16(area - 4, fl | 1);
             let _ = e.mmu.write_bytes(area, &b);
             OK
         }
@@ -618,6 +652,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let off = if op != 0 { e.mmu.read64(op).unwrap_or(0) } else { 0 };
             let want = if vp != 0 { e.mmu.read64(vp).unwrap_or(0) } else { 0 };
             if let Some(Handle::ImageSection { file }) = e.s.fs.handles.get(&a0) {
+                if file == "wine32-ntdll.dll" && e.s.wow64_ntdll != 0 {
+                    // the 32-bit ntdll the engine mapped at process start
+                    let a = e.s.wow64_ntdll;
+                    let sz = e.s.images.get(&a).copied().unwrap_or(0);
+                    let _ = e.mmu.write64(bp, a);
+                    if vp != 0 { let _ = e.mmu.write64(vp, sz); }
+                    return Some(OK);
+                }
                 let Some(b) = e.s.files.get(file).cloned() else { return Some(INVALID_HANDLE) };
                 let (a, sz, moved) = match crate::pe::map_image(e, &b) { Ok(v) => v, Err(_) => return Some(0xC000_007B) };
                 let _ = e.mmu.write64(bp, a);
@@ -661,6 +703,17 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 }
                 e.mmu.release_region(a);
             }
+            OK
+        }
+        "NtOpenSection" => {
+            // (handle*, access, attributes): only \KnownDlls32\<dll> (32-bit system DLLs)
+            let oa = e.arg(2); let nm = e.oa_name(oa);
+            let low = nm.to_ascii_lowercase();
+            let Some(dll) = low.strip_prefix("\\knowndlls32\\") else { return Some(OBJECT_NAME_NOT_FOUND) };
+            let file = format!("wine32-{}", dll);
+            if !e.s.files.contains_key(&file) { return Some(OBJECT_NAME_NOT_FOUND); }
+            let h = e.new_handle(Handle::ImageSection { file });
+            let _ = e.mmu.write64(a0, h);
             OK
         }
         "NtQuerySection" => {

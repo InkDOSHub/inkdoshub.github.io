@@ -131,6 +131,8 @@ pub struct Shared {
     pub wow64_ctx: u64,
     /// images mapped by map_image (base -> size)
     pub images: HashMap<u64, u64>,
+    /// global atom table (NtAddAtom): atom 0xC000 + index
+    pub atoms: Vec<String>,
 }
 
 #[cfg_attr(target_feature = "atomics", thread_local)]
@@ -177,7 +179,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), win_ki: 0, recent: [(0, 0); 16], recent_n: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
-            wpid: 0, procs: HashMap::new(), pinfo: HashMap::new(), std: [3, 1, 2], dll_dirs: Vec::new(), wow64: false, wow64_ntdll: 0, wow64_ctx: 0, images: HashMap::new(),
+            wpid: 0, procs: HashMap::new(), pinfo: HashMap::new(), std: [3, 1, 2], dll_dirs: Vec::new(), wow64: false, wow64_ntdll: 0, wow64_ctx: 0, images: HashMap::new(), atoms: Vec::new(),
         });
         ENGINE = Some(Engine {
             mmu: Mmu::new(pool_mb as usize, target_mb as u64),

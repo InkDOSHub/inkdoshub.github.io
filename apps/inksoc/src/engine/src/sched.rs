@@ -514,6 +514,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if ms == 0 { e.want_switch = true; 0 } else { e.wait_on(W::Sleep, ms) }
         }
         "NtYieldExecution" => { e.want_switch = true; 0 }
+        "NtTestAlert" => 0, // no user APCs are queued
         "NtCreateEvent" => {
             let (kind, init) = (e.arg(3) as u32, e.arg(4) as u8 != 0);
             let h = e.new_handle(Handle::Event { set: init, manual: kind == 0 });
