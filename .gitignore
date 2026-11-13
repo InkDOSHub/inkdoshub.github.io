@@ -1,3 +1,5 @@
 __pycache__/
 apps/inksoc/src/engine/target-ab/
 apps/inksoc/src/engine/target-ab2/
+apps/inksoc/src/engine/src/graphify-out/cache/
+apps/inksoc/src/engine/src/graphify-out/graph.html
