@@ -29,8 +29,48 @@ function swapCall(ctl, op, slot, p) {
   Atomics.notify(ctl, 4);
 }
 
+/* Drive C: kept in the browser's private storage (OPFS folder "inksoc-c"), apart from the
+   swap file: every file under its Windows path (C/Program Files/7-Zip/7z.exe), empty
+   folders as folders, the registry in registry.bin. */
+async function driveRoot() { return (await navigator.storage.getDirectory()).getDirectoryHandle('inksoc-c', { create: true }); }
+async function readDrive() {
+  const files = [];
+  let reg = null;
+  const root = await driveRoot();
+  const walk = async (dir, path) => {
+    let empty = true;
+    for await (const [name, h] of dir.entries()) {
+      empty = false;
+      if (h.kind === 'directory') await walk(h, path ? path + '\\' + name : name + ':');
+      else if (!path) { if (name === 'registry.bin') reg = await (await h.getFile()).arrayBuffer(); }
+      else files.push({ name: path + '\\' + name, data: await (await h.getFile()).arrayBuffer() });
+    }
+    if (empty && path && path.includes('\\')) files.push({ name: path + '\\', data: new ArrayBuffer(0) });
+  };
+  await walk(root, '');
+  return { files, reg };
+}
+async function saveDrive(changes, reg) {
+  const root = await driveRoot();
+  // a Windows path -> its folder handle (made if needed) and file name
+  const at = async (path, make) => {
+    const parts = path.replace(/^([A-Za-z]):/, '$1').split('\\').filter((x) => x);
+    let d = root;
+    for (const c of parts.slice(0, -1)) d = await d.getDirectoryHandle(c, { create: make });
+    return [d, parts[parts.length - 1]];
+  };
+  for (const c of changes) {
+    if (!c.path) continue;
+    if (c.path.startsWith('-')) { try { const [d, n] = await at(c.path.slice(1), false); await d.removeEntry(n); } catch (e) { /* already gone */ } }
+    else if (c.path.endsWith('\\')) await at(c.path + 'x', true);
+    else if (c.data) { const [d, n] = await at(c.path, true); const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(c.data); await w.close(); }
+  }
+  const w = await (await root.getFileHandle('registry.bin', { create: true })).createWritable();
+  await w.write(reg); await w.close();
+}
+
 /* Runs a program on the engine. files: [{ name, data }], exe: file name to start. */
-async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared, cores, strong, opt }) {
+async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared, cores, strong, opt, drive, home, reg }) {
   // several cores need a shared memory, which needs an isolated page (hub.inkdos.workers.dev)
   if (cores > 1 && !self.crossOriginIsolated) { post('log', { text: '[engine] several cores need an isolated page (open it on hub.inkdos.workers.dev); using 1 core\n' }); cores = 1; }
   const mt = cores > 1;
@@ -84,7 +124,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=28' : 'inksoc.wasm?v=41', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=29' : 'inksoc.wasm?v=42', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -119,11 +159,14 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc,
     free: x.wine_free, sse2_memmove: x.wine_memmove, __inksoc_teb: x.wine_teb, ink_output: x.wine_output,
   } })).instance.exports;
+  // an installed program runs from its own folder on drive C:
+  if (home && x.set_home) { put(enc(home)); x.set_home(); }
   for (const f of files) {
     const name = enc(f.name), data = new Uint8Array(f.data), b = new Uint8Array(name.length + 1 + data.length);
     b.set(name); b.set(data, name.length + 1);
     put(b); x.add_file();
   }
+  if (reg && x.reg_load) { put(new Uint8Array(reg)); x.reg_load(); }
   // extra cores: each gets a stack and TLS block here, and is ready before the program starts
   const coreWorkers = [];
   if (mt) {
@@ -177,7 +220,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     const b = new Uint8ClampedArray(new Uint8Array(mem.buffer, p, 1024 * 768 * 4));
     postMessage({ type: 'frame', w: 1024, h: 768, data: b.buffer }, [b.buffer]);
   };
-  while (!tooMuch) {
+  while (!tooMuch && !stopAsked) {
     st = x.run(2000000);
     frame();
     if (st === 3) { await new Promise((r) => setTimeout(r, Math.min(30, Math.max(0, x.stat(17))))); continue; }
@@ -198,17 +241,31 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     await new Promise((r) => { swapW.onmessage = r; setTimeout(r, 1000); });
     swapW.terminate();
   }
-  // files the program created or changed, offered for download
+  // files the program created or changed: kept on drive C:, and the ones in the
+  // program's own folder (C:\InkSoC) are offered for download too
   const out = [];
+  const changes = [];
   for (let i = 0, n; (n = x.out_file(i)); i++) {
     const b = new Uint8Array(mem.buffer, x.out_ptr(), n).slice();
     const nl = b.indexOf(0);
-    out.push({ name: new TextDecoder().decode(b.subarray(0, nl)), data: b.subarray(nl + 1) });
+    const name = new TextDecoder().decode(b.subarray(0, nl));
+    let path = null;
+    if (drive && x.drive_entry) { const k = x.drive_entry(i); path = new TextDecoder().decode(new Uint8Array(mem.buffer, x.out_ptr(), k).slice()); }
+    changes.push({ path, data: b.subarray(nl + 1) });
+    if (!/^c:\\/i.test(name) && !/\.tmp(\\|$)/i.test(name)) out.push({ name: name.split('\\').pop(), data: b.subarray(nl + 1) });
+  }
+  if (drive && x.drive_entry) {
+    for (let i = changes.length, k; (k = x.drive_entry(i)); i++) changes.push({ path: new TextDecoder().decode(new Uint8Array(mem.buffer, x.out_ptr(), k).slice()) });
+    const n = x.reg_save();
+    const regOut = new Uint8Array(mem.buffer, x.out_ptr(), n).slice();
+    try { await saveDrive(changes, regOut); } catch (e) { post('log', { text: `[engine] drive C: not saved: ${e && e.message || e}\n` }); }
   }
   const error = tooMuch ? 'the program printed more than 1 MB (stuck in a loop? if it asks a question, answer it with a switch such as -y)' : st === 2 ? msg() : '';
   post('done', { ok: !tooMuch && st === 1 && x.stat(6) === 0, error, exitCode: x.stat(6), out });
 }
 
+// the desktop's ✕: stop at the next pause and still keep the program's files on drive C:
+let stopAsked = false;
 const yieldNow = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); });
 
 /* Linux terminal: busybox (or another static x86-64 program) on the engine.
@@ -236,7 +293,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=41').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=42').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -309,11 +366,16 @@ function isPe32(buf) {
 
 async function runExec(d) {
   let files = d.files;
-  if (!files) {
+  const fetched = !files;
+  if (fetched) {
     const names = d.exe === 'stage1.exe' || !d.exe ? ['stage1.exe', 'testdll.dll'] : [d.exe];
     files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
   }
-  else {
+  let reg = null;
+  if (!fetched && d.drive) {
+    try { const c = await readDrive(); files = c.files.concat(files); reg = c.reg; } catch (e) { post('log', { text: `[engine] drive C: not available here: ${e && e.message || e}\n` }); }
+  }
+  if (!fetched) {
     // the rest of Windows: Wine 11's DLLs (cached by the browser after the first run)
     post('log', { text: '[engine] loading the Wine DLLs (34 MB the first time)\n' });
     const list = await fetch('bin/wine/list.json?v=6').then((r) => r.json());
@@ -329,7 +391,7 @@ async function runExec(d) {
       files = files.concat(w32);
     }
   }
-  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores, strong: d.strong, opt: d.opt });
+  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores, strong: d.strong, opt: d.opt, drive: d.drive, home: d.home, reg });
 }
 
 /* Random 4 KB reads/writes on a 64 MB OPFS file: the real cost of one swap page. */
@@ -420,6 +482,7 @@ async function texDone() {
 let winX = null;
 onmessage = (ev) => {
   const d = ev.data;
+  if (d.type === 'stop') { stopAsked = true; return; }
   if (d.type === 'win') { if (winX) winX.win_input(d.k, d.x, d.y, d.d); return; }
   if (d.type === 'key') { if (lxs) lxs.key(d.data); return; }
   if (d.type === 'resize') { if (lxs) lxs.resize(d.rows, d.cols); return; }

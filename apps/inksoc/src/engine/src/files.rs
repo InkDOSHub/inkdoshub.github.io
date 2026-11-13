@@ -5,7 +5,6 @@
 use crate::{pe, Engine};
 use std::collections::HashMap;
 
-pub const DIR: &str = "C:\\InkSoC";
 const INVALID: u64 = u64::MAX;
 const ATTR_DIR: u32 = 0x10;
 const ATTR_NORMAL: u32 = 0x80;
@@ -62,13 +61,34 @@ pub struct Files {
     pub named: HashMap<String, u64>,
     /// the registry (in memory)
     pub reg: crate::registry::Registry,
+    /// files that came from the saved drive C: (to notice the ones a program deletes)
+    pub drive: std::collections::BTreeSet<String>,
 }
 
-/// File name (key in the engine's file table) of a Windows path; None for the folder itself.
-/// A Windows path as the file table names it, keeping its case: the path under
-/// C:\InkSoC\ ('\\'-separated, "." and ".." resolved). Relative paths start there
-/// too; a path elsewhere (C:\Windows\...) reduces to its file name.
-/// None = the C:\InkSoC folder itself.
+/// The program's home folder (lowercase parts, default C:\InkSoC): files there are keyed
+/// by their path under it, like the files handed to the engine. Set once before the start.
+static mut HOME: Vec<String> = Vec::new();
+/// The home folder as a Windows path ("C:\InkSoC" unless an installed program runs from its own folder).
+static mut HOME_WIN: String = String::new();
+
+#[allow(static_mut_refs)]
+pub fn set_home(win: &str) {
+    let w = win.trim_end_matches('\\').replace('/', "\\");
+    unsafe {
+        HOME = w.get(2..).unwrap_or("").split('\\').filter(|c| !c.is_empty()).map(|c| c.to_ascii_lowercase()).collect();
+        HOME_WIN = w;
+    }
+}
+#[allow(static_mut_refs)]
+pub fn home_win() -> String { unsafe { if HOME_WIN.is_empty() { "C:\\InkSoC".into() } else { HOME_WIN.clone() } } }
+#[allow(static_mut_refs)]
+fn home_parts() -> Vec<String> { unsafe { if HOME.is_empty() { vec!["inksoc".into()] } else { HOME.clone() } } }
+
+/// A Windows path as the file table names it, keeping its case ('\\'-separated, "." and ".."
+/// resolved): under the home folder (C:\InkSoC by default) the path below it; elsewhere on
+/// the drive the whole path with its "C:\\" (C:\Program Files\...); a path in C:\Windows
+/// reduces to its file name (Wine's DLLs and data are stored that way).
+/// None = the home folder itself.
 pub fn case_of(path: &str) -> Option<String> {
     let mut p = path.replace('/', "\\");
     for pre in ["\\??\\", "\\\\?\\", "\\\\.\\"] { if let Some(r) = p.strip_prefix(pre) { p = r.to_string(); } }
@@ -80,14 +100,20 @@ pub fn case_of(path: &str) -> Option<String> {
         match c { "" | "." => {} ".." => { parts.pop(); } _ => parts.push(c) }
     }
     if rooted {
-        if parts.first().map_or(false, |c| c.eq_ignore_ascii_case("inksoc")) { parts.remove(0); }
+        let home = home_parts();
+        if parts.len() >= home.len() && parts.iter().zip(home.iter()).all(|(a, b)| a.eq_ignore_ascii_case(b)) { parts.drain(..home.len()); }
         else if parts.len() >= 2 && parts[parts.len() - 2].eq_ignore_ascii_case("syswow64") {
             // 32-bit system DLLs are stored as wine32-<name>
             return Some(format!("wine32-{}", parts[parts.len() - 1]));
         }
-        else if !parts.is_empty() { let last = parts[parts.len() - 1]; parts = vec![last]; }
+        else if parts.first().map_or(false, |c| c.eq_ignore_ascii_case("windows")) { let last = parts[parts.len() - 1]; parts = vec![last]; }
+        else if !parts.is_empty() { return Some(format!("C:\\{}", parts.join("\\"))); }
     }
     if parts.is_empty() { None } else { Some(parts.join("\\")) }
+}
+/// The Windows path of a file table key (the reverse of `case_of`, case as noted).
+pub fn win_path(cased: &str) -> String {
+    if cased.len() >= 3 && cased[..3].eq_ignore_ascii_case("c:\\") { format!("C:{}", &cased[2..]) } else { format!("{}\\{}", home_win(), cased) }
 }
 /// File table key of a path (lowercase `case_of`).
 pub fn key_of(path: &str) -> Option<String> { case_of(path).map(|s| s.to_ascii_lowercase()) }
@@ -258,14 +284,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
     Some(match name {
         "GetCurrentDirectoryW" | "GetCurrentDirectoryA" => {
             let (n, buf) = (a0, e.arg(1));
-            if wide { if n <= DIR.len() as u64 { return Some(DIR.len() as u64 + 1); } e.put_wstr(buf, DIR, n) }
-            else { let _ = e.mmu.write_bytes(buf, DIR.as_bytes()); let _ = e.mmu.write8(buf + DIR.len() as u64, 0); DIR.len() as u64 }
+            let dir = home_win();
+            if wide { if n <= dir.len() as u64 { return Some(dir.len() as u64 + 1); } e.put_wstr(buf, &dir, n) }
+            else { let _ = e.mmu.write_bytes(buf, dir.as_bytes()); let _ = e.mmu.write8(buf + dir.len() as u64, 0); dir.len() as u64 }
         }
         "SetCurrentDirectoryW" | "SetCurrentDirectoryA" => 1,
         "GetTempPathW" => { let b = e.arg(1); e.put_wstr(b, "C:\\InkSoC\\", a0) }
         "GetFullPathNameW" => {
             let p = e.path_arg(0, true);
-            let full = match case_of(&p) { Some(k) => format!("{}\\{}", DIR, k), None => DIR.to_string() };
+            let full = match case_of(&p) { Some(k) => win_path(&k), None => home_win() };
             let (n, buf, fp) = (e.arg(1), e.arg(2), e.arg(3));
             if n <= full.encode_utf16().count() as u64 { return Some(full.encode_utf16().count() as u64 + 1); }
             let k = e.put_wstr(buf, &full, n);

@@ -316,9 +316,9 @@ impl Engine {
         let _ = self.mmu.write64(p + 0x20, std[0]);
         let _ = self.mmu.write64(p + 0x28, std[1]);
         let _ = self.mmu.write64(p + 0x30, std[2]);
-        us(self, p + 0x38, "C:\\InkSoC\\");
-        us(self, p + 0x50, "C:\\InkSoC;C:\\Windows\\System32");
-        us(self, p + 0x60, &format!("C:\\InkSoC\\{}", exe));
+        us(self, p + 0x38, &format!("{}\\", crate::files::home_win()));
+        us(self, p + 0x50, &format!("{};C:\\Windows\\System32", crate::files::home_win()));
+        us(self, p + 0x60, &format!("{}\\{}", crate::files::home_win(), exe));
         let cmd = self.read_wstr(self.s.cmdline.1, 32768);
         us(self, p + 0x70, &cmd);
         // the usual Windows variables (installers read ProgramFiles / ProgramW6432 for their default folder)

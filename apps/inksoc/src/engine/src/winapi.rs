@@ -480,18 +480,35 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "ReadConsoleA" | "ReadConsoleW" => { let p = e.arg(3); e.wr32(p, 0); 1 }
         "GetConsoleScreenBufferInfoEx" => { e.last_err(6); 0 }
         "Beep" => 1,
-        // known folders: everything lives in the program folder for now
+        // known folders: the usual Windows layout; the user's own folders are under C:\InkSoC
         "SHGetKnownFolderPath" => {
-            let out = e.arg(3);
-            let w: Vec<u16> = "C:\\InkSoC".encode_utf16().chain([0]).collect();
+            let (id, out) = (a0, e.arg(3));
+            let p = match e.mmu.read32(id).unwrap_or(0) {
+                0x905E_63B6 => "C:\\Program Files", 0x7C5A_40EF => "C:\\Program Files (x86)", 0xF1B3_2785 => "C:\\InkSoC\\AppData\\Local",
+                0x3EB6_85DB => "C:\\InkSoC\\AppData\\Roaming", 0x62AB_5D82 => "C:\\ProgramData", 0xFDD3_9AD0 => "C:\\InkSoC\\Documents",
+                0xB4BF_CC3A => "C:\\InkSoC\\Desktop", 0xF38B_F404 => "C:\\Windows", 0x1AC1_4E77 => "C:\\Windows\\System32",
+                0x6D80_9377 => "C:\\Program Files\\Common Files", 0xA77F_5D77 => "C:\\InkSoC\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs",
+                _ => "C:\\InkSoC",
+            };
+            let w: Vec<u16> = p.encode_utf16().chain([0]).collect();
             let b = e.heap_alloc(2 * w.len() as u64, false);
             for (k, c) in w.iter().enumerate() { let _ = e.mmu.write16(b + 2 * k as u64, *c); }
             let _ = e.mmu.write64(out, b);
             0
         }
         "SHGetFolderPathW" | "SHGetFolderPathA" | "SHGetSpecialFolderPathW" | "SHGetSpecialFolderPathA" => {
-            let buf = if name.starts_with("SHGetSpecial") { e.arg(1) } else { e.arg(4) };
-            let p = "C:\\InkSoC";
+            let (buf, csidl) = if name.starts_with("SHGetSpecial") { (e.arg(1), e.arg(2) as u32) } else { (e.arg(4), e.arg(1) as u32) };
+            let p = match csidl & 0xFF {
+                0x26 => "C:\\Program Files", 0x2A => "C:\\Program Files (x86)", 0x2B => "C:\\Program Files\\Common Files",
+                0x1A => "C:\\InkSoC\\AppData\\Roaming", 0x1C => "C:\\InkSoC\\AppData\\Local", 0x23 => "C:\\ProgramData",
+                0x24 => "C:\\Windows", 0x25 | 0x29 => "C:\\Windows\\System32", 0x14 => "C:\\Windows\\Fonts",
+                0x05 => "C:\\InkSoC\\Documents", 0x10 | 0x00 => "C:\\InkSoC\\Desktop", 0x19 => "C:\\Users\\Public\\Desktop",
+                0x02 => "C:\\InkSoC\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs",
+                0x17 => "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs",
+                0x0B => "C:\\InkSoC\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu",
+                0x16 => "C:\\ProgramData\\Microsoft\\Windows\\Start Menu",
+                _ => "C:\\InkSoC",
+            };
             if name.ends_with('W') { for (k, c) in p.encode_utf16().chain([0]).enumerate() { let _ = e.mmu.write16(buf + 2 * k as u64, c); } }
             else { let _ = e.mmu.write_bytes(buf, p.as_bytes()); let _ = e.mmu.write8(buf + p.len() as u64, 0); }
             if name.starts_with("SHGetSpecial") { 1 } else { 0 }

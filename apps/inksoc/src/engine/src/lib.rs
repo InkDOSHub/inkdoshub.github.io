@@ -246,6 +246,14 @@ pub extern "C" fn add_file() {
         let b = std::mem::take(&mut BUF);
         let nl = b.iter().position(|&c| c == 0).unwrap_or(0);
         let raw = String::from_utf8_lossy(&b[..nl]).into_owned();
+        // a file of the saved drive C: comes with its Windows path; the others are plain names
+        if raw.contains('\\') || raw.contains(':') {
+            let e = eng();
+            let Some(k) = files::key_of(&raw) else { return };
+            if raw.ends_with('\\') { e.s.fs.dirs.insert(k.clone()); } else { e.s.files.insert(k.clone(), b[nl + 1..].to_vec()); e.s.fs.drive.insert(k.clone()); }
+            e.note_case(&k, &raw);
+            return;
+        }
         let name = pe::norm(&raw);
         eng().s.names.insert(name.clone(), raw.rsplit(['\\', '/']).next().unwrap_or(&raw).to_string());
         eng().s.files.insert(name, b[nl + 1..].to_vec());
@@ -364,6 +372,43 @@ pub extern "C" fn out_file(i: u32) -> u32 {
 #[no_mangle]
 #[allow(static_mut_refs)]
 pub extern "C" fn out_ptr() -> *const u8 { unsafe { OUT.as_ptr() } }
+
+/// Sets the program's home folder from BUF (a Windows path, before any add_file): an
+/// installed program runs from its own folder, picked files from C:\InkSoC.
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn set_home() {
+    let b = unsafe { std::mem::take(&mut BUF) };
+    files::set_home(&String::from_utf8_lossy(&b));
+}
+
+/// The saved drive C:, step by step: OUT = the Windows path of the i-th file the program
+/// wrote (data: out_file(i)), or of a drive file it deleted (i past the written ones, "-"
+/// prefix), or of a folder it made ("\\" suffix). 0 = no more.
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn drive_entry(i: u32) -> u32 {
+    let e = eng();
+    let shown = |e: &Engine, k: &str| files::win_path(&e.s.names.get(k).cloned().unwrap_or_else(|| k.to_string()));
+    let mut i = i as usize;
+    let s = if let Some(k) = e.s.fs.written.iter().nth(i) { shown(e, k) } else {
+        i -= e.s.fs.written.len();
+        let gone: Vec<&String> = e.s.fs.drive.iter().filter(|k| !e.s.files.contains_key(*k)).collect();
+        if let Some(k) = gone.get(i) { format!("-{}", shown(e, k)) } else {
+            i -= gone.len();
+            match e.s.fs.dirs.iter().nth(i) { Some(k) => format!("{}\\", shown(e, k)), None => return 0 }
+        }
+    };
+    unsafe { OUT = s.into_bytes(); OUT.len() as u32 }
+}
+
+/// The registry as bytes (OUT), to keep with the drive; reg_load reads them back from BUF.
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn reg_save() -> u32 { let v = eng().s.fs.reg.save(); unsafe { OUT = v; OUT.len() as u32 } }
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn reg_load() { let b = unsafe { std::mem::take(&mut BUF) }; eng().s.fs.reg.load(&b); }
 
 #[no_mangle]
 pub extern "C" fn stat(i: u32) -> f64 {
@@ -528,6 +573,12 @@ impl Engine {
     }
 
     fn boot(&mut self, name: &str, cmd: &str) -> Result<(), String> {
+        // the usual folders of drive C: exist from the start
+        for d in ["C:\\Program Files", "C:\\Program Files\\Common Files", "C:\\Program Files (x86)", "C:\\ProgramData", "C:\\Users\\Public",
+            "C:\\InkSoC\\AppData\\Roaming", "C:\\InkSoC\\AppData\\Local", "C:\\InkSoC\\Documents", "C:\\InkSoC\\Desktop"] {
+            let mut p = String::new();
+            for part in d.split('\\') { if !p.is_empty() { p.push('\\'); } p.push_str(part); if let Some(k) = files::key_of(&p) { if !self.s.files.contains_key(&k) { self.note_case(&k, &p); self.s.fs.dirs.insert(k); } } }
+        }
         // Thread and process blocks (reached by the program through gs:)
         self.mmu.add_region(TEB, 0x2000);
         self.mmu.add_region(PEB, 0x1000);

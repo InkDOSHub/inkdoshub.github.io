@@ -266,7 +266,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "GetModuleFileNameA" | "GetModuleFileNameW" => {
             let (buf, n) = (e.arg(1), e.arg(2));
-            let path = match e.module_by_handle(a0) { Some(i) => format!("C:\\InkSoC\\{}", e.s.modules[i].name), None => { e.set_last_error(126); return Some(0); } };
+            let path = match e.module_by_handle(a0) { Some(i) => format!("{}\\{}", crate::files::home_win(), e.s.modules[i].name), None => { e.set_last_error(126); return Some(0); } };
             let k = (path.len() as u64).min(n.saturating_sub(1));
             if name.ends_with('W') {
                 for (i, c) in path.encode_utf16().take(k as usize).enumerate() { let _ = e.mmu.write16(buf + 2 * i as u64, c); }

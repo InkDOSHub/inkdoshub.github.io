@@ -67,7 +67,8 @@ function consoleWindow(p, title) {
 }
 
 function close(p) {
-  if (p.w) p.w.terminate();
+  // ask the program to stop so its files are kept on drive C:; force it after 5 s
+  if (p.w) { const w = p.w; w.onmessage = (ev) => { if (ev.data.type === 'done') { w.terminate(); listDrive(); } }; w.postMessage({ type: 'stop' }); setTimeout(() => w.terminate(), 5000); }
   p.w = null;
   if (p.cv) p.cv.remove();
   if (p.con) p.con.remove();
@@ -76,7 +77,7 @@ function close(p) {
   if (focus === p) focus = null;
 }
 
-function run(files, exe, args, label) {
+function run(files, exe, args, label, home) {
   const p = { id: nextId++, z: 0, hidden: false, conAway: false };
   progs.push(p);
   p.btn = document.createElement('button');
@@ -91,7 +92,7 @@ function run(files, exe, args, label) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=45');
+  const w = p.w = new Worker('worker.js?v=46');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
@@ -101,6 +102,7 @@ function run(files, exe, args, label) {
       $('speed').textContent = d.cores + (d.cores > 1 ? ' cores' : ' core') + ' · ' + (gips >= 1 ? gips.toFixed(1) + ' GIPS' : fmt(gips * 1000) + ' MIPS');
     } else if (d.type === 'frame') frame(p, d);
     else if (d.type === 'done') {
+      listDrive();
       // a program with windows that printed nothing: no console to show at the end either
       const quiet = p.cv && !out.textContent.trim();
       out.innerHTML += d.ok ? '<b class="ok">\nFinished (exit code 0).</b>' : '<b class="bad">\n' + (d.error ? 'Stopped: ' + d.error : 'Exit code ' + d.exitCode) + '</b>';
@@ -121,7 +123,7 @@ function run(files, exe, args, label) {
       raise(p);
     }
   };
-  w.postMessage({ type: 'exec', files, exe, cmd: args ? exe + ' ' + args : exe, poolMb: poolMb(), targetMb: 8192,
+  w.postMessage({ type: 'exec', files, exe, cmd: (/\s/.test(exe) ? '"' + exe + '"' : exe) + (args ? ' ' + args : ''), drive: true, home, poolMb: poolMb(), targetMb: 8192,
     jit: $('jit').checked, cores: +$('cores').value, strong: new URLSearchParams(location.search).get('strong') !== '0', opt: new URLSearchParams(location.search).get('opt') !== '0' },
   files ? files.map((f) => f.data) : []);
 }
@@ -188,7 +190,7 @@ addEventListener('keyup', key(5));
 
 /* ---------- menu and info ---------- */
 function closePops() { $('menu').hidden = true; $('infop').hidden = true; }
-$('start').onclick = (e) => { e.stopPropagation(); const h = $('menu').hidden; closePops(); $('menu').hidden = !h; };
+$('start').onclick = (e) => { e.stopPropagation(); const h = $('menu').hidden; closePops(); $('menu').hidden = !h; if (h) listDrive(); };
 $('info').onclick = (e) => { e.stopPropagation(); const h = $('infop').hidden; closePops(); $('infop').hidden = !h; };
 document.addEventListener('click', (e) => { if (!e.target.closest('.pop')) closePops(); });
 
@@ -224,6 +226,55 @@ $('pick').onchange = async (ev) => {
   const exe = exes[exes.length - 1];
   run(all.map((f) => ({ name: f.name, data: f.data.slice(0) })), exe.name, $('args').value.trim(), '🪟 ' + exe.name.replace(/\.exe$/i, ''));
 };
+
+/* ---------- drive C: (OPFS folder "inksoc-c", kept apart from the swap file) ---------- */
+// installed programs: the .exe files in the folders of Program Files and other top folders
+const skip = /^(unins|uninst|setup|install|update|crash)/i;
+const system = /^(windows|programdata|users|inksoc|program files( \(x86\))?)$/i;
+async function listDrive() {
+  let root;
+  try { root = await (await navigator.storage.getDirectory()).getDirectoryHandle('inksoc-c'); } catch (e) { $('csize').textContent = 'empty'; $('installed').replaceChildren(); return; }
+  let bytes = 0;
+  const found = [];
+  const walk = async (dir, path, depth) => {
+    for await (const [name, h] of dir.entries()) {
+      const p = path + '\\' + name;
+      if (h.kind === 'directory') await walk(h, p, depth + 1);
+      else {
+        bytes += (await h.getFile()).size;
+        const top = p.split('\\')[1] || '';
+        const deep = /^program files/i.test(top) ? 3 : 2; // C:\Program Files\App\app.exe or C:\App\app.exe
+        if (depth === deep && /\.exe$/i.test(name) && !skip.test(name) && (deep === 3 || !system.test(top))) found.push(p.replace(/^C/, 'C:'));
+      }
+    }
+  };
+  try { const c = await root.getDirectoryHandle('C'); await walk(c, 'C', 1); } catch (e) { /* nothing installed yet */ }
+  for await (const [, h] of root.entries()) if (h.kind === 'file') bytes += (await h.getFile()).size;
+  $('csize').textContent = bytes ? fmt(bytes / 1048576) + ' MB' : 'empty';
+  found.sort((a, b) => a.localeCompare(b));
+  $('installed').replaceChildren(...(found.length ? [document.createElement('hr')] : []), ...found.map((path) => {
+    const b = document.createElement('button');
+    b.className = 'it';
+    const name = path.split('\\').pop().replace(/\.exe$/i, '');
+    b.textContent = '📦 ' + name;
+    b.title = path;
+    b.onclick = () => { closePops(); run([], path, $('args').value.trim(), '🪟 ' + name, path.slice(0, path.lastIndexOf('\\'))); };
+    return b;
+  }));
+}
+// erase: a second tap within 4 seconds confirms
+let eraseAsk = 0;
+$('cerase').onclick = async (e) => {
+  e.stopPropagation();
+  if (Date.now() - eraseAsk > 4000) { eraseAsk = Date.now(); $('cerase').textContent = 'Tap again'; setTimeout(() => { $('cerase').textContent = 'Erase'; }, 4000); return; }
+  eraseAsk = 0;
+  $('cerase').textContent = 'Erase';
+  try { await (await navigator.storage.getDirectory()).removeEntry('inksoc-c', { recursive: true }); } catch (err) { /* already empty */ }
+  listDrive();
+};
+// keep drive C: when the browser runs short of space
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+listDrive();
 
 // default: up to 4 cores where the page is isolated (shared memory), 1 elsewhere
 $('cores').value = String(self.crossOriginIsolated ? Math.max(1, Math.min(navigator.hardwareConcurrency || 2, 4)) : 1);

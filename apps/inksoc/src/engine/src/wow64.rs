@@ -125,9 +125,9 @@ impl Engine {
         self.w32(p, 0x400); self.w32(p + 4, 0x400); self.w32(p + 8, 1); // normalized
         let std = self.s.std;
         for (k, h) in std.iter().enumerate() { self.w32(p + 0x18 + 4 * k as u64, *h as u32); }
-        self.us32(p + 0x24, "C:\\InkSoC\\");
-        self.us32(p + 0x30, "C:\\InkSoC;C:\\Windows\\SysWOW64");
-        self.us32(p + 0x38, &format!("C:\\InkSoC\\{}", name));
+        self.us32(p + 0x24, &format!("{}\\", crate::files::home_win()));
+        self.us32(p + 0x30, &format!("{};C:\\Windows\\SysWOW64", crate::files::home_win()));
+        self.us32(p + 0x38, &format!("{}\\{}", crate::files::home_win(), name));
         self.us32(p + 0x40, cmd);
         let env = self.s.env_block;
         let pp = self.mmu.read64(PEB + 0x20).unwrap_or(0);

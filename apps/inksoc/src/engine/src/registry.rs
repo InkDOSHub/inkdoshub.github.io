@@ -34,7 +34,7 @@ pub struct Registry {
 
 impl Registry {
     fn ensure_roots(&mut self) {
-        if !self.keys.is_empty() { return; }
+        if self.keys.contains_key("\\registry\\user") { return; }
         let user = format!("\\Registry\\User\\{}", USER_SID);
         for p in ["\\Registry", "\\Registry\\Machine", "\\Registry\\Machine\\Software", "\\Registry\\Machine\\Software\\Classes",
             "\\Registry\\Machine\\Software\\Microsoft", "\\Registry\\Machine\\Software\\Microsoft\\Windows",
@@ -43,6 +43,46 @@ impl Registry {
             self.create(p);
         }
         for p in ["Software", "Software\\Classes", "Software\\Microsoft", "Environment"] { self.create(&format!("{}\\{}", user, p)); }
+        // where programs install (shell32 and installers read these)
+        let cv = "\\Registry\\Machine\\Software\\Microsoft\\Windows\\CurrentVersion";
+        for (n, v) in [("ProgramFilesDir", "C:\\Program Files"), ("ProgramFilesDir (x86)", "C:\\Program Files (x86)"), ("ProgramW6432Dir", "C:\\Program Files"),
+            ("CommonFilesDir", "C:\\Program Files\\Common Files"), ("ProgramFilesPath", "%ProgramFiles%")] {
+            let mut d = utf16(v); d.extend_from_slice(&[0, 0]);
+            if let Some(k) = self.keys.get_mut(&cv.to_lowercase()) { k.values.push((n.to_string(), if v.contains('%') { 2 } else { 1 }, d)); }
+        }
+    }
+    /// Every key and value as bytes: per key its path, name and values (u32 lengths, LE).
+    pub fn save(&mut self) -> Vec<u8> {
+        self.ensure_roots();
+        let mut o = Vec::new();
+        let put = |o: &mut Vec<u8>, b: &[u8]| { o.extend_from_slice(&(b.len() as u32).to_le_bytes()); o.extend_from_slice(b); };
+        o.extend_from_slice(b"REG1");
+        for (p, k) in &self.keys {
+            put(&mut o, p.as_bytes()); put(&mut o, k.name.as_bytes());
+            o.extend_from_slice(&(k.values.len() as u32).to_le_bytes());
+            for (n, t, d) in &k.values { put(&mut o, n.as_bytes()); o.extend_from_slice(&t.to_le_bytes()); put(&mut o, d); }
+        }
+        o
+    }
+    pub fn load(&mut self, b: &[u8]) {
+        if !b.starts_with(b"REG1") { return; }
+        let mut i = 4;
+        let u32_at = |b: &[u8], i: &mut usize| -> Option<u32> { let v = u32::from_le_bytes(b.get(*i..*i + 4)?.try_into().ok()?); *i += 4; Some(v) };
+        let bytes = |b: &[u8], i: &mut usize| -> Option<Vec<u8>> { let n = u32_at(b, i)? as usize; let v = b.get(*i..*i + n)?.to_vec(); *i += n; Some(v) };
+        let mut keys = BTreeMap::new();
+        while i < b.len() {
+            let Some(p) = bytes(b, &mut i) else { break };
+            let Some(name) = bytes(b, &mut i) else { break };
+            let Some(n) = u32_at(b, &mut i) else { break };
+            let mut values = vec![];
+            for _ in 0..n {
+                let (Some(vn), Some(t), Some(d)) = (bytes(b, &mut i), u32_at(b, &mut i), bytes(b, &mut i)) else { return };
+                values.push((String::from_utf8_lossy(&vn).into_owned(), t, d));
+            }
+            keys.insert(String::from_utf8_lossy(&p).into_owned(), Key { name: String::from_utf8_lossy(&name).into_owned(), values });
+        }
+        self.keys = keys;
+        self.ensure_roots();
     }
     /// Creates a key and every missing parent; true when it is new.
     fn create(&mut self, path: &str) -> bool {
