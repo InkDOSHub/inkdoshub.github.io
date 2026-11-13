@@ -151,7 +151,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=31' : 'inksoc.wasm?v=44', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=32' : 'inksoc.wasm?v=45', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -205,7 +205,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     const ready = [];
     for (let id = 1; id < cores; id++) {
       const stack = 1 << 20, base = x.core_alloc(stack), tls = x.core_alloc(x.__tls_size.value + x.__tls_align.value);
-      const w = new Worker('core.js?v=3');
+      const w = new Worker('core.js?v=4');
       ready.push(new Promise((res, rej) => {
         w.onmessage = (ev) => {
           const m = ev.data;
@@ -215,7 +215,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
         };
         w.onerror = (e) => rej(new Error('core ' + id + ': ' + (e.message || 'worker failed')));
       }));
-      w.postMessage({ wasm, wineWasm, memory: mem, id, stackTop: base + stack - 16, tls, swapCtl: swapCtl.buffer });
+      w.postMessage({ wasm, wineWasm, memory: mem, id, stackTop: base + stack - 16, tls, swapCtl: swapCtl.buffer, origin: performance.timeOrigin });
       coreWorkers.push(w);
     }
     await Promise.all(ready);
@@ -335,7 +335,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=44').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=45').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();

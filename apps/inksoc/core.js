@@ -28,12 +28,14 @@ function driveCall(ctl, id, off, p, n) {
 onmessage = (ev) => {
   const { wasm, wineWasm, memory, id, stackTop, tls } = ev.data;
   const swapCtl = new Int32Array(ev.data.swapCtl);
+  const shift = ev.data.origin ? performance.timeOrigin - ev.data.origin : 0;
   const dec = new TextDecoder();
   let x, wine, jitErr = 0;
   const env = {
     memory,
     host_console: (p, n) => postMessage({ out: dec.decode(new Uint8Array(memory.buffer, p, n).slice()) }),
-    host_now_ms: () => performance.now(),
+    // the same clock as core 0: a time taken on one core and compared on another must agree
+    host_now_ms: () => performance.now() + shift,
     host_epoch_ms: () => Date.now(),
     // swap pages go through the swap worker (swapio.js), like core 0's
     host_swap_write: (slot, p) => swapCall(swapCtl, 1, slot, p),
