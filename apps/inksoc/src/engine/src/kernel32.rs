@@ -158,10 +158,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "GetActiveProcessorGroupCount" | "GetMaximumProcessorGroupCount" => 1,
         "GetActiveProcessorCount" | "GetMaximumProcessorCount" => e.s.cores as u64,
-        // advapi32: no security tokens or registry yet; callers handle the failure
+        // advapi32: no security tokens yet (the registry is Wine's advapi32 over registry.rs)
         "OpenProcessToken" | "OpenThreadToken" | "LookupPrivilegeValueW" | "LookupPrivilegeValueA" | "AdjustTokenPrivileges" => { e.set_last_error(5); 0 }
-        "RegOpenKeyExW" | "RegOpenKeyExA" | "RegQueryValueExW" | "RegQueryValueExA" => 2,
-        "RegCloseKey" => 0,
         "GetProcessTimes" | "GetThreadTimes" => {
             let h = e.arg(0);
             let Some((c, u)) = e.cpu_times(h, name == "GetProcessTimes") else { e.set_last_error(6); return Some(0) };

@@ -381,6 +381,7 @@ impl Engine {
 
     fn find_class(&self, name: &str, atom: u16) -> Option<usize> {
         let n = name.to_lowercase();
+        if atom == 0 && n.is_empty() { return None; } // unregistered classes keep an empty name
         self.s.win.classes.iter().position(|c| if atom != 0 { c.atom == atom } else { c.name == n })
     }
 
@@ -1241,7 +1242,20 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 None => { e.set_last_error(1411); 0 }
             }
         }
-        "NtUserUnregisterClass" => 1,
+        "NtUserUnregisterClass" => {
+            // (name, instance, client_menu_name*): user32 frees the menu names it gets back, so they must be the class's own
+            let (cn, atom) = e.ustr(a0);
+            let menu = ar[2];
+            let Some(i) = e.find_class(&cn, atom).filter(|&i| !e.s.win.classes[i].builtin) else {
+                if menu != 0 { for k in 0..3 { e.uw64(menu + 8 * k, 0); } }
+                e.set_last_error(1411); return Some(0) // ERROR_CLASS_DOES_NOT_EXIST
+            };
+            let (mn, mna) = (e.s.win.classes[i].menu_name, e.s.win.classes[i].menu_name_a);
+            if menu != 0 { e.uw64(menu, mna); e.uw64(menu + 8, mn); e.uw64(menu + 16, 0); }
+            // the slot stays (windows index classes) but can no longer be found
+            let c = &mut e.s.win.classes[i]; c.name.clear(); c.atom = 0; c.menu_name = 0; c.menu_name_a = 0;
+            1
+        }
         "NtUserGetClassName" => {
             let (h, us) = (full(a0), ar[2]);
             let n = e.wnd(h).map(|w| e.s.win.classes[w.class].name.clone()).unwrap_or_default();

@@ -1,5 +1,5 @@
 // NT system calls for Wine's ntdll (the part Wine runs on its Unix side):
-// files, memory, process/thread/system information, registry (empty) and
+// files, memory, process/thread/system information, registry (registry.rs) and
 // tokens. Waits, events, timers and the like are in sched.rs.
 
 use crate::files::Handle;
@@ -34,7 +34,7 @@ impl Engine {
         String::from_utf16_lossy(&v)
     }
     /// Text of a UNICODE_STRING.
-    fn us_read(&mut self, us: u64) -> String {
+    pub(crate) fn us_read(&mut self, us: u64) -> String {
         if us == 0 { return String::new(); }
         let len = self.mmu.read16(us).unwrap_or(0) as usize / 2;
         let buf = self.mmu.read64(us + 8).unwrap_or(0);
@@ -659,8 +659,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtAccessCheck" | "NtPrivilegeCheck" | "NtAdjustPrivilegesToken" => ACCESS_DENIED,
 
         // ---- registry: empty ----
-        "NtOpenKey" | "NtOpenKeyEx" | "NtCreateKey" | "NtOpenKeyTransacted" | "NtOpenKeyTransactedEx" => OBJECT_NAME_NOT_FOUND,
-        "NtQueryValueKey" | "NtQueryKey" | "NtEnumerateKey" | "NtEnumerateValueKey" | "NtDeleteKey" | "NtDeleteValueKey" | "NtSetValueKey" | "NtNotifyChangeKey" | "NtFlushKey" => INVALID_HANDLE,
+        "NtOpenKey" | "NtOpenKeyEx" | "NtCreateKey" | "NtOpenKeyTransacted" | "NtOpenKeyTransactedEx" | "NtQueryValueKey" | "NtQueryKey" | "NtEnumerateKey"
+        | "NtEnumerateValueKey" | "NtDeleteKey" | "NtDeleteValueKey" | "NtSetValueKey" | "NtNotifyChangeKey" | "NtNotifyChangeMultipleKeys" | "NtFlushKey" => return crate::registry::call(e, name),
 
         // ---- sections: no file mapping yet ----
         "NtCreateSection" => {

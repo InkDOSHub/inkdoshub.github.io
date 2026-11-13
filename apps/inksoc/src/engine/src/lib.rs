@@ -26,6 +26,7 @@ mod ntsys;
 mod winsys;
 mod wingdi;
 mod proc;
+mod registry;
 mod wow64;
 
 use cpu::Cpu;

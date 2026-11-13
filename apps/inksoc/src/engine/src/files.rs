@@ -35,6 +35,8 @@ pub enum Handle {
     Process { pid: u32 },
     /// a socket (\\Device\\Afd): it can be made, not used yet (no network)
     Afd,
+    /// a registry key (`registry.rs`), by its full lowercase path
+    Key { path: String },
 }
 
 /// Anonymous pipe: bytes in flight and how many write ends are open.
@@ -58,6 +60,8 @@ pub struct Files {
     pub paths: HashMap<u64, (String, bool)>,
     /// named events, mutexes and semaphores (lowercase name -> handle)
     pub named: HashMap<String, u64>,
+    /// the registry (in memory)
+    pub reg: crate::registry::Registry,
 }
 
 /// File name (key in the engine's file table) of a Windows path; None for the folder itself.
