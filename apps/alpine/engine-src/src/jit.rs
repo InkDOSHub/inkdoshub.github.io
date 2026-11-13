@@ -22,6 +22,11 @@ extern "C" {
     fn host_jit(ptr: *const u8, len: u32) -> i32;
 }
 
+static OPT: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(true);
+/// Newer code improvements (fewer redundant masks); off only to measure them on a device.
+pub fn set_opt(on: bool) { OPT.store(on, core::sync::atomic::Ordering::Relaxed); }
+fn opt() -> bool { OPT.load(core::sync::atomic::Ordering::Relaxed) }
+
 const HOT: u32 = 40; // visits before a block is compiled
 const MAX_INS: usize = 80;
 const NONE: u32 = u32::MAX;
@@ -195,7 +200,8 @@ fn decode(e: &mut Engine, rip: u64) -> Option<Ins> {
         if d.p > 14 { return None; }
     }
     let mut rex = 0;
-    if (0x40..0x50).contains(&op) { rex = op; op = d.u8(); }
+    let m32 = e.cpu.mode32;
+    if (0x40..0x50).contains(&op) && !m32 { rex = op; op = d.u8(); }
     let w = rex & 8 != 0;
     let osz: u32 = if w { 64 } else if p66 { 16 } else { 32 };
     let immz = if osz == 16 { 2 } else { 4 };
@@ -225,7 +231,8 @@ fn decode(e: &mut Engine, rip: u64) -> Option<Ins> {
             0x68 | 0x69 | 0x81 | 0xA9 | 0xC7 => immz,
             0x6A | 0x6B | 0x70..=0x7F | 0x80 | 0x83 | 0xA8 | 0xB0..=0xB7 | 0xC0 | 0xC1 | 0xC6 | 0xCD | 0xE0..=0xE7 | 0xEB => 1,
             0xB8..=0xBF => if w { 8 } else { immz },
-            0xA0..=0xA3 => if a67 { 4 } else { 8 },
+            0xA0..=0xA3 => if m32 { if a67 { 2 } else { 4 } } else if a67 { 4 } else { 8 },
+            0x82 | 0xD4 | 0xD5 if m32 => 1,
             0xC2 | 0xCA => 2,
             0xC8 => 3,
             0xE8 | 0xE9 => 4,
@@ -307,7 +314,7 @@ const I64EQZ: u8 = 0x50; const I64EQ: u8 = 0x51; const I64LTS: u8 = 0x53; const 
 const I32POPCNT: u8 = 0x69; const I32ADD: u8 = 0x6A; const I32AND: u8 = 0x71; const I32OR: u8 = 0x72; const I32XOR: u8 = 0x73; const I32SHL: u8 = 0x74;
 const I64ADD: u8 = 0x7C; const I64SUB: u8 = 0x7D; const I64MUL: u8 = 0x7E; const I64AND: u8 = 0x83; const I64OR: u8 = 0x84; const I64XOR: u8 = 0x85;
 const I64SHL: u8 = 0x86; const I64SHRS: u8 = 0x87; const I64SHRU: u8 = 0x88; const I64ROTL: u8 = 0x89; const I64ROTR: u8 = 0x8A;
-const I32ROTL: u8 = 0x77; const I32ROTR: u8 = 0x78;
+const I32SHRU: u8 = 0x76; const I32ROTL: u8 = 0x77; const I32ROTR: u8 = 0x78;
 const I32WRAP: u8 = 0xA7; const I64EXTU: u8 = 0xAD; const I64EXT8S: u8 = 0xC2; const I64EXT16S: u8 = 0xC3; const I64EXT32S: u8 = 0xC4;
 const VOID: u8 = 0x40; const T_I64: u8 = 0x7E;
 
@@ -324,7 +331,8 @@ const L_A: u32 = R0 + 16; // address of the memory operand
 const L_A2: u32 = R0 + 17; // second address (stack)
 const L_V: u32 = R0 + 18; // page number scratch
 const L_T: u32 = R0 + 19; // value scratch
-const FIRST_TMP: u32 = R0 + 20;
+const L_IC: u32 = R0 + 20; // instruction count while the region runs (opt)
+const FIRST_TMP: u32 = R0 + 21;
 const MAX_LOCALS: u32 = 900;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -348,6 +356,18 @@ struct G {
     heads: Vec<u64>, // blocks of this region (index = br_table slot)
     base: u32, // labels between the current block's code and the region loop
     max_tmp: u32,
+    m32: bool, // 32-bit code (WoW64): [disp32] addressing, addresses wrap at 4 GB
+    // i64 locals whose upper 32 bits are known to be zero: a 32-bit read of them needs no mask
+    // (only straight-line facts: block heads clear it; IF bodies never set these locals)
+    z: std::collections::HashSet<u32>,
+    last_get: (usize, u32), // code position right after the last local.get, and its local
+    last_mask: usize, // code position right after a value was masked to 32 bits or less
+    // opt: the instruction count lives in local L_IC while the region runs (stored at exits),
+    // and a jump between blocks stores the lazy flags only when the target block reads them
+    lic: bool,
+    need: Vec<bool>, // per block: reads the flags before writing them
+    cur: usize, // index of the block being emitted
+    hints: Vec<(usize, u8)>, // branch hints: code position of an `if`, 1 = usually taken, 0 = rarely
 }
 
 macro_rules! off { ($f:ident) => { core::mem::offset_of!(crate::cpu::Cpu, $f) as u32 } }
@@ -358,10 +378,20 @@ impl G {
     fn u(&mut self, x: u64) { leb_u(&mut self.c, x); }
     fn i32c(&mut self, v: i32) { self.b(I32C); leb_s(&mut self.c, v as i64); }
     fn i64c(&mut self, v: u64) { self.b(I64C); leb_s(&mut self.c, v as i64); }
-    fn get(&mut self, l: u32) { self.b(LGET); self.u(l as u64); }
-    fn set(&mut self, l: u32) { self.b(LSET); self.u(l as u64); }
-    fn tee(&mut self, l: u32) { self.b(LTEE); self.u(l as u64); }
+    fn get(&mut self, l: u32) { self.b(LGET); self.u(l as u64); self.last_get = (self.c.len(), l); }
+    fn set(&mut self, l: u32) { self.track(l); self.b(LSET); self.u(l as u64); }
+    fn tee(&mut self, l: u32) { self.track(l); self.b(LTEE); self.u(l as u64); }
+    /// Local l gets the value on the stack: is it known zero-extended from 32 bits?
+    fn track(&mut self, l: u32) {
+        if self.last_mask == self.c.len() { self.z.insert(l); } else if !self.z.is_empty() { self.z.remove(&l); }
+    }
     fn mem(&mut self, op: u8, align: u32, offset: u32) { self.b(op); self.u(align as u64); self.u(offset as u64); }
+    /// prof build: counts one event k in prof::DYN
+    #[allow(unused_variables)]
+    fn cnt(&mut self, k: u32) {
+        #[cfg(feature = "prof")]
+        { let a = unsafe { core::ptr::addr_of!(prof::DYN) as u32 } + 8 * k; self.i32c(0); self.i32c(0); self.mem(I64LOAD, 3, a); self.i64c(1); self.b(I64ADD); self.mem(I64STORE, 3, a); }
+    }
     fn tmp(&mut self) -> u32 { let t = self.ntmp; self.ntmp += 1; t }
     fn call(&mut self, f: u32) { self.b(CALL); self.u(f as u64); }
 
@@ -383,7 +413,11 @@ impl G {
     }
 
     fn mask(&mut self, size: u32) {
-        if size < 64 { self.i64c(mask(size)); self.b(I64AND); }
+        if size >= 64 { return; }
+        // a local just pushed whose upper half is already zero needs no 32-bit mask
+        if size == 32 && self.last_get.0 == self.c.len() && opt() && self.z.contains(&self.last_get.1) { self.last_mask = self.c.len(); return; }
+        self.i64c(mask(size)); self.b(I64AND);
+        self.last_mask = self.c.len();
     }
 
     /// Pushes register r (size bits, zero-extended).
@@ -398,7 +432,7 @@ impl G {
         let rl = R0 + r as u32;
         match (size, hi) {
             (64, _) => { self.get(v); self.set(rl); self.valid |= 1 << r; }
-            (32, _) => { self.get(v); self.i64c(0xFFFF_FFFF); self.b(I64AND); self.set(rl); self.valid |= 1 << r; }
+            (32, _) => { self.get(v); self.mask(32); self.set(rl); self.valid |= 1 << r; }
             _ => {
                 self.ensure(r);
                 let (m, sh) = if hi { (0xFFu64 << 8, 8) } else { (mask(size), 0) };
@@ -413,32 +447,45 @@ impl G {
 
     /// TLB check for the access of n bytes at local `a`; leaves i32 "fast path ok".
     fn tlb_check(&mut self, a: u32, n: u32, write: bool) {
-        self.get(a); self.i64c(12); self.b(I64SHRU); self.tee(L_V);
-        self.b(I32WRAP); self.i32c(crate::mmu::Mmu::TLB_MASK as i32); self.b(I32AND); self.i32c(4); self.b(I32SHL); self.tee(L_E);
-        self.mem(I64LOAD, 3, self.tlb);
-        self.get(L_V); self.b(I64EQ);
-        if n > 1 {
-            self.get(a); self.b(I32WRAP); self.i32c(0xFFF); self.b(I32AND); self.i32c(4096 - n as i32); self.b(I32LEU);
-            self.b(I32AND);
+        if opt() {
+            // the entry of the first byte's page must hold the last byte's page: the one compare
+            // also rejects an access that crosses into the next page (that page has another slot)
+            self.get(a); self.b(I32WRAP); self.i32c(12); self.b(I32SHRU);
+            self.i32c(crate::mmu::Mmu::TLB_MASK as i32); self.b(I32AND); self.i32c(4); self.b(I32SHL); self.tee(L_E);
+            self.mem(I64LOAD, 3, self.tlb);
+            self.get(a); if n > 1 { self.i64c(n as u64 - 1); self.b(I64ADD); } self.i64c(12); self.b(I64SHRU);
+            self.b(I64EQ);
+        } else {
+            self.get(a); self.i64c(12); self.b(I64SHRU); self.tee(L_V);
+            self.b(I32WRAP); self.i32c(crate::mmu::Mmu::TLB_MASK as i32); self.b(I32AND); self.i32c(4); self.b(I32SHL); self.tee(L_E);
+            self.mem(I64LOAD, 3, self.tlb);
+            self.get(L_V); self.b(I64EQ);
+            if n > 1 {
+                self.get(a); self.b(I32WRAP); self.i32c(0xFFF); self.b(I32AND); self.i32c(4096 - n as i32); self.b(I32LEU);
+                self.b(I32AND);
+            }
         }
         if write { self.get(L_E); self.mem(I32LOAD8U, 0, self.tlb + 12); self.b(I32AND); }
     }
+    /// `if` with a branch hint (the engine keeps the unlikely side's spills out of the fast path).
+    fn if_hint(&mut self, bt: u8, likely: bool) { if opt() { self.hints.push((self.c.len(), likely as u8)); } self.b(IF); self.b(bt); }
     /// Host address of local `a` (after tlb_check).
     fn host(&mut self, a: u32) {
         self.get(L_E); self.mem(I32LOAD, 2, self.tlb + 8);
-        self.get(a); self.b(I32WRAP); self.i32c(0xFFF); self.b(I32AND); self.b(I32ADD);
+        self.get(a); self.b(I32WRAP); self.b(I32ADD); // + the entry's add: a host address (G.pool = 0)
     }
 
     /// Pushes the size-bit value at address local `a`.
     fn load(&mut self, a: u32, size: u32) {
+        self.cnt(3);
         self.tlb_check(a, size / 8, false);
         #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, false); self.b(I32AND); }
-        self.b(IF); self.b(T_I64);
+        self.if_hint(T_I64, true);
         let (op, al) = match size { 8 => (0x31, 0), 16 => (0x33, 1), 32 => (0x35, 2), _ => (I64LOAD, 3) };
         if crate::mmu::strong() {
             // x86 order with several cores: atomic load when aligned (i64.atomic.load*)
             let aop = match size { 8 => 0x14, 16 => 0x15, 32 => 0x16, _ => 0x11 };
-            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.b(IF); self.b(T_I64); }
+            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.if_hint(T_I64, true); }
             self.host(a); self.b(0xFE); self.mem(aop, al, self.pool);
             if size > 8 { self.b(ELSE); self.host(a); self.mem(op, al, self.pool); self.b(END); }
         } else {
@@ -452,14 +499,15 @@ impl G {
 
     /// Stores local v (size bits) at address local `a`.
     fn store(&mut self, a: u32, v: u32, size: u32) {
+        self.cnt(4);
         self.tlb_check(a, size / 8, true);
         #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, true); self.b(I32AND); }
-        self.b(IF); self.b(VOID);
+        self.if_hint(VOID, true);
         let (op, al) = match size { 8 => (0x3C, 0), 16 => (0x3D, 1), 32 => (0x3E, 2), _ => (I64STORE, 3) };
         if crate::mmu::strong() {
             // x86 order with several cores: atomic store when aligned (i64.atomic.store*)
             let aop = match size { 8 => 0x1B, 16 => 0x1C, 32 => 0x1D, _ => 0x18 };
-            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.b(IF); self.b(VOID); }
+            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.if_hint(VOID, true); }
             self.host(a); self.get(v); self.b(0xFE); self.mem(aop, al, self.pool);
             if size > 8 { self.b(ELSE); self.host(a); self.get(v); self.mem(op, al, self.pool); self.b(END); }
         } else {
@@ -474,6 +522,13 @@ impl G {
 
     /// Pushes the effective address of a memory operand (no segment prefix).
     fn ea(&mut self, m: &ModRm, next: u64) {
+        if self.m32 {
+            if m.riprel { self.i64c(m.disp as u32 as u64); return; } // [disp32]
+            let mm = ModRm { riprel: false, ..*m };
+            self.m32 = false; self.ea(&mm, next); self.m32 = true;
+            self.i64c(0xFFFF_FFFF); self.b(I64AND);
+            return;
+        }
         if m.riprel { self.i64c(next.wrapping_add(m.disp as u64)); return; }
         let mut any = false;
         if let Some(b) = m.base { self.ensure(b); self.get(R0 + b as u32); any = true; }
@@ -592,6 +647,7 @@ impl G {
         }
         self.c.truncate(save);
         self.spill_flags();
+        self.cnt(5);
         self.i32c(cc as i32);
         self.call(F_COND);
     }
@@ -617,6 +673,7 @@ impl G {
     }
     fn add_icount(&mut self, n: u32) {
         let a = self.cpu + off!(icount);
+        if self.lic { self.st_base(); self.get(L_IC); self.i64c(n as u64); self.b(I64ADD); self.mem(I64STORE, 3, a); return; }
         self.st_base(); self.cpu_ld64(off!(icount)); self.i64c(n as u64); self.b(I64ADD); self.mem(I64STORE, 3, a);
     }
     fn set_rip_const(&mut self, rip: u64) {
@@ -642,11 +699,37 @@ impl G {
     }
     /// Jumps to block `idx` of this region (`depth` = blocks open inside the current block).
     fn internal(&mut self, target: u64, idx: usize, n: u32, depth: u32) {
+        if self.lic {
+            self.flush();
+            let need = self.need[idx];
+            if need { self.exit_flags(); }
+            if idx <= self.cur { self.cnt(1); if need { self.cnt(7); } }
+            if idx > self.cur {
+                // a later block: its code starts right after the end of its label (no dispatch,
+                // and no budget check: only a jump back can loop)
+                self.get(L_IC); self.i64c(n as u64); self.b(I64ADD); self.set(L_IC);
+                self.cnt(0); if need { self.cnt(7); }
+                self.b(BR); self.u((depth + (idx - self.cur - 1) as u32) as u64);
+                return;
+            }
+            self.get(L_IC); self.i64c(n as u64); self.b(I64ADD); self.tee(L_IC);
+            self.cpu_ld64(off!(jit_limit)); self.b(I64GEU);
+            self.if_hint(VOID, false);
+            if !need { self.exit_flags(); }
+            let a = self.cpu + off!(icount);
+            self.st_base(); self.get(L_IC); self.mem(I64STORE, 3, a);
+            self.set_rip_const(target);
+            self.b(RET);
+            self.b(END);
+            self.i32c(idx as i32); self.set(L_B);
+            self.b(BR); self.u((depth + self.base) as u64);
+            return;
+        }
         self.flush();
         self.exit_flags();
         self.add_icount(n);
         self.cpu_ld64(off!(icount)); self.cpu_ld64(off!(jit_limit)); self.b(I64GEU);
-        self.b(IF); self.b(VOID);
+        self.if_hint(VOID, false);
         self.set_rip_const(target);
         self.b(RET);
         self.b(END);
@@ -663,11 +746,12 @@ impl G {
 
     /// Runs one instruction in the interpreter.
     fn fallback(&mut self, i: &Ins, n: u32) {
+        self.cnt(6);
         self.flush();
         self.spill_flags();
         self.set_rip_const(i.rip);
         self.i64c(i.next); self.call(F_STEP);
-        self.b(IF); self.b(VOID);
+        self.if_hint(VOID, false);
         self.add_icount(n);
         self.b(RET);
         self.b(END);
@@ -690,6 +774,13 @@ fn reg_opd(r: u8, size: u32, rex: u8) -> Opd {
 
 /// Emits an instruction natively; false = not supported (nothing usable emitted).
 fn native(g: &mut G, i: &Ins, live: bool, n: u32) -> bool {
+    // 32-bit code: what uses the stack, implicit addresses or differs from 64-bit mode runs in the interpreter
+    if g.m32 && (i.a67 || match i.op {
+        0x06 | 0x07 | 0x0E | 0x16 | 0x17 | 0x1E | 0x1F | 0x27 | 0x2F | 0x37 | 0x3F | 0x40..=0x6F | 0x82 | 0x8F | 0x9A | 0x9C | 0x9D
+        | 0xA0..=0xAF | 0xC2..=0xCF | 0xD4..=0xD7 | 0xE0..=0xEA | 0xF4 => true,
+        0xFF => i.m.map_or(true, |m| m.reg & 7 >= 2),
+        _ => false,
+    }) { return false; }
     // atomic instructions run in the interpreter, which makes them atomic across cores
     if i.lock && crate::lock::MT { return false; }
     if i.a67 && !(i.op == 0x8D && !i.m.unwrap().riprel) { return false; }
@@ -1051,7 +1142,7 @@ impl G {
     /// Pushes the 16 bytes at address local `a`.
     fn load128(&mut self, a: u32) {
         self.tlb_check(a, 16, false);
-        self.b(IF); self.b(V128);
+        self.if_hint(V128, true);
         self.host(a); self.simd(0x00); self.u(0); self.u(self.pool as u64);
         self.b(ELSE);
         self.get(a); self.i32c(64); self.call(F_RD); self.simd(0x12);
@@ -1062,7 +1153,7 @@ impl G {
     fn store128(&mut self, a: u32, r: u8) {
         let xa = self.xa(r);
         self.tlb_check(a, 16, true);
-        self.b(IF); self.b(VOID);
+        self.if_hint(VOID, true);
         self.host(a); self.x_ld(r); self.simd(0x0B); self.u(0); self.u(self.pool as u64);
         self.b(ELSE);
         self.get(a); self.i32c(0); self.mem(I64LOAD, 3, xa); self.i32c(64); self.call(F_WR);
@@ -1347,7 +1438,7 @@ fn muldiv(g: &mut G, i: &Ins, sub: u8, size: u32, live: bool, n: u32) -> bool {
         }
         (6, 32) => {
             g.rd_reg(2, false, 32); g.get(s); g.b(I64GEU);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             let d = g.tmp();
             g.rd_reg(2, false, 32); g.i64c(32); g.b(I64SHL); g.rd_reg(0, false, 32); g.b(I64OR); g.set(d);
             g.get(d); g.get(s); g.b(I64DIVU); g.set(q);
@@ -1362,17 +1453,17 @@ fn muldiv(g: &mut G, i: &Ins, sub: u8, size: u32, live: bool, n: u32) -> bool {
             g.get(ss); g.b(I64EQZ);
             g.get(d); g.i64c(1 << 63); g.b(I64EQ); g.get(ss); g.i64c(u64::MAX); g.b(I64EQ); g.b(I32AND);
             g.b(I32OR);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             g.get(d); g.get(ss); g.b(I64DIVS); g.set(q);
             g.get(q); g.i64c(0x8000_0000); g.b(I64ADD); g.i64c(0xFFFF_FFFF); g.b(I64GTU);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             g.get(d); g.get(ss); g.b(I64REMS); g.set(rm);
             g.wr_reg(0, false, 32, q);
             g.wr_reg(2, false, 32, rm);
         }
         (6, 64) => {
             g.rd_reg(2, false, 64); g.i64c(0); g.b(I64NE); g.get(s); g.b(I64EQZ); g.b(I32OR);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             g.rd_reg(0, false, 64); g.get(s); g.b(I64DIVU); g.set(q);
             g.rd_reg(0, false, 64); g.get(s); g.b(I64REMU); g.set(rm);
             g.wr_reg(0, false, 64, q);
@@ -1382,7 +1473,7 @@ fn muldiv(g: &mut G, i: &Ins, sub: u8, size: u32, live: bool, n: u32) -> bool {
             g.get(s); g.b(I64EQZ);
             g.rd_reg(2, false, 64); g.rd_reg(0, false, 64); g.i64c(63); g.b(I64SHRS); g.b(I64NE); g.b(I32OR);
             g.rd_reg(0, false, 64); g.i64c(1 << 63); g.b(I64EQ); g.get(s); g.i64c(u64::MAX); g.b(I64EQ); g.b(I32AND); g.b(I32OR);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             g.rd_reg(0, false, 64); g.get(s); g.b(I64DIVS); g.set(q);
             g.rd_reg(0, false, 64); g.get(s); g.b(I64REMS); g.set(rm);
             g.wr_reg(0, false, 64, q);
@@ -1424,6 +1515,8 @@ fn decode_block(e: &mut Engine, rip: u64) -> Option<Block> {
         if is_branch(&i) {
             let native_term = match i.op {
                 0x70..=0x7F | 0x0F80..=0x0F8F => true,
+                0xE9 | 0xEB if e.cpu.mode32 => true,
+                _ if e.cpu.mode32 => false, // calls and returns use the 4-byte stack: interpreter
                 0xE8 | 0xE9 | 0xEB | 0xC3 => true,
                 0xC2 => true,
                 0xFF => { let m = i.m.unwrap(); !(i.seg && m.md != 3) && !i.a67 && matches!(m.reg & 7, 2 | 4) && i.osz != 16 }
@@ -1474,16 +1567,29 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     }
     let cpu = &e.cpu as *const _ as u32;
     let nb = blocks.len() as u32;
-    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: e.mmu.pool_addr(), heads, base: 0, max_tmp: FIRST_TMP };
+    let lic = opt();
+    // per block: does it read the flags before it writes them all? (exits count as reads)
+    let need = blocks.iter().map(|b| {
+        for i in &b.list {
+            if is_branch(i) { return true; }
+            let (r, w) = flag_use(i);
+            if r || w { return r; }
+        }
+        true
+    }).collect();
+    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: 0, heads, base: 0, max_tmp: FIRST_TMP, m32: e.cpu.mode32, z: Default::default(), last_get: (0, 0), last_mask: usize::MAX, lic, need, hints: Vec::new(), cur: 0 };
+    if lic { g.cpu_ld64(off!(icount)); g.set(L_IC); }
     g.b(0x03); g.b(VOID); // loop: every jump between blocks comes back here
     for _ in 0..nb { g.b(0x02); g.b(VOID); }
+    if opt() { g.get(L_B); g.b(I32EQZ); g.b(0x0D); g.u(0); } // br_if: the usual jump back is to the first block
     g.get(L_B); g.b(0x0E); g.u(nb as u64);
     for j in 0..nb { g.u(j as u64); }
     g.u(0);
     for (j, b) in blocks.into_iter().enumerate() {
         g.b(END); // the code of block j follows the end of label j
         g.base = nb - 1 - j as u32;
-        g.valid = 0; g.dirty = 0; g.prod = Prod::Unknown;
+        g.cur = j;
+        g.valid = 0; g.dirty = 0; g.prod = Prod::Unknown; g.z.clear();
         g.ntmp = FIRST_TMP;
         emit_block(&mut g, b);
         g.max_tmp = g.max_tmp.max(g.ntmp);
@@ -1510,14 +1616,16 @@ fn emit_block(g: &mut G, b: Block) {
     }
 
     let mut done_all = false;
+    let mut cut = false; // out of locals: leave the region (an edge the region's analysis did not see)
     for (k, i) in list.iter().enumerate() {
         let n = k as u32 + 1;
-        if g.ntmp > MAX_LOCALS - 40 { end_rip = Some(i.rip); break; }
+        if g.ntmp > MAX_LOCALS - 40 { end_rip = Some(i.rip); cut = true; break; }
         match i.op {
             0x70..=0x7F | 0x0F80..=0x0F8F => {
                 let target = i.next.wrapping_add(i.imm);
                 g.cond((i.op & 15) as u8);
-                g.b(IF); g.b(VOID);
+                // leaving the region is the unusual way (its hot targets are inside)
+                if g.heads.contains(&target) { g.b(IF); g.b(VOID); } else { g.if_hint(VOID, false); }
                 g.jump(target, n, 1);
                 g.b(END);
                 continue;
@@ -1557,7 +1665,7 @@ fn emit_block(g: &mut G, b: Block) {
     }
     if !done_all {
         let n = list.iter().take_while(|i| Some(i.rip) != end_rip).count() as u32;
-        g.jump(end_rip.unwrap_or(pc), n, 0);
+        if cut { g.exit(end_rip.unwrap(), n); } else { g.jump(end_rip.unwrap_or(pc), n, 0); }
     }
 }
 
@@ -1567,6 +1675,7 @@ fn finish(g: G) -> Option<Vec<u8>> {
     leb_u(&mut body, 2);
     leb_u(&mut body, N_I32 as u64); body.push(0x7F);
     leb_u(&mut body, (g.max_tmp - R0) as u64); body.push(0x7E);
+    let pre = body.len();
     body.extend_from_slice(&g.c);
 
     let mut m = Vec::with_capacity(body.len() + 128);
@@ -1589,6 +1698,15 @@ fn finish(g: G) -> Option<Vec<u8>> {
     section(&mut m, 2, &imp);
     section(&mut m, 3, &[1, 0]);
     section(&mut m, 7, &[1, 1, b'f', 0x00, 4]);
+    if !g.hints.is_empty() {
+        // custom section "metadata.code.branch_hint" (before the code section): function 4, offsets in its body
+        let mut h = Vec::new();
+        let nm = "metadata.code.branch_hint";
+        leb_u(&mut h, nm.len() as u64); h.extend_from_slice(nm.as_bytes());
+        leb_u(&mut h, 1); leb_u(&mut h, 4); leb_u(&mut h, g.hints.len() as u64);
+        for &(p, v) in &g.hints { leb_u(&mut h, (pre + p) as u64); h.push(1); h.push(v); }
+        section(&mut m, 0, &h);
+    }
     let mut code = vec![1u8];
     leb_u(&mut code, body.len() as u64);
     code.extend_from_slice(&body);
@@ -1606,12 +1724,16 @@ fn section(m: &mut Vec<u8>, id: u8, data: &[u8]) {
 pub mod prof {
     use std::collections::HashMap;
     static mut P: Option<HashMap<u32, u64>> = None;
+    /// dynamic counters bumped by JIT code: 0 fwd jumps, 1 back jumps, 2 exits, 3 loads, 4 stores, 5 cond calls, 6 fallbacks, 7 flag stores at jumps
+    pub static mut DYN: [u64; 8] = [0; 8];
     pub fn add(k: u32, n: u64) { unsafe { *P.get_or_insert_with(HashMap::new).entry(k).or_insert(0) += n; } }
     #[no_mangle]
     pub extern "C" fn prof_dump() {
         let mut v: Vec<_> = unsafe { P.clone().unwrap_or_default().into_iter().collect() };
         v.sort_by(|a, b| b.1.cmp(&a.1));
-        let s: String = v.iter().take(40).map(|(k, n)| format!("{:x} {}\n", k, n)).collect();
+        let d = unsafe { DYN };
+        let s0 = format!("dyn fwd {} back {} exits {} loads {} stores {} cond {} fallback {} flagst {}\n", d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]);
+        let s: String = s0 + &v.iter().filter(|x| x.0 >= 0xB0000000).chain(v.iter().take(30)).map(|(k, n)| format!("{:x} {}\n", k, n)).collect::<String>();
         crate::eng().s.error = Some(s);
     }
 }

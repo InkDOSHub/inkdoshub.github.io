@@ -28,6 +28,7 @@ const FACE: u32 = 0xD4D0C8;
 const LIGHT: u32 = 0xFFFFFF;
 const SHADOW: u32 = 0x808080;
 const DARK: u32 = 0x404040;
+#[allow(dead_code)] // the page paints it (index.html --desk)
 const DESKTOP_COLOR: u32 = 0x3A6EA5;
 
 pub struct Bmp {
@@ -121,13 +122,13 @@ pub fn fonts() -> &'static Vec<FontData> {
 
 fn map_char(c: u32) -> u32 {
     match c {
+        0x00A0 => 32, // no-break space: the baked fonts draw it as a space
         32..=255 => c,
         0x2018 | 0x2019 | 0x201A => '\'' as u32,
         0x201C | 0x201D | 0x201E => '"' as u32,
         0x2013 | 0x2014 | 0x2212 => '-' as u32,
         0x2022 => 0xB7,
         0x2026 => '.' as u32,
-        0x00A0 => 32,
         _ if c < 32 => 0,
         _ => '?' as u32,
     }
@@ -1312,7 +1313,7 @@ impl Engine {
         let (w, h) = (SCREEN_W, SCREEN_H);
         let mut fb = std::mem::take(&mut self.s.gdi.fb);
         fb.resize((w * h) as usize, 0);
-        fb.fill(0xFF00_0000 | colorref(DESKTOP_COLOR));
+        fb.fill(0); // transparent: the page draws the desktop under the windows
         let tops = self.s.win.tops.clone();
         for t in tops {
             let Some(win) = self.wnd(t) else { continue };

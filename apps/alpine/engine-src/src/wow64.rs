@@ -36,7 +36,7 @@ impl Engine {
     /// Fills the 32-bit TEB of a thread (TEB64 + 0x2000) and links it to the 64-bit one.
     pub fn init_teb32(&mut self, teb: u64, stack_lo: u64, stack_hi: u64, tid: u32) {
         let t = teb + TEB32_OFF;
-        self.mmu.add_region(t, 0x2000);
+        if !self.mmu.overlaps(t, t + 0x2000) { self.mmu.add_region(t, 0x2000); }
         self.w32(t, 0xFFFF_FFFF);            // no SEH frame yet
         self.w32(t + 4, stack_hi as u32);
         self.w32(t + 8, stack_lo as u32);
