@@ -91,7 +91,7 @@ function run(files, exe, args, label) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=39');
+  const w = p.w = new Worker('worker.js?v=40');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
@@ -122,7 +122,7 @@ function run(files, exe, args, label) {
     }
   };
   w.postMessage({ type: 'exec', files, exe, cmd: args ? exe + ' ' + args : exe, poolMb: poolMb(), targetMb: 8192,
-    jit: $('jit').checked, cores: +$('cores').value, strong: new URLSearchParams(location.search).get('strong') !== '0' },
+    jit: $('jit').checked, cores: +$('cores').value, strong: new URLSearchParams(location.search).get('strong') !== '0', opt: new URLSearchParams(location.search).get('opt') !== '0' },
   files ? files.map((f) => f.data) : []);
 }
 

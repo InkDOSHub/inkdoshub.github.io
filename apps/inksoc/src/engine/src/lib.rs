@@ -216,6 +216,10 @@ pub extern "C" fn set_cores(n: u32) {
 #[no_mangle]
 pub extern "C" fn set_strong_order(on: u32) { mmu::set_strong(on != 0 && lock::MT && eng().s.cores > 1); }
 
+/// Turns the newer JIT code improvements on or off (?opt=0 on the page: A/B on a device).
+#[no_mangle]
+pub extern "C" fn set_jit_opt(on: u32) { jit::set_opt(on != 0); }
+
 /// Sets up this worker as core `id` (after its stack and thread-local area are set).
 #[no_mangle]
 #[allow(static_mut_refs)]
@@ -308,7 +312,7 @@ pub extern "C" fn run(budget: u32) -> i32 {
                 jit::call(f);
                 let n = e.cpu.icount - before;
                 #[cfg(feature = "prof")]
-                { jit::prof::add(0xB0000000, 1); jit::prof::add(0xB0000001, n); }
+                { jit::prof::add(0xB0000000, 1); jit::prof::add(0xB0000001, n); jit::prof::add(f, n); }
                 left = left.saturating_sub(n);
                 e.sched_tick(n);
                 continue;

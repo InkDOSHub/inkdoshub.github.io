@@ -56,7 +56,7 @@ async function runOne({ files, exe, args }) {
       try {
         const m = new WebAssembly.Module(new Uint8Array(mem.buffer, p, n).slice());
         const i = new WebAssembly.Instance(m, { env: { memory: mem, rd: x.jit_rd, wr: x.jit_wr, step: x.jit_step, cond: x.jit_cond } });
-        const t = x.__indirect_function_table; const k = t.grow(1); t.set(k, i.exports.f); return k;
+        const t = x.__indirect_function_table; const k = t.grow(1); t.set(k, i.exports.f); if (process.env.DUMPJIT) fs.writeFileSync(path.join(process.env.DUMPJIT, k + '.wasm'), new Uint8Array(mem.buffer, p, n).slice()); return k;
       } catch { return -1; }
     },
   };
@@ -91,5 +91,6 @@ async function runOne({ files, exe, args }) {
   for (let i = 0, n; (n = x.out_file(i)); i++) { const b = new Uint8Array(mem.buffer, x.out_ptr(), n); outFiles.push(new TextDecoder().decode(b.subarray(0, b.indexOf(0)))); }
   const missing = [...new Set((out.match(/\[inksoc\] \S+ is not available yet/g) || []).map((s) => s.split(' ')[1]))];
   const ms = performance.now() - t0;
+  if (process.env.PROF && x.prof_dump) { x.prof_dump(); console.error('PROF\n' + msg()); }
   console.log('\n' + JSON.stringify({ status, exitCode: x.stat(6), error: st === 2 ? msg() : (status === 'timeout' ? 'still running after ' + LIMIT_S + ' s' : ''), missing, out: out.slice(-4000), files: outFiles, mips: Math.round(x.stat(0) / ms / 1000) }));
 }

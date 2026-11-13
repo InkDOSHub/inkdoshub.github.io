@@ -55,10 +55,12 @@ struct Pte { frame: u32, slot: u32 }
 #[derive(Clone, Copy)]
 struct Frame { vpn: u64, used: bool, referenced: bool, dirty: bool, asid: u32 }
 
-// layout read by JIT code: tag @0, off @8, writable @12 (16 bytes)
+// layout read by JIT code: tag @0, add @8, writable @12 (16 bytes).
+// add = host address of the page minus its guest address (mod 2^32): the host
+// address of any byte of the page is then just (guest address as u32) + add.
 #[derive(Clone, Copy)]
 #[repr(C)]
-struct TlbEntry { tag: u64, off: usize, writable: bool }
+struct TlbEntry { tag: u64, add: u32, writable: bool }
 
 pub struct Fault;
 
@@ -125,7 +127,7 @@ impl Mmu {
             target_bytes: target_mb << 20,
             faults: 0, swap_ins: 0, swap_outs: 0, swap_slots: 0, no_evict: false,
         }));
-        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core: 0, sh, lk: 0, lk_at: (0, 0, 0), lk_snap: None };
+        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, add: 0, writable: false }; TLB_SIZE], core: 0, sh, lk: 0, lk_at: (0, 0, 0), lk_snap: None };
         TLBS[0].store(m.tlb.as_ptr() as u32, Release);
         m
     }
@@ -133,7 +135,7 @@ impl Mmu {
     /// Another core's view of the same memory (empty TLB).
     pub fn new_core(&self, core: u32) -> Mmu {
         let sh = unsafe { &mut *(self.sh as *const MmuShared as *mut MmuShared) };
-        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, off: 0, writable: false }; TLB_SIZE], core, sh, lk: 0, lk_at: (0, 0, 0), lk_snap: None };
+        let m = Mmu { tlb: vec![TlbEntry { tag: u64::MAX, add: 0, writable: false }; TLB_SIZE], core, sh, lk: 0, lk_at: (0, 0, 0), lk_snap: None };
         TLBS[core as usize].store(m.tlb.as_ptr() as u32, Release);
         m
     }
@@ -360,7 +362,8 @@ impl Mmu {
         fr.referenced = true;
         if write { fr.dirty = true; }
         let off = frame as usize * PAGE as usize;
-        self.tlb[(vpn as usize) & (TLB_SIZE - 1)] = TlbEntry { tag: vpn, off, writable: write || fr.dirty };
+        let add = (self.sh.pool.as_ptr() as u32).wrapping_add(off as u32).wrapping_sub((vpn << 12) as u32);
+        self.tlb[(vpn as usize) & (TLB_SIZE - 1)] = TlbEntry { tag: vpn, add, writable: write || fr.dirty };
         Ok(off)
     }
 
@@ -369,7 +372,7 @@ impl Mmu {
         let vpn = addr >> 12;
         let e = self.tlb[(vpn as usize) & (TLB_SIZE - 1)];
         if e.tag == vpn && (!write || e.writable) {
-            return Ok(e.off + (addr & 0xFFF) as usize);
+            return Ok(e.add.wrapping_add(addr as u32).wrapping_sub(self.sh.pool.as_ptr() as u32) as usize);
         }
         Ok(self.fill(vpn, write)? + (addr & 0xFFF) as usize)
     }

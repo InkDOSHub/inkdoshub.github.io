@@ -18,6 +18,7 @@
   "16": "lock.rs",
   "17": "Mmu",
   "18": ".call_native",
+  "19": ".sched_switch",
   "20": ".cxx_throw",
   "21": ".wow64_boot",
   "22": "Engine",
@@ -43,10 +44,14 @@
   "42": "Brush",
   "43": "decode",
   "44": "Prod",
-  "45": "Cpu",
+  "45": ".fault",
   "46": "Fault",
   "47": ".linux_boot",
   "48": ".fill",
-  "49": ".load_elf",
-  "50": "AtomicU32"
+  "49": "exit_proc",
+  "50": "net_call",
+  "51": "St",
+  "52": "OPT",
+  "53": "AtomicBool",
+  "54": "AtomicU32"
 }

@@ -22,6 +22,11 @@ extern "C" {
     fn host_jit(ptr: *const u8, len: u32) -> i32;
 }
 
+static OPT: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(true);
+/// Newer code improvements (fewer redundant masks); off only to measure them on a device.
+pub fn set_opt(on: bool) { OPT.store(on, core::sync::atomic::Ordering::Relaxed); }
+fn opt() -> bool { OPT.load(core::sync::atomic::Ordering::Relaxed) }
+
 const HOT: u32 = 40; // visits before a block is compiled
 const MAX_INS: usize = 80;
 const NONE: u32 = u32::MAX;
@@ -351,6 +356,11 @@ struct G {
     base: u32, // labels between the current block's code and the region loop
     max_tmp: u32,
     m32: bool, // 32-bit code (WoW64): [disp32] addressing, addresses wrap at 4 GB
+    // i64 locals whose upper 32 bits are known to be zero: a 32-bit read of them needs no mask
+    // (only straight-line facts: block heads clear it; IF bodies never set these locals)
+    z: std::collections::HashSet<u32>,
+    last_get: (usize, u32), // code position right after the last local.get, and its local
+    last_mask: usize, // code position right after a value was masked to 32 bits or less
 }
 
 macro_rules! off { ($f:ident) => { core::mem::offset_of!(crate::cpu::Cpu, $f) as u32 } }
@@ -361,9 +371,13 @@ impl G {
     fn u(&mut self, x: u64) { leb_u(&mut self.c, x); }
     fn i32c(&mut self, v: i32) { self.b(I32C); leb_s(&mut self.c, v as i64); }
     fn i64c(&mut self, v: u64) { self.b(I64C); leb_s(&mut self.c, v as i64); }
-    fn get(&mut self, l: u32) { self.b(LGET); self.u(l as u64); }
-    fn set(&mut self, l: u32) { self.b(LSET); self.u(l as u64); }
-    fn tee(&mut self, l: u32) { self.b(LTEE); self.u(l as u64); }
+    fn get(&mut self, l: u32) { self.b(LGET); self.u(l as u64); self.last_get = (self.c.len(), l); }
+    fn set(&mut self, l: u32) { self.track(l); self.b(LSET); self.u(l as u64); }
+    fn tee(&mut self, l: u32) { self.track(l); self.b(LTEE); self.u(l as u64); }
+    /// Local l gets the value on the stack: is it known zero-extended from 32 bits?
+    fn track(&mut self, l: u32) {
+        if self.last_mask == self.c.len() { self.z.insert(l); } else if !self.z.is_empty() { self.z.remove(&l); }
+    }
     fn mem(&mut self, op: u8, align: u32, offset: u32) { self.b(op); self.u(align as u64); self.u(offset as u64); }
     fn tmp(&mut self) -> u32 { let t = self.ntmp; self.ntmp += 1; t }
     fn call(&mut self, f: u32) { self.b(CALL); self.u(f as u64); }
@@ -386,7 +400,11 @@ impl G {
     }
 
     fn mask(&mut self, size: u32) {
-        if size < 64 { self.i64c(mask(size)); self.b(I64AND); }
+        if size >= 64 { return; }
+        // a local just pushed whose upper half is already zero needs no 32-bit mask
+        if size == 32 && self.last_get.0 == self.c.len() && opt() && self.z.contains(&self.last_get.1) { self.last_mask = self.c.len(); return; }
+        self.i64c(mask(size)); self.b(I64AND);
+        self.last_mask = self.c.len();
     }
 
     /// Pushes register r (size bits, zero-extended).
@@ -401,7 +419,7 @@ impl G {
         let rl = R0 + r as u32;
         match (size, hi) {
             (64, _) => { self.get(v); self.set(rl); self.valid |= 1 << r; }
-            (32, _) => { self.get(v); self.i64c(0xFFFF_FFFF); self.b(I64AND); self.set(rl); self.valid |= 1 << r; }
+            (32, _) => { self.get(v); self.mask(32); self.set(rl); self.valid |= 1 << r; }
             _ => {
                 self.ensure(r);
                 let (m, sh) = if hi { (0xFFu64 << 8, 8) } else { (mask(size), 0) };
@@ -429,7 +447,7 @@ impl G {
     /// Host address of local `a` (after tlb_check).
     fn host(&mut self, a: u32) {
         self.get(L_E); self.mem(I32LOAD, 2, self.tlb + 8);
-        self.get(a); self.b(I32WRAP); self.i32c(0xFFF); self.b(I32AND); self.b(I32ADD);
+        self.get(a); self.b(I32WRAP); self.b(I32ADD); // + the entry's add: a host address (G.pool = 0)
     }
 
     /// Pushes the size-bit value at address local `a`.
@@ -1493,7 +1511,7 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     }
     let cpu = &e.cpu as *const _ as u32;
     let nb = blocks.len() as u32;
-    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: e.mmu.pool_addr(), heads, base: 0, max_tmp: FIRST_TMP, m32: e.cpu.mode32 };
+    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: 0, heads, base: 0, max_tmp: FIRST_TMP, m32: e.cpu.mode32, z: Default::default(), last_get: (0, 0), last_mask: usize::MAX };
     g.b(0x03); g.b(VOID); // loop: every jump between blocks comes back here
     for _ in 0..nb { g.b(0x02); g.b(VOID); }
     g.get(L_B); g.b(0x0E); g.u(nb as u64);
@@ -1502,7 +1520,7 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     for (j, b) in blocks.into_iter().enumerate() {
         g.b(END); // the code of block j follows the end of label j
         g.base = nb - 1 - j as u32;
-        g.valid = 0; g.dirty = 0; g.prod = Prod::Unknown;
+        g.valid = 0; g.dirty = 0; g.prod = Prod::Unknown; g.z.clear();
         g.ntmp = FIRST_TMP;
         emit_block(&mut g, b);
         g.max_tmp = g.max_tmp.max(g.ntmp);
