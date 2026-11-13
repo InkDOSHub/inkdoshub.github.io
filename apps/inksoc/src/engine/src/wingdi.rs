@@ -1027,6 +1027,8 @@ impl Engine {
         let uses_p = ((op >> 4) ^ op) & 0x0F != 0 || (mask.is_some() && ((back >> 4) ^ back) & 0x0F != 0);
         let brush = self.dc(dst).map_or(0, |d| d.brush);
         let be = if uses_p { self.brush_eval(brush, attr, v.mono, v.ox, v.oy) } else { Be::None };
+        // a pattern-only blit with the null brush (NULL_BRUSH, a transparent control) draws nothing
+        if uses_p && src.is_none() && mask.is_none() && matches!(be, Be::None) { return true; }
         let (dfg, dbg) = (rgb(self.g32(attr + 24)), rgb(self.g32(attr + 12)));
         let d = d.off(v.ox, v.oy);
         let (mut px, sw, sh) = self.take(v.tgt);

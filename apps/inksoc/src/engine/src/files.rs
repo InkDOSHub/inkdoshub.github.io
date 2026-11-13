@@ -106,7 +106,8 @@ pub fn case_of(path: &str) -> Option<String> {
             // 32-bit system DLLs are stored as wine32-<name>
             return Some(format!("wine32-{}", parts[parts.len() - 1]));
         }
-        else if parts.first().map_or(false, |c| c.eq_ignore_ascii_case("windows")) { let last = parts[parts.len() - 1]; parts = vec![last]; }
+        // (Windows Installer keeps its own copies of packages in C:\Windows\Installer: real files)
+        else if parts.first().map_or(false, |c| c.eq_ignore_ascii_case("windows")) && !parts.get(1).map_or(false, |c| c.eq_ignore_ascii_case("installer") && parts.len() > 2) { let last = parts[parts.len() - 1]; parts = vec![last]; }
         else if !parts.is_empty() { return Some(format!("C:\\{}", parts.join("\\"))); }
     }
     if parts.is_empty() { None } else { Some(parts.join("\\")) }

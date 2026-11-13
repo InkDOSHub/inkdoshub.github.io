@@ -517,8 +517,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetTempFileNameW" | "GetTempFileNameA" => {
             let (pre, uniq, out) = (e.arg(1), e.arg(2) as u32, e.arg(3));
             let p = if name.ends_with('W') { e.read_wstr(pre, 3) } else { e.read_cstr(pre, 3) };
-            let n = if uniq != 0 { uniq } else { (unsafe { crate::host_now_ms() } as u32) & 0xFFFF };
-            let s = format!("C:\\InkSoC\\{}{:04X}.tmp", p, n);
+            let dir = if name.ends_with('W') { e.read_wstr(a0, 260) } else { e.read_cstr(a0, 260) };
+            let dir = if dir.is_empty() { crate::files::home_win() } else { dir.trim_end_matches('\\').to_string() };
+            let mut n = if uniq != 0 { uniq } else { ((unsafe { crate::host_now_ms() } as u32) & 0xFFFF).max(1) };
+            let mut s = format!("{}\\{}{:04X}.tmp", dir, p, n);
+            // uUnique 0: a new name, and the file is made (empty), as Windows does
+            if uniq == 0 {
+                while crate::files::key_of(&s).map_or(false, |k| e.s.files.contains_key(&k)) { n = n % 0xFFFF + 1; s = format!("{}\\{}{:04X}.tmp", dir, p, n); }
+                if let Some(k) = crate::files::key_of(&s) { e.s.files.insert(k.clone(), Vec::new()); e.s.fs.written.insert(k.clone()); e.note_case(&k, &s); }
+            }
             if name.ends_with('W') { e.out_w(out, 260, &s); } else { e.out_a(out, 260, &s); }
             n as u64
         }

@@ -572,13 +572,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtQuerySystemInformation" | "NtQuerySystemInformationEx" => {
             let (class, buf, len, ret) = if name == "NtQuerySystemInformation" { (a0 as u32, e.arg(1), e.arg(2) as u32 as u64, e.arg(3)) } else { (a0 as u32, e.arg(3), e.arg(4) as u32 as u64, e.arg(5)) };
-            let need: u64 = match class { 0 | 0x3E => 64, 1 | 0x3F => 12, 3 => 48, 8 => 48 * e.s.cores as u64, 2 => 0x150, 0x67 => 8, 0xB5 if e.s.wow64 => 12, _ => 0 };
+            let need: u64 = match class { 0 | 0x3E => 64, 1 | 0x3F => 12, 3 => 48, 8 => 48 * e.s.cores as u64, 2 => 0x150, 0x67 => 8, 0xB5 => if e.s.wow64 { 12 } else { 8 }, _ => 0 };
             if need == 0 { return Some(INVALID_INFO_CLASS); }
             if ret != 0 { let _ = e.mmu.write32(ret, need as u32); }
             if len < need { return Some(INFO_LENGTH_MISMATCH); }
             e.zero_n(buf, need);
             match class {
                 // SystemSupportedProcessorArchitectures: x86-64 native, i386 for this (WoW64) process
+                // (a 64-bit process: x86-64 is native and the process's own machine)
+                0xB5 if !e.s.wow64 => { let _ = e.mmu.write32(buf, 0x8664 | 0xF << 16); }
                 0xB5 => { let _ = e.mmu.write32(buf, 0x8664 | 7 << 16); let _ = e.mmu.write32(buf + 4, 0x14C | 2 << 16 | 1 << 19 | 1 << 20); }
                 0 | 0x3E => {
                     let w32 = |e: &mut Engine, o: u64, v: u32| { let _ = e.mmu.write32(buf + o, v); };

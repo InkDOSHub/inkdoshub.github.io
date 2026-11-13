@@ -92,7 +92,7 @@ function run(files, exe, args, label, home) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=47');
+  const w = p.w = new Worker('worker.js?v=48');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
@@ -222,7 +222,15 @@ $('pick').onchange = async (ev) => {
   closePops();
   const all = [...picked.values()];
   const exes = all.filter((f) => /\.exe$/i.test(f.name));
-  if (!exes.length) { $('speed').textContent = 'Picked ' + all.length + ' file(s): now pick the .exe'; return; }
+  // a Windows Installer package: Windows' own msiexec installs it
+  const msi = all.filter((f) => /\.msi$/i.test(f.name)).pop();
+  if (msi && !exes.length) {
+    picked.clear();
+    const data = await fetch('bin/wine/wine-msiexec.exe?v=1').then((r) => r.arrayBuffer());
+    run([{ name: 'msiexec.exe', data }, ...all.map((f) => ({ name: f.name, data: f.data.slice(0) }))], 'msiexec.exe', '/i "' + msi.name + '"' + ($('args').value.trim() ? ' ' + $('args').value.trim() : ''), '📦 ' + msi.name.replace(/\.msi$/i, ''));
+    return;
+  }
+  if (!exes.length) { $('speed').textContent = 'Picked ' + all.length + ' file(s): now pick the .exe or .msi'; return; }
   const exe = exes[exes.length - 1];
   run(all.map((f) => ({ name: f.name, data: f.data.slice(0) })), exe.name, $('args').value.trim(), '🪟 ' + exe.name.replace(/\.exe$/i, ''));
 };

@@ -49,7 +49,7 @@
 <div class="top"><a href="../../">&lt; InkDOS Hub</a><b>🖥 InkSoC</b><span class="r"></span></div>
 <div id="desk"></div>
 <div class="pop" id="menu" hidden>
-  <label class="it">📂 Open .exe…<input type="file" id="pick" multiple hidden></label>
+  <label class="it">📂 Open .exe or .msi…<input type="file" id="pick" multiple hidden></label>
   <div class="set"><input type="text" id="args" placeholder="Arguments (optional)"></div>
   <div id="installed"></div>
   <hr>
@@ -66,10 +66,10 @@
 <div class="pop" id="infop" hidden>
   <p><b>InkSoC</b> runs Windows programs (.exe, 64-bit and 32-bit) in this tab with its own engine: no Wine install, no Linux, nothing sent to a server.</p>
   <p>Programs with windows appear on the desktop; console programs open in a console window. Each program gets a button in the bar below: tap it to bring it to the front or hide it, ✕ stops it.</p>
-  <p>"Open .exe…" takes the .exe together with its DLLs and data files; installers and programs keep their files on drive C:, which stays in this browser (its private storage, apart from the memory swap), so installed programs appear in this menu after a reload; other files the program creates can also be downloaded from its console window. Several cores need the hub.inkdos.workers.dev address.</p>
+  <p>"Open .exe or .msi…" takes the .exe (or a Windows Installer .msi) together with its DLLs and data files; installers and programs keep their files on drive C:, which stays in this browser (its private storage, apart from the memory swap), so installed programs appear in this menu after a reload; other files the program creates can also be downloaded from its console window. Several cores need the hub.inkdos.workers.dev address.</p>
   <p>The figure in the bar is the speed of the last program, in billions of x86 instructions per second.</p>
 </div>
 <div class="bar"><button id="start">☰ Programs</button><div id="tasks"></div><span id="speed"></span><button id="info" title="About">i</button></div>
-<script src="desktop.js?v=14"></script>
+<script src="desktop.js?v=15"></script>
 </body>
 </html>
