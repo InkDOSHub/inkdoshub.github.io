@@ -233,7 +233,7 @@ impl Engine {
     fn new_thread(&mut self, stack: u64, start: u64, param: u64, flags: u64) -> Option<(u64, u32)> {
         let size = stack.max(1 << 20);
         let st = self.alloc(size)?;
-        let teb = self.alloc(0x2000)?;
+        let teb = self.alloc(if self.s.wow64 { 0x4000 } else { 0x2000 })?;
         let id = MAIN_TID + 4 * self.s.sched.th.len() as u32;
         let w = |e: &mut Engine, a: u64, v: u64| { let _ = e.mmu.write64(a, v); };
         w(self, teb + 0x08, st + size);
@@ -253,6 +253,17 @@ impl Engine {
         cpu.rip = start;
         cpu.gs_base = teb;
         cpu.xmm = self.cpu.xmm; // MXCSR-like state is not modeled; start clean otherwise
+        if self.s.wow64 {
+            // a 32-bit thread: its own 32-bit stack, TEB32 and CPU area starting at
+            // RtlUserThreadStart(start, param); the 64-bit side enters Wow64LdrpInitialize
+            let st32 = self.alloc(size)?;
+            self.init_teb32(teb, st32, st32 + size, id);
+            let rus = crate::pe::export_addr(self, self.s.wow64_ntdll, "RtlUserThreadStart").unwrap_or(0);
+            self.init_cpu_area(teb, rus, start, param, st32 + size - 16);
+            let w64 = crate::pe::find_module(self, "wow64.dll")?;
+            cpu.rip = crate::pe::proc_address(self, w64, "Wow64LdrpInitialize").unwrap_or(0);
+            cpu.regs[1] = self.heap_alloc(0x500, true);
+        }
         let suspended = flags & 4 != 0;
         self.s.sched.th.push(Thread {
             id, teb, cpu, eh: Default::default(), st: if suspended { St::Suspended } else { St::Ready },
@@ -489,6 +500,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let b = e.arg(2); let _ = e.mmu.write32(b, n); 0
         }
         "NtWaitForKeyedEvent" => { let p = e.arg(3); let ms = nt_timeout(e, p); let k = e.arg(1); e.wait_on(W::Keyed(k), ms) }
+        // thread alerts (Wine's 32-bit ntdll locks): a keyed event per thread, at most one pending
+        "NtWaitForAlertByThreadId" => {
+            let p = e.arg(1); let ms = nt_timeout(e, p);
+            let r = e.wait_on(W::Keyed(1 << 63 | me as u64), ms);
+            if r == 0 { 0x101 } else { r } // STATUS_ALERTED
+        }
+        "NtAlertThreadByThreadId" => { e.s.sched.keyed.insert(1 << 63 | a0, 1); crate::lock::kick(); 0 }
         "NtReleaseKeyedEvent" => { let k = e.arg(1); *e.s.sched.keyed.entry(k).or_insert(0) += 1; 0 }
         "NtCreateKeyedEvent" | "NtOpenKeyedEvent" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); let _ = e.mmu.write64(a0, h); 0 }
         "RtlWakeAddressAll" | "RtlWakeAddressSingle" | "WakeByAddressAll" | "WakeByAddressSingle" => {
@@ -595,6 +613,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
         }
         "ExitThread" | "_endthreadex" | "_endthread" => { e.exit_thread(a0 as u32); NO_RETURN }
+        "NtTerminateThread" => {
+            // (handle, status): the calling thread (WoW64 threads end this way)
+            let mine = a0 == 0 || a0 == u64::MAX - 1 || e.thread_of(a0).map_or(false, |i| e.s.sched.th[i].id == me);
+            let code = e.arg(1) as u32;
+            if mine { e.exit_thread(code); NO_RETURN } else { 0xC000_0002 } // others: STATUS_NOT_IMPLEMENTED
+        }
         "GetCurrentThreadId" => me as u64,
         "GetThreadId" => e.thread_of(a0).map_or(0, |i| e.s.sched.th[i].id as u64),
         "ResumeThread" => match e.thread_of(a0) {

@@ -1,0 +1,16 @@
+{
+  "0": "jit.rs",
+  "1": "native",
+  "2": "IndexMut",
+  "3": "G",
+  "4": "AtomicBool",
+  "5": "AtomicBool",
+  "9": ".b",
+  "16": "AtomicU32",
+  "25": "AtomicU32",
+  "40": "Index",
+  "41": "compile",
+  "44": "Prod",
+  "52": "OPT",
+  "54": "AtomicU32"
+}

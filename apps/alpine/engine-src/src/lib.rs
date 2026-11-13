@@ -212,6 +212,14 @@ pub extern "C" fn set_cores(n: u32) {
     unsafe { CORE0_MMU = &e.mmu as *const Mmu as usize; }
 }
 
+/// Turns the strict x86 memory order between cores on or off (measuring its cost).
+#[no_mangle]
+pub extern "C" fn set_strong_order(on: u32) { mmu::set_strong(on != 0 && lock::MT && eng().s.cores > 1); }
+
+/// Turns the newer JIT code improvements on or off (?opt=0 on the page: A/B on a device).
+#[no_mangle]
+pub extern "C" fn set_jit_opt(on: u32) { jit::set_opt(on != 0); }
+
 /// Sets up this worker as core `id` (after its stack and thread-local area are set).
 #[no_mangle]
 #[allow(static_mut_refs)]
@@ -271,8 +279,11 @@ pub extern "C" fn run(budget: u32) -> i32 {
     let mut done_other = 0u64; // instructions of threads this core switched away from
     mmu::safe_point(e.core);
     if e.s.lx.is_none() && e.s.user_shared { e.shared_time(); }
+    let mut tick = 0u32;
     while left > 0 && !e.s.exited && e.s.error.is_none() {
-        mmu::safe_point(e.core);
+        // a safe point every 64 blocks: frees and evictions wait a little longer, the loop pays less
+        tick = tick.wrapping_add(1);
+        if tick & 63 == 0 { mmu::safe_point(e.core); }
         if e.want_switch {
             let before = e.cpu.icount;
             let ok = { let _g = lock::lock(); e.sched_switch() };
@@ -293,7 +304,7 @@ pub extern "C" fn run(budget: u32) -> i32 {
             if lock::MT { lock::kick(); }
             continue;
         }
-        if e.jit.on && !e.cpu.mode32 { // 32-bit (WoW64) code runs in the interpreter for now
+        if e.jit.on {
             let lim = left.min(e.slice_left());
             if let Some(f) = jit::Jit::lookup(e, rip) {
                 let before = e.cpu.icount;
@@ -301,7 +312,7 @@ pub extern "C" fn run(budget: u32) -> i32 {
                 jit::call(f);
                 let n = e.cpu.icount - before;
                 #[cfg(feature = "prof")]
-                { jit::prof::add(0xB0000000, 1); jit::prof::add(0xB0000001, n); }
+                { jit::prof::add(0xB0000000, 1); jit::prof::add(0xB0000001, n); jit::prof::add(f, n); }
                 left = left.saturating_sub(n);
                 e.sched_tick(n);
                 continue;
