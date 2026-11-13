@@ -212,6 +212,10 @@ pub extern "C" fn set_cores(n: u32) {
     unsafe { CORE0_MMU = &e.mmu as *const Mmu as usize; }
 }
 
+/// Turns the strict x86 memory order between cores on or off (measuring its cost).
+#[no_mangle]
+pub extern "C" fn set_strong_order(on: u32) { mmu::set_strong(on != 0 && lock::MT && eng().s.cores > 1); }
+
 /// Sets up this worker as core `id` (after its stack and thread-local area are set).
 #[no_mangle]
 #[allow(static_mut_refs)]
@@ -293,7 +297,7 @@ pub extern "C" fn run(budget: u32) -> i32 {
             if lock::MT { lock::kick(); }
             continue;
         }
-        if e.jit.on && !e.cpu.mode32 { // 32-bit (WoW64) code runs in the interpreter for now
+        if e.jit.on {
             let lim = left.min(e.slice_left());
             if let Some(f) = jit::Jit::lookup(e, rip) {
                 let before = e.cpu.icount;

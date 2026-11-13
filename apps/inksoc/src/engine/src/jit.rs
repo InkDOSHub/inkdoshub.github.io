@@ -195,7 +195,8 @@ fn decode(e: &mut Engine, rip: u64) -> Option<Ins> {
         if d.p > 14 { return None; }
     }
     let mut rex = 0;
-    if (0x40..0x50).contains(&op) { rex = op; op = d.u8(); }
+    let m32 = e.cpu.mode32;
+    if (0x40..0x50).contains(&op) && !m32 { rex = op; op = d.u8(); }
     let w = rex & 8 != 0;
     let osz: u32 = if w { 64 } else if p66 { 16 } else { 32 };
     let immz = if osz == 16 { 2 } else { 4 };
@@ -225,7 +226,8 @@ fn decode(e: &mut Engine, rip: u64) -> Option<Ins> {
             0x68 | 0x69 | 0x81 | 0xA9 | 0xC7 => immz,
             0x6A | 0x6B | 0x70..=0x7F | 0x80 | 0x83 | 0xA8 | 0xB0..=0xB7 | 0xC0 | 0xC1 | 0xC6 | 0xCD | 0xE0..=0xE7 | 0xEB => 1,
             0xB8..=0xBF => if w { 8 } else { immz },
-            0xA0..=0xA3 => if a67 { 4 } else { 8 },
+            0xA0..=0xA3 => if m32 { if a67 { 2 } else { 4 } } else if a67 { 4 } else { 8 },
+            0x82 | 0xD4 | 0xD5 if m32 => 1,
             0xC2 | 0xCA => 2,
             0xC8 => 3,
             0xE8 | 0xE9 => 4,
@@ -348,6 +350,7 @@ struct G {
     heads: Vec<u64>, // blocks of this region (index = br_table slot)
     base: u32, // labels between the current block's code and the region loop
     max_tmp: u32,
+    m32: bool, // 32-bit code (WoW64): [disp32] addressing, addresses wrap at 4 GB
 }
 
 macro_rules! off { ($f:ident) => { core::mem::offset_of!(crate::cpu::Cpu, $f) as u32 } }
@@ -474,6 +477,13 @@ impl G {
 
     /// Pushes the effective address of a memory operand (no segment prefix).
     fn ea(&mut self, m: &ModRm, next: u64) {
+        if self.m32 {
+            if m.riprel { self.i64c(m.disp as u32 as u64); return; } // [disp32]
+            let mm = ModRm { riprel: false, ..*m };
+            self.m32 = false; self.ea(&mm, next); self.m32 = true;
+            self.i64c(0xFFFF_FFFF); self.b(I64AND);
+            return;
+        }
         if m.riprel { self.i64c(next.wrapping_add(m.disp as u64)); return; }
         let mut any = false;
         if let Some(b) = m.base { self.ensure(b); self.get(R0 + b as u32); any = true; }
@@ -690,6 +700,13 @@ fn reg_opd(r: u8, size: u32, rex: u8) -> Opd {
 
 /// Emits an instruction natively; false = not supported (nothing usable emitted).
 fn native(g: &mut G, i: &Ins, live: bool, n: u32) -> bool {
+    // 32-bit code: what uses the stack, implicit addresses or differs from 64-bit mode runs in the interpreter
+    if g.m32 && (i.a67 || match i.op {
+        0x06 | 0x07 | 0x0E | 0x16 | 0x17 | 0x1E | 0x1F | 0x27 | 0x2F | 0x37 | 0x3F | 0x40..=0x6F | 0x82 | 0x8F | 0x9A | 0x9C | 0x9D
+        | 0xA0..=0xAF | 0xC2..=0xCF | 0xD4..=0xD7 | 0xE0..=0xEA | 0xF4 => true,
+        0xFF => i.m.map_or(true, |m| m.reg & 7 >= 2),
+        _ => false,
+    }) { return false; }
     // atomic instructions run in the interpreter, which makes them atomic across cores
     if i.lock && crate::lock::MT { return false; }
     if i.a67 && !(i.op == 0x8D && !i.m.unwrap().riprel) { return false; }
@@ -1424,6 +1441,8 @@ fn decode_block(e: &mut Engine, rip: u64) -> Option<Block> {
         if is_branch(&i) {
             let native_term = match i.op {
                 0x70..=0x7F | 0x0F80..=0x0F8F => true,
+                0xE9 | 0xEB if e.cpu.mode32 => true,
+                _ if e.cpu.mode32 => false, // calls and returns use the 4-byte stack: interpreter
                 0xE8 | 0xE9 | 0xEB | 0xC3 => true,
                 0xC2 => true,
                 0xFF => { let m = i.m.unwrap(); !(i.seg && m.md != 3) && !i.a67 && matches!(m.reg & 7, 2 | 4) && i.osz != 16 }
@@ -1474,7 +1493,7 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     }
     let cpu = &e.cpu as *const _ as u32;
     let nb = blocks.len() as u32;
-    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: e.mmu.pool_addr(), heads, base: 0, max_tmp: FIRST_TMP };
+    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: e.mmu.pool_addr(), heads, base: 0, max_tmp: FIRST_TMP, m32: e.cpu.mode32 };
     g.b(0x03); g.b(VOID); // loop: every jump between blocks comes back here
     for _ in 0..nb { g.b(0x02); g.b(VOID); }
     g.get(L_B); g.b(0x0E); g.u(nb as u64);

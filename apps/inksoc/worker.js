@@ -18,7 +18,7 @@ async function openSwap(name) {
 }
 
 /* Runs a program on the engine. files: [{ name, data }], exe: file name to start. */
-async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared, cores }) {
+async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared, cores, strong }) {
   // several cores need a shared memory, which needs an isolated page (hub.inkdos.workers.dev)
   if (cores > 1 && !self.crossOriginIsolated) { post('log', { text: '[engine] several cores need an isolated page (open it on hub.inkdos.workers.dev); using 1 core\n' }); cores = 1; }
   const mt = cores > 1;
@@ -68,7 +68,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=17' : 'inksoc.wasm?v=30', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=18' : 'inksoc.wasm?v=31', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -95,6 +95,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   if (shared && !mt) x.set_shared_mem(1);
   if (jit === false) x.set_jit(0);
   if (mt) x.set_cores(cores);
+  // ?strong=0: plain loads/stores between cores (faster, without x86 store order) to measure its cost
+  if (mt && strong === false && x.set_strong_order) { x.set_strong_order(0); post('log', { text: '[engine] strict x86 memory order OFF (strong=0)\n' }); }
   // Wine's msvcrt shares the engine's memory; its pointers go through the engine's page table
   wine = (await WebAssembly.instantiate(wineWasm, { env: {
     memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc,
@@ -207,7 +209,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=30').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=31').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -300,7 +302,7 @@ async function runExec(d) {
       files = files.concat(w32);
     }
   }
-  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores });
+  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores, strong: d.strong });
 }
 
 /* Random 4 KB reads/writes on a 64 MB OPFS file: the real cost of one swap page. */

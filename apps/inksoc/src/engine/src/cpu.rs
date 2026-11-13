@@ -928,6 +928,39 @@ fn two_byte(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, osz:
             else { g!(e, e.set(Loc::Reg(0, false), size, v)); }
             e.cpu.rip = next;
         }
+        0xC7 => {
+            // cmpxchg8b / cmpxchg16b m (the lock prefix makes its write a compare-and-swap)
+            let m = modrm(d, e, rex);
+            let next = rip + d.p as u64;
+            if m.reg & 7 != 1 || m.md == 3 { e.unsupported(buf); return; }
+            let a = ea(e, &m, next);
+            e.materialize();
+            if rex & 8 == 0 {
+                let v = tryf!(e, e.mmu.read64(a), a);
+                let want = (e.cpu.regs[2] & 0xFFFF_FFFF) << 32 | (e.cpu.regs[0] & 0xFFFF_FFFF);
+                if v == want {
+                    let nv = (e.cpu.regs[1] & 0xFFFF_FFFF) << 32 | (e.cpu.regs[3] & 0xFFFF_FFFF);
+                    tryf!(e, e.mmu.write64(a, nv), a);
+                    e.cpu.zf = true;
+                } else {
+                    e.cpu.regs[0] = v & 0xFFFF_FFFF; e.cpu.regs[2] = v >> 32;
+                    e.cpu.zf = false;
+                }
+            } else {
+                let lo = tryf!(e, e.mmu.read64(a), a);
+                let hi = tryf!(e, e.mmu.read64(a + 8), a);
+                if lo == e.cpu.regs[0] && hi == e.cpu.regs[2] {
+                    let (b, c) = (e.cpu.regs[3], e.cpu.regs[1]);
+                    tryf!(e, e.mmu.write64(a, b), a);
+                    tryf!(e, e.mmu.write64(a + 8, c), a);
+                    e.cpu.zf = true;
+                } else {
+                    e.cpu.regs[0] = lo; e.cpu.regs[2] = hi;
+                    e.cpu.zf = false;
+                }
+            }
+            e.cpu.rip = next;
+        }
         0xC0 | 0xC1 => {
             let size = if op == 0xC0 { 8 } else { osz };
             let m = modrm(d, e, rex);

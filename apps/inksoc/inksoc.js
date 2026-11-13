@@ -63,7 +63,7 @@ function runExec(files, exe, args) {
   $('exec').disabled = $('exec2').disabled = $('exec4').disabled = $('exec7z').disabled = $('execmine').disabled = $('execmine32').disabled = true;
   $('exec-out').textContent = '';
   const b = budgetMb();
-  const w = new Worker('worker.js?v=34');
+  const w = new Worker('worker.js?v=35');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('exec-out').textContent += d.text;
@@ -82,7 +82,7 @@ function runExec(files, exe, args) {
       w.terminate();
     }
   };
-  w.postMessage({ type: 'exec', files, exe, cmd: args ? exe + ' ' + args : exe, poolMb: b.pool, targetMb: 8192, jit: $('jit').checked, cores: +$('cores').value }, files ? files.map((f) => f.data) : []);
+  w.postMessage({ type: 'exec', files, exe, cmd: args ? exe + ' ' + args : exe, poolMb: b.pool, targetMb: 8192, jit: $('jit').checked, cores: +$('cores').value, strong: new URLSearchParams(location.search).get('strong') !== '0' }, files ? files.map((f) => f.data) : []);
 }
 $('exec').onclick = () => runExec(null, 'stage1.exe');
 $('exec2').onclick = () => runExec(null, 'stage2.exe');
@@ -122,7 +122,7 @@ $('pick').onchange = async (ev) => {
 $('run').onclick = () => {
   $('run').disabled = true;
   $('out').textContent = '';
-  const w = new Worker('worker.js?v=34');
+  const w = new Worker('worker.js?v=35');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') $('out').textContent += d.text;
@@ -141,7 +141,7 @@ $('run').onclick = () => {
 $('opfs').onclick = () => {
   $('opfs').disabled = true;
   $('opfs-out').textContent = 'Writing a 64 MB test file...';
-  const w = new Worker('worker.js?v=34');
+  const w = new Worker('worker.js?v=35');
   w.onmessage = (ev) => {
     const d = ev.data;
     $('opfs-out').textContent = d.type === 'opfs'
@@ -253,7 +253,7 @@ function showLimits() {
 
 $('calib').onclick = () => {
   $('calib').disabled = true;
-  const w = new Worker('worker.js?v=34');
+  const w = new Worker('worker.js?v=35');
   store.set(Object.assign(store.get(), { calib: { mb: 0, running: true } }));
   w.onmessage = (ev) => {
     const d = ev.data;
@@ -336,11 +336,11 @@ $('combo').onclick = async () => {
   const log = (t) => { out.textContent += t + '\n'; };
   out.textContent = `Tab limit ${s0.calib.mb} MB → using ${total} MB: RAM ${ram} MB + GPU pool ${gpu} MB (${gpu / 4} textures of 4 MB)\n`;
 
-  const holder = new Worker('worker.js?v=34');
+  const holder = new Worker('worker.js?v=35');
   if (ram > 0) await new Promise((r) => { holder.onmessage = (e) => { if (e.data.type === 'held') r(); else { log('RAM error: ' + e.data.error); r(); } }; holder.postMessage({ type: 'hold', mb: ram }); });
   log(`RAM: ${ram} MB reserved and filled.`);
 
-  const io = new Worker('worker.js?v=34');
+  const io = new Worker('worker.js?v=35');
   log(`Writing ${texMb} MB of textures to OPFS...`);
   const initMs = await new Promise((r) => { io.onmessage = (e) => r(e.data.ms || 0); io.postMessage({ type: 'tex-init', count, size: BYTES }); });
   log(`Texture file ready in ${fmt(initMs)} ms.`);
