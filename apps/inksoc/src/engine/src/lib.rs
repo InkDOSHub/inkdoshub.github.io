@@ -275,8 +275,11 @@ pub extern "C" fn run(budget: u32) -> i32 {
     let mut done_other = 0u64; // instructions of threads this core switched away from
     mmu::safe_point(e.core);
     if e.s.lx.is_none() && e.s.user_shared { e.shared_time(); }
+    let mut tick = 0u32;
     while left > 0 && !e.s.exited && e.s.error.is_none() {
-        mmu::safe_point(e.core);
+        // a safe point every 64 blocks: frees and evictions wait a little longer, the loop pays less
+        tick = tick.wrapping_add(1);
+        if tick & 63 == 0 { mmu::safe_point(e.core); }
         if e.want_switch {
             let before = e.cpu.icount;
             let ok = { let _g = lock::lock(); e.sched_switch() };

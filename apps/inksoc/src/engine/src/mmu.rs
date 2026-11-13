@@ -42,6 +42,8 @@ pub fn safe_point(core: u32) {
 fn unsafe_tlb_unused(c: usize) -> bool { TLBS[c].load(Acquire) == 0 }
 /// The core leaves program code (waits for the lock, sleeps, returns to JavaScript).
 #[inline(always)]
+pub fn is_away(core: u32) -> bool { crate::lock::MT && SEEN[core as usize].0.load(Relaxed) == AWAY }
+#[inline(always)]
 pub fn away(core: u32) { if crate::lock::MT { SEEN[core as usize].0.store(AWAY, Release); } }
 
 const NONE: u32 = u32::MAX;
@@ -320,8 +322,8 @@ impl Mmu {
         if self.sh.free.is_empty() && !self.sh.limbo.is_empty() { self.shoot_wait(); self.reclaim(); }
         match self.sh.free.pop() {
             Some(f) => Some(f),
-            // swap I/O needs the OPFS file, which only core 0's worker holds
-            None if self.sh.no_evict || self.core != 0 => None,
+            // any core may evict: its swap I/O goes through the swap worker (swapio.js)
+            None if self.sh.no_evict => None,
             None => Some(self.evict_one()),
         }
     }

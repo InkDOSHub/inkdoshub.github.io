@@ -1,8 +1,20 @@
 /* InkSoC extra core: one more engine instance on the same shared memory.
    It runs program threads at the same time as core 0 (worker.js). */
 'use strict';
+/* One page to or from the swap worker (swapio.js), waiting for it. */
+function swapCall(ctl, op, slot, p) {
+  while (Atomics.compareExchange(ctl, 4, 0, 1) !== 0) Atomics.wait(ctl, 4, 1, 1);
+  ctl[1] = op; ctl[2] = slot; ctl[3] = p;
+  Atomics.store(ctl, 0, 1);
+  Atomics.notify(ctl, 0);
+  while (Atomics.load(ctl, 0) !== 2) Atomics.wait(ctl, 0, 1);
+  Atomics.store(ctl, 0, 0);
+  Atomics.store(ctl, 4, 0);
+  Atomics.notify(ctl, 4);
+}
 onmessage = (ev) => {
   const { wasm, wineWasm, memory, id, stackTop, tls } = ev.data;
+  const swapCtl = new Int32Array(ev.data.swapCtl);
   const dec = new TextDecoder();
   let x, wine, jitErr = 0;
   const env = {
@@ -10,8 +22,9 @@ onmessage = (ev) => {
     host_console: (p, n) => postMessage({ out: dec.decode(new Uint8Array(memory.buffer, p, n).slice()) }),
     host_now_ms: () => performance.now(),
     host_epoch_ms: () => Date.now(),
-    host_swap_write: () => { throw new Error('swap with several cores'); },
-    host_swap_read: () => { throw new Error('swap with several cores'); },
+    // swap pages go through the swap worker (swapio.js), like core 0's
+    host_swap_write: (slot, p) => swapCall(swapCtl, 1, slot, p),
+    host_swap_read: (slot, p) => swapCall(swapCtl, 2, slot, p),
     wine_call: (i, a, b, c, d) => wine.ink_call(i, a, b, c, d),
     host_jit: (p, n) => {
       try {

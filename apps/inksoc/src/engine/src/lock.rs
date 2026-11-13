@@ -20,14 +20,16 @@ mod imp {
         let me = crate::eng().core + 1;
         if OWNER.load(Relaxed) == me { unsafe { DEPTH += 1; } return Guard(()); }
         let mut spins = 0;
+        let mut was_away = false;
         COUNT[0].fetch_add(1, Relaxed);
-        crate::mmu::away(me - 1); // not inside program code while waiting (TLB shootdowns need not wait for us)
         loop {
             match OWNER.compare_exchange(0, me, Acquire, Relaxed) {
                 Ok(_) => break,
                 Err(cur) => {
                     spins += 1;
-                    if spins == 1 { COUNT[1].fetch_add(1, Relaxed); }
+                    // contended: not inside program code while waiting (TLB shootdowns need not
+                    // wait for us); the free lock costs no extra writes
+                    if spins == 1 { COUNT[1].fetch_add(1, Relaxed); was_away = crate::mmu::is_away(me - 1); crate::mmu::away(me - 1); }
                     if spins > 64 {
                         WAITERS.fetch_add(1, SeqCst);
                         unsafe { core::arch::wasm32::memory_atomic_wait32(OWNER.as_ptr() as *mut i32, cur as i32, 1_000_000); }
@@ -37,7 +39,8 @@ mod imp {
             }
         }
         unsafe { DEPTH = 1; }
-        crate::mmu::safe_point(me - 1);
+        // back to where it was (a core called from JavaScript stays away)
+        if spins != 0 && !was_away { crate::mmu::safe_point(me - 1); }
         Guard(())
     }
     impl Drop for Guard {

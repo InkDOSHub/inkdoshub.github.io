@@ -24,7 +24,7 @@
   "22": "Engine",
   "23": "Lx",
   "24": "Rect",
-  "25": "AtomicU32",
+  "25": "mmu.rs",
   "26": ".heap_alloc",
   "27": ".take",
   "28": "hashmap",
@@ -32,7 +32,7 @@
   "30": "ntsys.rs",
   "31": "pe.rs",
   "32": "call",
-  "33": "Engine",
+  "33": ".call_native",
   "34": "call",
   "35": "Shared",
   "36": "Win",
@@ -44,5 +44,10 @@
   "42": "Brush",
   "43": "decode",
   "44": "Prod",
-  "45": "Cpu"
+  "45": "Cpu",
+  "46": "Fault",
+  "47": ".linux_boot",
+  "48": ".fill",
+  "49": ".load_elf",
+  "50": "AtomicU32"
 }

@@ -91,13 +91,13 @@ function run(files, exe, args, label) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=37');
+  const w = p.w = new Worker('worker.js?v=38');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
     else if (d.type === 'stats') {
       const gips = d.insns / d.ms / 1e6;
-      p.con.querySelector('table').innerHTML = '<tr><td>' + fmt(d.insns / d.ms / 1000) + ' MIPS · ' + (d.jit ? 'JIT' : 'interpreter') + ' · ' + d.cores + (d.cores > 1 ? ' cores' : ' core') + (d.threads > 1 ? ' · ' + d.threads + ' threads' : '') + ' · RAM ' + fmt(d.resident * 4 / 1024) + '/' + fmt(d.frames * 4 / 1024) + ' MB</td></tr>';
+      p.con.querySelector('table').innerHTML = '<tr><td>' + fmt(d.insns / d.ms / 1000) + ' MIPS · ' + (d.jit ? 'JIT' : 'interpreter') + ' · ' + d.cores + (d.cores > 1 ? ' cores' : ' core') + (d.threads > 1 ? ' · ' + d.threads + ' threads' : '') + ' · RAM ' + fmt(d.resident * 4 / 1024) + '/' + fmt(d.frames * 4 / 1024) + ' MB' + (d.swapOut || d.swapIn ? ' · swap ' + fmt(d.swapOut * 4 / 1024) + ' MB out, ' + fmt(d.swapIn * 4 / 1024) + ' MB in, ' + fmt(d.swapMs) + ' ms on ' + (d.opfs ? 'OPFS' : 'RAM') : '') + '</td></tr>';
       $('speed').textContent = d.cores + (d.cores > 1 ? ' cores' : ' core') + ' · ' + (gips >= 1 ? gips.toFixed(1) + ' GIPS' : fmt(gips * 1000) + ' MIPS');
     } else if (d.type === 'frame') frame(p, d);
     else if (d.type === 'done') {
@@ -196,6 +196,8 @@ const builtins = {
   mine: { url: 'bin/winemine.exe?v=1', name: 'winemine.exe', label: '💣 WineMine' },
   mine32: { url: 'bin/wine32/winemine32.exe?v=1', name: 'winemine32.exe', label: '💣 WineMine 32' },
   '7z': { url: 'bin/7za.exe?v=1', name: '7za.exe', label: '🗜 7-Zip', args: () => 'b -md18 -mmt' + $('cores').value },
+  // 64 MB dictionary: about 1.5 GB of program memory, more than the real RAM, so pages go to swap
+  '7zswap': { url: 'bin/7za.exe?v=1', name: '7za.exe', label: '💾 7-Zip swap', args: () => 'b 1 -md26 -mmt' + $('cores').value },
 };
 for (const b of document.querySelectorAll('[data-run]')) {
   b.onclick = async () => {

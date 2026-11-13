@@ -17,12 +17,26 @@ async function openSwap(name) {
   }
 }
 
+/* One page to or from the swap worker (swapio.js), waiting for it. */
+function swapCall(ctl, op, slot, p) {
+  while (Atomics.compareExchange(ctl, 4, 0, 1) !== 0) Atomics.wait(ctl, 4, 1, 1);
+  ctl[1] = op; ctl[2] = slot; ctl[3] = p;
+  Atomics.store(ctl, 0, 1);
+  Atomics.notify(ctl, 0);
+  while (Atomics.load(ctl, 0) !== 2) Atomics.wait(ctl, 0, 1);
+  Atomics.store(ctl, 0, 0);
+  Atomics.store(ctl, 4, 0);
+  Atomics.notify(ctl, 4);
+}
+
 /* Runs a program on the engine. files: [{ name, data }], exe: file name to start. */
 async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared, cores, strong }) {
   // several cores need a shared memory, which needs an isolated page (hub.inkdos.workers.dev)
   if (cores > 1 && !self.crossOriginIsolated) { post('log', { text: '[engine] several cores need an isolated page (open it on hub.inkdos.workers.dev); using 1 core\n' }); cores = 1; }
   const mt = cores > 1;
-  const swap = await openSwap('inksoc-swap.bin');
+  // one core: this worker holds the swap file; several: a swap worker does, for every core
+  const swap = mt ? null : await openSwap('inksoc-swap.bin');
+  let swapCtl = null, swapW = null, swapOpfs = false;
   const ram = new Map();
   let mem, swapMs = 0, outBytes = 0, tooMuch = false;
   const view = (p) => new Uint8Array(mem.buffer, p, PAGE);
@@ -42,12 +56,14 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     host_epoch_ms: () => Date.now(),
     host_swap_write: (slot, p) => {
       const t = performance.now();
-      if (swap) swap.write(shared ? view(p).slice() : view(p), { at: slot * PAGE }); else ram.set(slot, view(p).slice());
+      if (swapCtl) swapCall(swapCtl, 1, slot, p);
+      else if (swap) swap.write(shared ? view(p).slice() : view(p), { at: slot * PAGE }); else ram.set(slot, view(p).slice());
       swapMs += performance.now() - t;
     },
     host_swap_read: (slot, p) => {
       const t = performance.now();
-      if (swap) { if (shared) { const b = new Uint8Array(PAGE); swap.read(b, { at: slot * PAGE }); view(p).set(b); } else swap.read(view(p), { at: slot * PAGE }); } else view(p).set(ram.get(slot));
+      if (swapCtl) swapCall(swapCtl, 2, slot, p);
+      else if (swap) { if (shared) { const b = new Uint8Array(PAGE); swap.read(b, { at: slot * PAGE }); view(p).set(b); } else swap.read(view(p), { at: slot * PAGE }); } else view(p).set(ram.get(slot));
       swapMs += performance.now() - t;
     },
     // msvcrt calls into Wine's code (wine.wasm), instantiated below
@@ -68,7 +84,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=20' : 'inksoc.wasm?v=33', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=21' : 'inksoc.wasm?v=34', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -110,10 +126,15 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   // extra cores: each gets a stack and TLS block here, and is ready before the program starts
   const coreWorkers = [];
   if (mt) {
+    const sab = new SharedArrayBuffer(32);
+    swapW = new Worker('swapio.js?v=1');
+    await new Promise((res) => { swapW.onmessage = (ev) => { swapOpfs = ev.data.opfs; res(); }; swapW.postMessage({ memory: mem, ctl: sab, name: 'inksoc-swap.bin' }); });
+    swapCtl = new Int32Array(sab);
+    if (!swapOpfs) post('log', { text: '[swap] OPFS sync access unavailable, using RAM instead\n' });
     const ready = [];
     for (let id = 1; id < cores; id++) {
       const stack = 1 << 20, base = x.core_alloc(stack), tls = x.core_alloc(x.__tls_size.value + x.__tls_align.value);
-      const w = new Worker('core.js?v=1');
+      const w = new Worker('core.js?v=2');
       ready.push(new Promise((res, rej) => {
         w.onmessage = (ev) => {
           const m = ev.data;
@@ -123,7 +144,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
         };
         w.onerror = (e) => rej(new Error('core ' + id + ': ' + (e.message || 'worker failed')));
       }));
-      w.postMessage({ wasm, wineWasm, memory: mem, id, stackTop: base + stack - 16, tls });
+      w.postMessage({ wasm, wineWasm, memory: mem, id, stackTop: base + stack - 16, tls, swapCtl: swapCtl.buffer });
       coreWorkers.push(w);
     }
     await Promise.all(ready);
@@ -140,7 +161,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     resident: x.stat(4), frames: x.stat(5), bridge: x.stat(7), slots: x.stat(8),
     modules: x.stat(9), thunks: x.stat(10),
     shared: !!shared, cores: cores || 1, jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16), threads: x.stat(18), switches: x.stat(19),
-    ms: performance.now() - t0, swapMs, opfs: !!swap,
+    ms: performance.now() - t0, swapMs, opfs: !!swap || swapOpfs,
   });
   // 3 = every program thread is waiting (Sleep, a timeout): wait that long without spinning
   winX = x;
@@ -171,6 +192,11 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   coreWorkers.forEach((w) => w.terminate());
   post('stats', stats());
   if (swap) { swap.flush(); swap.truncate(0); swap.close(); }
+  if (swapW) {
+    Atomics.store(swapCtl, 0, 3); Atomics.notify(swapCtl, 0);
+    await new Promise((r) => { swapW.onmessage = r; setTimeout(r, 1000); });
+    swapW.terminate();
+  }
   // files the program created or changed, offered for download
   const out = [];
   for (let i = 0, n; (n = x.out_file(i)); i++) {
@@ -209,7 +235,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=33').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=34').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
