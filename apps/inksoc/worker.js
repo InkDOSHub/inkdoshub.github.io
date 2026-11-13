@@ -84,7 +84,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=21' : 'inksoc.wasm?v=34', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=22' : 'inksoc.wasm?v=35', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -160,7 +160,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     insns: x.stat(0), faults: x.stat(1), swapIn: x.stat(2), swapOut: x.stat(3),
     resident: x.stat(4), frames: x.stat(5), bridge: x.stat(7), slots: x.stat(8),
     modules: x.stat(9), thunks: x.stat(10),
-    shared: !!shared, cores: cores || 1, jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16), threads: x.stat(18), switches: x.stat(19),
+    shared: !!shared, cores: cores || 1, jit: jit !== false, jitBlocks: x.stat(13), jitMs: x.stat(14), jitKb: x.stat(15) / 1024, jitFailed: x.stat(16), threads: x.stat(18), switches: x.stat(19), locks: x.stat(20), lockWaits: x.stat(21), idles: x.stat(22), lockedIns: x.stat(23),
     ms: performance.now() - t0, swapMs, opfs: !!swap || swapOpfs,
   });
   // 3 = every program thread is waiting (Sleep, a timeout): wait that long without spinning
@@ -235,7 +235,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=34').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=35').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();

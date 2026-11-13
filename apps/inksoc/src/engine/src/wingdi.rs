@@ -122,13 +122,13 @@ pub fn fonts() -> &'static Vec<FontData> {
 
 fn map_char(c: u32) -> u32 {
     match c {
+        0x00A0 => 32, // no-break space: the baked fonts draw it as a space
         32..=255 => c,
         0x2018 | 0x2019 | 0x201A => '\'' as u32,
         0x201C | 0x201D | 0x201E => '"' as u32,
         0x2013 | 0x2014 | 0x2212 => '-' as u32,
         0x2022 => 0xB7,
         0x2026 => '.' as u32,
-        0x00A0 => 32,
         _ if c < 32 => 0,
         _ => '?' as u32,
     }
