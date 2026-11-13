@@ -1,0 +1,30 @@
+name: InkSoC ARM benchmark
+on:
+  push:
+    branches: [claude/project-thread-4zx2qh]
+    paths: [apps/inksoc/tests/arm/request.txt]
+  workflow_dispatch:
+jobs:
+  bench:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: |
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright@1.49.1 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Run
+        run: |
+          cp apps/inksoc/tests/arm/bench.js /tmp/pw/ && cp apps/inksoc/tests/arm/serve.py /tmp/
+          nproc
+          grep -v '^#' apps/inksoc/tests/arm/request.txt | while read c q; do
+            [ -z "$c" ] && continue
+            rm -rf /tmp/wt && git worktree add -q -f /tmp/wt "$c" && git worktree prune
+            python3 /tmp/serve.py 8800 /tmp/wt & S=$!; sleep 1
+            page=index.html; [ -f /tmp/wt/apps/inksoc/tests.html ] && page=tests.html
+            echo "RESULT $c $q: $(cd /tmp/pw && node bench.js "http://localhost:8800/apps/inksoc/$page?$q" 2>&1 | tail -1)"
+            kill $S; git worktree remove -f /tmp/wt
+          done

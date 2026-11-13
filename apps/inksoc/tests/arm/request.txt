@@ -1,0 +1,8 @@
+# One line per run: <commit> [query]. Pushing a change to this file runs them on an ARM64 machine.
+fda2cf2
+7062285
+94c3a3c
+e473c40
+8f82bb8 strong=0
+71125c3 strong=0
+71125c3
