@@ -314,7 +314,7 @@ const I64EQZ: u8 = 0x50; const I64EQ: u8 = 0x51; const I64LTS: u8 = 0x53; const 
 const I32POPCNT: u8 = 0x69; const I32ADD: u8 = 0x6A; const I32AND: u8 = 0x71; const I32OR: u8 = 0x72; const I32XOR: u8 = 0x73; const I32SHL: u8 = 0x74;
 const I64ADD: u8 = 0x7C; const I64SUB: u8 = 0x7D; const I64MUL: u8 = 0x7E; const I64AND: u8 = 0x83; const I64OR: u8 = 0x84; const I64XOR: u8 = 0x85;
 const I64SHL: u8 = 0x86; const I64SHRS: u8 = 0x87; const I64SHRU: u8 = 0x88; const I64ROTL: u8 = 0x89; const I64ROTR: u8 = 0x8A;
-const I32ROTL: u8 = 0x77; const I32ROTR: u8 = 0x78;
+const I32SHRU: u8 = 0x76; const I32ROTL: u8 = 0x77; const I32ROTR: u8 = 0x78;
 const I32WRAP: u8 = 0xA7; const I64EXTU: u8 = 0xAD; const I64EXT8S: u8 = 0xC2; const I64EXT16S: u8 = 0xC3; const I64EXT32S: u8 = 0xC4;
 const VOID: u8 = 0x40; const T_I64: u8 = 0x7E;
 
@@ -331,7 +331,8 @@ const L_A: u32 = R0 + 16; // address of the memory operand
 const L_A2: u32 = R0 + 17; // second address (stack)
 const L_V: u32 = R0 + 18; // page number scratch
 const L_T: u32 = R0 + 19; // value scratch
-const FIRST_TMP: u32 = R0 + 20;
+const L_IC: u32 = R0 + 20; // instruction count while the region runs (opt)
+const FIRST_TMP: u32 = R0 + 21;
 const MAX_LOCALS: u32 = 900;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -361,6 +362,11 @@ struct G {
     z: std::collections::HashSet<u32>,
     last_get: (usize, u32), // code position right after the last local.get, and its local
     last_mask: usize, // code position right after a value was masked to 32 bits or less
+    // opt: the instruction count lives in local L_IC while the region runs (stored at exits),
+    // and a jump between blocks stores the lazy flags only when the target block reads them
+    lic: bool,
+    need: Vec<bool>, // per block: reads the flags before writing them
+    hints: Vec<(usize, u8)>, // branch hints: code position of an `if`, 1 = usually taken, 0 = rarely
 }
 
 macro_rules! off { ($f:ident) => { core::mem::offset_of!(crate::cpu::Cpu, $f) as u32 } }
@@ -434,16 +440,28 @@ impl G {
 
     /// TLB check for the access of n bytes at local `a`; leaves i32 "fast path ok".
     fn tlb_check(&mut self, a: u32, n: u32, write: bool) {
-        self.get(a); self.i64c(12); self.b(I64SHRU); self.tee(L_V);
-        self.b(I32WRAP); self.i32c(crate::mmu::Mmu::TLB_MASK as i32); self.b(I32AND); self.i32c(4); self.b(I32SHL); self.tee(L_E);
-        self.mem(I64LOAD, 3, self.tlb);
-        self.get(L_V); self.b(I64EQ);
-        if n > 1 {
-            self.get(a); self.b(I32WRAP); self.i32c(0xFFF); self.b(I32AND); self.i32c(4096 - n as i32); self.b(I32LEU);
-            self.b(I32AND);
+        if opt() {
+            // the entry of the first byte's page must hold the last byte's page: the one compare
+            // also rejects an access that crosses into the next page (that page has another slot)
+            self.get(a); self.b(I32WRAP); self.i32c(12); self.b(I32SHRU);
+            self.i32c(crate::mmu::Mmu::TLB_MASK as i32); self.b(I32AND); self.i32c(4); self.b(I32SHL); self.tee(L_E);
+            self.mem(I64LOAD, 3, self.tlb);
+            self.get(a); if n > 1 { self.i64c(n as u64 - 1); self.b(I64ADD); } self.i64c(12); self.b(I64SHRU);
+            self.b(I64EQ);
+        } else {
+            self.get(a); self.i64c(12); self.b(I64SHRU); self.tee(L_V);
+            self.b(I32WRAP); self.i32c(crate::mmu::Mmu::TLB_MASK as i32); self.b(I32AND); self.i32c(4); self.b(I32SHL); self.tee(L_E);
+            self.mem(I64LOAD, 3, self.tlb);
+            self.get(L_V); self.b(I64EQ);
+            if n > 1 {
+                self.get(a); self.b(I32WRAP); self.i32c(0xFFF); self.b(I32AND); self.i32c(4096 - n as i32); self.b(I32LEU);
+                self.b(I32AND);
+            }
         }
         if write { self.get(L_E); self.mem(I32LOAD8U, 0, self.tlb + 12); self.b(I32AND); }
     }
+    /// `if` with a branch hint (the engine keeps the unlikely side's spills out of the fast path).
+    fn if_hint(&mut self, bt: u8, likely: bool) { if opt() { self.hints.push((self.c.len(), likely as u8)); } self.b(IF); self.b(bt); }
     /// Host address of local `a` (after tlb_check).
     fn host(&mut self, a: u32) {
         self.get(L_E); self.mem(I32LOAD, 2, self.tlb + 8);
@@ -454,12 +472,12 @@ impl G {
     fn load(&mut self, a: u32, size: u32) {
         self.tlb_check(a, size / 8, false);
         #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, false); self.b(I32AND); }
-        self.b(IF); self.b(T_I64);
+        self.if_hint(T_I64, true);
         let (op, al) = match size { 8 => (0x31, 0), 16 => (0x33, 1), 32 => (0x35, 2), _ => (I64LOAD, 3) };
         if crate::mmu::strong() {
             // x86 order with several cores: atomic load when aligned (i64.atomic.load*)
             let aop = match size { 8 => 0x14, 16 => 0x15, 32 => 0x16, _ => 0x11 };
-            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.b(IF); self.b(T_I64); }
+            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.if_hint(T_I64, true); }
             self.host(a); self.b(0xFE); self.mem(aop, al, self.pool);
             if size > 8 { self.b(ELSE); self.host(a); self.mem(op, al, self.pool); self.b(END); }
         } else {
@@ -475,12 +493,12 @@ impl G {
     fn store(&mut self, a: u32, v: u32, size: u32) {
         self.tlb_check(a, size / 8, true);
         #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, true); self.b(I32AND); }
-        self.b(IF); self.b(VOID);
+        self.if_hint(VOID, true);
         let (op, al) = match size { 8 => (0x3C, 0), 16 => (0x3D, 1), 32 => (0x3E, 2), _ => (I64STORE, 3) };
         if crate::mmu::strong() {
             // x86 order with several cores: atomic store when aligned (i64.atomic.store*)
             let aop = match size { 8 => 0x1B, 16 => 0x1C, 32 => 0x1D, _ => 0x18 };
-            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.b(IF); self.b(VOID); }
+            if size > 8 { self.get(a); self.b(I32WRAP); self.i32c(size as i32 / 8 - 1); self.b(I32AND); self.b(I32EQZ); self.if_hint(VOID, true); }
             self.host(a); self.get(v); self.b(0xFE); self.mem(aop, al, self.pool);
             if size > 8 { self.b(ELSE); self.host(a); self.get(v); self.mem(op, al, self.pool); self.b(END); }
         } else {
@@ -645,6 +663,7 @@ impl G {
     }
     fn add_icount(&mut self, n: u32) {
         let a = self.cpu + off!(icount);
+        if self.lic { self.st_base(); self.get(L_IC); self.i64c(n as u64); self.b(I64ADD); self.mem(I64STORE, 3, a); return; }
         self.st_base(); self.cpu_ld64(off!(icount)); self.i64c(n as u64); self.b(I64ADD); self.mem(I64STORE, 3, a);
     }
     fn set_rip_const(&mut self, rip: u64) {
@@ -670,11 +689,28 @@ impl G {
     }
     /// Jumps to block `idx` of this region (`depth` = blocks open inside the current block).
     fn internal(&mut self, target: u64, idx: usize, n: u32, depth: u32) {
+        if self.lic {
+            self.flush();
+            let need = self.need[idx];
+            if need { self.exit_flags(); }
+            self.get(L_IC); self.i64c(n as u64); self.b(I64ADD); self.tee(L_IC);
+            self.cpu_ld64(off!(jit_limit)); self.b(I64GEU);
+            self.if_hint(VOID, false);
+            if !need { self.exit_flags(); }
+            let a = self.cpu + off!(icount);
+            self.st_base(); self.get(L_IC); self.mem(I64STORE, 3, a);
+            self.set_rip_const(target);
+            self.b(RET);
+            self.b(END);
+            self.i32c(idx as i32); self.set(L_B);
+            self.b(BR); self.u((depth + self.base) as u64);
+            return;
+        }
         self.flush();
         self.exit_flags();
         self.add_icount(n);
         self.cpu_ld64(off!(icount)); self.cpu_ld64(off!(jit_limit)); self.b(I64GEU);
-        self.b(IF); self.b(VOID);
+        self.if_hint(VOID, false);
         self.set_rip_const(target);
         self.b(RET);
         self.b(END);
@@ -695,7 +731,7 @@ impl G {
         self.spill_flags();
         self.set_rip_const(i.rip);
         self.i64c(i.next); self.call(F_STEP);
-        self.b(IF); self.b(VOID);
+        self.if_hint(VOID, false);
         self.add_icount(n);
         self.b(RET);
         self.b(END);
@@ -1086,7 +1122,7 @@ impl G {
     /// Pushes the 16 bytes at address local `a`.
     fn load128(&mut self, a: u32) {
         self.tlb_check(a, 16, false);
-        self.b(IF); self.b(V128);
+        self.if_hint(V128, true);
         self.host(a); self.simd(0x00); self.u(0); self.u(self.pool as u64);
         self.b(ELSE);
         self.get(a); self.i32c(64); self.call(F_RD); self.simd(0x12);
@@ -1097,7 +1133,7 @@ impl G {
     fn store128(&mut self, a: u32, r: u8) {
         let xa = self.xa(r);
         self.tlb_check(a, 16, true);
-        self.b(IF); self.b(VOID);
+        self.if_hint(VOID, true);
         self.host(a); self.x_ld(r); self.simd(0x0B); self.u(0); self.u(self.pool as u64);
         self.b(ELSE);
         self.get(a); self.i32c(0); self.mem(I64LOAD, 3, xa); self.i32c(64); self.call(F_WR);
@@ -1382,7 +1418,7 @@ fn muldiv(g: &mut G, i: &Ins, sub: u8, size: u32, live: bool, n: u32) -> bool {
         }
         (6, 32) => {
             g.rd_reg(2, false, 32); g.get(s); g.b(I64GEU);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             let d = g.tmp();
             g.rd_reg(2, false, 32); g.i64c(32); g.b(I64SHL); g.rd_reg(0, false, 32); g.b(I64OR); g.set(d);
             g.get(d); g.get(s); g.b(I64DIVU); g.set(q);
@@ -1397,17 +1433,17 @@ fn muldiv(g: &mut G, i: &Ins, sub: u8, size: u32, live: bool, n: u32) -> bool {
             g.get(ss); g.b(I64EQZ);
             g.get(d); g.i64c(1 << 63); g.b(I64EQ); g.get(ss); g.i64c(u64::MAX); g.b(I64EQ); g.b(I32AND);
             g.b(I32OR);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             g.get(d); g.get(ss); g.b(I64DIVS); g.set(q);
             g.get(q); g.i64c(0x8000_0000); g.b(I64ADD); g.i64c(0xFFFF_FFFF); g.b(I64GTU);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             g.get(d); g.get(ss); g.b(I64REMS); g.set(rm);
             g.wr_reg(0, false, 32, q);
             g.wr_reg(2, false, 32, rm);
         }
         (6, 64) => {
             g.rd_reg(2, false, 64); g.i64c(0); g.b(I64NE); g.get(s); g.b(I64EQZ); g.b(I32OR);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             g.rd_reg(0, false, 64); g.get(s); g.b(I64DIVU); g.set(q);
             g.rd_reg(0, false, 64); g.get(s); g.b(I64REMU); g.set(rm);
             g.wr_reg(0, false, 64, q);
@@ -1417,7 +1453,7 @@ fn muldiv(g: &mut G, i: &Ins, sub: u8, size: u32, live: bool, n: u32) -> bool {
             g.get(s); g.b(I64EQZ);
             g.rd_reg(2, false, 64); g.rd_reg(0, false, 64); g.i64c(63); g.b(I64SHRS); g.b(I64NE); g.b(I32OR);
             g.rd_reg(0, false, 64); g.i64c(1 << 63); g.b(I64EQ); g.get(s); g.i64c(u64::MAX); g.b(I64EQ); g.b(I32AND); g.b(I32OR);
-            g.b(IF); g.b(VOID); g.step_exit(i, n); g.b(END);
+            g.if_hint(VOID, false); g.step_exit(i, n); g.b(END);
             g.rd_reg(0, false, 64); g.get(s); g.b(I64DIVS); g.set(q);
             g.rd_reg(0, false, 64); g.get(s); g.b(I64REMS); g.set(rm);
             g.wr_reg(0, false, 64, q);
@@ -1511,7 +1547,18 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
     }
     let cpu = &e.cpu as *const _ as u32;
     let nb = blocks.len() as u32;
-    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: 0, heads, base: 0, max_tmp: FIRST_TMP, m32: e.cpu.mode32, z: Default::default(), last_get: (0, 0), last_mask: usize::MAX };
+    let lic = opt();
+    // per block: does it read the flags before it writes them all? (exits count as reads)
+    let need = blocks.iter().map(|b| {
+        for i in &b.list {
+            if is_branch(i) { return true; }
+            let (r, w) = flag_use(i);
+            if r || w { return r; }
+        }
+        true
+    }).collect();
+    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: 0, heads, base: 0, max_tmp: FIRST_TMP, m32: e.cpu.mode32, z: Default::default(), last_get: (0, 0), last_mask: usize::MAX, lic, need, hints: Vec::new() };
+    if lic { g.cpu_ld64(off!(icount)); g.set(L_IC); }
     g.b(0x03); g.b(VOID); // loop: every jump between blocks comes back here
     for _ in 0..nb { g.b(0x02); g.b(VOID); }
     g.get(L_B); g.b(0x0E); g.u(nb as u64);
@@ -1554,7 +1601,8 @@ fn emit_block(g: &mut G, b: Block) {
             0x70..=0x7F | 0x0F80..=0x0F8F => {
                 let target = i.next.wrapping_add(i.imm);
                 g.cond((i.op & 15) as u8);
-                g.b(IF); g.b(VOID);
+                // leaving the region is the unusual way (its hot targets are inside)
+                if g.heads.contains(&target) { g.b(IF); g.b(VOID); } else { g.if_hint(VOID, false); }
                 g.jump(target, n, 1);
                 g.b(END);
                 continue;
@@ -1604,6 +1652,7 @@ fn finish(g: G) -> Option<Vec<u8>> {
     leb_u(&mut body, 2);
     leb_u(&mut body, N_I32 as u64); body.push(0x7F);
     leb_u(&mut body, (g.max_tmp - R0) as u64); body.push(0x7E);
+    let pre = body.len();
     body.extend_from_slice(&g.c);
 
     let mut m = Vec::with_capacity(body.len() + 128);
@@ -1626,6 +1675,15 @@ fn finish(g: G) -> Option<Vec<u8>> {
     section(&mut m, 2, &imp);
     section(&mut m, 3, &[1, 0]);
     section(&mut m, 7, &[1, 1, b'f', 0x00, 4]);
+    if !g.hints.is_empty() {
+        // custom section "metadata.code.branch_hint" (before the code section): function 4, offsets in its body
+        let mut h = Vec::new();
+        let nm = "metadata.code.branch_hint";
+        leb_u(&mut h, nm.len() as u64); h.extend_from_slice(nm.as_bytes());
+        leb_u(&mut h, 1); leb_u(&mut h, 4); leb_u(&mut h, g.hints.len() as u64);
+        for &(p, v) in &g.hints { leb_u(&mut h, (pre + p) as u64); h.push(1); h.push(v); }
+        section(&mut m, 0, &h);
+    }
     let mut code = vec![1u8];
     leb_u(&mut code, body.len() as u64);
     code.extend_from_slice(&body);
