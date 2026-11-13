@@ -1,8 +1,9 @@
 // Runs the 7-Zip benchmark (4 cores) on an InkSoC page in headless Chromium and prints the result lines.
-// usage: node bench.js <page url>
-const { chromium } = require('playwright');
+// usage: [BROWSER=webkit] node bench.js <page url>
+const pw = require('playwright');
+const engine = pw[process.env.BROWSER || 'chromium'];
 (async () => {
-  const b = await chromium.launch(); const p = await b.newPage();
+  const b = await engine.launch(); const p = await b.newPage();
   p.on('pageerror', (e) => console.log('ERR', e.message));
   await p.goto(process.argv[2]);
   await p.waitForSelector('#exec7z:not([disabled])', { timeout: 60000 });
