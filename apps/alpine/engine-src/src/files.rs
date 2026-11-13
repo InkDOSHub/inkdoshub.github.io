@@ -29,6 +29,8 @@ pub enum Handle {
     Pipe { id: u64, write: bool },
     /// a section (file mapping): a file's contents or plain shared memory (`base` once mapped)
     Section { file: Option<String>, size: u64, base: u64 },
+    /// SEC_IMAGE section of a PE file (mapped as an image)
+    ImageSection { file: String },
     /// a Windows child process
     Process { pid: u32 },
     /// a socket (\\Device\\Afd): it can be made, not used yet (no network)
@@ -71,6 +73,10 @@ pub fn case_of(path: &str) -> Option<String> {
     }
     if rooted {
         if parts.first().map_or(false, |c| c.eq_ignore_ascii_case("inksoc")) { parts.remove(0); }
+        else if parts.len() >= 2 && parts[parts.len() - 2].eq_ignore_ascii_case("syswow64") {
+            // 32-bit system DLLs are stored as wine32-<name>
+            return Some(format!("wine32-{}", parts[parts.len() - 1]));
+        }
         else if !parts.is_empty() { let last = parts[parts.len() - 1]; parts = vec![last]; }
     }
     if parts.is_empty() { None } else { Some(parts.join("\\")) }

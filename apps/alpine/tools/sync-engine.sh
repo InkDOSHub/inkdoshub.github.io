@@ -11,7 +11,7 @@ new=$(git rev-parse --short "$ref^{commit}")
 tmp=$(mktemp -d)
 git -C "$(git rev-parse --show-toplevel)" archive "$new" apps/inksoc/src/engine | tar -x --strip-components=4 -C "$tmp"
 echo "== applying linux.patch on the Windows engine $new"
-if ! (cd "$tmp" && patch -p1 --no-backup-if-mismatch < "$OLDPWD/linux.patch"); then
+if ! (cd "$tmp" && patch -p1 -F0 --no-backup-if-mismatch < "$OLDPWD/linux.patch"); then
   echo "The Linux changes do not fit this engine any more: fix the .rej files in $tmp"; exit 1
 fi
 echo "== building"

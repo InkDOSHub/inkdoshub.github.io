@@ -28,11 +28,12 @@ pub struct Cpu {
     pub ftop: u8,
     pub fcw: u16,
     pub fsw: u16,
+    pub mode32: bool, // 32-bit code (WoW64): 4-byte stack slots and addresses, no REX
 }
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { regs: [0; 16], rip: 0, cf: false, zf: false, sf: false, of: false, pf: false, df: false, icount: 0, xmm: [0; 16], gs_base: 0, fs_base: 0, seg: 0, lz_op: 0, lz_size: 0, lz_cf: 0, lz_a: 0, lz_b: 0, lz_r: 0, jit_limit: 0, fpu: [crate::f80::F80::ZERO; 8], ftop: 0, fcw: 0x37F, fsw: 0 }
+        Cpu { regs: [0; 16], rip: 0, cf: false, zf: false, sf: false, of: false, pf: false, df: false, icount: 0, xmm: [0; 16], gs_base: 0, fs_base: 0, seg: 0, lz_op: 0, lz_size: 0, lz_cf: 0, lz_a: 0, lz_b: 0, lz_r: 0, jit_limit: 0, fpu: [crate::f80::F80::ZERO; 8], ftop: 0, fcw: 0x37F, fsw: 0, mode32: false }
     }
 }
 
@@ -109,6 +110,17 @@ pub fn step_trace(e: &mut Engine, n: u64) -> u64 {
 /// One instruction (JIT fallback). Flags must already be exact.
 pub fn step_one(e: &mut Engine) { step(e); }
 
+/// One instruction; a locked one whose write lost the race to another core is
+/// undone (the caller runs it again).
+#[inline(always)]
+fn step(e: &mut Engine) {
+    step_raw(e);
+    if crate::lock::MT && e.mmu.lk != 0 {
+        if e.mmu.lk == 3 { if let Some(c) = e.mmu.lk_snap.take() { e.cpu = *c; } }
+        e.mmu.lk = 0;
+    }
+}
+
 impl Engine {
     /// Turns lazy JIT flags into exact ones.
     #[inline(always)]
@@ -167,13 +179,38 @@ impl Engine {
         }
     }
     pub(crate) fn push(&mut self, v: u64) -> Result<(), ()> {
+        if self.cpu.mode32 {
+            let sp = self.cpu.regs[4].wrapping_sub(4) & 0xFFFF_FFFF;
+            self.mmu.write32(sp, v as u32).map_err(|_| self.fault(sp))?;
+            self.cpu.regs[4] = sp;
+            return Ok(());
+        }
         let sp = self.cpu.regs[4].wrapping_sub(8);
         self.mmu.write64(sp, v).map_err(|_| self.fault(sp))?;
         self.cpu.regs[4] = sp;
         Ok(())
     }
+    /// 8-byte pop whatever the mode (iretq / far return with REX.W).
+    pub(crate) fn pop64(&mut self) -> Result<u64, ()> {
+        let sp = self.cpu.regs[4];
+        let v = self.mmu.read64(sp).map_err(|_| self.fault(sp))?;
+        self.cpu.regs[4] = sp + 8;
+        Ok(v)
+    }
+    /// Loads a code segment selector: 0x23 = 32-bit code (fs = TEB32), 0x33 = 64-bit code.
+    pub(crate) fn set_cs(&mut self, sel: u16) {
+        let m32 = sel == 0x23;
+        if m32 == self.cpu.mode32 { return; }
+        self.cpu.mode32 = m32;
+        if m32 { self.cpu.fs_base = self.cpu.gs_base + crate::TEB32_OFF; self.cpu.regs[4] &= 0xFFFF_FFFF; }
+    }
     pub(crate) fn pop(&mut self) -> Result<u64, ()> {
         let sp = self.cpu.regs[4];
+        if self.cpu.mode32 {
+            let v = self.mmu.read32(sp).map_err(|_| self.fault(sp))? as u64;
+            self.cpu.regs[4] = (sp + 4) & 0xFFFF_FFFF;
+            return Ok(v);
+        }
         let v = self.mmu.read64(sp).map_err(|_| self.fault(sp))?;
         self.cpu.regs[4] = sp + 8;
         Ok(v)
@@ -261,6 +298,15 @@ pub(crate) fn modrm(d: &mut Dec, e: &Engine, rex: u8) -> ModRm {
 }
 
 pub(crate) fn ea(e: &Engine, m: &ModRm, next: u64) -> u64 {
+    if e.cpu.mode32 {
+        // 32-bit addressing: [disp32] instead of rip-relative, sums wrap at 4 GB
+        let mut a = m.disp as u64;
+        if !m.riprel {
+            if let Some(b) = m.base { a = a.wrapping_add(e.cpu.regs[b as usize]); }
+            if let Some(i) = m.index { a = a.wrapping_add(e.cpu.regs[i as usize] << m.scale); }
+        }
+        return (a & 0xFFFF_FFFF).wrapping_add(e.cpu.seg);
+    }
     if m.riprel { return next.wrapping_add(m.disp as u64).wrapping_add(e.cpu.seg); }
     let mut a = (m.disp as u64).wrapping_add(e.cpu.seg);
     if let Some(b) = m.base { a = a.wrapping_add(e.cpu.regs[b as usize]); }
@@ -277,7 +323,7 @@ pub(crate) fn reg_loc(r: u8, size: u32, rex: u8) -> Loc {
 
 macro_rules! g { ($e:expr, $x:expr) => { match $x { Ok(v) => v, Err(_) => return } } }
 
-fn step(e: &mut Engine) {
+fn step_raw(e: &mut Engine) {
     let mut buf = [0u8; 16];
     let rip = e.cpu.rip;
     tryf!(e, e.mmu.fetch16(rip, &mut buf), rip);
@@ -301,9 +347,19 @@ fn step(e: &mut Engine) {
             _ => break,
         }
     }
-    if (0x40..0x50).contains(&op) { rex = op; op = d.u8(); }
+    if (0x40..0x50).contains(&op) && !e.cpu.mode32 { rex = op; op = d.u8(); }
     // lock prefix (and xchg with memory): atomic against the other cores
-    let _atomic = if crate::lock::MT && (locked || ((op == 0x86 || op == 0x87) && d.b[d.p.min(15)] >> 6 != 3)) { crate::lock::count_locked(); Some(crate::lock::lock()) } else { None };
+    let _atomic = if crate::lock::MT && (locked || ((op == 0x86 || op == 0x87) && d.b[d.p.min(15)] >> 6 != 3)) {
+        crate::lock::count_locked();
+        let g = crate::lock::lock();
+        // its write becomes a compare-and-swap against what it read (JIT code on
+        // the other cores stores without the lock)
+        let mut c = e.mmu.lk_snap.take().unwrap_or_else(|| Box::new(e.cpu.clone()));
+        (*c).clone_from(&e.cpu);
+        e.mmu.lk_snap = Some(c);
+        e.mmu.lk = 1;
+        Some(g)
+    } else { None };
     let w = rex & 8 != 0;
     let osz: u32 = if w { 64 } else if opsize16 { 16 } else { 32 };
 
@@ -418,7 +474,7 @@ fn step(e: &mut Engine) {
             // mov r/m, segment register: the usual x64 user-mode selectors
             let m = modrm(&mut d, e, rex);
             let next = rip + d.p as u64;
-            let v = [0x2Bu64, 0x33, 0x2B, 0x2B, 0x53, 0x2B, 0, 0][(m.reg & 7) as usize];
+            let v = if e.cpu.mode32 { [0x2Bu64, 0x23, 0x2B, 0x2B, 0x53, 0x2B, 0, 0] } else { [0x2Bu64, 0x33, 0x2B, 0x2B, 0x53, 0x2B, 0, 0] }[(m.reg & 7) as usize];
             let size = if m.md == 3 { osz } else { 16 };
             g!(e, e.set(rm_loc(e, &m, next, size, rex), size, v));
             e.cpu.rip = next;
@@ -428,7 +484,8 @@ fn step(e: &mut Engine) {
             let m = modrm(&mut d, e, rex);
             let next = rip + d.p as u64;
             let v = g!(e, e.pop());
-            g!(e, e.set(rm_loc(e, &m, next, 64, rex), 64, v));
+            let ss = if e.cpu.mode32 { 32 } else { 64 };
+            g!(e, e.set(rm_loc(e, &m, next, ss, rex), ss, v));
             e.cpu.rip = next;
         }
         0x90..=0x97 => {
@@ -542,6 +599,26 @@ fn step(e: &mut Engine) {
             g!(e, e.set(rm_loc(e, &m, next, size, rex), size, imm & mask(size)));
             e.cpu.rip = next;
         }
+        0xCB | 0xCA => {
+            // far return: offset then selector
+            let extra = if op == 0xCA { d.i16() as u16 as u64 } else { 0 };
+            let (r, sel) = if w { (g!(e, e.pop64()), g!(e, e.pop64())) } else { (g!(e, e.pop()), g!(e, e.pop())) };
+            e.cpu.regs[4] += extra;
+            e.set_cs(sel as u16);
+            e.cpu.rip = r;
+        }
+        0xCF => {
+            // iret(q): rip, cs, rflags (and rsp, ss in 64-bit mode)
+            let rd = |e: &mut Engine, n: u32| -> Result<u64, ()> { if n == 8 { e.pop64() } else { e.pop() } };
+            let n = if w { 8 } else { 4 };
+            let r = g!(e, rd(e, n)); let sel = g!(e, rd(e, n)); let f = g!(e, rd(e, n));
+            let sp = if w { Some(g!(e, rd(e, n))) } else { None };
+            if w { let _ = g!(e, rd(e, n)); }
+            e.set_flags(f);
+            if let Some(sp) = sp { e.cpu.regs[4] = sp; }
+            e.set_cs(sel as u16);
+            e.cpu.rip = r;
+        }
         0xC9 => {
             e.cpu.regs[4] = e.cpu.regs[5];
             let v = g!(e, e.pop());
@@ -589,17 +666,31 @@ fn step(e: &mut Engine) {
                     e.cpu.rip = next;
                 }
                 2 | 4 | 6 => {
-                    let t = g!(e, e.get(rm_loc(e, &m, next, 64, rex), 64));
+                    let ss = if e.cpu.mode32 { 32 } else { 64 };
+                    let t = g!(e, e.get(rm_loc(e, &m, next, ss, rex), ss));
                     match sub {
                         2 => { g!(e, e.push(next)); e.cpu.rip = t; }
                         4 => e.cpu.rip = t,
                         _ => { g!(e, e.push(t)); e.cpu.rip = next; }
                     }
                 }
+                3 | 5 => {
+                    // far jump / call through m16:32 (or m16:64 with REX.W): WoW64 mode switches
+                    let a = ea(e, &m, next);
+                    let osz2 = if w { 8 } else { 4 };
+                    let off = g!(e, e.get(Loc::Mem(a), osz2 * 8));
+                    let sel = g!(e, e.get(Loc::Mem(a + osz2 as u64), 16));
+                    if sub == 3 {
+                        let cs = if e.cpu.mode32 { 0x23 } else { 0x33 };
+                        g!(e, e.push(cs)); g!(e, e.push(next));
+                    }
+                    e.set_cs(sel as u16);
+                    e.cpu.rip = off;
+                }
                 _ => e.unsupported(&buf),
             }
         }
-        0xCC => { e.set_error(format!("breakpoint at 0x{:x}", rip)); }
+        0xCC => { let sp = e.cpu.regs[4]; let r1 = e.mmu.read32(sp).unwrap_or(0); let r2 = e.mmu.read32(sp + 4).unwrap_or(0); e.set_error(format!("breakpoint at 0x{:x} (stack {:x} {:x})", rip, r1, r2)); }
         0x9C => { let f = e.flags(); e.cpu.rip = rip + d.p as u64; g!(e, e.push(f)); }
         0x9D => { let f = g!(e, e.pop()); e.set_flags(f); e.cpu.rip = rip + d.p as u64; }
         0x9E => { let ah = (e.cpu.regs[0] >> 8) & 0xFF; let f = (e.flags() & !0xFF) | ah; e.set_flags(f); e.cpu.rip = rip + d.p as u64; }
@@ -623,7 +714,7 @@ fn step(e: &mut Engine) {
         }
         0xA0..=0xA3 => {
             let size = if op & 1 == 0 { 8 } else { osz };
-            let a = d.u64_full().wrapping_add(e.cpu.seg);
+            let a = if e.cpu.mode32 { d.i32() as u32 as u64 } else { d.u64_full() }.wrapping_add(e.cpu.seg);
             e.cpu.rip = rip + d.p as u64;
             if op < 0xA2 { let v = g!(e, e.get(Loc::Mem(a), size)); g!(e, e.set(Loc::Reg(0, false), size, v)); }
             else { let v = e.cpu.regs[0]; g!(e, e.set(Loc::Mem(a), size, v)); }
@@ -663,8 +754,34 @@ fn step(e: &mut Engine) {
             e.cpu.rip = rip + d.p as u64;
         }
         0x0F => two_byte(e, &mut d, &buf, rip, rex, osz, rep, p66),
+        // 32-bit only: inc/dec r32, pusha/popa, push/pop of segment registers
+        0x40..=0x4F => {
+            let r = op & 7;
+            let a = e.cpu.regs[r as usize] & mask(osz);
+            let cf = e.cpu.cf;
+            let v = e.alu(if op < 0x48 { 0 } else { 5 }, a, 1, osz);
+            e.cpu.cf = cf;
+            let _ = e.set(Loc::Reg(r, false), osz, v);
+            e.cpu.rip = rip + d.p as u64;
+        }
+        0x60 if e.cpu.mode32 => {
+            let sp = e.cpu.regs[4];
+            for r in [0usize, 1, 2, 3] { let v = e.cpu.regs[r]; g!(e, e.push(v)); }
+            g!(e, e.push(sp));
+            for r in [5usize, 6, 7] { let v = e.cpu.regs[r]; g!(e, e.push(v)); }
+            e.cpu.rip = rip + d.p as u64;
+        }
+        0x61 if e.cpu.mode32 => {
+            for r in [7usize, 6, 5] { let v = g!(e, e.pop()); e.cpu.regs[r] = v; }
+            let _ = g!(e, e.pop());
+            for r in [3usize, 2, 1, 0] { let v = g!(e, e.pop()); e.cpu.regs[r] = v; }
+            e.cpu.rip = rip + d.p as u64;
+        }
+        0x06 | 0x0E | 0x16 | 0x1E if e.cpu.mode32 => { e.cpu.rip = rip + d.p as u64; g!(e, e.push(if op == 0x0E { 0x23 } else { 0x2B })); }
+        0x07 | 0x17 | 0x1F if e.cpu.mode32 => { let _ = g!(e, e.pop()); e.cpu.rip = rip + d.p as u64; }
         _ => e.unsupported(&buf),
     }
+    if e.cpu.mode32 { e.cpu.rip &= 0xFFFF_FFFF; }
 }
 
 fn imul_set(e: &mut Engine, reg: u8, a: u64, b: u64, size: u32) {

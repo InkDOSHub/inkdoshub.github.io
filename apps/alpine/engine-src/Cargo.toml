@@ -18,3 +18,5 @@ codegen-units = 1
 prof = []
 # instruction-by-instruction check against a reference CPU (tools/diff)
 diff = []
+ab_tlb = []
+ab_flush = [] # measurement only: dirty registers are written back twice at block exits # measurement only: every memory access does its TLB check twice

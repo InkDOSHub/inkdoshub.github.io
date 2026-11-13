@@ -21,6 +21,7 @@ mod imp {
         if OWNER.load(Relaxed) == me { unsafe { DEPTH += 1; } return Guard(()); }
         let mut spins = 0;
         COUNT[0].fetch_add(1, Relaxed);
+        crate::mmu::away(me - 1); // not inside program code while waiting (TLB shootdowns need not wait for us)
         loop {
             match OWNER.compare_exchange(0, me, Acquire, Relaxed) {
                 Ok(_) => break,
@@ -36,6 +37,7 @@ mod imp {
             }
         }
         unsafe { DEPTH = 1; }
+        crate::mmu::safe_point(me - 1);
         Guard(())
     }
     impl Drop for Guard {
@@ -61,8 +63,11 @@ mod imp {
     /// Sleeps until kick() or `ms` pass.
     pub fn idle(g: u32, ms: f64) {
         COUNT[2].fetch_add(1, Relaxed);
+        let me = crate::eng().core;
+        crate::mmu::away(me);
         let ns = (ms.clamp(0.0, 50.0) * 1e6) as i64;
         unsafe { core::arch::wasm32::memory_atomic_wait32(GEN.as_ptr() as *mut i32, g as i32, ns); }
+        crate::mmu::safe_point(me);
     }
 }
 
