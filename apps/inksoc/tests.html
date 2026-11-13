@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head><script src="../../assets/endereco.js?v=2"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/inkdoshub-icone-32.png?v=8">
+<title>InkSoC tests · InkDOS Hub</title>
+<style>
+  :root{--bg:#fff;--fg:#111;--muted:#666;--card:#f5f5f7;--border:#ddd;--ok:#15803d;--bad:#b91c1c;--accent:#7c3aed}
+  @media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--muted:#999;--card:#1c1c1e;--border:#333;--ok:#4ade80;--bad:#f87171}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 -apple-system,system-ui,sans-serif}
+  header{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border)}
+  header a{color:var(--accent);text-decoration:none}
+  header b{flex:1;text-align:center}
+  main{max-width:760px;margin:0 auto;padding:12px 16px 40px}
+  section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:12px 0}
+  h2{font-size:16px;margin:0 0 6px}
+  p.n{color:var(--muted);font-size:13px;margin:4px 0 8px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+  select,button{font:inherit;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:inherit}
+  button{background:var(--accent);color:#fff;border:0;cursor:pointer}
+  button:disabled{opacity:.5}
+  .btnlike{display:inline-block;font:inherit;font-size:15px;padding:7px 12px;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;flex-direction:row}
+  pre{white-space:pre-wrap;word-break:break-word;font-size:12px;margin:8px 0 0;max-height:320px;overflow:auto}
+  .ok{color:var(--ok)} .bad{color:var(--bad)}
+  table{border-collapse:collapse;font-size:13px;width:100%} td{padding:2px 6px;border-bottom:1px solid var(--border)}
+</style>
+</head>
+<body>
+<header><a href="./">&lt; InkSoC</a><b>Diagnostics &amp; tests</b><span style="width:80px"></span></header>
+<main>
+<p class="n"><a href="linux.html" style="color:var(--accent)">Linux terminal (experimental) →</a> BusyBox on the same engine.</p>
+<p class="n">Our own engine for Windows programs: a 64-bit .exe runs here without Wine or Linux, with a fixed amount of real RAM and the rest of its memory in swap on this device's storage (OPFS). Stage 1: no windows yet, console programs only.</p>
+
+<section>
+  <h2>Run a Windows program</h2>
+  <p class="n">The stage 1 test is a normal 64-bit program with a DLL: integers, floating point (SSE2), sorting through function pointers, heap, TLS, TEB/PEB and memory checks, each compared with the expected result. The stage 2 test uses the real msvcrt.dll API: printf and the string functions run Wine's own msvcrt code compiled to wasm, reading the program's memory through the engine's page table. "Run 7-Zip benchmark" runs 7-Zip 23.01 (7za.exe, one file, LGPL; license in <code>bin/7za-license.txt</code>) with <code>b -md18 -mmt</code> and the chosen cores, or with the arguments in the box. "Open .exe" runs your own console program: select the .exe, its DLLs and any data files together, type its arguments in the box (for 7-Zip: <code>i</code>, <code>b -md18</code>, <code>x file.zip -y</code>, <code>a out.7z file.txt</code>); files it creates can be downloaded at the end; it stops at the first Windows function that does not exist here yet and names it.</p>
+  <div class="row">
+    <button id="exec">Run stage 1 test</button>
+    <button id="exec2">Run stage 2 test</button>
+    <button id="exec4">Run stage 4 test (threads)</button>
+    <button id="exec7z">Run 7-Zip benchmark</button>
+    <button id="execmine">Run WineMine (window test)</button>
+    <button id="execmine32">Run WineMine 32-bit</button>
+    <input id="args" placeholder="arguments (optional)" style="min-width:10em">
+    <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="jit" checked>JIT</label>
+    <label style="flex-direction:row;align-items:center;gap:4px" title="Program threads run at the same time on several cores; needs hub.inkdos.workers.dev (on other addresses 1 core is used)">Cores <select id="cores"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+    <label class="btnlike">Open .exe…<input type="file" id="pick" multiple hidden></label>
+  </div>
+  <p class="n" id="budget"></p>
+  <table id="exec-stats"></table>
+  <canvas id="screen" width="1024" height="768" tabindex="0" hidden style="background:#3a6ea5;width:100%;max-width:1024px;touch-action:none;outline:none;border:1px solid #888;margin:8px 0"></canvas>
+  <pre id="exec-out"></pre>
+</section>
+
+<h2 style="margin:24px 0 0">Measurements</h2>
+<section>
+  <h2>1. Engine proof</h2>
+  <p class="n">test.exe (x86-64) runs a CPU loop, reserves more memory than the real RAM and checks every page, then calls a "Wine side" function compiled to wasm that reads its memory through the page table.</p>
+  <div class="row">
+    <label>Real RAM (fixed)<select id="pool"><option>64</option><option selected>128</option><option>256</option><option>512</option></select></label>
+    <label>Program uses<select id="testmb"><option value="256">256 MB</option><option value="512" selected>512 MB</option><option value="1024">1 GB</option><option value="2048">2 GB</option><option value="3072">3 GB</option></select></label>
+    <label>Memory target<select id="target"><option value="8192" selected>8 GB</option><option value="4096">4 GB</option></select></label>
+    <button id="run">Run</button>
+  </div>
+  <table id="stats"></table>
+  <pre id="out"></pre>
+</section>
+
+<section>
+  <h2>2. Swap cost (OPFS)</h2>
+  <p class="n">Time to read or write one 4 KB page at a random place in a 64 MB file, from a worker.</p>
+  <button id="opfs">Measure</button>
+  <pre id="opfs-out"></pre>
+</section>
+
+<section>
+  <h2>3. Draw calls per frame</h2>
+  <p class="n">How long the GPU path takes for N separate draws in one frame (WebGPU if available, else WebGL2).</p>
+  <button id="draw">Measure</button>
+  <pre id="draw-out"></pre>
+</section>
+
+<section>
+  <h2>4. Memory limits (the tab may reload)</h2>
+  <p class="n">Calibration grows wasm memory in 128 MB steps. Textures uploads GPU textures in 128 MB steps. Each step is saved first, so if the tab reloads the last saved step is the limit. Compare both: if textures go well past the wasm limit, GPU memory does not count against the tab.</p>
+  <div class="row"><button id="calib">Calibrate memory</button><button id="tex">Textures</button><button id="clear">Clear results</button></div>
+  <pre id="lim-out"></pre>
+</section>
+
+<section>
+  <h2>5. Combined budget (the tab may reload)</h2>
+  <p class="n">Uses the calibration above: about 70% of the tab limit, split into fixed real RAM for the engine and a fixed GPU texture pool. Then it streams far more textures than the pool holds for 30 s: the least used ones leave the GPU and come back from OPFS when needed.</p>
+  <div class="row">
+    <label>Textures used<select id="combo-tex"><option value="1024">1 GB</option><option value="2048" selected>2 GB</option><option value="3072">3 GB</option><option value="4096">4 GB</option></select></label>
+    <label>Engine RAM<select id="combo-ram"><option value="-1" selected>Auto</option><option value="0">0 MB</option><option value="256">256 MB</option><option value="512">512 MB</option></select></label>
+    <label>GPU pool<select id="combo-gpu"><option value="0" selected>Auto</option><option value="128">128 MB</option><option value="256">256 MB</option><option value="512">512 MB</option></select></label>
+    <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="combo-astc" checked>ASTC check</label>
+    <label>Draw to<select id="combo-draw"><option value="copy" selected>Offscreen + copy</option><option value="2d">Offscreen + 2D draw</option><option value="read">GPU read-back</option><option value="page">Page canvas</option><option value="off">Offscreen only</option></select></label>
+    <button id="combo">Run 30 s</button>
+  </div>
+  <canvas id="combo-cv" width="512" height="288" style="width:100%;max-width:512px;aspect-ratio:16/9;margin-top:8px;border-radius:8px;background:#000"></canvas>
+  <div id="combo-live" class="n" style="color:var(--muted);font-size:13px"></div>
+  <pre id="combo-out"></pre>
+</section>
+
+<section>
+  <h2>Browser</h2>
+  <pre id="feat"></pre>
+</section>
+</main>
+<script src="inksoc.js?v=43"></script>
+</body>
+</html>

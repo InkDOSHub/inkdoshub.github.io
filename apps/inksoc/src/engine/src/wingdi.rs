@@ -28,6 +28,7 @@ const FACE: u32 = 0xD4D0C8;
 const LIGHT: u32 = 0xFFFFFF;
 const SHADOW: u32 = 0x808080;
 const DARK: u32 = 0x404040;
+#[allow(dead_code)] // the page paints it (index.html --desk)
 const DESKTOP_COLOR: u32 = 0x3A6EA5;
 
 pub struct Bmp {
@@ -1312,7 +1313,7 @@ impl Engine {
         let (w, h) = (SCREEN_W, SCREEN_H);
         let mut fb = std::mem::take(&mut self.s.gdi.fb);
         fb.resize((w * h) as usize, 0);
-        fb.fill(0xFF00_0000 | colorref(DESKTOP_COLOR));
+        fb.fill(0); // transparent: the page draws the desktop under the windows
         let tops = self.s.win.tops.clone();
         for t in tops {
             let Some(win) = self.wnd(t) else { continue };
