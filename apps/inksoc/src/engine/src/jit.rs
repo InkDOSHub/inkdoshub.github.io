@@ -366,6 +366,7 @@ struct G {
     // and a jump between blocks stores the lazy flags only when the target block reads them
     lic: bool,
     need: Vec<bool>, // per block: reads the flags before writing them
+    cur: usize, // index of the block being emitted
     hints: Vec<(usize, u8)>, // branch hints: code position of an `if`, 1 = usually taken, 0 = rarely
 }
 
@@ -385,6 +386,12 @@ impl G {
         if self.last_mask == self.c.len() { self.z.insert(l); } else if !self.z.is_empty() { self.z.remove(&l); }
     }
     fn mem(&mut self, op: u8, align: u32, offset: u32) { self.b(op); self.u(align as u64); self.u(offset as u64); }
+    /// prof build: counts one event k in prof::DYN
+    #[allow(unused_variables)]
+    fn cnt(&mut self, k: u32) {
+        #[cfg(feature = "prof")]
+        { let a = unsafe { core::ptr::addr_of!(prof::DYN) as u32 } + 8 * k; self.i32c(0); self.i32c(0); self.mem(I64LOAD, 3, a); self.i64c(1); self.b(I64ADD); self.mem(I64STORE, 3, a); }
+    }
     fn tmp(&mut self) -> u32 { let t = self.ntmp; self.ntmp += 1; t }
     fn call(&mut self, f: u32) { self.b(CALL); self.u(f as u64); }
 
@@ -470,6 +477,7 @@ impl G {
 
     /// Pushes the size-bit value at address local `a`.
     fn load(&mut self, a: u32, size: u32) {
+        self.cnt(3);
         self.tlb_check(a, size / 8, false);
         #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, false); self.b(I32AND); }
         self.if_hint(T_I64, true);
@@ -491,6 +499,7 @@ impl G {
 
     /// Stores local v (size bits) at address local `a`.
     fn store(&mut self, a: u32, v: u32, size: u32) {
+        self.cnt(4);
         self.tlb_check(a, size / 8, true);
         #[cfg(feature = "ab_tlb")] { self.tlb_check(a, size / 8, true); self.b(I32AND); }
         self.if_hint(VOID, true);
@@ -638,6 +647,7 @@ impl G {
         }
         self.c.truncate(save);
         self.spill_flags();
+        self.cnt(5);
         self.i32c(cc as i32);
         self.call(F_COND);
     }
@@ -693,6 +703,15 @@ impl G {
             self.flush();
             let need = self.need[idx];
             if need { self.exit_flags(); }
+            if idx <= self.cur { self.cnt(1); if need { self.cnt(7); } }
+            if idx > self.cur {
+                // a later block: its code starts right after the end of its label (no dispatch,
+                // and no budget check: only a jump back can loop)
+                self.get(L_IC); self.i64c(n as u64); self.b(I64ADD); self.set(L_IC);
+                self.cnt(0); if need { self.cnt(7); }
+                self.b(BR); self.u((depth + (idx - self.cur - 1) as u32) as u64);
+                return;
+            }
             self.get(L_IC); self.i64c(n as u64); self.b(I64ADD); self.tee(L_IC);
             self.cpu_ld64(off!(jit_limit)); self.b(I64GEU);
             self.if_hint(VOID, false);
@@ -727,6 +746,7 @@ impl G {
 
     /// Runs one instruction in the interpreter.
     fn fallback(&mut self, i: &Ins, n: u32) {
+        self.cnt(6);
         self.flush();
         self.spill_flags();
         self.set_rip_const(i.rip);
@@ -1557,16 +1577,18 @@ fn compile(e: &mut Engine, rip: u64) -> Option<Vec<u8>> {
         }
         true
     }).collect();
-    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: 0, heads, base: 0, max_tmp: FIRST_TMP, m32: e.cpu.mode32, z: Default::default(), last_get: (0, 0), last_mask: usize::MAX, lic, need, hints: Vec::new() };
+    let mut g = G { c: Vec::with_capacity(4096), ntmp: FIRST_TMP, valid: 0, dirty: 0, prod: Prod::Unknown, cpu, tlb: e.mmu.tlb_addr(), pool: 0, heads, base: 0, max_tmp: FIRST_TMP, m32: e.cpu.mode32, z: Default::default(), last_get: (0, 0), last_mask: usize::MAX, lic, need, hints: Vec::new(), cur: 0 };
     if lic { g.cpu_ld64(off!(icount)); g.set(L_IC); }
     g.b(0x03); g.b(VOID); // loop: every jump between blocks comes back here
     for _ in 0..nb { g.b(0x02); g.b(VOID); }
+    if opt() { g.get(L_B); g.b(I32EQZ); g.b(0x0D); g.u(0); } // br_if: the usual jump back is to the first block
     g.get(L_B); g.b(0x0E); g.u(nb as u64);
     for j in 0..nb { g.u(j as u64); }
     g.u(0);
     for (j, b) in blocks.into_iter().enumerate() {
         g.b(END); // the code of block j follows the end of label j
         g.base = nb - 1 - j as u32;
+        g.cur = j;
         g.valid = 0; g.dirty = 0; g.prod = Prod::Unknown; g.z.clear();
         g.ntmp = FIRST_TMP;
         emit_block(&mut g, b);
@@ -1594,9 +1616,10 @@ fn emit_block(g: &mut G, b: Block) {
     }
 
     let mut done_all = false;
+    let mut cut = false; // out of locals: leave the region (an edge the region's analysis did not see)
     for (k, i) in list.iter().enumerate() {
         let n = k as u32 + 1;
-        if g.ntmp > MAX_LOCALS - 40 { end_rip = Some(i.rip); break; }
+        if g.ntmp > MAX_LOCALS - 40 { end_rip = Some(i.rip); cut = true; break; }
         match i.op {
             0x70..=0x7F | 0x0F80..=0x0F8F => {
                 let target = i.next.wrapping_add(i.imm);
@@ -1642,7 +1665,7 @@ fn emit_block(g: &mut G, b: Block) {
     }
     if !done_all {
         let n = list.iter().take_while(|i| Some(i.rip) != end_rip).count() as u32;
-        g.jump(end_rip.unwrap_or(pc), n, 0);
+        if cut { g.exit(end_rip.unwrap(), n); } else { g.jump(end_rip.unwrap_or(pc), n, 0); }
     }
 }
 
@@ -1701,12 +1724,16 @@ fn section(m: &mut Vec<u8>, id: u8, data: &[u8]) {
 pub mod prof {
     use std::collections::HashMap;
     static mut P: Option<HashMap<u32, u64>> = None;
+    /// dynamic counters bumped by JIT code: 0 fwd jumps, 1 back jumps, 2 exits, 3 loads, 4 stores, 5 cond calls, 6 fallbacks, 7 flag stores at jumps
+    pub static mut DYN: [u64; 8] = [0; 8];
     pub fn add(k: u32, n: u64) { unsafe { *P.get_or_insert_with(HashMap::new).entry(k).or_insert(0) += n; } }
     #[no_mangle]
     pub extern "C" fn prof_dump() {
         let mut v: Vec<_> = unsafe { P.clone().unwrap_or_default().into_iter().collect() };
         v.sort_by(|a, b| b.1.cmp(&a.1));
-        let s: String = v.iter().take(40).map(|(k, n)| format!("{:x} {}\n", k, n)).collect();
+        let d = unsafe { DYN };
+        let s0 = format!("dyn fwd {} back {} exits {} loads {} stores {} cond {} fallback {} flagst {}\n", d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]);
+        let s: String = s0 + &v.iter().filter(|x| x.0 >= 0xB0000000).chain(v.iter().take(30)).map(|(k, n)| format!("{:x} {}\n", k, n)).collect::<String>();
         crate::eng().s.error = Some(s);
     }
 }
