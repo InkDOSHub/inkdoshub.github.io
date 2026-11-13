@@ -233,7 +233,7 @@ impl Engine {
 
     fn find_data(&mut self, a: u64, name: &str) {
         for i in 0..592 / 8 { let _ = self.mmu.write64(a + 8 * i, 0); }
-        let (attr, size) = match self.s.files.get(name) { Some(d) => (ATTR_NORMAL, d.len() as u64), None => (ATTR_DIR, 0) };
+        let (attr, size) = match self.s.files.size(name) { Some(d) => (ATTR_NORMAL, d), None => (ATTR_DIR, 0) };
         let name = &self.shown(name);
         let ft = file_time_now();
         let _ = self.mmu.write32(a, attr);
@@ -326,7 +326,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let found = match key_of(&p) {
                 None => Some((ATTR_DIR, 0u64)),
                 Some(k) if e.is_dir(&k) => Some((ATTR_DIR, 0u64)),
-                Some(k) => e.s.files.get(&k).or_else(|| e.s.files.get(&pe::norm(&k))).map(|d| (ATTR_NORMAL, d.len() as u64)),
+                Some(k) => e.s.files.size(&k).or_else(|| e.s.files.size(&pe::norm(&k))).map(|d| (ATTR_NORMAL, d)),
             };
             match found {
                 Some((attr, size)) => {
@@ -427,7 +427,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let mut v = vec![0u8; n as usize];
             if e.mmu.read_bytes(buf, &mut v).is_err() { e.fault(buf); }
             if !k.starts_with('|') { e.s.fs.written.insert(k.clone()); }
-            let d = e.s.files.entry(k).or_default();
+            let d = e.s.files.entry_or_default(k);
             let end = pos as usize + v.len();
             if d.len() < end { d.resize(end, 0); }
             d[pos as usize..end].copy_from_slice(&v);
@@ -451,14 +451,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "SetNamedPipeHandleState" => if e.pipe_id(a0).is_some() { 1 } else { return None },
         "GetFileSize" | "GetFileSizeEx" => {
             let Some((k, _)) = e.file_mut(a0) else { e.set_err(6); return Some(if name == "GetFileSize" { 0xFFFF_FFFF } else { 0 }) };
-            let size = e.s.files.get(&k).map(|d| d.len() as u64).unwrap_or(0);
+            let size = e.s.files.size(&k).unwrap_or(0);
             let p = e.arg(1);
             if name == "GetFileSizeEx" { let _ = e.mmu.write64(p, size); 1 }
             else { if p != 0 { let _ = e.mmu.write32(p, (size >> 32) as u32); } size & 0xFFFF_FFFF }
         }
         "SetFilePointer" | "SetFilePointerEx" => {
             let Some((k, pos)) = e.file_mut(a0) else { e.set_err(6); return Some(if name == "SetFilePointer" { 0xFFFF_FFFF } else { 0 }) };
-            let size = e.s.files.get(&k).map(|d| d.len() as i64).unwrap_or(0);
+            let size = e.s.files.size(&k).unwrap_or(0) as i64;
             let (dist, hi_ptr, method) = if name == "SetFilePointer" {
                 let hp = e.arg(2);
                 let hi = if hp != 0 { e.mmu.read32(hp).unwrap_or(0) as i64 } else { (e.arg(1) as i32 as i64) >> 32 };
@@ -480,7 +480,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let out = e.arg(1);
             for i in 0..52 / 4 { let _ = e.mmu.write32(out + 4 * i, 0); }
             let (attr, size) = match e.file_mut(a0) {
-                Some((k, _)) => (ATTR_NORMAL, e.s.files.get(&k).map(|d| d.len() as u64).unwrap_or(0)),
+                Some((k, _)) => (ATTR_NORMAL, e.s.files.size(&k).unwrap_or(0)),
                 None => (ATTR_DIR, 0),
             };
             let ft = file_time_now();

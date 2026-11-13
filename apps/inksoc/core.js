@@ -12,6 +12,19 @@ function swapCall(ctl, op, slot, p) {
   Atomics.store(ctl, 4, 0);
   Atomics.notify(ctl, 4);
 }
+/* A piece of a drive C: file from the swap worker (swapio.js), which holds the open files. */
+function driveCall(ctl, id, off, p, n) {
+  while (Atomics.compareExchange(ctl, 4, 0, 1) !== 0) Atomics.wait(ctl, 4, 1, 1);
+  ctl[1] = 3; ctl[2] = id; ctl[3] = p; ctl[5] = n; ctl[6] = off % 4294967296 | 0; ctl[7] = Math.floor(off / 4294967296);
+  Atomics.store(ctl, 0, 1);
+  Atomics.notify(ctl, 0);
+  while (Atomics.load(ctl, 0) !== 2) Atomics.wait(ctl, 0, 1);
+  const got = ctl[5];
+  Atomics.store(ctl, 0, 0);
+  Atomics.store(ctl, 4, 0);
+  Atomics.notify(ctl, 4);
+  return got;
+}
 onmessage = (ev) => {
   const { wasm, wineWasm, memory, id, stackTop, tls } = ev.data;
   const swapCtl = new Int32Array(ev.data.swapCtl);
@@ -25,6 +38,7 @@ onmessage = (ev) => {
     // swap pages go through the swap worker (swapio.js), like core 0's
     host_swap_write: (slot, p) => swapCall(swapCtl, 1, slot, p),
     host_swap_read: (slot, p) => swapCall(swapCtl, 2, slot, p),
+    host_drive_read: (id, off, p, n) => driveCall(swapCtl, id, off, p, n),
     wine_call: (i, a, b, c, d) => wine.ink_call(i, a, b, c, d),
     host_jit: (p, n) => {
       try {

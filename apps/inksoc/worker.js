@@ -29,9 +29,24 @@ function swapCall(ctl, op, slot, p) {
   Atomics.notify(ctl, 4);
 }
 
+/* A piece of a drive C: file from the swap worker, which holds the open files. */
+function driveCall(ctl, id, off, p, n) {
+  while (Atomics.compareExchange(ctl, 4, 0, 1) !== 0) Atomics.wait(ctl, 4, 1, 1);
+  ctl[1] = 3; ctl[2] = id; ctl[3] = p; ctl[5] = n; ctl[6] = off % 4294967296 | 0; ctl[7] = Math.floor(off / 4294967296);
+  Atomics.store(ctl, 0, 1);
+  Atomics.notify(ctl, 0);
+  while (Atomics.load(ctl, 0) !== 2) Atomics.wait(ctl, 0, 1);
+  const got = ctl[5];
+  Atomics.store(ctl, 0, 0);
+  Atomics.store(ctl, 4, 0);
+  Atomics.notify(ctl, 4);
+  return got;
+}
+
 /* Drive C: kept in the browser's private storage (OPFS folder "inksoc-c"), apart from the
    swap file: every file under its Windows path (C/Program Files/7-Zip/7z.exe), empty
-   folders as folders, the registry in registry.bin. */
+   folders as folders, the registry in registry.bin. Files are not read here: the engine
+   gets each one's path and size, and reads its bytes when the program first uses them. */
 async function driveRoot() { return (await navigator.storage.getDirectory()).getDirectoryHandle('inksoc-c', { create: true }); }
 async function readDrive() {
   const files = [];
@@ -43,7 +58,7 @@ async function readDrive() {
       empty = false;
       if (h.kind === 'directory') await walk(h, path ? path + '\\' + name : name + ':');
       else if (!path) { if (name === 'registry.bin') reg = await (await h.getFile()).arrayBuffer(); }
-      else files.push({ name: path + '\\' + name, data: await (await h.getFile()).arrayBuffer() });
+      else files.push({ name: path + '\\' + name, handle: h, size: (await h.getFile()).size });
     }
     if (empty && path && path.includes('\\')) files.push({ name: path + '\\', data: new ArrayBuffer(0) });
   };
@@ -77,6 +92,9 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   // one core: this worker holds the swap file; several: a swap worker does, for every core
   const swap = mt ? null : await openSwap('inksoc-swap.bin');
   let swapCtl = null, swapW = null, swapOpfs = false;
+  // drive C: files read on demand: [{ name, handle, size }], opened here (1 core) or by the swap worker
+  const lazy = files.filter((f) => f.handle), open = [];
+  files = files.filter((f) => !f.handle);
   const ram = new Map();
   let mem, swapMs = 0, outBytes = 0, tooMuch = false;
   const view = (p) => new Uint8Array(mem.buffer, p, PAGE);
@@ -106,6 +124,15 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
       else if (swap) { if (shared) { const b = new Uint8Array(PAGE); swap.read(b, { at: slot * PAGE }); view(p).set(b); } else swap.read(view(p), { at: slot * PAGE }); } else view(p).set(ram.get(slot));
       swapMs += performance.now() - t;
     },
+    host_drive_read: (id, off, p, n) => {
+      if (swapCtl) return driveCall(swapCtl, id, off, p, n);
+      const h = open[id];
+      if (!h) return 0;
+      if (!shared) return h.read(new Uint8Array(mem.buffer, p, n), { at: off });
+      const b = new Uint8Array(n), got = h.read(b, { at: off });
+      new Uint8Array(mem.buffer, p, got).set(b.subarray(0, got));
+      return got;
+    },
     // msvcrt calls into Wine's code (wine.wasm), instantiated below
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
     // JIT: compiles one translated block and adds it to the engine's function table
@@ -124,7 +151,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=29' : 'inksoc.wasm?v=42', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=30' : 'inksoc.wasm?v=43', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -171,14 +198,14 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   const coreWorkers = [];
   if (mt) {
     const sab = new SharedArrayBuffer(32);
-    swapW = new Worker('swapio.js?v=1');
-    await new Promise((res) => { swapW.onmessage = (ev) => { swapOpfs = ev.data.opfs; res(); }; swapW.postMessage({ memory: mem, ctl: sab, name: 'inksoc-swap.bin' }); });
+    swapW = new Worker('swapio.js?v=2');
+    await new Promise((res) => { swapW.onmessage = (ev) => { swapOpfs = ev.data.opfs; (ev.data.drive || []).forEach((ok, i) => { open[i] = ok; }); res(); }; swapW.postMessage({ memory: mem, ctl: sab, name: 'inksoc-swap.bin', drive: lazy.map((f) => f.handle) }); });
     swapCtl = new Int32Array(sab);
     if (!swapOpfs) post('log', { text: '[swap] OPFS sync access unavailable, using RAM instead\n' });
     const ready = [];
     for (let id = 1; id < cores; id++) {
       const stack = 1 << 20, base = x.core_alloc(stack), tls = x.core_alloc(x.__tls_size.value + x.__tls_align.value);
-      const w = new Worker('core.js?v=2');
+      const w = new Worker('core.js?v=3');
       ready.push(new Promise((res, rej) => {
         w.onmessage = (ev) => {
           const m = ev.data;
@@ -192,6 +219,18 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
       coreWorkers.push(w);
     }
     await Promise.all(ready);
+  }
+  // drive C: files: opened for reading now, read when used; a file that cannot be opened
+  // (held by another program) is read whole instead
+  if (lazy.length) {
+    if (!mt) await Promise.all(lazy.map(async (f, i) => { try { open[i] = await f.handle.createSyncAccessHandle({ mode: 'read-only' }); } catch (e) { try { open[i] = await f.handle.createSyncAccessHandle(); } catch (e2) { open[i] = null; } } }));
+    for (let i = 0; i < lazy.length; i++) {
+      const f = lazy[i];
+      if (open[i] && x.add_drive_file) { put(enc(f.name)); x.add_drive_file(i, f.size); continue; }
+      const name = enc(f.name), data = new Uint8Array(await (await f.handle.getFile()).arrayBuffer()), b = new Uint8Array(name.length + 1 + data.length);
+      b.set(name); b.set(data, name.length + 1);
+      put(b); x.add_file();
+    }
   }
   put(enc(exe + '\0' + (cmd || exe)));
   post('log', { text: `[engine] real RAM ${poolMb} MB (fixed), memory target ${targetMb} MB, wasm memory ${(mem.buffer.byteLength >> 20)} MB${mt ? `, ${cores} cores` : ''}\n` });
@@ -254,6 +293,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     changes.push({ path, data: b.subarray(nl + 1) });
     if (!/^c:\\/i.test(name) && !/\.tmp(\\|$)/i.test(name)) out.push({ name: name.split('\\').pop(), data: b.subarray(nl + 1) });
   }
+  if (lazy.length) { const all = lazy.reduce((t, f) => t + f.size, 0); post('log', { text: `[engine] drive C: ${lazy.length} files, ${(all / 1048576).toFixed(1)} MB; read ${(x.stat(24) / 1048576).toFixed(1)} MB of them\n` }); }
+  if (!mt) for (const h of open) if (h) h.close(); // before saving: a file open for reading cannot be written
   if (drive && x.drive_entry) {
     for (let i = changes.length, k; (k = x.drive_entry(i)); i++) changes.push({ path: new TextDecoder().decode(new Uint8Array(mem.buffer, x.out_ptr(), k).slice()) });
     const n = x.reg_save();
@@ -282,6 +323,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
     host_epoch_ms: () => Date.now(),
     host_swap_write: () => { throw new Error('swap'); },
     host_swap_read: () => { throw new Error('swap'); },
+    host_drive_read: () => 0,
     wine_call: () => 0,
     host_jit: (p, n) => {
       try {
@@ -293,7 +335,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=42').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=43').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();

@@ -80,7 +80,7 @@ impl Engine {
     fn file_info(&mut self, h: u64) -> Option<(bool, u64, u64)> {
         // (is directory, size, position)
         match self.s.fs.handles.get(&h) {
-            Some(Handle::File { name, pos }) => { let p = *pos; let n = name.clone(); Some((false, self.s.files.get(&n).map_or(0, |d| d.len() as u64), p)) }
+            Some(Handle::File { name, pos }) => { let p = *pos; let n = name.clone(); Some((false, self.s.files.size(&n).unwrap_or(0), p)) }
             Some(Handle::Dir) => Some((true, 0, 0)),
             _ => None,
         }
@@ -248,7 +248,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if e.pipe_write(a0, buf, n) { e.iosb(iosb, OK, n); return Some(OK); }
             let (k, pos) = match e.s.fs.handles.get(&a0) { Some(Handle::File { name, pos }) => (name.clone(), *pos), _ => return Some(INVALID_HANDLE) };
             let pos = if offp != 0 { let o = e.mmu.read64(offp).unwrap_or(u64::MAX); if o as i64 >= 0 { o } else { pos } } else { pos };
-            let d = e.s.files.entry(k.clone()).or_default();
+            let d = e.s.files.entry_or_default(k.clone());
             let end = pos as usize + v.len();
             if d.len() < end { d.resize(end, 0); }
             d[pos as usize..end].copy_from_slice(&v);
@@ -353,7 +353,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtQueryAttributesFile" | "NtQueryFullAttributesFile" => {
             let nm = e.oa_name(a0);
             let out = e.arg(1);
-            let found = match crate::files::key_of(&nm) { None => Some((0x10u32, 0u64)), Some(k) => if e.is_dir(&k) { Some((0x10u32, 0u64)) } else { e.s.files.get(&k).map(|d| (0x80u32, d.len() as u64)) } };
+            let found = match crate::files::key_of(&nm) { None => Some((0x10u32, 0u64)), Some(k) => if e.is_dir(&k) { Some((0x10u32, 0u64)) } else { e.s.files.size(&k).map(|d| (0x80u32, d)) } };
             match found {
                 Some((attr, size)) => {
                     let ft = now_ft();
@@ -680,7 +680,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let s = if file != 0 {
                 let Some(Handle::File { name, .. }) = e.s.fs.handles.get(&file) else { return Some(INVALID_HANDLE) };
                 let name = name.clone();
-                let len = e.s.files.get(&name).map_or(0, |d| d.len() as u64);
+                let len = e.s.files.size(&name).unwrap_or(0);
                 if want > len { if let Some(d) = e.s.files.get_mut(&name) { d.resize(want as usize, 0); } }
                 let size = want.max(len);
                 if size == 0 { return Some(0xC000_011E); } // STATUS_MAPPED_FILE_SIZE_ZERO

@@ -50,7 +50,7 @@ async function runOne({ files, exe, args }) {
   const env = {
     host_console: (p, n) => { out += new TextDecoder().decode(new Uint8Array(mem.buffer, p, n).slice()); },
     host_now_ms: () => performance.now(), host_epoch_ms: () => Date.now(),
-    host_swap_write: (s, p) => ram.set(s, view(p).slice()), host_swap_read: (s, p) => view(p).set(ram.get(s)),
+    host_swap_write: (s, p) => ram.set(s, view(p).slice()), host_swap_read: (s, p) => view(p).set(ram.get(s)), host_drive_read: () => 0,
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
     host_jit: (p, n) => {
       try {

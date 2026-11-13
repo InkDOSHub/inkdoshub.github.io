@@ -27,6 +27,7 @@ mod winsys;
 mod wingdi;
 mod proc;
 mod registry;
+mod store;
 mod wow64;
 
 use cpu::Cpu;
@@ -83,7 +84,7 @@ pub struct Shared {
     pub next_alloc: u64,
     pub next_dll: u64,
     pub bridge_calls: u64,
-    pub files: HashMap<String, Vec<u8>>,
+    pub files: store::Store,
     pub modules: Vec<pe::Module>,
     pub thunks: Vec<(String, String)>,
     thunk_ids: HashMap<String, u64>,
@@ -174,7 +175,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             next_alloc: 0x0000_0200_0000_0000, // 2 TB: far above 4 GB on purpose
             next_dll: 0x0000_7FF0_0000_0000,
             bridge_calls: 0,
-            files: HashMap::new(), modules: Vec::new(),
+            files: Default::default(), modules: Vec::new(),
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0, no_init: false, thunk_fb: HashMap::new(), wine_fb: HashMap::new(), env_block: 0, tls_tmpl: Vec::new(),
             init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), win_ki: 0, recent: [(0, 0); 16], recent_n: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
@@ -258,6 +259,20 @@ pub extern "C" fn add_file() {
         eng().s.names.insert(name.clone(), raw.rsplit(['\\', '/']).next().unwrap_or(&raw).to_string());
         eng().s.files.insert(name, b[nl + 1..].to_vec());
     }
+}
+
+/// A file of the saved drive C: known only by its Windows path (in BUF), its id on
+/// the browser's storage and its size: read when the program first uses it.
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn add_drive_file(id: u32, size: f64) {
+    let b = unsafe { std::mem::take(&mut BUF) };
+    let raw = String::from_utf8_lossy(&b).into_owned();
+    let e = eng();
+    let Some(k) = files::key_of(&raw) else { return };
+    e.s.files.add_lazy(k.clone(), id, size as u64);
+    e.s.fs.drive.insert(k.clone());
+    e.note_case(&k, &raw);
 }
 
 /// Starts the program named in BUF ("name\0command line"). 0 = ok.
@@ -438,6 +453,7 @@ pub extern "C" fn stat(i: u32) -> f64 {
         21 => lock::counter(1),
         22 => lock::counter(2),
         23 => lock::counter(3),
+        24 => e.s.files.loaded_bytes as f64,
         _ => 0.0,
     }
 }
