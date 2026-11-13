@@ -321,7 +321,18 @@ impl Engine {
         us(self, p + 0x60, &format!("C:\\InkSoC\\{}", exe));
         let cmd = self.read_wstr(self.s.cmdline.1, 32768);
         us(self, p + 0x70, &cmd);
-        let env: Vec<u16> = "PATH=C:\\InkSoC;C:\\Windows\\System32\0SystemRoot=C:\\Windows\0TEMP=C:\\InkSoC\0TMP=C:\\InkSoC\0USERPROFILE=C:\\InkSoC\0\0".encode_utf16().collect();
+        // the usual Windows variables (installers read ProgramFiles / ProgramW6432 for their default folder)
+        let vars = [
+            "ALLUSERSPROFILE=C:\\ProgramData", "APPDATA=C:\\InkSoC\\AppData\\Roaming", "CommonProgramFiles=C:\\Program Files\\Common Files",
+            "CommonProgramFiles(x86)=C:\\Program Files (x86)\\Common Files", "CommonProgramW6432=C:\\Program Files\\Common Files",
+            "COMPUTERNAME=INKSOC", "ComSpec=C:\\Windows\\System32\\cmd.exe", "HOMEDRIVE=C:", "HOMEPATH=\\InkSoC",
+            "LOCALAPPDATA=C:\\InkSoC\\AppData\\Local", "NUMBER_OF_PROCESSORS=4", "OS=Windows_NT",
+            "PATH=C:\\InkSoC;C:\\Windows\\System32;C:\\Windows", "PATHEXT=.COM;.EXE;.BAT;.CMD", "PROCESSOR_ARCHITECTURE=AMD64",
+            "ProgramData=C:\\ProgramData", "ProgramFiles=C:\\Program Files", "ProgramFiles(x86)=C:\\Program Files (x86)",
+            "ProgramW6432=C:\\Program Files", "PUBLIC=C:\\Users\\Public", "SystemDrive=C:", "SystemRoot=C:\\Windows",
+            "TEMP=C:\\InkSoC", "TMP=C:\\InkSoC", "USERDOMAIN=INKSOC", "USERNAME=user", "USERPROFILE=C:\\InkSoC", "windir=C:\\Windows",
+        ];
+        let env: Vec<u16> = (vars.join("\0") + "\0\0").encode_utf16().collect();
         let eb = self.heap_alloc(2 * env.len() as u64, true);
         for (k, c) in env.iter().enumerate() { let _ = self.mmu.write16(eb + 2 * k as u64, *c); }
         let _ = self.mmu.write64(p + 0x80, eb);

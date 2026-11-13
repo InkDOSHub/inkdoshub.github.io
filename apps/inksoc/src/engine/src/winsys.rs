@@ -325,7 +325,7 @@ impl Engine {
         p[24..32].copy_from_slice(&wp.to_le_bytes());
         p[32..40].copy_from_slice(&lp.to_le_bytes());
         p[40..44].copy_from_slice(&(ansi as u32).to_le_bytes());
-        let dst = if c.builtin { ansi } else { !unicode };
+        let dst = if c.builtin && pa != pw { ansi } else { !unicode };
         p[44..48].copy_from_slice(&(dst as u32).to_le_bytes());
         p[48..52].copy_from_slice(&5u32.to_le_bytes()); // WMCHAR_MAP_CALLWINDOWPROC
         p[52..56].copy_from_slice(&0x12u32.to_le_bytes());
@@ -1262,7 +1262,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtUserSetWindowLong" | "NtUserSetWindowLongPtr" => {
             let (off, v) = (ar[1] as i32, ar[2]);
-            e.set_long(full(a0), off, v, name == "NtUserSetWindowLongPtr")
+            let r = e.set_long(full(a0), off, v, name == "NtUserSetWindowLongPtr");
+            // a new window procedure takes the caller's character set (SetWindowLongPtrA vs W)
+            if off == -4 { let ansi = ar[3] as u32 != 0; if let Some(w) = e.wnd_mut(a0) { w.unicode = !ansi; } }
+            r
         }
         "NtUserSetWindowWord" => { let (off, v) = (ar[1] as i32, ar[2]); e.set_long(full(a0), off, v & 0xFFFF, false) }
         "NtUserSetClassLong" | "NtUserSetClassLongPtr" => {
@@ -1295,9 +1298,21 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtUserGetWindowRelative" | "NtUserGetWindow" => e.get_window(full(a0), ar[1] as u32),
         "NtUserBuildHwndList" => {
-            // (desktop, unk, parent, child, thread, count, buffer, size*)
-            let (parent, max, buf, size) = (full(ar[2]), ar[5] as usize, ar[6], ar[7]);
-            let list: Vec<u64> = if parent == 0 || parent == DESKTOP { e.s.win.tops.iter().rev().copied().collect() } else { e.wnd(parent).map_or(vec![], |w| w.children.clone()) };
+            // Wine 11: (desktop, parent hwnd, children, non_immersive, thread, count, buffer, size*)
+            // server get_window_list: desktop/no hwnd = top levels; children = all descendants; else siblings from hwnd on
+            let (desk, h, kids, max, buf, size) = (a0, full(ar[1]), ar[2] as u32 != 0, ar[5] as usize, ar[6], ar[7]);
+            let tops: Vec<u64> = e.s.win.tops.iter().rev().copied().collect();
+            let list: Vec<u64> = if desk != 0 { if kids { vec![] } else { tops } }
+                else if h == 0 { tops }
+                else if kids {
+                    let mut out = vec![]; let mut st: Vec<u64> = e.wnd(h).map_or(vec![], |w| w.children.iter().rev().copied().collect());
+                    while let Some(c) = st.pop() { out.push(c); if let Some(w) = e.wnd(c) { st.extend(w.children.iter().rev().copied()); } }
+                    out
+                } else if h == DESKTOP { vec![DESKTOP] }
+                else {
+                    let sib: Vec<u64> = match e.wnd(h).map(|w| w.parent) { Some(0) => tops, Some(p) => e.wnd(p).map_or(vec![], |w| w.children.clone()), None => vec![] };
+                    sib.iter().position(|&x| x == h).map_or(vec![], |i| sib[i..].to_vec())
+                };
             let n = list.len().min(max.saturating_sub(1));
             for (i, h) in list.iter().take(n).enumerate() { e.uw64(buf + 8 * i as u64, *h); }
             e.uw64(buf + 8 * n as u64, 1); // terminator HWND_BOTTOM-like
@@ -1328,7 +1343,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             1
         }
         "NtUserMessageCall" => {
-            let (msg, wp, lp, info, kind, ansi) = (ar[1] as u32, ar[2], ar[3], ar[4], ar[5] as u32, ar[6] != 0);
+            let (msg, wp, lp, info, kind, ansi) = (ar[1] as u32, ar[2], ar[3], ar[4], ar[5] as u32, ar[6] as u32 != 0); // BOOL: low 32 bits
             let h = full(a0);
             match kind {
                 0x2b1 | 0x2b3 | 0x2b7 | 0x2b8 => {
@@ -1440,12 +1455,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtUserKillTimer" | "NtUserKillSystemTimer" => { let (h, id) = (full(a0), ar[1]); let n = e.s.win.timers.len(); e.s.win.timers.retain(|t| !(t.hwnd == h && t.id == id)); (n != e.s.win.timers.len()) as u64 }
         "NtUserInvalidateRect" => {
-            let (r, erase) = (ar[1], ar[2] != 0);
+            let (r, erase) = (ar[1], ar[2] as u32 != 0);
             let rr = if r != 0 { Some(e.rd_rect(r)) } else { None };
             if full(a0) == 0 { let all: Vec<u64> = e.s.win.tops.clone(); for t in all { e.invalidate(t, None, erase); } } else { e.invalidate(a0, rr, erase); }
             1
         }
-        "NtUserInvalidateRgn" => { let erase = ar[2] != 0; e.invalidate(a0, None, erase); 1 }
+        "NtUserInvalidateRgn" => { let erase = ar[2] as u32 != 0; e.invalidate(a0, None, erase); 1 }
         "NtUserValidateRect" => {
             let r = ar[1];
             if let Some(w) = e.wnd_mut(a0) { if r == 0 { w.update = Rect::default(); w.erase = false; } }
@@ -1511,7 +1526,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserSetCapture" => { let old = e.s.win.capture; e.s.win.capture = full(a0); old }
         "NtUserReleaseCapture" => { e.s.win.capture = 0; 1 }
         "NtUserEnableWindow" => {
-            let en = ar[1] != 0;
+            let en = ar[1] as u32 != 0;
             let Some(w) = e.wnd_mut(a0) else { return Some(0) };
             let was = w.style & WS_DISABLED != 0;
             if en { w.style &= !WS_DISABLED; } else { w.style |= WS_DISABLED; }
@@ -1540,7 +1555,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserDrawIconEx" => 1,
         "NtUserGetDoubleClickTime" => 500,
         "NtUserSystemParametersInfo" | "NtUserSystemParametersInfoForDpi" => e.spi(a0 as u32, ar[1] as u32, ar[2]),
-        "NtUserGetSystemMenu" => { let h = full(a0); if ar[1] != 0 { 0 } else { e.wnd(h).map_or(0, |_| 0) } }
+        "NtUserGetSystemMenu" => { let h = full(a0); if ar[1] as u32 != 0 { 0 } else { e.wnd(h).map_or(0, |_| 0) } }
         "NtUserCreateMenu" => e.new_menu(false),
         "NtUserCreatePopupMenu" => e.new_menu(true),
         "NtUserDestroyMenu" => { e.s.win.menus.remove(&a0); 1 }
@@ -1548,7 +1563,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (pos, flags, method, info, text) = (ar[1] as u32, ar[2] as u32, ar[3] as u32, ar[4], ar[5]);
             e.menu_item_info(a0, pos, flags & 0x400 != 0, method, info, text)
         }
-        "NtUserGetMenuItemInfo" => { let (pos, by, info) = (ar[1] as u32, ar[2] != 0, ar[3]); e.menu_item_info(a0, pos, by, 2, info, 0) }
+        "NtUserGetMenuItemInfo" => { let (pos, by, info) = (ar[1] as u32, ar[2] as u32 != 0, ar[3]); e.menu_item_info(a0, pos, by, 2, info, 0) }
         "NtUserRemoveMenu" | "NtUserDeleteMenu" => {
             let (pos, flags) = (ar[1] as u32, ar[2] as u32);
             let Some(m) = e.s.win.menus.get_mut(&a0) else { return Some(0) };
@@ -1605,7 +1620,21 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserGetProp" => { let k = ar[1]; e.wnd(a0).and_then(|w| w.props.iter().find(|p| p.0 == k).map(|p| p.1)).unwrap_or(0) }
         "NtUserSetProp" => { let (k, v) = (ar[1], ar[2]); if let Some(w) = e.wnd_mut(a0) { w.props.retain(|p| p.0 != k); w.props.push((k, v)); 1 } else { 0 } }
         "NtUserRemoveProp" => { let k = ar[1]; e.wnd_mut(a0).and_then(|w| { let v = w.props.iter().find(|p| p.0 == k).map(|p| p.1); w.props.retain(|p| p.0 != k); v }).unwrap_or(0) }
-        "NtUserGetAtomName" => 0,
+        "NtUserGetAtomName" => {
+            // (atom, UNICODE_STRING*): a class atom's name (user32 turns MAKEINTATOM class names into strings)
+            e.register_builtins();
+            let (atom, us) = (a0 as u16, ar[1]);
+            let Some(i) = e.find_class("", atom) else { return Some(0) };
+            let n = e.s.win.classes[i].name.clone();
+            let buf = e.ur64(us + 8); let max = e.mmu.read16(us + 2).unwrap_or(0) as usize / 2;
+            let k = e.put_w(buf, &n, max);
+            let _ = e.mmu.write16(us, (2 * k) as u16);
+            k as u64
+        }
+        "NtUserGetThreadState" => match a0 as u32 {
+            // focus, active, capture window; message time
+            0 => e.s.win.focus, 1 => e.s.win.active, 2 => e.s.win.capture, 9 => now_ms() as u32 as u64, _ => 0,
+        },
         "NtUserIsClipboardFormatAvailable" | "NtUserOpenClipboard" | "NtUserCloseClipboard" | "NtUserEmptyClipboard" => 0,
         "NtUserGetClipboardSequenceNumber" => 1,
         "NtUserMessageBeep" | "NtUserFlashWindowEx" => 1,
@@ -1616,7 +1645,16 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             e.uw32(p, 44); e.uw32(p + 4, 0); e.uw32(p + 8, 1); e.wr_rect(p + 28, r);
             1
         }
-        "NtUserSetWindowPlacement" => 1,
+        "NtUserSetWindowPlacement" => {
+            // WINDOWPLACEMENT: showCmd at +8, rcNormalPosition at +28 (top levels: screen coordinates)
+            let (p, h) = (ar[1], full(a0));
+            if e.wnd(h).is_none() { return Some(0) }
+            let (cmd, r) = (e.ur32(p + 8), e.rd_rect(p + 28));
+            let s = if r.r > r.l && r.b > r.t {
+                e.win_set_pos(h, 0, r.l, r.t, r.r - r.l, r.b - r.t, 0x14, Box::new(move |e, _| e.show_window(h, cmd, Box::new(|_, _| Step::Ret(1)))))
+            } else { e.show_window(h, cmd, Box::new(|_, _| Step::Ret(1))) };
+            return Some(e.step(s));
+        }
         "NtUserGetTitleBarInfo" | "NtUserGetScrollBarInfo" => 0,
         "NtUserSetScrollInfo" => 0,
         "NtUserShowScrollBar" | "NtUserEnableScrollBar" => 1,

@@ -1494,6 +1494,7 @@ impl<'a> Cv<'a> {
     fn put(&mut self, x: i32, y: i32, c: u32) { if self.clip.has(x, y) { self.px[(y * self.w + x) as usize] = c; } }
     fn fill(&mut self, r: Rect, c: u32) {
         let r = r.inter(&self.clip);
+        if r.l >= r.r { return; } // empty, or a window narrower than its frame
         for y in r.t..r.b { self.px[(y * self.w + r.l) as usize..(y * self.w + r.r) as usize].fill(c); }
     }
     fn frame(&mut self, r: Rect, c: u32) {
@@ -1539,7 +1540,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtGdiDeleteClientObj" => { e.gdi_free(idx(a0)); 1 }
         "NtGdiGetDCObject" => {
             let t = ar[1] as u32;
-            match e.dc(a0) { Some(d) => match t { 1 => d.pen, 2 => d.brush, 5 => d.pal, 6 => d.font, 7 => d.bmp, _ => 0 }, None => 0 }
+            match e.dc(a0) { Some(d) => match t { 1 | 0x30_0000 | 0x50_0000 => d.pen, 2 | 0x10_0000 => d.brush, 5 | 0x8_0000 => d.pal, 6 | 0xa_0000 => d.font, 7 | 0x5_0000 | 0x9_0000 => d.bmp, _ => 0 }, None => 0 }
         }
         "NtGdiSelectBitmap" => { let h = ar[1]; e.select(a0, h, 7) }
         "NtGdiSelectBrush" => { let h = ar[1]; e.select(a0, h, 2) }
@@ -1915,6 +1916,19 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if let Some(c) = d.clip.as_mut() { *c = c.off(x, y); }
             Engine::rtype(d.clip.unwrap_or(area))
         }
+        "NtGdiRectVisible" | "NtGdiPtVisible" => {
+            // does a logical rectangle (or point) touch the DC's visible, clipped area?
+            let area = e.dc_area(a0);
+            let Some((attr, clip, vis)) = e.dc(a0).map(|d| (d.attr, d.clip, d.vis)) else { return Some(0) };
+            let mut c = area;
+            if let Some(v) = vis { c = c.inter(&v); }
+            if let Some(cl) = clip { c = c.inter(&cl); }
+            let q = if name == "NtGdiPtVisible" { let (x, y) = (a0 as i32, 0); let _ = (x, y); let (x, y) = (ar[1] as i32, ar[2] as i32); Rect::new(x, y, x + 1, y + 1) } else { e.rd_rect(ar[1]) };
+            let (l, t) = e.dp(attr, q.l, q.t);
+            let (r, b) = e.dp(attr, q.r, q.b);
+            let q = Rect::new(l.min(r), t.min(b), l.max(r), t.max(b));
+            (!q.inter(&c).empty()) as u64
+        }
         "NtGdiGetAppClipBox" => {
             let out = ar[1];
             let area = e.dc_area(a0);
@@ -1997,7 +2011,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtGdiCreateHalftonePalette" => e.gdi_new(E_PAL, Obj::Pal(std_palette(8))),
         "NtGdiDoPalette" => {
-            let (start, n, ent, func, inb) = (ar[1] as usize, ar[2] as usize, ar[3], ar[4] as u32, ar[5] != 0);
+            let (start, n, ent, func, inb) = (ar[1] as usize, ar[2] as usize, ar[3], ar[4] as u32, ar[5] as u32 != 0);
             match func {
                 1 | 2 | 0 => {
                     let Some(Obj::Pal(p)) = e.s.gdi.objs.get(&idx(a0)) else { return Some(0) };

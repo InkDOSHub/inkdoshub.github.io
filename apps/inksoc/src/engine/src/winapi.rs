@@ -234,6 +234,16 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 compare(&a, &b, f)
             }
         }
+        "lstrcmpW" | "lstrcmpiW" | "lstrcmpA" | "lstrcmpiA" => {
+            // NULL sorts first; otherwise CompareString(...) - 2
+            let (s1, s2) = (a0, e.arg(1));
+            if s1 == 0 || s2 == 0 { return Some(if s1 == s2 { 0 } else if s1 == 0 { (-1i64) as u64 } else { 1 }); }
+            let f = if name.starts_with("lstrcmpi") { 1 } else { 0 };
+            let (a, b): (Vec<u16>, Vec<u16>) = if name.ends_with('A') {
+                (e.astr_n(s1, -1).iter().map(|&c| c as u16).collect(), e.astr_n(s2, -1).iter().map(|&c| c as u16).collect())
+            } else { (e.wstr_n(s1, -1), e.wstr_n(s2, -1)) };
+            (compare(&a, &b, f) as i64 - 2) as i32 as i64 as u64
+        }
         "CompareStringOrdinal" => {
             let (s1, n1, s2, n2, ic) = (a0, e.arg(1) as i32 as i64, e.arg(2), e.arg(3) as i32 as i64, e.arg(4) as u32);
             let a = e.wstr_n(s1, n1);

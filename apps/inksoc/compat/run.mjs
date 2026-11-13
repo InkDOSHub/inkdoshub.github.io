@@ -88,7 +88,7 @@ async function runOne({ files, exe, args }) {
   if (process.env.SHOT) { grab(); if (frame) { const rgb = Buffer.alloc(1024 * 768 * 3); for (let i = 0; i < 1024 * 768; i++) { rgb[3 * i] = frame[4 * i]; rgb[3 * i + 1] = frame[4 * i + 1]; rgb[3 * i + 2] = frame[4 * i + 2]; } fs.writeFileSync(process.env.SHOT, Buffer.concat([Buffer.from('P6 1024 768 255\n'), rgb])); } }
   if (process.env.TRACE) fs.writeFileSync(process.env.TRACE, out);
   const outFiles = [];
-  for (let i = 0, n; (n = x.out_file(i)); i++) { const b = new Uint8Array(mem.buffer, x.out_ptr(), n); outFiles.push(new TextDecoder().decode(b.subarray(0, b.indexOf(0)))); }
+  for (let i = 0, n; (n = x.out_file(i)); i++) { const b = new Uint8Array(mem.buffer, x.out_ptr(), n); const nm = new TextDecoder().decode(b.subarray(0, b.indexOf(0))); outFiles.push(nm); if (process.env.OUTDIR) fs.writeFileSync(path.join(process.env.OUTDIR, path.basename(nm.replace(/\\/g, '/'))), b.slice(b.indexOf(0) + 1)); }
   const missing = [...new Set((out.match(/\[inksoc\] \S+ is not available yet/g) || []).map((s) => s.split(' ')[1]))];
   const ms = performance.now() - t0;
   if (process.env.PROF && x.prof_dump) { x.prof_dump(); console.error('PROF\n' + msg()); }

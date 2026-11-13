@@ -84,7 +84,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=25' : 'inksoc.wasm?v=38', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=26' : 'inksoc.wasm?v=39', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -236,7 +236,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=38').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=39').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -316,7 +316,7 @@ async function runExec(d) {
   else {
     // the rest of Windows: Wine 11's DLLs (cached by the browser after the first run)
     post('log', { text: '[engine] loading the Wine DLLs (25 MB the first time)\n' });
-    const list = await fetch('bin/wine/list.json?v=4').then((r) => r.json());
+    const list = await fetch('bin/wine/list.json?v=5').then((r) => r.json());
     const have = new Set(files.map((f) => f.name.toLowerCase()));
     const wine = await Promise.all(list.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch('bin/wine/' + name + '?v=2').then((r) => r.arrayBuffer()) })));
     files = files.concat(wine);
@@ -324,7 +324,7 @@ async function runExec(d) {
     const exe = files.find((f) => f.name.toLowerCase() === (d.exe || '').toLowerCase());
     if (exe && isPe32(exe.data)) {
       post('log', { text: '[engine] 32-bit program: loading the 32-bit Wine DLLs (35 MB the first time)\n' });
-      const l32 = await fetch('bin/wine32/list.json?v=1').then((r) => r.json());
+      const l32 = await fetch('bin/wine32/list.json?v=2').then((r) => r.json());
       const w32 = await Promise.all(l32.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch((name.startsWith('wine-') ? 'bin/wine/' : 'bin/wine32/') + name + '?v=1').then((r) => r.arrayBuffer()) })));
       files = files.concat(w32);
     }

@@ -297,6 +297,32 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtSetInformationFile" => {
             let (iosb, buf, class) = (e.arg(1), e.arg(2), e.arg(4) as u32);
             match class {
+                // FileDispositionInformation(Ex): delete when the last handle closes
+                13 => { let d = e.mmu.read8(buf).unwrap_or(0) != 0; if let Some(p) = e.s.fs.paths.get_mut(&a0) { p.1 = d; } }
+                64 => { let f = e.mmu.read32(buf).unwrap_or(0); if let Some(p) = e.s.fs.paths.get_mut(&a0) { p.1 = f & 1 != 0; } }
+                // FileRenameInformation(Ex): { replace/flags u32, root u64, name length u32, name }
+                10 | 65 => {
+                    let n = e.mmu.read32(buf + 16).unwrap_or(0) as u64 / 2;
+                    let v: Vec<u16> = (0..n).map(|i| e.mmu.read16(buf + 20 + 2 * i).unwrap_or(0)).collect();
+                    let to = String::from_utf16_lossy(&v);
+                    let replace = e.mmu.read8(buf).unwrap_or(0) != 0 || (class == 65 && e.mmu.read32(buf).unwrap_or(0) & 1 != 0);
+                    let (Some((from, _)), Some(tk)) = (e.s.fs.paths.get(&a0).cloned(), crate::files::key_of(&to)) else { e.iosb(iosb, OK, 0); return Some(OK) };
+                    if from == tk { e.iosb(iosb, OK, 0); return Some(OK); }
+                    if (e.s.files.contains_key(&tk) || e.is_dir(&tk)) && !replace { return Some(0xC000_0035); } // OBJECT_NAME_COLLISION
+                    if let Some(d) = e.s.files.remove(&from) {
+                        e.s.fs.written.remove(&from); e.s.files.insert(tk.clone(), d); e.s.fs.written.insert(tk.clone()); e.note_case(&tk, &to);
+                        if let Some(Handle::File { name, .. }) = e.s.fs.handles.get_mut(&a0) { *name = tk.clone(); }
+                    } else if e.s.fs.dirs.remove(&from) {
+                        // a folder: everything under it moves too
+                        let pre = from.clone() + "\\";
+                        let fs: Vec<String> = e.s.files.keys().filter(|f| f.starts_with(&pre)).cloned().collect();
+                        for f in fs { let d = e.s.files.remove(&f).unwrap(); let nk = format!("{}{}", tk, &f[from.len()..]); e.s.fs.written.remove(&f); e.s.fs.written.insert(nk.clone()); e.s.files.insert(nk, d); }
+                        let ds: Vec<String> = e.s.fs.dirs.iter().filter(|f| f.starts_with(&pre)).cloned().collect();
+                        for f in ds { e.s.fs.dirs.remove(&f); e.s.fs.dirs.insert(format!("{}{}", tk, &f[from.len()..])); }
+                        e.s.fs.dirs.insert(tk.clone()); e.note_case(&tk, &to);
+                    }
+                    if let Some(p) = e.s.fs.paths.get_mut(&a0) { p.0 = tk; }
+                }
                 14 => { let p = e.mmu.read64(buf).unwrap_or(0); if let Some(Handle::File { pos, .. }) = e.s.fs.handles.get_mut(&a0) { *pos = p; } }
                 20 | 19 => {
                     // end of file / allocation
@@ -361,7 +387,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 if !is_dir && matches!(disp, 2 | 3) && !e.s.files.contains_key(&k) { e.note_case(&k, &nm); e.s.fs.dirs.insert(k.clone()); }
                 else if !is_dir { return Some(OBJECT_NAME_NOT_FOUND); }
                 else if disp == 2 { return Some(0xC000_0035); }
-                let h = e.new_handle(Handle::Dir); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, if is_dir { 1 } else { 2 }); return Some(OK);
+                let h = e.new_handle(Handle::Dir); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, if is_dir { 1 } else { 2 });
+                e.s.fs.paths.insert(h, (k.clone(), opts & 0x1000 != 0));
+                return Some(OK);
             }
             let exists = e.s.files.contains_key(&k);
             // FILE_SUPERSEDE 0, OPEN 1, CREATE 2, OPEN_IF 3, OVERWRITE 4, OVERWRITE_IF 5
@@ -371,7 +399,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 _ => {}
             }
             if !exists || matches!(disp, 0 | 4 | 5) { e.s.files.insert(k.clone(), Vec::new()); e.s.fs.written.insert(k.clone()); e.note_case(&k, &nm); }
-            let h = e.new_handle(Handle::File { name: k, pos: 0 });
+            let h = e.new_handle(Handle::File { name: k.clone(), pos: 0 });
+            e.s.fs.paths.insert(h, (k, opts & 0x1000 != 0)); // FILE_DELETE_ON_CLOSE
             let _ = e.mmu.write64(a0, h);
             e.iosb(iosb, OK, if exists { 1 } else { 2 });
             OK
@@ -776,6 +805,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if sp != 0 { let _ = e.mmu.write64(sp, d.len() as u64); }
             OK
         }
+        "NtAreMappedFilesTheSame" => 0xC000_00D4, // STATUS_NOT_SAME_DEVICE: each image is its own
         "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); let _ = e.mmu.write64(a0, h); OK }
         "NtSetIoCompletion" | "NtRemoveIoCompletion" | "NtRemoveIoCompletionEx" => NOT_IMPLEMENTED,
         "NtCreateKeyedEvent" | "NtOpenKeyedEvent" => { let _ = e.mmu.write64(a0, 0x7FF4); OK }

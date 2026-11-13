@@ -5,11 +5,15 @@
 "locale.nls",
 "normnfc.nls",
 "sortdefault.nls",
+"wine-wow64.dll",
+"wine-wow64cpu.dll",
+"wine-wow64win.dll",
 "wine32-advapi32.dll",
 "wine32-bcrypt.dll",
 "wine32-bcryptprimitives.dll",
 "wine32-combase.dll",
 "wine32-comctl32.dll",
+"wine32-comdlg32.dll",
 "wine32-coml2.dll",
 "wine32-crypt32.dll",
 "wine32-dbghelp.dll",
@@ -47,8 +51,5 @@
 "wine32-win32u.dll",
 "wine32-winmm.dll",
 "wine32-ws2_32.dll",
-"wine32-wsock32.dll",
-"wine-wow64.dll",
-"wine-wow64win.dll",
-"wine-wow64cpu.dll"
+"wine32-wsock32.dll"
 ]

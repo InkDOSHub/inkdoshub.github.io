@@ -70,7 +70,7 @@ pub fn load_by_name(e: &mut Engine, name: &str) -> Result<usize, String> {
     if !NATIVE_DLLS.contains(&n.as_str()) {
         if let Some(bytes) = e.s.files.get(&format!("wine-{}", n)).cloned() {
             // window-system DLLs: their DllMain needs the graphics kernel, which console programs never use
-            let gui = ["shell32.dll", "ole32.dll", "combase.dll", "imm32.dll", "comctl32.dll", "winmm.dll", "setupapi.dll", "shcore.dll"].contains(&n.as_str());
+            let gui = ["shell32.dll", "ole32.dll", "combase.dll", "imm32.dll", "winmm.dll", "setupapi.dll", "shcore.dll"].contains(&n.as_str());
             let r = load_image(e, &n, &bytes, false)?;
             // only the window DLL itself skips DllMain: the DLLs it pulled in still start normally
             if gui { let b = e.s.modules[r].base; e.s.init_queue.retain(|&(_, base)| base != b); }

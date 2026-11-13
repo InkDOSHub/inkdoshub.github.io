@@ -54,6 +54,8 @@ pub struct Files {
     pub refs: HashMap<u64, u32>,
     /// mapped views of files: base -> (file, offset, length); written back when unmapped
     pub views: HashMap<u64, (String, u64, u64)>,
+    /// file and folder handles by name (key), and whether each is deleted when closed
+    pub paths: HashMap<u64, (String, bool)>,
 }
 
 /// File name (key in the engine's file table) of a Windows path; None for the folder itself.
@@ -108,6 +110,10 @@ impl Engine {
     /// CloseHandle/NtClose: drops one reference; the object goes with the last one.
     pub fn close_handle(&mut self, h: u64) -> bool {
         if let Some(n) = self.s.fs.refs.get_mut(&h) { *n -= 1; if *n == 0 { self.s.fs.refs.remove(&h); } return true; }
+        // FILE_DELETE_ON_CLOSE / FileDispositionInformation: the file or empty folder goes away now
+        if let Some((k, true)) = self.s.fs.paths.remove(&h) {
+            if self.s.files.remove(&k).is_some() { self.s.fs.written.remove(&k); } else { self.s.fs.dirs.remove(&k); }
+        }
         match self.s.fs.handles.remove(&h) {
             Some(Handle::Pipe { id, write }) => {
                 if let Some(p) = self.s.fs.pipes.get_mut(&id) { if write { p.writers -= 1; } }
