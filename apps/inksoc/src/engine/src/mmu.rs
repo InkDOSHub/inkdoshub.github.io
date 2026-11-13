@@ -26,14 +26,23 @@ use core::sync::atomic::{AtomicU32, Ordering::*};
 const MAXC: usize = 16;
 const AWAY: u32 = u32::MAX;
 static EPOCH: AtomicU32 = AtomicU32::new(1);
-static SEEN: [AtomicU32; MAXC] = [const { AtomicU32::new(AWAY) }; MAXC];
+// one cache line per core: these are written between every two blocks
+#[repr(align(64))]
+struct Seen(AtomicU32);
+static SEEN: [Seen; MAXC] = [const { Seen(AtomicU32::new(AWAY)) }; MAXC];
 static TLBS: [AtomicU32; MAXC] = [const { AtomicU32::new(0) }; MAXC];
 /// The core is between blocks (call at the top of the run loop).
 #[inline(always)]
-pub fn safe_point(core: u32) { if crate::lock::MT { SEEN[core as usize].store(EPOCH.load(Acquire), Release); } }
+pub fn safe_point(core: u32) {
+    if crate::lock::MT {
+        let (s, e) = (&SEEN[core as usize].0, EPOCH.load(Acquire));
+        if s.load(Relaxed) != e { s.store(e, Release); } // no write (no cache traffic) when nothing changed
+    }
+}
+fn unsafe_tlb_unused(c: usize) -> bool { TLBS[c].load(Acquire) == 0 }
 /// The core leaves program code (waits for the lock, sleeps, returns to JavaScript).
 #[inline(always)]
-pub fn away(core: u32) { if crate::lock::MT { SEEN[core as usize].store(AWAY, Release); } }
+pub fn away(core: u32) { if crate::lock::MT { SEEN[core as usize].0.store(AWAY, Release); } }
 
 const NONE: u32 = u32::MAX;
 const TLB_SIZE: usize = 8192;
@@ -57,6 +66,8 @@ pub struct MmuShared {
     pool: Vec<u8>,
     frames: Vec<Frame>,
     free: Vec<u32>,
+    /// freed frames other cores may still reach through a stale TLB entry: (epoch, frame)
+    limbo: Vec<(u32, u32)>,
     hand: usize,
     table: HashMap<u64, Pte>,
     regions: Vec<(u64, u64)>,
@@ -104,7 +115,7 @@ impl Mmu {
             asid: 0,
             pool: vec![0u8; n * PAGE as usize],
             frames: vec![Frame { vpn: 0, used: false, referenced: false, dirty: false, asid: 0 }; n],
-            free: (0..n as u32).rev().collect(),
+            free: (0..n as u32).rev().collect(), limbo: Vec::new(),
             hand: 0,
             table: HashMap::new(),
             regions: Vec::new(),
@@ -145,7 +156,7 @@ impl Mmu {
         let ep = EPOCH.fetch_add(1, AcqRel) + 1;
         for c in 0..MAXC {
             if c as u32 == self.core { continue; }
-            while { let s = SEEN[c].load(Acquire); s != AWAY && s < ep } { core::hint::spin_loop(); }
+            while { let s = SEEN[c].0.load(Acquire); s != AWAY && s < ep } { core::hint::spin_loop(); }
         }
     }
 
@@ -193,11 +204,15 @@ impl Mmu {
             self.shoot(vpn);
             if pte.frame != NONE { freed.push(pte.frame); }
         }
-        if !freed.is_empty() { self.shoot_wait(); }
-        for f in freed {
-            self.sh.frames[f as usize].used = false;
-            self.sh.free.push(f);
+        if freed.is_empty() { return; }
+        if !crate::lock::MT {
+            for f in freed { self.sh.frames[f as usize].used = false; self.sh.free.push(f); }
+            return;
         }
+        // no waiting here (a core may be deep in a JIT slice): the frames are
+        // reused once every other core has passed a safe point (reclaim)
+        let ep = EPOCH.fetch_add(1, AcqRel) + 1;
+        for f in freed { self.sh.limbo.push((ep, f)); }
     }
 
     /// Releases a whole region (VirtualFree MEM_RELEASE).
@@ -283,7 +298,26 @@ impl Mmu {
         }
     }
 
+    /// Moves freed frames that no core can reach any more to the free list.
+    fn reclaim(&mut self) {
+        if self.sh.limbo.is_empty() { return; }
+        let mut low = u32::MAX; // oldest epoch some other core may still be before
+        for c in 0..MAXC {
+            if c as u32 == self.core || unsafe_tlb_unused(c) { continue; }
+            let s = SEEN[c].0.load(Acquire);
+            if s != AWAY { low = low.min(s); }
+        }
+        let sh = &mut *self.sh;
+        let mut i = 0;
+        while i < sh.limbo.len() {
+            let (ep, f) = sh.limbo[i];
+            if ep <= low { sh.limbo.swap_remove(i); sh.frames[f as usize].used = false; sh.free.push(f); } else { i += 1; }
+        }
+    }
+
     fn get_frame(&mut self) -> Option<u32> {
+        if self.sh.free.is_empty() { self.reclaim(); }
+        if self.sh.free.is_empty() && !self.sh.limbo.is_empty() { self.shoot_wait(); self.reclaim(); }
         match self.sh.free.pop() {
             Some(f) => Some(f),
             // swap I/O needs the OPFS file, which only core 0's worker holds
