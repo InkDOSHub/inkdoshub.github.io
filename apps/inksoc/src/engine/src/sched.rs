@@ -533,9 +533,22 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtYieldExecution" => { e.want_switch = true; 0 }
         "NtTestAlert" => 0, // no user APCs are queued
+        // a named object: create returns the existing one (STATUS_OBJECT_NAME_EXISTS), open finds it
+        "NtOpenMutant" | "NtOpenEvent" | "NtOpenSemaphore" => {
+            let n = obj_name(e);
+            match e.s.fs.named.get(&n).copied().filter(|h| e.s.fs.handles.contains_key(h)) {
+                Some(h) => { let h = e.dup_handle(h); let _ = e.mmu.write64(a0, h); 0 }
+                None => 0xC000_0034,
+            }
+        }
+        "NtCreateMutant" | "NtCreateEvent" | "NtCreateSemaphore" if existing(e).is_some() => {
+            let h = existing(e).unwrap(); let h = e.dup_handle(h); let _ = e.mmu.write64(a0, h);
+            0x4000_0035
+        }
         "NtCreateEvent" => {
             let (kind, init) = (e.arg(3) as u32, e.arg(4) as u8 != 0);
             let h = e.new_handle(Handle::Event { set: init, manual: kind == 0 });
+            { let n = obj_name(e); if !n.is_empty() { e.s.fs.named.insert(n, h); } }
             let _ = e.mmu.write64(a0, h); 0
         }
         "NtSetEvent" | "NtResetEvent" | "NtPulseEvent" => {
@@ -545,6 +558,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtCreateMutant" => {
             let owned = e.arg(3) as u8 != 0;
             let h = e.new_handle(Handle::Mutex { owner: if owned { me } else { 0 }, count: owned as u32 });
+            { let n = obj_name(e); if !n.is_empty() { e.s.fs.named.insert(n, h); } }
             let _ = e.mmu.write64(a0, h); 0
         }
         "NtReleaseMutant" => match e.s.fs.handles.get_mut(&a0) {
@@ -554,6 +568,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtCreateSemaphore" => {
             let (c, m) = (e.arg(3) as i32, e.arg(4) as i32);
             let h = e.new_handle(Handle::Semaphore { count: c, max: m });
+            { let n = obj_name(e); if !n.is_empty() { e.s.fs.named.insert(n, h); } }
             let _ = e.mmu.write64(a0, h); 0
         }
         "NtReleaseSemaphore" => {
@@ -745,3 +760,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         _ => return None,
     })
 }
+
+/// The lowercase name in a create/open call's OBJECT_ATTRIBUTES (third argument), "" when unnamed.
+fn obj_name(e: &mut Engine) -> String { let oa = e.arg(2); if oa == 0 { String::new() } else { e.oa_name(oa).to_lowercase() } }
+/// The live handle of a named object that this create call names, if one exists.
+fn existing(e: &mut Engine) -> Option<u64> { let n = obj_name(e); if n.is_empty() { return None; } e.s.fs.named.get(&n).copied().filter(|h| e.s.fs.handles.contains_key(h)) }

@@ -619,6 +619,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if name.starts_with("NtOpenThread") { 0xC000_007C } // STATUS_NO_TOKEN
             else { let p = e.arg(if name.ends_with("Ex") { 3 } else { 2 }); let _ = e.mmu.write64(p, 0x7FF0); OK }
         }
+        "NtDuplicateToken" => { let p = e.arg(5); let _ = e.mmu.write64(p, 0x7FF0); OK } // the one token
+        "NtSetInformationToken" => OK,
         "NtQueryInformationToken" => {
             let (class, buf, len, ret) = (e.arg(1) as u32, e.arg(2), e.arg(3) as u32 as u64, e.arg(4));
             match class {
@@ -632,6 +634,23 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     let _ = e.mmu.write64(buf, buf + 16);
                     let _ = e.mmu.write32(buf + 8, if class == 25 { 0x20 } else { 0 });
                     let _ = e.mmu.write_bytes(buf + 16, &sid);
+                    OK
+                }
+                2 => {
+                    // TokenGroups: Everyone, Users, Administrators (enabled), Interactive
+                    let sids: [&[u8]; 4] = [&[1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], &[1, 2, 0, 0, 0, 0, 0, 5, 32, 0, 0, 0, 0x21, 2, 0, 0],
+                        &[1, 2, 0, 0, 0, 0, 0, 5, 32, 0, 0, 0, 0x20, 2, 0, 0], &[1, 1, 0, 0, 0, 0, 0, 5, 4, 0, 0, 0]];
+                    let n = sids.len() as u64;
+                    let need = 8 + 16 * n + sids.iter().map(|s| s.len() as u64).sum::<u64>();
+                    if ret != 0 { let _ = e.mmu.write32(ret, need as u32); }
+                    if len < need { return Some(BUFFER_TOO_SMALL); }
+                    let _ = e.mmu.write32(buf, n as u32);
+                    let mut at = buf + 8 + 16 * n;
+                    for (i, s) in sids.iter().enumerate() {
+                        let _ = e.mmu.write64(buf + 8 + 16 * i as u64, at);
+                        let _ = e.mmu.write32(buf + 16 + 16 * i as u64, 7); // mandatory, enabled by default, enabled
+                        let _ = e.mmu.write_bytes(at, s); at += s.len() as u64;
+                    }
                     OK
                 }
                 _ => INVALID_INFO_CLASS,

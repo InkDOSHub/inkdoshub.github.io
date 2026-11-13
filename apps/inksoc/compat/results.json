@@ -6,8 +6,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 6,
-   "ms": 436,
+   "mips": 5,
+   "ms": 472,
    "out": "\r\n7-Zip (a) 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\r\n\r\nScanning the drive:\r\n  0M Scan \r          \r1 file, 42 bytes (1 KiB)\r\n\r\nCreating archive: out.7z\r\n\r\nAdd new data to archive: 1 file, 42 bytes (1 KiB)\r\n\r\n  0%\r    \r\r\nFiles read from disk: 1\r\nArchive size: 168 bytes (1 KiB)\r\nEverything is Ok\r\n"
   },
   "jq": {
@@ -16,8 +16,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 13,
-   "ms": 753,
+   "mips": 16,
+   "ms": 637,
    "out": "6\n"
   },
   "sqlite": {
@@ -27,7 +27,7 @@
    "error": "",
    "missing": [],
    "mips": 3,
-   "ms": 362,
+   "ms": 427,
    "out": "42\n\r"
   },
   "ripgrep": {
@@ -36,8 +36,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 5,
-   "ms": 601,
+   "mips": 6,
+   "ms": 558,
    "out": "1:hello world\n4:hello again\n"
   },
   "ripgrep-gnu": {
@@ -46,8 +46,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 5,
-   "ms": 721,
+   "mips": 7,
+   "ms": 594,
    "out": "1:hello world\n4:hello again\n"
   },
   "fd": {
@@ -57,7 +57,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 369,
+   "ms": 408,
    "out": "fd 10.2.0\n"
   },
   "bat": {
@@ -66,8 +66,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 40,
-   "ms": 1286,
+   "mips": 35,
+   "ms": 1492,
    "out": "hello world\nzebra\napple\nhello again\nmango\n"
   },
   "hyperfine": {
@@ -77,7 +77,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 396,
+   "ms": 446,
    "out": "hyperfine 1.19.0\n"
   },
   "hexyl": {
@@ -87,7 +87,7 @@
    "error": "",
    "missing": [],
    "mips": 3,
-   "ms": 443,
+   "ms": 469,
    "out": "┌────────┬─────────────────────────┬─────────────────────────┬────────┬────────┐\n│00000000│ 68 65 6c 6c 6f 20 77 6f ┊ 72 6c 64 0a 7a 65 62 72 │hello wo┊rld_zebr│\n│00000010│ 61 0a 61 70 70 6c 65 0a ┊ 68 65 6c 6c 6f 20 61 67 │a_apple_┊hello ag│\n│00000020│ 61 69 6e 0a 6d 61 6e 67 ┊ 6f 0a                   │ain_mang┊o_      │\n└────────┴─────────────────────────┴─────────────────────────┴────────┴────────┘\n"
   },
   "zstd": {
@@ -97,7 +97,7 @@
    "error": "",
    "missing": [],
    "mips": 3,
-   "ms": 353,
+   "ms": 424,
    "out": "\r                                                                               \rRead:    42   B /    42   B ==> 121%\r                                                                               \rin.txt               :130.95%   (    42 B =>     55 B, in.zst) \r\n"
   },
   "lz4": {
@@ -106,8 +106,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 2,
-   "ms": 376,
+   "mips": 3,
+   "ms": 402,
    "out": "\rRead : 0 MiB   ==> 142.86%   \r                                                                               \rCompressed 42 bytes into 60 bytes ==> 142.86%\r\n"
   },
   "brotli": {
@@ -116,8 +116,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 22,
-   "ms": 439,
+   "mips": 24,
+   "ms": 455,
    "out": ""
   },
   "upx": {
@@ -126,8 +126,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 154,
-   "ms": 486,
+   "mips": 119,
+   "ms": 520,
    "out": "upx 4.2.4\r\nNRV data compression library 0.84\r\nUCL data compression library 1.03\r\nzlib data compression library 1.3.1.1-motley\r\nLZMA SDK version 4.43\r\nCopyright (C) 1996-2024 Markus Franz Xaver Johannes Oberhumer\r\nCopyright (C) 1996-2024 Laszlo Molnar\r\nCopyright (C) 2000-2024 John F. Reiser\r\nCopyright (C) 1995-2024 Jean-loup Gailly and Mark Adler\r\nCopyright (C) 1999-2006 Igor Pavlov\r\nUPX comes with ABSOLUTELY NO WARRANTY; for details type 'upx -L'.\r\n"
   },
   "ninja": {
@@ -137,7 +137,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 371,
+   "ms": 384,
    "out": "1.12.1\r\n"
   },
   "yq": {
@@ -146,8 +146,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 8,
-   "ms": 1196,
+   "mips": 11,
+   "ms": 914,
    "out": "\"x\"\n"
   },
   "fzf": {
@@ -156,8 +156,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 699,
-   "ms": 894,
+   "mips": 692,
+   "ms": 889,
    "out": "0.56.3 (add1aec)\n"
   },
   "coreutils": {
@@ -166,8 +166,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 1,
-   "ms": 414,
+   "mips": 2,
+   "ms": 405,
    "out": "apple\nhello again\nhello world\nmango\nzebra\n"
   },
   "tokei": {
@@ -176,8 +176,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 3,
-   "ms": 421,
+   "mips": 2,
+   "ms": 415,
    "out": "===============================================================================\n Language            Files        Lines         Code     Comments       Blanks\n===============================================================================\n C                       1            2            2            0            0\n===============================================================================\n Total                   1            2            2            0            0\n===============================================================================\n"
   },
   "sd": {
@@ -186,8 +186,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 1,
-   "ms": 395,
+   "mips": 2,
+   "ms": 393,
    "out": "bye world\nzebra\napple\nbye again\nmango\n\n"
   },
   "dust": {
@@ -199,7 +199,7 @@
     "netutils.dll"
    ],
    "mips": 1,
-   "ms": 397,
+   "ms": 427,
    "out": "[inksoc] netutils.dll is not available yet: its functions will stop the program when called\nDust 1.1.1\n"
   },
   "delta": {
@@ -210,8 +210,8 @@
    "missing": [
     "netutils.dll"
    ],
-   "mips": 8,
-   "ms": 430,
+   "mips": 6,
+   "ms": 503,
    "out": "[inksoc] netutils.dll is not available yet: its functions will stop the program when called\ndelta 0.18.2\n"
   },
   "oxipng": {
@@ -220,8 +220,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 20,
-   "ms": 504,
+   "mips": 21,
+   "ms": 518,
    "out": "Processing: in.png\n86 bytes (81.43% smaller): out.png\n"
   },
   "age": {
@@ -230,8 +230,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 8,
-   "ms": 499,
+   "mips": 9,
+   "ms": 473,
    "out": "v1.2.0\n"
   },
   "rclone": {
@@ -240,8 +240,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 152,
-   "ms": 3867,
+   "mips": 163,
+   "ms": 3665,
    "out": "rclone v1.68.2\n- os/version: unknown\n- os/kernel: unknown\n- os/type: windows\n- os/arch: amd64\n- go/version: go1.23.3\n- go/linking: static\n- go/tags: cmount\n"
   },
   "hugo": {
@@ -251,7 +251,7 @@
    "error": "",
    "missing": [],
    "mips": 58,
-   "ms": 2894,
+   "ms": 2893,
    "out": "hugo v0.139.3-2f6864387cd31b975914e8373d4bf38bddbd47bc windows/amd64 BuildDate=2024-11-29T15:36:56Z VendorInfo=gohugoio\n"
   },
   "gh": {
@@ -260,8 +260,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 56,
-   "ms": 3645,
+   "mips": 57,
+   "ms": 3665,
    "out": "gh version 2.62.0 (2024-11-14)\nhttps://github.com/cli/cli/releases/tag/v2.62.0\n"
   },
   "restic": {
@@ -271,7 +271,7 @@
    "error": "",
    "missing": [],
    "mips": 16,
-   "ms": 1646,
+   "ms": 1678,
    "out": "restic 0.17.3 compiled with go1.23.3 on windows/amd64\n"
   },
   "shellcheck": {
@@ -283,7 +283,7 @@
     "msacm32.dll"
    ],
    "mips": 3,
-   "ms": 384,
+   "ms": 443,
    "out": "[inksoc] msacm32.dll is not available yet: its functions will stop the program when called\nShellCheck - shell script analysis tool\r\nversion: 0.10.0\r\nlicense: GNU General Public License, version 3\r\nwebsite: https://www.shellcheck.net\r\n"
   },
   "pandoc": {
@@ -293,7 +293,7 @@
    "error": "",
    "missing": [],
    "mips": 3,
-   "ms": 1271,
+   "ms": 1372,
    "out": "pandoc.exe 3.5\r\nFeatures: +server +lua\r\nScripting engine: Lua 5.4\r\nUser data directory: C:\\InkSoC\\pandoc\r\nCopyright (C) 2006-2024 John MacFarlane. Web: https://pandoc.org\r\nThis is free software; see the source for copying conditions. There is no\r\nwarranty, not even for merchantability or fitness for a particular purpose.\r\n"
   },
   "qpdf": {
@@ -302,8 +302,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 8,
-   "ms": 632,
+   "mips": 9,
+   "ms": 589,
    "out": "qpdf version 11.9.1\r\nRun qpdf --copyright to see copyright and license information.\r\n"
   },
   "python": {
@@ -312,8 +312,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 26,
-   "ms": 2762,
+   "mips": 27,
+   "ms": 2743,
    "out": "42\r\n"
   },
   "ffmpeg": {
@@ -323,11 +323,10 @@
    "error": "",
    "missing": [
     "avrt.dll",
-    "msimg32.dll",
     "avicap32.dll"
    ],
-   "mips": 72,
-   "ms": 884,
+   "mips": 64,
+   "ms": 1058,
    "out": "-enable-nvenc --enable-vaapi --enable-openal --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband\r\nlibavutil      61.  1.102 / 61.  1.102\r\nlibavcodec     63.  1.102 / 63.  1.102\r\nlibavformat    63.  1.102 / 63.  1.102\r\nlibavdevice    63.  1.102 / 63.  1.102\r\nlibavfilter    12.  1.102 / 12.  1.102\r\nlibswscale     10.  1.102 / 10.  1.102\r\nlibswresample   7.  1.102 /  7.  1.102\r\n\r\nExiting with exit code 0\r\n"
   },
   "nasm": {
@@ -337,7 +336,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 417,
+   "ms": 421,
    "out": "NASM version 2.16.03 compiled on Apr 17 2024\r\n"
   },
   "tcc": {
@@ -346,8 +345,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 4,
-   "ms": 425,
+   "mips": 3,
+   "ms": 466,
    "out": "tcc version 0.9.27 (x86_64 Windows)\r\n"
   },
   "node": {
@@ -356,8 +355,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 33,
-   "ms": 4294,
+   "mips": 24,
+   "ms": 5700,
    "out": "42\r\n"
   },
   "deno": {
@@ -366,8 +365,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 11,
-   "ms": 909,
+   "mips": 9,
+   "ms": 1050,
    "out": "deno 2.1.1 (stable, release, x86_64-pc-windows-msvc)\nv8 13.0.245.12-rusty\ntypescript 5.6.2\n"
   },
   "cwebp": {
@@ -377,7 +376,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 397,
+   "ms": 399,
    "out": "1.4.0\r\nlibsharpyuv: 0.4.0\r\n"
   },
   "git": {
@@ -387,7 +386,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 488,
+   "ms": 582,
    "out": "git version 2.47.1.windows.1\n"
   },
   "cmake": {
@@ -396,8 +395,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 7,
-   "ms": 540,
+   "mips": 5,
+   "ms": 720,
    "out": "CMake Error: Could not find CMAKE_ROOT !!!\nCMake has most likely not been installed correctly.\nModules directory not found in\n\ncmake version 3.31.0\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n"
   },
   "tidy": {
@@ -406,8 +405,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 2,
-   "ms": 337,
+   "mips": 1,
+   "ms": 423,
    "out": "HTML Tidy for Windows version 5.8.0\r\n"
   },
   "dos2unix": {
@@ -417,7 +416,7 @@
    "error": "",
    "missing": [],
    "mips": 3,
-   "ms": 416,
+   "ms": 435,
    "out": "dos2unix 7.5.2 (2024-01-22)\r\nWindows 64 bit version (MinGW-w64).\r\nWINVER 0x601\r\nWith Unicode UTF-16 support.\r\nWith Unicode file name support.\r\nWithout native language support.\r\nWithout support to preserve the user and group ownership of files.\r\nhttps://waterlan.home.xs4all.nl/dos2unix.html\r\nhttps://dos2unix.sourceforge.io/\r\n"
   },
   "ytdlp": {
@@ -428,8 +427,8 @@
    "missing": [
     "wldap32.dll"
    ],
-   "mips": 133,
-   "ms": 20339,
+   "mips": 116,
+   "ms": 23404,
    "out": "[inksoc] wldap32.dll is not available yet: its functions will stop the program when called\n2024.11.18\r\n"
   },
   "micro": {
@@ -438,8 +437,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 12,
-   "ms": 769,
+   "mips": 11,
+   "ms": 933,
    "out": "Version: 2.0.14\nCommit hash: 04c57704\nCompiled on August 27, 2024\n"
   },
   "gron": {
@@ -448,8 +447,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 6,
-   "ms": 674,
+   "mips": 5,
+   "ms": 829,
    "out": "json = {};\njson.a = [];\njson.a[0] = 1;\njson.a[1] = 2;\njson.a[2] = 3;\njson.b = \"x\";\n"
   },
   "duckdb": {
@@ -458,8 +457,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 19,
-   "ms": 1569,
+   "mips": 17,
+   "ms": 1811,
    "out": "âââââââââââ\r\nâ (6 * 7) â\r\nâ  int32  â\r\nâââââââââââ¤\r\nâ      42 â\r\nâââââââââââ\r\n"
   },
   "starship": {
@@ -469,7 +468,7 @@
    "error": "",
    "missing": [],
    "mips": 2,
-   "ms": 390,
+   "ms": 431,
    "out": "starship 1.21.1\nbranch:master\ncommit_hash:47ccc36\nbuild_time:2024-10-18 16:32:39 +00:00\nbuild_env:rustc 1.82.0 (f6e511eec 2024-10-15),stable-x86_64-pc-windows-msvc\n"
   },
   "zoxide": {
@@ -479,7 +478,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 384,
+   "ms": 458,
    "out": "zoxide 0.9.6\n"
   },
   "lazygit": {
@@ -488,8 +487,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 473,
-   "ms": 1182,
+   "mips": 393,
+   "ms": 1425,
    "out": "commit=611fabde11d24d9acc71ee26077b9a1101f59f27, build date=2024-09-18T10:56:10Z, build source=binaryRelease, version=0.44.1, os=windows, arch=amd64, git version=\n"
   },
   "php": {
@@ -499,7 +498,7 @@
    "error": "",
    "missing": [],
    "mips": 9,
-   "ms": 935,
+   "ms": 1036,
    "out": "42"
   },
   "qjs": {
@@ -508,8 +507,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 7,
-   "ms": 466,
+   "mips": 5,
+   "ms": 511,
    "out": "42\r\n"
   },
   "just": {
@@ -519,7 +518,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 378,
+   "ms": 463,
    "out": "just 1.37.0\n"
   },
   "xh": {
@@ -528,8 +527,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 6,
-   "ms": 461,
+   "mips": 4,
+   "ms": 610,
    "out": "xh 0.23.0\n+native-tls +rustls\n"
   },
   "glow": {
@@ -538,8 +537,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 62,
-   "ms": 2097,
+   "mips": 49,
+   "ms": 2685,
    "out": "glow version 2.0.0 (67243bb)\n"
   },
   "mkcert": {
@@ -548,8 +547,8 @@
    "exitCode": 0,
    "error": "",
    "missing": [],
-   "mips": 7,
-   "ms": 483,
+   "mips": 5,
+   "ms": 627,
    "out": "v1.4.4\n"
   },
   "procs": {
@@ -559,7 +558,7 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 358,
+   "ms": 432,
    "out": "procs \"0.14.8 ( rev: 368d14a, rustc: 1.82.0, build at: 2024/10/23 10:23:55 )\"\n"
   },
   "eza": {
@@ -569,9 +568,9 @@
    "error": "",
    "missing": [],
    "mips": 1,
-   "ms": 422,
+   "ms": 398,
    "out": "eza - A modern, maintained replacement for ls\nv0.20.10 [+git]\nhttps://github.com/eza-community/eza\n"
   }
  },
- "date": "2026-11-13T16:29:39.616Z"
+ "date": "2026-11-13T16:59:52.535Z"
 }

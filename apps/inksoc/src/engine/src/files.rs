@@ -56,6 +56,8 @@ pub struct Files {
     pub views: HashMap<u64, (String, u64, u64)>,
     /// file and folder handles by name (key), and whether each is deleted when closed
     pub paths: HashMap<u64, (String, bool)>,
+    /// named events, mutexes and semaphores (lowercase name -> handle)
+    pub named: HashMap<String, u64>,
 }
 
 /// File name (key in the engine's file table) of a Windows path; None for the folder itself.
@@ -550,14 +552,18 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "OpenEventW" | "OpenFileMappingW" => { e.set_err(2); 0 }
         "FormatMessageW" | "FormatMessageA" => {
             // system messages only (FORMAT_MESSAGE_FROM_SYSTEM)
-            let (flags, id, buf, size) = (a0 as u32, e.arg(2) as u32 & 0xFFFF, e.arg(4), e.arg(5));
+            let (flags, full_id, buf, size) = (a0 as u32, e.arg(2) as u32, e.arg(4), e.arg(5));
+            let id = if full_id >> 16 == 0x8007 || full_id >> 16 == 0 { full_id & 0xFFFF } else { full_id };
+            let other;
             let text = match id {
                 2 => "The system cannot find the file specified.", 3 => "The system cannot find the path specified.",
                 5 => "Access is denied.", 8 | 14 => "Not enough memory resources are available to process this command.",
                 32 => "The process cannot access the file because it is being used by another process.",
                 80 | 183 => "Cannot create a file when that file already exists.", 87 => "The parameter is incorrect.",
                 112 => "There is not enough space on the disk.", 1 => "Incorrect function.",
-                _ => { e.set_err(317); return Some(0); }
+                0x800B_0100 => "No signature was present in the subject.",
+                // every other code still gets a readable text: programs often use the buffer without checking
+                _ => { other = format!("Error 0x{:08X}.", full_id); other.as_str() }
             };
             let text = format!("{}\r\n", text);
             let n = text.encode_utf16().count() as u64;
