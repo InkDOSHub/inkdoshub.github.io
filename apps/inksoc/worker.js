@@ -78,6 +78,7 @@ async function saveDrive(changes, reg) {
     if (!c.path) continue;
     if (c.path.startsWith('-')) { try { const [d, n] = await at(c.path.slice(1), false); await d.removeEntry(n); } catch (e) { /* already gone */ } }
     else if (c.path.endsWith('\\')) await at(c.path + 'x', true);
+    else if (c.from) { const [d, n] = await at(c.path, true); const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await (await c.from.getFile()).stream().pipeTo(w); }
     else if (c.data) { const [d, n] = await at(c.path, true); const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(c.data); await w.close(); }
   }
   const w = await (await root.getFileHandle('registry.bin', { create: true })).createWritable();
@@ -151,7 +152,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=33' : 'inksoc.wasm?v=46', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=34' : 'inksoc.wasm?v=47', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -290,6 +291,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     const name = new TextDecoder().decode(b.subarray(0, nl));
     let path = null;
     if (drive && x.drive_entry) { const k = x.drive_entry(i); path = new TextDecoder().decode(new Uint8Array(mem.buffer, x.out_ptr(), k).slice()); }
+    const disk = x.out_disk ? x.out_disk(i) : -1;
+    if (disk >= 0) { changes.push({ path, from: lazy[disk].handle }); continue; } // a copy of a file on disk: copied there
     changes.push({ path, data: b.subarray(nl + 1) });
     if (!/^c:\\/i.test(name) && !/\.tmp(\\|$)/i.test(name)) out.push({ name: name.split('\\').pop(), data: b.subarray(nl + 1) });
   }
@@ -335,7 +338,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=46').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=47').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -433,7 +436,29 @@ async function runExec(d) {
       files = files.concat(w32);
     }
   }
-  return runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores, strong: d.strong, opt: d.opt, drive: d.drive, home: d.home, reg });
+  // big picked files (a 400 MB .msi) do not fit in the engine's memory: they go to a scratch
+  // OPFS folder and are read on demand, like drive C: files
+  let spill = null;
+  if (!fetched) {
+    const opfs = await navigator.storage.getDirectory().catch(() => null);
+    if (opfs) {
+      for await (const [name] of opfs.entries()) if (name.startsWith('inksoc-in-')) await opfs.removeEntry(name, { recursive: true }).catch(() => {}); // left by a run that stopped (a running one holds its files)
+      const big = d.files.filter((f) => f.data && f.data.byteLength > (32 << 20));
+      try {
+        if (big.length) spill = await opfs.getDirectoryHandle('inksoc-in-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), { create: true });
+        for (const f of big) {
+          const h = await spill.getFileHandle(String(big.indexOf(f)), { create: true }), s = await h.createSyncAccessHandle();
+          s.truncate(0); s.write(new Uint8Array(f.data), { at: 0 }); s.flush(); s.close();
+          f.handle = h; f.size = f.data.byteLength; delete f.data;
+        }
+      } catch (e) { post('log', { text: `[engine] big file kept in memory (${e && e.message || e})\n` }); }
+    }
+  }
+  try {
+    return await runEngine({ files, exe: d.exe || 'stage1.exe', cmd: d.cmd, poolMb: d.poolMb, targetMb: d.targetMb, jit: d.jit, shared: d.shared, cores: d.cores, strong: d.strong, opt: d.opt, drive: d.drive, home: d.home, reg });
+  } finally {
+    if (spill) await (await navigator.storage.getDirectory()).removeEntry(spill.name, { recursive: true }).catch(() => {});
+  }
 }
 
 /* Random 4 KB reads/writes on a 64 MB OPFS file: the real cost of one swap page. */

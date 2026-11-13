@@ -13,6 +13,12 @@ extern "C" {
 }
 
 const PIECE: usize = 1 << 20;
+/// files above this size are read piece by piece where they are, never whole
+const BIG: u64 = 16 << 20;
+
+/// A file's contents: bytes in memory, or (id, size) of one still on disk.
+pub enum Entry { Data(Vec<u8>), Disk(u32, u64) }
+impl From<Vec<u8>> for Entry { fn from(v: Vec<u8>) -> Self { Entry::Data(v) } }
 
 #[derive(Default)]
 pub struct Store {
@@ -46,6 +52,38 @@ impl Store {
         self.data().insert(k.to_string(), Box::new(v));
     }
 
+    /// Up to n bytes at pos. A big drive file still on disk is read there, without
+    /// bringing the whole file in (a 400 MB installer package).
+    pub fn read_at(&self, k: &str, pos: u64, n: u64) -> Option<Vec<u8>> {
+        if let Some(&(id, size)) = self.lazy().get(k) {
+            if size > BIG {
+                let n = n.min(size.saturating_sub(pos)) as usize;
+                let mut v = vec![0u8; n];
+                let mut at = 0usize;
+                while at < n {
+                    let got = unsafe { host_drive_read(id, (pos + at as u64) as f64, v.as_mut_ptr().add(at), (n - at).min(PIECE) as u32) } as usize;
+                    if got == 0 { break; }
+                    at += got;
+                }
+                v.truncate(at);
+                unsafe { (*(self as *const Store as *mut Store)).loaded_bytes += at as u64; }
+                return Some(v);
+            }
+        }
+        let d = self.get(k)?;
+        let s = (pos as usize).min(d.len());
+        Some(d[s..(s + n as usize).min(d.len())].to_vec())
+    }
+    /// dst becomes a copy of src without reading it, when src is still on disk.
+    pub fn alias(&mut self, dst: String, src: &str) -> bool {
+        let Some(&v) = self.lazy().get(src) else { return false };
+        self.data().remove(&dst);
+        self.lazy().insert(dst, v);
+        true
+    }
+    /// The disk id of a file not read yet.
+    pub fn lazy_id(&self, k: &str) -> Option<u32> { self.lazy().get(k).map(|v| v.0) }
+
     pub fn get(&self, k: &str) -> Option<&Vec<u8>> {
         if self.lazy().contains_key(k) { self.fill(k); }
         self.data().get(k).map(|b| &**b)
@@ -60,13 +98,15 @@ impl Store {
         self.data().get(k).map(|d| d.len() as u64)
     }
     pub fn contains_key(&self, k: &str) -> bool { self.data().contains_key(k) || self.lazy().contains_key(k) }
-    pub fn insert(&mut self, k: String, v: Vec<u8>) -> Option<Vec<u8>> {
+    pub fn insert(&mut self, k: String, v: impl Into<Entry>) {
         self.lazy().remove(&k);
-        self.data().insert(k, Box::new(v)).map(|b| *b)
+        self.data().remove(&k);
+        match v.into() { Entry::Data(v) => { self.data().insert(k, Box::new(v)); } Entry::Disk(id, size) => { self.lazy().insert(k, (id, size)); } }
     }
-    pub fn remove(&mut self, k: &str) -> Option<Vec<u8>> {
-        if self.lazy().contains_key(k) { self.fill(k); }
-        self.data().remove(k).map(|b| *b)
+    /// Takes a file out (a rename puts it back under its new name; one on disk stays there).
+    pub fn remove(&mut self, k: &str) -> Option<Entry> {
+        if let Some((id, size)) = self.lazy().remove(k) { return Some(Entry::Disk(id, size)); }
+        self.data().remove(k).map(|b| Entry::Data(*b))
     }
     /// The file's bytes, made empty if it is new.
     pub fn entry_or_default(&mut self, k: String) -> &mut Vec<u8> {

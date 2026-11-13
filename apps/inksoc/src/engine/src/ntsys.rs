@@ -20,10 +20,10 @@ const NO_MORE_ENTRIES: u64 = 0x8000_001A;
 fn now_ft() -> u64 { (unsafe { crate::host_epoch_ms() } as u64 + 11_644_473_600_000) * 10_000 }
 
 impl Engine {
-    fn iosb(&mut self, p: u64, status: u64, info: u64) {
+    pub(crate) fn iosb(&mut self, p: u64, status: u64, info: u64) {
         if p != 0 { let _ = self.mmu.write64(p, status); let _ = self.mmu.write64(p + 8, info); }
     }
-    fn zero_n(&mut self, a: u64, n: u64) { for i in 0..n { let _ = self.mmu.write8(a + i, 0); } }
+    pub(crate) fn zero_n(&mut self, a: u64, n: u64) { for i in 0..n { let _ = self.mmu.write8(a + i, 0); } }
     /// Name of an OBJECT_ATTRIBUTES (its UNICODE_STRING ObjectName).
     pub(crate) fn oa_name(&mut self, oa: u64) -> String {
         let us = self.mmu.read64(oa + 16).unwrap_or(0);
@@ -222,6 +222,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         // ---- files ----
         "NtReadFile" => {
             let (iosb, buf, n, offp) = (e.arg(4), e.arg(5), e.arg(6) as u32 as u64, e.arg(7));
+            if e.is_npipe(a0) { let ev = e.arg(1); return Some(e.np_read(a0, ev, iosb, buf, n)); }
             if a0 == 3 || matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { e.iosb(iosb, END_OF_FILE, 0); return Some(END_OF_FILE); }
             if let Some(id) = e.pipe_id(a0) {
                 return Some(match e.pipe_read(a0, buf, n) {
@@ -232,7 +233,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
             let (k, pos) = match e.s.fs.handles.get(&a0) { Some(Handle::File { name, pos }) => (name.clone(), *pos), _ => return Some(INVALID_HANDLE) };
             let pos = if offp != 0 { let o = e.mmu.read64(offp).unwrap_or(u64::MAX); if o as i64 >= 0 { o } else { pos } } else { pos };
-            let data = e.s.files.get(&k).map(|d| { let s = (pos as usize).min(d.len()); d[s..(s + n as usize).min(d.len())].to_vec() }).unwrap_or_default();
+            let data = e.s.files.read_at(&k, pos, n as u64).unwrap_or_default();
             if data.is_empty() && n > 0 { e.iosb(iosb, END_OF_FILE, 0); return Some(END_OF_FILE); }
             if e.mmu.write_bytes(buf, &data).is_err() { e.fault(buf); }
             if let Some(Handle::File { pos: p, .. }) = e.s.fs.handles.get_mut(&a0) { *p = pos + data.len() as u64; }
@@ -241,6 +242,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtWriteFile" => {
             let (iosb, buf, n, offp) = (e.arg(4), e.arg(5), e.arg(6) as u32 as u64, e.arg(7));
+            if e.is_npipe(a0) { let ev = e.arg(1); return Some(e.np_write(a0, ev, iosb, buf, n)); }
             let mut v = vec![0u8; n as usize];
             if e.mmu.read_bytes(buf, &mut v).is_err() { return Some(INVALID_PARAMETER); }
             if a0 == 1 || a0 == 2 { crate::console(&String::from_utf8_lossy(&v)); e.iosb(iosb, OK, n); return Some(OK); }
@@ -260,6 +262,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtFlushBuffersFile" | "NtFlushBuffersFileEx" => { let p = e.arg(1); e.iosb(p, OK, 0); OK }
         "NtQueryInformationFile" => {
             let (iosb, buf, len, class) = (e.arg(1), e.arg(2), e.arg(3) as u32 as u64, e.arg(4) as u32);
+            if let Some((st, n)) = e.np_info(a0, class, buf, len, false) { e.iosb(iosb, st, n); return Some(st); }
             if e.pipe_id(a0).is_some() {
                 // pipe: synchronous mode (16), local pipe info (24): connected, byte mode
                 let need = match class { 8 => 4, 16 => 4, 24 => 40, 5 => 24, 4 => 40, _ => return Some(INVALID_INFO_CLASS) };
@@ -296,6 +299,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtSetInformationFile" => {
             let (iosb, buf, class) = (e.arg(1), e.arg(2), e.arg(4) as u32);
+            if let Some((st, n)) = { let l = e.arg(3) as u32 as u64; e.np_info(a0, class, buf, l, true) } { e.iosb(iosb, st, n); return Some(st); }
             match class {
                 // FileDispositionInformation(Ex): delete when the last handle closes
                 13 => { let d = e.mmu.read8(buf).unwrap_or(0) != 0; if let Some(p) = e.s.fs.paths.get_mut(&a0) { p.1 = d; } }
@@ -373,6 +377,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if nm.len() >= 11 && nm[..11].eq_ignore_ascii_case("\\Device\\Afd") {
                 let h = e.new_handle(Handle::Afd); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, 1); return Some(OK);
             }
+            // a named pipe: the client end of a free instance (\??\pipe\ alone = the pipe device)
+            if let Some(pn) = crate::npipe::pipe_name(&nm) {
+                if pn.is_empty() { let h = e.new_handle(Handle::Dir); let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, 1); return Some(OK); }
+                let opts = if name == "NtCreateFile" { e.arg(8) as u32 } else { e.arg(5) as u32 };
+                return Some(match e.np_connect(&pn, opts & 0x30 != 0) {
+                    Ok(h) => { let _ = e.mmu.write64(a0, h); e.iosb(iosb, OK, 1); OK }
+                    Err(st) => st,
+                });
+            }
             let kk = crate::files::key_of(&nm);
             let k = kk.clone().unwrap_or_default();
             if kk.is_none() || k == "??" {
@@ -412,6 +425,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtQueryDirectoryFile" | "NtQueryDirectoryFileEx" => 0x8000_0006, // STATUS_NO_MORE_FILES
         "NtDeviceIoControlFile" | "NtFsControlFile" => {
+            if name == "NtFsControlFile" {
+                let (ev, iosb, code, inp, inl, out, outl) = (e.arg(1), e.arg(4), e.arg(5) as u32, e.arg(6), e.arg(7) as u32 as u64, e.arg(8), e.arg(9) as u32 as u64);
+                if let Some(r) = e.np_fsctl(a0, ev, iosb, code, inp, inl, out, outl) { return Some(r); }
+            }
             // sockets: Wine's ws2_32 creates them with IOCTL_AFD_WINE_CREATE; nothing else works yet
             if name == "NtDeviceIoControlFile" && matches!(e.s.fs.handles.get(&a0), Some(Handle::Afd)) {
                 let (iosb, code) = (e.arg(4), e.arg(5) as u32);
@@ -435,8 +452,22 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
             0xC000_0010 // STATUS_INVALID_DEVICE_REQUEST
         }
-        "NtCancelIoFile" | "NtCancelIoFileEx" | "NtCancelSynchronousIoFile" => { let p = e.arg(1); e.iosb(p, OK, 0); OK }
-        "NtCreateNamedPipeFile" | "NtCreateMailslotFile" => NOT_IMPLEMENTED,
+        "NtCancelIoFile" | "NtCancelIoFileEx" | "NtCancelSynchronousIoFile" => {
+            let p = if name == "NtCancelIoFileEx" { e.arg(2) } else { e.arg(1) };
+            if e.is_npipe(a0) { let any = e.np_cancel(Some(a0), None, 0xC000_0120); e.iosb(p, OK, 0); return Some(if any || name != "NtCancelIoFileEx" { OK } else { 0xC000_0225 }); } // NOT_FOUND
+            e.iosb(p, OK, 0); OK
+        }
+        "NtCreateNamedPipeFile" => {
+            // (handle*, access, attributes, iosb, share, disposition, options, type, read mode, completion, max instances, ...)
+            let nm = { let oa = e.arg(2); e.oa_name(oa) };
+            let Some(pn) = crate::npipe::pipe_name(&nm).filter(|n| !n.is_empty()) else { return Some(0xC000_0033) }; // OBJECT_NAME_INVALID
+            let (iosb, opts, ty, rm) = (e.arg(3), e.arg(6) as u32, e.arg(7) as u32, e.arg(8) as u32);
+            let h = e.np_create(&pn, ty & 1 != 0, rm & 1 != 0, opts & 0x30 != 0);
+            let _ = e.mmu.write64(a0, h);
+            e.iosb(iosb, OK, 2); // FILE_CREATED
+            OK
+        }
+        "NtCreateMailslotFile" => NOT_IMPLEMENTED,
 
         // ---- memory ----
         "NtAllocateVirtualMemory" | "NtAllocateVirtualMemoryEx" => {
@@ -722,7 +753,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let addr = match &file {
                 Some(f) => {
                     let Some(a) = e.alloc((len + 0xFFF) & !0xFFF) else { return Some(0xC000_0017) };
-                    let data = e.s.files.get(f).map(|d| d[(off as usize).min(d.len())..((off + len) as usize).min(d.len())].to_vec()).unwrap_or_default();
+                    let data = e.s.files.read_at(f, off, len).unwrap_or_default();
                     let _ = e.mmu.write_bytes(a, &data);
                     e.s.fs.views.insert(a, (f.clone(), off, len));
                     a

@@ -27,6 +27,7 @@ mod winsys;
 mod wingdi;
 mod proc;
 mod registry;
+mod npipe;
 mod store;
 mod wow64;
 
@@ -379,10 +380,17 @@ pub extern "C" fn out_file(i: u32) -> u32 {
         x
     } else {
         let Some(name) = e.s.fs.written.iter().nth(i as usize).cloned() else { return 0 };
-        let data = e.s.files.get(&name).cloned().unwrap_or_default();
+        // a copy of a file still on disk is copied there (out_disk), not read in
+        let data = if e.s.files.lazy_id(&name).is_some() { Vec::new() } else { e.s.files.get(&name).cloned().unwrap_or_default() };
         (name, data)
     };
     unsafe { OUT = name.into_bytes(); OUT.push(0); OUT.extend_from_slice(&data); OUT.len() as u32 }
+}
+/// The disk id the i-th written file is a copy of (a renamed or copied drive file), or -1.
+#[no_mangle]
+pub extern "C" fn out_disk(i: u32) -> i32 {
+    let e = eng();
+    e.s.fs.written.iter().nth(i as usize).and_then(|k| e.s.files.lazy_id(k)).map_or(-1, |v| v as i32)
 }
 #[no_mangle]
 #[allow(static_mut_refs)]
@@ -610,6 +618,8 @@ impl Engine {
         w(self, TEB + 0x48, 8);
         w(self, TEB + 0x58, TEB + 0x1800); // ThreadLocalStoragePointer (static TLS array)
         w(self, TEB + 0x60, PEB);
+        // StaticUnicodeString (ANSI functions convert names into it): 522 bytes at +0x1268
+        let _ = self.mmu.write16(TEB + 0x125A, 522); w(self, TEB + 0x1260, TEB + 0x1268);
         self.cpu.gs_base = TEB;
         self.sched_init();
         let bytes = self.s.files.get(name).cloned().ok_or_else(|| format!("{} not found", name))?;

@@ -36,6 +36,8 @@ pub enum Handle {
     Afd,
     /// a registry key (`registry.rs`), by its full lowercase path
     Key { path: String },
+    /// one end of a named pipe instance (`Files::npipes`); sync = synchronous I/O
+    NPipe { id: u64, server: bool, sync: bool },
 }
 
 /// Anonymous pipe: bytes in flight and how many write ends are open.
@@ -51,6 +53,14 @@ pub struct Files {
     pub dirs: std::collections::BTreeSet<String>,
     next: u64,
     pub pipes: HashMap<u64, Pipe>,
+    /// named pipe instances, and overlapped pipe I/O still waiting
+    pub npipes: HashMap<u64, crate::npipe::NPipe>,
+    pub npend: Vec<crate::npipe::Pend>,
+    pub np_next: u64,
+    /// bytes moved by the last finished named pipe read or write
+    pub np_last: u64,
+    /// handles whose transceive already wrote its request (the read is re-run)
+    pub np_tx: std::collections::HashSet<u64>,
     /// extra references made by DuplicateHandle (closed only when this reaches 0)
     pub refs: HashMap<u64, u32>,
     /// mapped views of files: base -> (file, offset, length); written back when unmapped
@@ -130,7 +140,7 @@ fn wild(p: &[u8], s: &[u8]) -> bool {
 }
 
 impl Engine {
-    fn set_err(&mut self, v: u32) { let _ = self.mmu.write32(self.cpu.gs_base + 0x68, v); }
+    pub(crate) fn set_err(&mut self, v: u32) { let _ = self.mmu.write32(self.cpu.gs_base + 0x68, v); }
 
     pub fn new_handle(&mut self, h: Handle) -> u64 {
         if self.s.fs.next == 0 { self.s.fs.next = FIRST_HANDLE; }
@@ -153,6 +163,7 @@ impl Engine {
                 if !write || self.s.fs.pipes.get(&id).map_or(false, |p| p.writers == 0) && !self.s.fs.handles.values().any(|x| matches!(x, Handle::Pipe { id: i, .. } if *i == id)) { self.s.fs.pipes.remove(&id); }
                 true
             }
+            Some(Handle::NPipe { id, server, .. }) => { self.s.fs.np_tx.remove(&h); self.np_cancel(Some(h), None, 0xC000_0120); self.np_close(id, server); true }
             Some(_) => true,
             None => false,
         }
@@ -376,6 +387,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "FindNextStreamW" => { e.set_err(38); 0 }
         "CreateFileW" | "CreateFileA" => {
             let p = e.path_arg(0, wide);
+            if crate::npipe::pipe_name(&p).is_some() { return None; } // named pipes: Wine's CreateFile, then NtCreateFile
             let (access, disp, flags) = (e.arg(1) as u32, e.arg(4) as u32, e.arg(5) as u32);
             let Some(k) = key_of(&p) else {
                 if flags & 0x0200_0000 != 0 { return Some(e.new_handle(Handle::Dir)); }
@@ -402,6 +414,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "CloseHandle" => { if e.close_handle(a0) { 1 } else { return None } }
         "ReadFile" => {
             let (buf, n, done) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
+            if e.is_npipe(a0) { let ov = e.arg(4); return Some(e.np_win32(true, a0, buf, n, done, ov)); }
             // no keyboard yet: reading the console fails like a closed pipe
             if a0 == 3 { if done != 0 { let _ = e.mmu.write32(done, 0); } e.set_err(109); return Some(0); }
             if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { if done != 0 { let _ = e.mmu.write32(done, 0); } return Some(1); }
@@ -414,7 +427,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 });
             }
             let Some((k, pos)) = e.file_mut(a0) else { return None };
-            let data = e.s.files.get(&k).map(|d| { let s = (pos as usize).min(d.len()); d[s..(s + n as usize).min(d.len())].to_vec() }).unwrap_or_default();
+            let data = e.s.files.read_at(&k, pos, n).unwrap_or_default();
             if e.mmu.write_bytes(buf, &data).is_err() { e.fault(buf); }
             e.set_pos(a0, pos + data.len() as u64);
             if done != 0 { let _ = e.mmu.write32(done, data.len() as u32); }
@@ -422,6 +435,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "WriteFile" => {
             let (buf, n, done) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
+            if e.is_npipe(a0) { let ov = e.arg(4); return Some(e.np_win32(false, a0, buf, n, done, ov)); }
             if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { if done != 0 { let _ = e.mmu.write32(done, n as u32); } return Some(1); }
             if e.pipe_write(a0, buf, n) { if done != 0 { let _ = e.mmu.write32(done, n as u32); } return Some(1); }
             let Some((k, pos)) = e.file_mut(a0) else { return None }; // console: kernel32
@@ -436,8 +450,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if done != 0 { let _ = e.mmu.write32(done, n as u32); }
             1
         }
-        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(Handle::Pipe { .. } | Handle::Afd) => 3, Some(_) => 1, None => return None },
+        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(Handle::Pipe { .. } | Handle::Afd | Handle::NPipe { .. }) => 3, Some(_) => 1, None => return None },
         "PeekNamedPipe" => {
+            if e.is_npipe(a0) { return None; } // named pipes: Wine's, over FSCTL_PIPE_PEEK
             let Some(id) = e.pipe_id(a0) else { e.set_err(6); return Some(0) };
             let (buf, n, read, avail, left) = (e.arg(1), e.arg(2) as u32 as usize, e.arg(3), e.arg(4), e.arg(5));
             let (data, w): (Vec<u8>, u32) = match e.s.fs.pipes.get(&id) { Some(p) => (p.buf.iter().take(n).copied().collect(), p.writers), None => (vec![], 0) };
@@ -512,6 +527,18 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 (Some(f), Some(t)) => match e.s.files.remove(&f) { Some(d) => { e.s.fs.written.remove(&f); e.s.fs.written.insert(t.clone()); e.note_case(&t, &to); e.s.files.insert(t, d); 1 } None => { e.set_err(2); 0 } },
                 _ => { e.set_err(5); 0 }
             }
+        }
+        "CopyFileW" | "CopyFileExW" => {
+            // a big file still on disk is copied without reading it (an installer caching its package)
+            let (from, to) = (e.path_arg(0, true), e.path_arg(1, true));
+            let (Some(f), Some(t)) = (key_of(&from), key_of(&to)) else { return None };
+            if e.s.files.lazy_id(&f).is_none() || f == t { return None; }
+            let fail_if = if name == "CopyFileW" { e.arg(2) as u32 != 0 } else { e.arg(5) as u32 & 1 != 0 };
+            if fail_if && e.s.files.contains_key(&t) { e.set_err(80); return Some(0); }
+            e.s.files.alias(t.clone(), &f);
+            e.s.fs.written.insert(t.clone());
+            e.note_case(&t, &to);
+            1
         }
         "CreateHardLinkW" => { e.set_err(1); 0 }
         "DeviceIoControl" => { e.set_err(1); 0 }

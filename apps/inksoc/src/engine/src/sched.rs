@@ -10,7 +10,7 @@ use crate::{eh, kernel32::NO_RETURN, Engine, PEB, RET_THREAD, TEB};
 
 const SLICE: u64 = 200_000; // instructions per turn
 const STILL_ACTIVE: u64 = 259;
-const WAIT_TIMEOUT: u64 = 258;
+pub(crate) const WAIT_TIMEOUT: u64 = 258;
 const WAIT_FAILED: u64 = 0xFFFF_FFFF;
 pub const BLOCK: u64 = u64::MAX - 0x5A5B;
 /// pending value of a parked call that runs again when the thread wakes
@@ -31,6 +31,10 @@ pub enum W {
     Addr { addr: u64, val: u64, size: u32, seq: u64, win: bool },
     /// a pipe read: until there is data or no writer (then the call runs again)
     Pipe(u64),
+    /// a synchronous named pipe read or listen (then the call runs again)
+    NPipe { h: u64, listen: bool },
+    /// WaitNamedPipe: until an instance of the pipe is free
+    NpWait(String),
     /// keyed event: until a release with the same key
     Keyed(u64),
     /// completion port: until packets arrive (out = key*, apc*, iosb* or entries*, count, written*)
@@ -138,6 +142,7 @@ impl Engine {
             Some(Handle::Thread { tid }) => self.s.sched.th.iter().find(|t| t.id == *tid).map_or(true, |t| t.st == St::Done),
             Some(Handle::Timer { due, .. }) => now() >= *due,
             Some(Handle::Process { pid }) => self.s.pinfo.get(pid).map_or(true, |i| i.exit.is_some()),
+            Some(Handle::NPipe { .. }) => self.np_idle(h),
             _ => true,
         }
     }
@@ -153,6 +158,8 @@ impl Engine {
 
     /// Tries to finish a wait for thread index i; Some(return value) when done.
     fn try_wait(&mut self, w: &W, me: u32) -> Option<u64> {
+        // overlapped pipe I/O of this process that can finish now (its events get set)
+        self.np_poll();
         match w {
             W::Sleep => None,
             W::Objs { hs, all } => {
@@ -199,6 +206,16 @@ impl Engine {
                 }
                 Some(0)
             }
+            W::NPipe { h, listen } => {
+                let Some(Handle::NPipe { id, server, .. }) = self.s.fs.handles.get(h) else { return Some(RETRY) };
+                let me = if *server { 0 } else { 1 };
+                match self.s.fs.npipes.get(id) {
+                    Some(p) if *listen => if p.state == 0 { None } else { Some(RETRY) },
+                    Some(p) if p.buf[me].is_empty() && p.state == 1 && p.open[1 - me] => None,
+                    _ => Some(RETRY),
+                }
+            }
+            W::NpWait(name) => if self.s.fs.npipes.values().any(|p| &p.name == name && p.state == 0 && p.open[0]) { Some(0) } else { None },
             W::Pipe(id) => match self.s.fs.pipes.get(id) { Some(p) if p.buf.is_empty() && p.writers > 0 => None, _ => Some(RETRY) },
             W::Keyed(k) => match self.s.sched.keyed.get_mut(k) { Some(n) if *n > 0 => { *n -= 1; Some(0) } _ => None },
             W::Addr { addr, val, size, seq, win } => {
@@ -243,6 +260,8 @@ impl Engine {
         w(self, teb + 0x48, id as u64);
         w(self, teb + 0x58, teb + 0x1800);
         w(self, teb + 0x60, PEB);
+        // StaticUnicodeString (ANSI functions convert names into it): 522 bytes at +0x1268
+        let _ = self.mmu.write16(teb + 0x125A, 522); w(self, teb + 0x1260, teb + 0x1268);
         self.tls_blocks(teb);
         self.teb_extras(teb);
         let mut cpu = Box::new(Cpu::new());
@@ -373,7 +392,7 @@ impl Engine {
                     // a thread of another process: its wait reads that process's memory
                     let other = t.wpid != self.s.wpid;
                     if other { let wp = t.wpid; self.enter_proc(wp); }
-                    let r = self.try_wait(&w, id).or_else(|| if t_now >= dl { Some(if matches!(w, W::Sleep | W::Addr { win: true, .. }) { 0 } else { WAIT_TIMEOUT }) } else { None });
+                    let r = self.try_wait(&w, id).or_else(|| if t_now >= dl { Some(if matches!(w, W::Sleep | W::Addr { win: true, .. }) { 0 } else if matches!(w, W::NpWait(_)) { 0xC000_00B5 } else { WAIT_TIMEOUT }) } else { None });
                     if let Some(v) = r {
                         let t = &mut self.s.sched.th[i];
                         t.st = St::Ready;

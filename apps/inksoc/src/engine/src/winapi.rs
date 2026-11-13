@@ -198,6 +198,16 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "IsDBCSLeadByte" | "IsDBCSLeadByteEx" => 0,
         "GetUserDefaultLCID" | "GetSystemDefaultLCID" | "GetThreadLocale" | "GetUserDefaultLangID" | "GetSystemDefaultLangID" | "GetUserDefaultUILanguage" | "GetSystemDefaultUILanguage" | "LocaleNameToLCID" => 0x409,
         "SetThreadLocale" | "IsValidLocale" | "IsValidLocaleName" | "EnumSystemLocalesW" | "EnumSystemLocalesA" | "EnumSystemLocalesEx" => 1,
+        "EnumUILanguagesA" | "EnumUILanguagesW" => {
+            // one UI language, en-US: proc(name, param) runs in place of this call, its BOOL is the result
+            let (proc, flags, param) = (a0, e.arg(1) as u32, e.arg(2));
+            if proc == 0 { e.set_err(87); return Some(0); }
+            let txt = if flags & 8 != 0 { "en-US" } else { "0409" };
+            let Some(p) = e.alloc(0x1000) else { return Some(0) };
+            if name.ends_with('A') { let _ = e.mmu.write_bytes(p, txt.as_bytes()); } else { for (i, c) in txt.encode_utf16().enumerate() { e.wr16(p + 2 * i as u64, c); } }
+            e.cpu.regs[1] = p; e.cpu.regs[2] = param; e.cpu.rip = proc;
+            return Some(crate::kernel32::NO_RETURN);
+        }
         "GetUserDefaultLocaleName" | "GetSystemDefaultLocaleName" => {
             let (buf, n) = if name == "GetUserDefaultLocaleName" { (a0, e.arg(1)) } else { (a0, e.arg(1)) };
             let r = e.out_w(buf, n, "en-US");

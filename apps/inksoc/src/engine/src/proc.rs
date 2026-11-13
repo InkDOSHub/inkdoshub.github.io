@@ -162,6 +162,8 @@ impl Engine {
         w(self, TEB + 0x48, 0);
         w(self, TEB + 0x58, TEB + 0x1800);
         w(self, TEB + 0x60, PEB);
+        // StaticUnicodeString (ANSI functions convert names into it): 522 bytes at +0x1268
+        let _ = self.mmu.write16(TEB + 0x125A, 522); w(self, TEB + 0x1260, TEB + 0x1268);
         self.cpu.gs_base = TEB;
         self.s.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
         self.process_parameters(name);
