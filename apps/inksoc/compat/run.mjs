@@ -45,10 +45,11 @@ for (const p of list) {
 }
 
 async function runOne({ files, exe, args }) {
-  const PAGE = 4096, pool = 256; const ram = new Map(); let mem, wine, x, out = '';
+  const PAGE = 4096, pool = 256; const ram = new Map(); let mem, wine, x, out = '', traceFd = null;
   const view = (p) => new Uint8Array(mem.buffer, p, PAGE);
   const env = {
-    host_console: (p, n) => { out += new TextDecoder().decode(new Uint8Array(mem.buffer, p, n).slice()); },
+    // with TRACE the call log goes straight to its file (it can pass node's string limit)
+    host_console: (p, n) => { const t = new TextDecoder().decode(new Uint8Array(mem.buffer, p, n).slice()); if (traceFd !== null && t.startsWith('[call]')) fs.writeSync(traceFd, t); else out += t; },
     host_now_ms: () => performance.now(), host_epoch_ms: () => Date.now(),
     host_swap_write: (s, p) => ram.set(s, view(p).slice()), host_swap_read: (s, p) => view(p).set(ram.get(s)), host_drive_read: () => 0,
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
@@ -67,7 +68,7 @@ async function runOne({ files, exe, args }) {
   wine = (await WebAssembly.instantiate(fs.readFileSync(path.join(ENGINE, 'wine.wasm')), { env: { memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc, free: x.wine_free, sse2_memmove: x.wine_memmove, __inksoc_teb: x.wine_teb, ink_output: x.wine_output } })).instance.exports;
   const enc = (t) => new TextEncoder().encode(t);
   for (const f of files) { const nm = enc(path.basename(f)), d = fs.readFileSync(f), b = new Uint8Array(nm.length + 1 + d.length); b.set(nm); b.set(d, nm.length + 1); put(b); x.add_file(); }
-  if (process.env.TRACE) x.set_trace(1);
+  if (process.env.TRACE) { traceFd = fs.openSync(process.env.TRACE, 'w'); x.set_trace(1); }
   if (process.env.NOJIT) x.set_jit(0);
   put(enc(exe + '\0' + exe + (args ? ' ' + args : '')));
   const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()));
@@ -86,7 +87,7 @@ async function runOne({ files, exe, args }) {
   if (st === 2) status = "stopped";
   if (process.env.DBG) console.log("insns", x.stat(0), "rip", x.stat(11).toString(16), "threads", x.stat(18), "wins", x.win_count ? x.win_count() : -1);
   if (process.env.SHOT) { grab(); if (frame) { const rgb = Buffer.alloc(1024 * 768 * 3); for (let i = 0; i < 1024 * 768; i++) { rgb[3 * i] = frame[4 * i]; rgb[3 * i + 1] = frame[4 * i + 1]; rgb[3 * i + 2] = frame[4 * i + 2]; } fs.writeFileSync(process.env.SHOT, Buffer.concat([Buffer.from('P6 1024 768 255\n'), rgb])); } }
-  if (process.env.TRACE) fs.writeFileSync(process.env.TRACE, out);
+  if (traceFd !== null) { fs.writeSync(traceFd, out); fs.closeSync(traceFd); }
   const outFiles = [];
   for (let i = 0, n; (n = x.out_file(i)); i++) { const b = new Uint8Array(mem.buffer, x.out_ptr(), n); const nm = new TextDecoder().decode(b.subarray(0, b.indexOf(0))); outFiles.push(nm); if (process.env.OUTDIR) fs.writeFileSync(path.join(process.env.OUTDIR, path.basename(nm.replace(/\\/g, '/'))), b.slice(b.indexOf(0) + 1)); }
   const missing = [...new Set((out.match(/\[inksoc\] \S+ is not available yet/g) || []).map((s) => s.split(' ')[1]))];

@@ -43,12 +43,31 @@ impl Registry {
             self.create(p);
         }
         for p in ["Software", "Software\\Classes", "Software\\Microsoft", "Environment"] { self.create(&format!("{}\\{}", user, p)); }
+        self.defaults();
+    }
+    /// Values every Windows has; added when missing (also to a registry saved before they existed).
+    fn defaults(&mut self) {
+        let sz = |v: &str| { let mut d = utf16(v); d.extend_from_slice(&[0, 0]); d };
         // where programs install (shell32 and installers read these)
         let cv = "\\Registry\\Machine\\Software\\Microsoft\\Windows\\CurrentVersion";
+        let mut vals: Vec<(&str, &str, u32, Vec<u8>)> = vec![];
         for (n, v) in [("ProgramFilesDir", "C:\\Program Files"), ("ProgramFilesDir (x86)", "C:\\Program Files (x86)"), ("ProgramW6432Dir", "C:\\Program Files"),
             ("CommonFilesDir", "C:\\Program Files\\Common Files"), ("ProgramFilesPath", "%ProgramFiles%")] {
-            let mut d = utf16(v); d.extend_from_slice(&[0, 0]);
-            if let Some(k) = self.keys.get_mut(&cv.to_lowercase()) { k.values.push((n.to_string(), if v.contains('%') { 2 } else { 1 }, d)); }
+            vals.push((cv, n, if v.contains('%') { 2 } else { 1 }, sz(v)));
+        }
+        // the Windows version, as Windows 10 22H2 reports it (installers check these)
+        let nt = "\\Registry\\Machine\\Software\\Microsoft\\Windows NT\\CurrentVersion";
+        for (n, v) in [("ProductName", "Windows 10 Pro"), ("CurrentVersion", "6.3"), ("CurrentBuild", "19045"), ("CurrentBuildNumber", "19045"),
+            ("DisplayVersion", "22H2"), ("ReleaseId", "2009"), ("EditionID", "Professional"), ("InstallationType", "Client"),
+            ("SystemRoot", "C:\\Windows"), ("RegisteredOwner", "InkSoC"), ("RegisteredOrganization", "")] {
+            vals.push((nt, n, 1, sz(v)));
+        }
+        for (n, v) in [("CurrentMajorVersionNumber", 10u32), ("CurrentMinorVersionNumber", 0), ("UBR", 3803)] { vals.push((nt, n, 4, v.to_le_bytes().to_vec())); }
+        for (path, n, t, d) in vals {
+            self.create(path);
+            if let Some(k) = self.keys.get_mut(&path.to_lowercase()) {
+                if !k.values.iter().any(|(m, _, _)| m.eq_ignore_ascii_case(n)) { k.values.push((n.to_string(), t, d)); }
+            }
         }
     }
     /// Every key and value as bytes: per key its path, name and values (u32 lengths, LE).
@@ -83,6 +102,7 @@ impl Registry {
         }
         self.keys = keys;
         self.ensure_roots();
+        self.defaults();
     }
     /// Creates a key and every missing parent; true when it is new.
     fn create(&mut self, path: &str) -> bool {
