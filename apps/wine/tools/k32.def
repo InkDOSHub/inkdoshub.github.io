@@ -1,7 +1,0 @@
-LIBRARY kernel32.dll
-EXPORTS
-QueryPerformanceCounter@4
-QueryPerformanceFrequency@4
-GetStdHandle@4
-WriteFile@20
-ExitProcess@4

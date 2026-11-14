@@ -9,7 +9,6 @@ import { connect } from "cloudflare:sockets";
 const ORIGEM = "https://inkdoshub.github.io";
 // Files kept outside the repository (too big for git); the version in the address changes the cache key.
 const EXTERNOS = {
-  "/apps/wine/fs/wine11.zip": "https://boxedwine.org/v2/24/TinyCore15Wine11.0-web.zip",
   // Recorder transcription models (Safari failed the direct cross-origin download)
   "/apps/gravador/modelos/ggml-tiny-q5_1.bin": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin",
   "/apps/gravador/modelos/ggml-base-q5_1.bin": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
@@ -18,7 +17,6 @@ const EXTERNOS = {
   "/InkMind/modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
   "/InkMind/modelos/Llama-3.2-1B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
   "/InkMind/modelos/qwen2.5-1.5b-instruct-q4_k_m.gguf": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-  "/apps/wine/x64/maquina/load-rootfs.data": "https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/wine-x64/load-rootfs.data",
 };
 const ISOLAR = {
   "Cross-Origin-Opener-Policy": "same-origin",

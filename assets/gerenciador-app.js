@@ -9,7 +9,7 @@
 
   var APPS = [
     { id: "terminal", nome: "Linux terminal", url: "InkShell/" },
-    { id: "wine", nome: "Wine", url: "apps/wine/" },
+    { id: "wine", nome: "InkSoC", url: "InkSoC/" },
     { id: "zip", nome: "Zip", url: "apps/zip/" },
     { id: "jogos", nome: "Games", url: "InkArcade/" },
     { id: "ia", nome: "AI Chat", url: "InkMind/" },
