@@ -169,7 +169,7 @@ function ligar() {
   [].forEach.call(document.querySelectorAll("input[name=maquina]"), function (r) { r.onchange = escolher; });
   $("btn-ligar").onclick = function () {
     if (maq === "x32") return ligar();
-    location.href = "../inksoc/"; // x64: our own engine (InkSoC)
+    location.href = "/InkSoC/"; // x64: our own engine (InkSoC)
   };
   var direto = false;
   try { direto = sessionStorage.getItem("wine-reiniciar") === "1"; sessionStorage.removeItem("wine-reiniciar"); } catch (e) {}

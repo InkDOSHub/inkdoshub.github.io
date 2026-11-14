@@ -1,5 +1,0 @@
-hello world
-zebra
-apple
-hello again
-mango
