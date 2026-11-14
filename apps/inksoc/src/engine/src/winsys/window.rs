@@ -358,7 +358,14 @@ impl Engine {
         let top = self.wnd(h).map_or(false, |w| w.style & WS_CHILD == 0);
         self.send(h, WM_SHOWWINDOW, show as u64, 0, move |e, _| {
             if show && top && cmd != 4 && cmd != 8 {
-                e.activate(h);
+                if e.s.win.active == h {
+                    // made active while still hidden: tell it again now that it shows
+                    // (SDL ignores a WM_ACTIVATE that comes while the window is invisible)
+                    e.post(h, WM_ACTIVATE, 1, 0);
+                    e.post(h, WM_SETFOCUS, 0, 0);
+                } else {
+                    e.activate(h);
+                }
             }
             if !show && e.s.win.active == h {
                 e.s.win.active = 0;

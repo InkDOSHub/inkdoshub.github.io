@@ -134,7 +134,7 @@ function run(files, exe, args, label, home) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=57');
+  const w = p.w = new Worker('worker.js?v=58');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
@@ -255,6 +255,9 @@ for (const b of document.querySelectorAll('[data-run]')) {
 const picked = new Map();
 const copy = (f) => (f.blob ? { name: f.name, blob: f.blob } : { name: f.name, data: f.data.slice(0) });
 $('pick').onchange = async (ev) => {
+  // a .zip (a game or program that needs no installer) unpacks onto drive C:
+  const zips = [...ev.target.files].filter((f) => /\.zip$/i.test(f.name));
+  if (zips.length) { ev.target.value = ''; closePops(); for (const z of zips) await unzipToDrive(z); return; }
   for (const f of ev.target.files) {
     const name = f.name.replace(/ \(\d+\)(?=\.[^.]+$)/, '');
     // a big file (a 400 MB .msi) stays a File: the engine copies it to disk in pieces, so
@@ -279,12 +282,30 @@ $('pick').onchange = async (ev) => {
 };
 
 /* ---------- drive C: (OPFS folder "inksoc-c", kept apart from the swap file) ---------- */
+// unpacks a .zip to C:\<folder> in a worker, then starts its program when it has just one
+function unzipToDrive(file) {
+  return new Promise((done) => {
+    const w = new Worker('unzip.js?v=1');
+    $('speed').textContent = 'Unpacking ' + file.name + '…';
+    w.onmessage = async (ev) => {
+      const d = ev.data;
+      if (d.progress !== undefined) { $('speed').textContent = 'Unpacking ' + file.name + ' · ' + Math.floor((100 * d.progress) / Math.max(1, d.total)) + '%'; return; }
+      w.terminate();
+      if (d.error) { $('speed').textContent = file.name + ': ' + d.error; done(); return; }
+      const found = (await listDrive()).filter((p) => p.toLowerCase().startsWith('c:\\' + d.done.toLowerCase() + '\\'));
+      $('speed').textContent = 'Unpacked to C:\\' + d.done;
+      if (found.length === 1) { const path = found[0], name = path.split('\\').pop().replace(/\.exe$/i, ''); run([], path, $('args').value.trim(), '🪟 ' + name, path.slice(0, path.lastIndexOf('\\'))); }
+      done();
+    };
+    w.postMessage({ file });
+  });
+}
 // installed programs: the .exe files in the folders of Program Files and other top folders
 const skip = /^(unins|uninst|setup|install|update|crash)/i;
 const system = /^(windows|programdata|users|inksoc|program files( \(x86\))?)$/i;
 async function listDrive() {
   let root;
-  try { root = await (await navigator.storage.getDirectory()).getDirectoryHandle('inksoc-c'); } catch (e) { $('csize').textContent = 'empty'; $('installed').replaceChildren(); return; }
+  try { root = await (await navigator.storage.getDirectory()).getDirectoryHandle('inksoc-c'); } catch (e) { $('csize').textContent = 'empty'; $('installed').replaceChildren(); return []; }
   let bytes = 0;
   const found = [];
   const walk = async (dir, path, depth) => {
@@ -312,6 +333,7 @@ async function listDrive() {
     b.onclick = () => { closePops(); run([], path, $('args').value.trim(), '🪟 ' + name, path.slice(0, path.lastIndexOf('\\'))); };
     return b;
   }));
+  return found;
 }
 // erase: a second tap within 4 seconds confirms
 let eraseAsk = 0;

@@ -105,6 +105,10 @@ impl Registry {
             vals.push((path.as_str(), "", 1, sz(&format!("C:\\Windows\\System32\\{}", dll))));
             vals.push((path.as_str(), "ThreadingModel", 1, sz("Both")));
         }
+        // Direct3D (wined3d) draws on the program's own thread: no command-stream thread
+        // spinning against it on a single core
+        let d3d = format!("\\Registry\\User\\{}\\Software\\Wine\\Direct3D", USER_SID);
+        vals.push((d3d.as_str(), "csmt", 4, 0u32.to_le_bytes().to_vec()));
         for (path, n, t, d) in vals {
             self.create(path);
             if let Some(k) = self.keys.get_mut(&path.to_lowercase()) {
@@ -403,7 +407,20 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             e.s.fs.reg.keys.remove(&p);
             OK
         }
-        "NtFlushKey" | "NtNotifyChangeKey" | "NtNotifyChangeMultipleKeys" => {
+        // (key, event, apc, apc context, iosb, filter, subtree, buffer, size, asynchronous):
+        // no other process changes the registry here, so a change never comes. A
+        // synchronous wait sleeps for good (a watcher thread, not a busy loop);
+        // an asynchronous one stays pending.
+        "NtNotifyChangeKey" | "NtNotifyChangeMultipleKeys" => {
+            if e.key_of_handle(a0).is_none() {
+                INVALID_HANDLE
+            } else if e.arg(if name == "NtNotifyChangeKey" { 9 } else { 11 }) as u8 == 0 {
+                return Some(e.wait_on(crate::sched::W::Sleep, u64::MAX));
+            } else {
+                0x103 // STATUS_PENDING
+            }
+        }
+        "NtFlushKey" => {
             if e.key_of_handle(a0).is_some() {
                 OK
             } else {

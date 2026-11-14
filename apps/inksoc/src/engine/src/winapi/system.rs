@@ -167,6 +167,14 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
             1
         }
+        // (new state, previous state*): no power management, nothing to keep awake
+        "NtSetThreadExecutionState" => {
+            let old = e.arg(1);
+            if old != 0 {
+                e.w32(old, 0);
+            }
+            0
+        }
         "NtQuerySystemTime" | "RtlQuerySystemTime" => {
             let ft = crate::filetime_now();
             e.w64(a0, ft);

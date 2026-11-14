@@ -51,6 +51,17 @@ impl Engine {
         b
     }
 
+    /// A window property's key: an atom, or a name (each call may pass the name at a
+    /// new address, as SetPropA does) turned into the atom of that name.
+    pub(super) fn prop_key(&mut self, k: u64) -> u64 {
+        if k < 0x10000 {
+            return k;
+        }
+        let n = self.read_wstr(k, 256).to_lowercase();
+        let w = &mut self.s.win;
+        let a = w.props_atoms.len() as u16;
+        *w.props_atoms.entry(n).or_insert(0xC100 + a) as u64
+    }
     pub(crate) fn wnd(&self, h: u64) -> Option<&Wnd> {
         self.s.win.wins.get(&full(h))
     }

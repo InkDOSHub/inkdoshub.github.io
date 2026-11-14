@@ -845,7 +845,17 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             e.put_w(a0, "00000409", 9);
             1
         }
-        "NtUserMapVirtualKeyEx" => a0 & 0xFF,
+        // (code, type, layout): 0 key -> scan code, 1/3 scan code -> key, 2 key -> character
+        "NtUserMapVirtualKeyEx" => match ar[1] {
+            0 | 4 => super::input::vk_scan(a0 as u32).0 as u64,
+            1 | 3 => super::input::scan_vk(a0 as u32) as u64,
+            2 => match a0 as u32 {
+                v @ (0x30..=0x39 | 0x41..=0x5A) => v as u64,
+                0x20 | 0x0D | 0x08 | 0x09 | 0x1B => a0 & 0xFF,
+                _ => 0,
+            },
+            _ => 0,
+        },
         "NtUserGetCursorInfo" => {
             e.w32(a0 + 4, 1);
             e.w32(a0 + 16, e.s.win.mouse.0 as u32);
@@ -1015,11 +1025,11 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             1
         }
         "NtUserGetProp" => {
-            let k = ar[1];
+            let k = e.prop_key(ar[1]);
             e.wnd(a0).and_then(|w| w.props.iter().find(|p| p.0 == k).map(|p| p.1)).unwrap_or(0)
         }
         "NtUserSetProp" => {
-            let (k, v) = (ar[1], ar[2]);
+            let (k, v) = (e.prop_key(ar[1]), ar[2]);
             if let Some(w) = e.wnd_mut(a0) {
                 w.props.retain(|p| p.0 != k);
                 w.props.push((k, v));
@@ -1029,7 +1039,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
         }
         "NtUserRemoveProp" => {
-            let k = ar[1];
+            let k = e.prop_key(ar[1]);
             e.wnd_mut(a0)
                 .and_then(|w| {
                     let v = w.props.iter().find(|p| p.0 == k).map(|p| p.1);
@@ -1158,7 +1168,24 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
         }
         "NtUserChangeDisplaySettings" => 0,
-        "NtUserEnumDisplayMonitors" => 1,
+        // (hdc, clip rect, proc, lparam): the proc is called once, for the one monitor
+        "NtUserEnumDisplayMonitors" => {
+            let (proc_, lparam) = (ar[2], ar[3]);
+            if proc_ == 0 || e.s.wow64 {
+                return Some(1);
+            }
+            // enum_display_monitor_params: proc, monitor, hdc, rect, lparam
+            let mut p = Vec::with_capacity(48);
+            for v in [proc_, 0x10001, a0] {
+                p.extend_from_slice(&v.to_le_bytes());
+            }
+            for v in [0, 0, SCREEN_W, SCREEN_H] {
+                p.extend_from_slice(&(v as i32).to_le_bytes());
+            }
+            p.extend_from_slice(&lparam.to_le_bytes());
+            e.callback(1, &p, Box::new(|_, _| Step::Ret(1))); // NtUserCallEnumDisplayMonitor
+            NO_RETURN
+        }
         "NtUserGetLayeredWindowAttributes" | "NtUserSetLayeredWindowAttributes" | "NtUserUpdateLayeredWindow" => 1,
         "NtUserActivateKeyboardLayout" => 0x0409_0409,
         "NtUserGetKeyboardLayoutList" => {

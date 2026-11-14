@@ -232,6 +232,20 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
     let idx = e.s.modules.len();
     e.s.modules.push(Module { name: name.to_string(), base, size: image_size, entry: if entry_rva != 0 { base + entry_rva } else { 0 }, exports, native: false, fwd });
 
+    // Static TLS (__declspec(thread)): one slot per image in the TEB's TLS array.
+    // Taken before the imports load, so the exe gets slot 0 as on Windows (optimized
+    // exe code reads slot 0 directly instead of _tls_index).
+    let (tls_rva, _) = dir(9)?;
+    if tls_rva != 0 {
+        let t = base + tls_rva;
+        let (start, end, index_at) = (rd64(e, t)?, rd64(e, t + 8)?, rd64(e, t + 16)?);
+        let zero = rd32(e, t + 32)? as u64;
+        let i = e.s.tls_tmpl.len();
+        e.s.tls_tmpl.push((start, end.saturating_sub(start), zero));
+        if index_at != 0 { e.mmu.write32(index_at, i as u32).map_err(|_| "tls")?; }
+        e.tls_block(crate::TEB, i);
+    }
+
     // Imports (load dependencies first, then bind)
     let (imp_rva, _) = dir(1)?;
     if imp_rva != 0 {
@@ -258,17 +272,6 @@ pub fn load_image(e: &mut Engine, name: &str, b: &[u8], is_exe: bool) -> Result<
             }
             d += 20;
         }
-    }
-    // Static TLS (__declspec(thread)): one slot per image in the TEB's TLS array
-    let (tls_rva, _) = dir(9)?;
-    if tls_rva != 0 {
-        let t = base + tls_rva;
-        let (start, end, index_at) = (rd64(e, t)?, rd64(e, t + 8)?, rd64(e, t + 16)?);
-        let zero = rd32(e, t + 32)? as u64;
-        let i = e.s.tls_tmpl.len();
-        e.s.tls_tmpl.push((start, end.saturating_sub(start), zero));
-        if index_at != 0 { e.mmu.write32(index_at, i as u32).map_err(|_| "tls")?; }
-        e.tls_block(crate::TEB, i);
     }
     if !is_exe && !e.s.no_init && e.s.modules[idx].entry != 0 { e.s.init_queue.push((e.s.modules[idx].entry, base)); }
     Ok(idx)

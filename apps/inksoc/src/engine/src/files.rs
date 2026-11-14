@@ -1079,16 +1079,21 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 let _ = e.mmu.read_bytes(src, &mut v);
                 v
             };
-            let w: Vec<u16> = String::from_utf8_lossy(&bytes).encode_utf16().collect();
+            let w: Vec<u16> = if single_byte_cp(e.arg(0) as u32) {
+                bytes.iter().map(|&b| b as u16).collect()
+            } else {
+                String::from_utf8_lossy(&bytes).encode_utf16().collect()
+            };
             if max == 0 {
                 return Some(w.len() as u64);
+            }
+            // a buffer too small gets what fits (as Windows does), and the call fails
+            for (i, c) in w.iter().take(max as usize).enumerate() {
+                e.w16(dst + 2 * i as u64, *c);
             }
             if (w.len() as u64) > max {
                 e.set_last_error(122);
                 return Some(0);
-            }
-            for (i, c) in w.iter().enumerate() {
-                e.w16(dst + 2 * i as u64, *c);
             }
             w.len() as u64
         }
@@ -1107,15 +1112,23 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     break;
                 }
             }
-            let b = String::from_utf16_lossy(&w).into_bytes();
+            let cp = e.arg(0) as u32;
+            let b = if single_byte_cp(cp) {
+                let top = if cp == 20127 { 0x80 } else { 0x100 };
+                w.iter().map(|&c| if c < top { c as u8 } else { b'?' }).collect()
+            } else {
+                String::from_utf16_lossy(&w).into_bytes()
+            };
             if max == 0 {
                 return Some(b.len() as u64);
             }
+            // a buffer too small gets what fits (as Windows does), and the call fails
+            let fit = b.len().min(max as usize);
+            let _ = e.mmu.write_bytes(dst, &b[..fit]);
             if (b.len() as u64) > max {
                 e.set_last_error(122);
                 return Some(0);
             }
-            let _ = e.mmu.write_bytes(dst, &b);
             b.len() as u64
         }
         // ---- events (one thread: an event is just a flag) ----
@@ -1168,4 +1181,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         _ => return e.not_mine(),
     })
+}
+
+/// Code pages other than the UTF-8 ones (ACP/OEMCP/MACCP/THREAD_ACP are UTF-8 here)
+/// map one byte to one character (Latin-1; US-ASCII 20127 stops at 0x7F).
+fn single_byte_cp(cp: u32) -> bool {
+    !matches!(cp, 0..=3 | 65000 | 65001)
 }

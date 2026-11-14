@@ -73,6 +73,13 @@ async function runOne({ files, exe, args }) {
   wine = (await WebAssembly.instantiate(fs.readFileSync(path.join(ENGINE, 'wine.wasm')), { env: { memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc, free: x.wine_free, sse2_memmove: x.wine_memmove, __inksoc_teb: x.wine_teb, ink_output: x.wine_output } })).instance.exports;
   const enc = (t) => new TextEncoder().encode(t);
   for (const f of files) { const nm = enc(path.basename(f)), d = fs.readFileSync(f), b = new Uint8Array(nm.length + 1 + d.length); b.set(nm); b.set(d, nm.length + 1); put(b); x.add_file(); }
+  // DRIVE=<local folder>=<Windows folder>: the folder's files as installed on drive C:, the program starts there
+  if (process.env.DRIVE) {
+    const [local, win] = process.env.DRIVE.split('=');
+    const walk = (d, w) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const lp = path.join(d, e.name), wp = w + '\\' + e.name; if (e.isDirectory()) walk(lp, wp); else { const nm = enc(wp), dt = fs.readFileSync(lp), b = new Uint8Array(nm.length + 1 + dt.length); b.set(nm); b.set(dt, nm.length + 1); put(b); x.add_file(); } } };
+    if (x.set_home) { put(enc(win)); x.set_home(); }
+    walk(local, win);
+  }
   if (process.env.WINETRACE && x.set_wine_trace) { put(enc(process.env.WINETRACE)); x.set_wine_trace(); }
   if (process.env.WINEDEBUG && x.set_wine_debug) x.set_wine_debug(+process.env.WINEDEBUG || 1);
   if (process.env.TRACE) { traceFd = fs.openSync(process.env.TRACE, 'w'); if (!process.env.TRACE_AT) x.set_trace(1); } // TRACE_AT=s: start the log only then

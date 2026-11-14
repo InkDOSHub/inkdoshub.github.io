@@ -145,13 +145,20 @@
   const convert = (internal, format, type, data) => {
     if (format === 0x80E1) { // GL_BGRA
       if (data) {
-        if (type === 0x8367 || type === 0x1401 || type === 0x8035) { // 8_8_8_8_REV / UNSIGNED_BYTE: B,G,R,A bytes
+        if (type === 0x8035) { // 8_8_8_8: A,R,G,B bytes
+          for (let i = 0; i < data.length; i += 4) { const al = data[i]; data[i] = data[i + 1]; data[i + 1] = data[i + 2]; data[i + 2] = data[i + 3]; data[i + 3] = al; }
+          type = 0x1401;
+        } else if (type === 0x8367 || type === 0x1401) { // 8_8_8_8_REV / UNSIGNED_BYTE: B,G,R,A bytes
           for (let i = 0; i < data.length; i += 4) { const b = data[i]; data[i] = data[i + 2]; data[i + 2] = b; }
           type = 0x1401;
         }
       } else type = 0x1401;
       format = 0x1908;
     }
+    if (type === 0x8035 && data) { // RGBA 8_8_8_8: A,B,G,R bytes
+      for (let i = 0; i < data.length; i += 4) { const r = data[i + 3], g = data[i + 2]; data[i + 3] = data[i]; data[i + 2] = data[i + 1]; data[i] = r; data[i + 1] = g; }
+      type = 0x1401;
+    } else if (type === 0x8035) type = 0x1401;
     if (type === 0x8367) type = 0x1401; // RGBA with 8_8_8_8_REV = plain bytes
     if (format === 0x1908 && type === 0x1401) internal = internal === 0x8C43 || internal === 0x8C42 ? 0x8C43 : 0x8058; // SRGB8_ALPHA8 or RGBA8
     else if (format === 0x1907 && type === 0x1401) internal = 0x8051; // RGB8
@@ -194,6 +201,7 @@
     gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, prevFb);
     gl.pixelStorei(gl.PACK_ALIGNMENT, prevPack);
+    if (self.wineDebug >= 2 && ((swapN = (swapN || 0) + 1) <= 5 || swapN % 50 === 0)) { const c = (w * (h >> 1) + (w >> 1)) * 4, q = (w * (h >> 2) + (w >> 2)) * 4; console.log('[gl] swap', swapN, w, h, 'center', px.slice(c, c + 4).join(','), 'quarter', px.slice(q, q + 4).join(','), 'prevFb', !!prevFb); }
     // bottom-up RGBA bytes -> top-down 0xAARRGGBB words
     const p = x.gl_scratch(w * h * 4), out = new Uint32Array(mem.buffer, p, w * h);
     for (let y = 0; y < h; y++) {
@@ -298,8 +306,19 @@
   F.glTexParameterf = (a) => { try { gl.texParameterf(a[0], a[1], a[2]); } catch (e) { /* */ } gl.getError(); return 0; };
   F.glTexParameteriv = (a) => F.glTexParameteri([a[0], a[1], rdI32(a[2], 1)[0]]);
   F.glTexParameterfv = (a) => F.glTexParameterf([a[0], a[1], rdF32(a[2], 1)[0]]);
+  // each texture level's size and format: WebGL cannot be asked (glGetTexImage, glGetTexLevelParameteriv)
+  const levels = new WeakMap();
+  const bindingOf = (target) => (target >= 0x8515 && target <= 0x851A ? gl.TEXTURE_BINDING_CUBE_MAP : target === 0x806F ? gl.TEXTURE_BINDING_3D : target === 0x8C1A ? gl.TEXTURE_BINDING_2D_ARRAY : gl.TEXTURE_BINDING_2D);
+  const setLevel = (target, level, w, h, internal) => {
+    const t = gl.getParameter(bindingOf(target));
+    if (!t) return;
+    if (!levels.has(t)) levels.set(t, new Map());
+    levels.get(t).set(target + ':' + level, [w, h, internal]);
+  };
+  const getLevel = (target, level) => { const t = gl.getParameter(bindingOf(target)); return t && levels.has(t) ? [t, levels.get(t).get(target + ':' + level)] : [t, null]; };
   F.glTexImage2D = (a) => {
     const [target, level, internal, w, h, , format, type, ptr] = a;
+    setLevel(target, level, w, h, internal);
     const bound = gl.getParameter(gl.PIXEL_UNPACK_BUFFER_BINDING);
     const data = bound ? null : readImage(ptr, w, h, 1, format, type);
     const [i2, f2, t2, v] = convert(internal, format, type, data);
@@ -322,7 +341,14 @@
     gl.texImage3D(target, level, i2, w, h, d, 0, f2, t2, v);
     return 0;
   };
-  F.glTexStorage2D = (a) => { const [i2] = convert(a[2], 0, 0, null); gl.texStorage2D(a[0], a[1], i2 === 0 ? a[2] : a[2] === 0x8058 || a[2] === 0x1908 ? 0x8058 : a[2], a[3], a[4]); return 0; };
+  F.glTexStorage2D = (a) => {
+    for (let i = 0; i < a[1]; i++) {
+      const faces = a[0] === 0x8513 ? [0x8515, 0x8516, 0x8517, 0x8518, 0x8519, 0x851A] : [a[0]];
+      for (const f of faces) setLevel(f === a[0] ? a[0] : f, i, Math.max(1, a[3] >> i), Math.max(1, a[4] >> i), a[2]);
+    }
+    return texStorage2D(a);
+  };
+  const texStorage2D = (a) => { const [i2] = convert(a[2], 0, 0, null); gl.texStorage2D(a[0], a[1], i2 === 0 ? a[2] : a[2] === 0x8058 || a[2] === 0x1908 ? 0x8058 : a[2], a[3], a[4]); return 0; };
   F.glGenerateMipmap = (a) => { gl.generateMipmap(a[0]); return 0; };
   F.glGenSamplers = (a) => { gen('smp', a[0], a[1], () => gl.createSampler()); return 0; };
   F.glDeleteSamplers = (a) => { del('smp', a[0], a[1], (o) => gl.deleteSampler(o)); return 0; };
@@ -547,6 +573,32 @@
     return 0;
   };
 
+  // glGetTexImage: the level is attached to a scratch framebuffer and read back
+  let readFbo = null;
+  F.glGetTexImage = (a) => {
+    const [target, level, format, type, ptr] = a;
+    const [t, lv] = getLevel(target, level);
+    if (!t || !lv) return 0;
+    const prev = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING);
+    readFbo ??= gl.createFramebuffer();
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, readFbo);
+    gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, target === 0x84F5 ? gl.TEXTURE_2D : target, t, level);
+    const pb = gl.getParameter(gl.PIXEL_PACK_BUFFER_BINDING);
+    if (pb) gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    if (gl.checkFramebufferStatus(gl.READ_FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE) F.glReadPixels([0, 0, lv[0], lv[1], format, type, ptr]);
+    if (pb) gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pb);
+    gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, prev);
+    gl.getError();
+    return 0;
+  };
+  F.glGetTexLevelParameteriv = (a) => {
+    const [, lv] = getLevel(a[0], a[1]);
+    const v = !lv ? 0 : a[2] === 0x1000 ? lv[0] : a[2] === 0x1001 ? lv[1] : a[2] === 0x1003 ? lv[2] : a[2] === 0x8071 ? 1 : 0; // WIDTH, HEIGHT, INTERNAL_FORMAT, DEPTH
+    wrI32(a[3], [v]);
+    return 0;
+  };
+
   // ---------- queries and syncs ----------
   F.glGenQueries = (a) => { gen('qry', a[0], a[1], () => gl.createQuery()); return 0; };
   F.glDeleteQueries = (a) => { del('qry', a[0], a[1], (o) => gl.deleteQuery(o)); return 0; };
@@ -561,6 +613,8 @@
   F.glWaitSync = () => 0;
 
   // ---------- the call from the engine ----------
+  const seen = {};
+  let swapN = 0;
   self.glCall = (engine, memory, code, p, n) => {
     x = engine; mem = memory;
     const name = GL_FUNCS[code], f = F[name] || F[name.replace(/(ARB|EXT)$/, '')];
@@ -568,6 +622,11 @@
     const args = Array.from(new Float64Array(mem.buffer, p, n));
     try {
       const r = f(args);
+      // ?winedebug=2 or more: each WebGL error once per function (the program may never ask)
+      if (self.wineDebug >= 2 && name !== 'glGetError') {
+        const err = gl && gl.getError();
+        if (err && (seen[name + err] = (seen[name + err] || 0) + 1) <= 5) { console.log('[gl] ' + name + ' -> error 0x' + err.toString(16) + ' (' + args.map((v) => (v > 9 ? '0x' + v.toString(16) : v)).join(', ') + ')'); }
+      }
       return r === undefined || r === null ? 0 : +r;
     } catch (e) {
       console.log('[gl] ' + name + ': ' + (e && e.message || e));

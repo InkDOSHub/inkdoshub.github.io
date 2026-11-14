@@ -149,7 +149,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
       const data = new Float32Array(mem.buffer, p, frames * ch).slice();
       postMessage({ type: 'audio', id, rate, ch, data }, [data.buffer]);
     },
-    host_gl: (code, p, n) => { if (!self.glCall) importScripts('gl-funcs.js?v=2', 'gl.js?v=2'); return self.glCall(x, mem, code, p, n); },
+    host_gl: (code, p, n) => { if (!self.glCall) importScripts('gl-funcs.js?v=2', 'gl.js?v=7'); return self.glCall(x, mem, code, p, n); },
     host_drive_read: (id, off, p, n) => {
       if (swapCtl) return driveCall(swapCtl, id, off, p, n);
       const h = id === SPILL ? spill : open[id];
@@ -177,7 +177,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=38' : 'inksoc.wasm?v=60', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=41' : 'inksoc.wasm?v=64', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -396,7 +396,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=60').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=64').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
