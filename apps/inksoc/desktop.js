@@ -134,7 +134,7 @@ function run(files, exe, args, label, home) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=60');
+  const w = p.w = new Worker('worker.js?v=61');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
