@@ -15,6 +15,7 @@ use std::sync::OnceLock;
 mod bitmap;
 mod calls;
 mod compose;
+mod d3dkmt;
 mod objects;
 mod region;
 mod shapes;

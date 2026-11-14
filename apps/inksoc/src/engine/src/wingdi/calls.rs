@@ -1046,6 +1046,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtGdiMakeFontDir" => 0,
         _ => {
             if name.starts_with("NtGdiDdDDI") {
+                if let Some(st) = e.d3dkmt(name, a0) {
+                    return Some(st);
+                }
                 return Some(crate::status::NOT_SUPPORTED);
             }
             if !e.s.gdi.unknown.contains(name) {

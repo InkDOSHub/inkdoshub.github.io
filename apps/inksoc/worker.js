@@ -171,7 +171,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=36' : 'inksoc.wasm?v=50', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=36' : 'inksoc.wasm?v=53', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -197,6 +197,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   x.init(poolMb, targetMb);
   if (shared && !mt) x.set_shared_mem(1);
   if (jit === false) x.set_jit(0);
+  if (self.wineDebug && x.set_wine_debug) x.set_wine_debug(1); // page address with ?winedebug=1
   if (mt) x.set_cores(cores);
   // ?strong=0: plain loads/stores between cores (faster, without x86 store order) to measure its cost
   if (opt === false && x.set_jit_opt) { x.set_jit_opt(0); post('log', { text: '[engine] newer JIT improvements OFF (opt=0)\n' }); }
@@ -386,7 +387,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=50').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=53').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -464,6 +465,29 @@ async function runExec(d) {
     const names = d.exe === 'stage1.exe' || !d.exe ? ['stage1.exe', 'testdll.dll'] : [d.exe];
     files = await Promise.all(names.map(async (name) => ({ name, data: await fetch(name + '?v=2').then((r) => r.arrayBuffer()) })));
   }
+  // big picked files (a 400 MB .msi) do not fit in the engine's memory: they go to a scratch
+  // OPFS folder and are read on demand, like drive C: files
+  let spill = null;
+  if (!fetched) {
+    const opfs = await navigator.storage.getDirectory().catch(() => null);
+    if (opfs) {
+      for await (const [name] of opfs.entries()) if (name.startsWith('inksoc-in-')) await opfs.removeEntry(name, { recursive: true }).catch(() => {}); // left by a run that stopped (a running one holds its files)
+      const big = d.files.filter((f) => f.blob || (f.data && f.data.byteLength > (32 << 20)));
+      try {
+        if (big.length) spill = await opfs.getDirectoryHandle('inksoc-in-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), { create: true });
+        for (const f of big) {
+          const h = await spill.getFileHandle(String(big.indexOf(f)), { create: true }), s = await h.createSyncAccessHandle();
+          s.truncate(0);
+          if (f.blob) for (let at = 0; at < f.blob.size; at += 8 << 20) s.write(new Uint8Array(await f.blob.slice(at, at + (8 << 20)).arrayBuffer()), { at });
+          else s.write(new Uint8Array(f.data), { at: 0 });
+          s.flush(); s.close();
+          f.handle = h; f.at = [spill.name, String(big.indexOf(f))]; f.size = f.blob ? f.blob.size : f.data.byteLength; delete f.data; delete f.blob;
+        }
+      } catch (e) { post('log', { text: `[engine] big file kept in memory (${e && e.message || e})\n` }); }
+    }
+    // no disk for it: read it whole after all
+    for (const f of d.files) if (f.blob) { f.data = await f.blob.arrayBuffer(); delete f.blob; }
+  }
   let reg = null;
   if (!fetched && d.drive) {
     try { const c = await readDrive(); files = c.files.concat(files); reg = c.reg; } catch (e) { post('log', { text: `[engine] drive C: not available here: ${e && e.message || e}\n` }); }
@@ -482,24 +506,6 @@ async function runExec(d) {
       const l32 = await fetch('bin/wine32/list.json?v=4').then((r) => r.json());
       const w32 = await Promise.all(l32.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch((name.startsWith('wine-') ? 'bin/wine/' : 'bin/wine32/') + name + '?v=2').then((r) => r.arrayBuffer()) })));
       files = files.concat(w32);
-    }
-  }
-  // big picked files (a 400 MB .msi) do not fit in the engine's memory: they go to a scratch
-  // OPFS folder and are read on demand, like drive C: files
-  let spill = null;
-  if (!fetched) {
-    const opfs = await navigator.storage.getDirectory().catch(() => null);
-    if (opfs) {
-      for await (const [name] of opfs.entries()) if (name.startsWith('inksoc-in-')) await opfs.removeEntry(name, { recursive: true }).catch(() => {}); // left by a run that stopped (a running one holds its files)
-      const big = d.files.filter((f) => f.data && f.data.byteLength > (32 << 20));
-      try {
-        if (big.length) spill = await opfs.getDirectoryHandle('inksoc-in-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), { create: true });
-        for (const f of big) {
-          const h = await spill.getFileHandle(String(big.indexOf(f)), { create: true }), s = await h.createSyncAccessHandle();
-          s.truncate(0); s.write(new Uint8Array(f.data), { at: 0 }); s.flush(); s.close();
-          f.handle = h; f.at = [spill.name, String(big.indexOf(f))]; f.size = f.data.byteLength; delete f.data;
-        }
-      } catch (e) { post('log', { text: `[engine] big file kept in memory (${e && e.message || e})\n` }); }
     }
   }
   try {
@@ -598,6 +604,7 @@ let winX = null;
 onmessage = (ev) => {
   const d = ev.data;
   if (d.type === 'stop') { stopAsked = true; return; }
+  if (d.winedebug) self.wineDebug = true;
   if (d.type === 'win') { if (winX) winX.win_input(d.k, d.x, d.y, d.d); return; }
   if (d.type === 'key') { if (lxs) lxs.key(d.data); return; }
   if (d.type === 'resize') { if (lxs) lxs.resize(d.rows, d.cols); return; }

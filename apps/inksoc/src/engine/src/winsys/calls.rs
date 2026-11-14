@@ -751,6 +751,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             1
         }
         "NtUserGetDC" => e.get_dc(full(a0), false),
+        "NtUserWindowFromDC" => e.dc_hwnd(ar[0]),
         "NtUserSetFocus" => {
             let h = full(a0);
             let old = e.s.win.focus;

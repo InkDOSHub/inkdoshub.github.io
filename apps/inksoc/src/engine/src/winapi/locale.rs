@@ -6,8 +6,23 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
     let a0 = e.arg(0);
     Some(match name {
         // ---- Wine's debug channels (always off) ----
-        "__wine_dbg_header" => u64::MAX,
-        "__wine_dbg_output" | "__wine_dbg_get_channel_flags" => 0,
+        // header(class, channel, function): -1 = do not print. Classes: 0 FIXME, 1 ERR, 2 WARN, 3 TRACE
+        "__wine_dbg_header" => {
+            if !unsafe { crate::WINE_DEBUG } || a0 > 1 {
+                return Some(u64::MAX);
+            }
+            let (ch, func) = (e.arg(1), e.arg(2));
+            let (channel, function) = (e.read_cstr(ch + 1, 15), e.read_cstr(func, 128));
+            crate::console(&format!("{}:{}:{} ", if a0 == 0 { "fixme" } else { "err" }, channel, function));
+            0
+        }
+        "__wine_dbg_output" => {
+            let s = e.read_cstr(a0, 4096);
+            crate::console(&s);
+            s.len() as u64
+        }
+        // FIXME and ERR on when asked for
+        "__wine_dbg_get_channel_flags" => if unsafe { crate::WINE_DEBUG } { 3 } else { 0 },
         "__wine_dbg_strdup" => a0,
 
         // ---- code pages and locale ----

@@ -245,6 +245,13 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
             OK
         }
+        // a LUID unique for this run
+        "NtAllocateLocallyUniqueId" => {
+            e.s.next_luid += 1;
+            let v = 0x1000 + e.s.next_luid;
+            e.w64(a0, v);
+            OK
+        }
         "NtQueryDefaultLocale" => {
             let p = e.arg(1);
             e.w32(p, 0x409);

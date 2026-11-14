@@ -72,6 +72,7 @@ async function runOne({ files, exe, args }) {
   wine = (await WebAssembly.instantiate(fs.readFileSync(path.join(ENGINE, 'wine.wasm')), { env: { memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc, free: x.wine_free, sse2_memmove: x.wine_memmove, __inksoc_teb: x.wine_teb, ink_output: x.wine_output } })).instance.exports;
   const enc = (t) => new TextEncoder().encode(t);
   for (const f of files) { const nm = enc(path.basename(f)), d = fs.readFileSync(f), b = new Uint8Array(nm.length + 1 + d.length); b.set(nm); b.set(d, nm.length + 1); put(b); x.add_file(); }
+  if (process.env.WINEDEBUG && x.set_wine_debug) x.set_wine_debug(1);
   if (process.env.TRACE) { traceFd = fs.openSync(process.env.TRACE, 'w'); if (!process.env.TRACE_AT) x.set_trace(1); } // TRACE_AT=s: start the log only then
   if (process.env.NOJIT) x.set_jit(0);
   put(enc(exe + '\0' + exe + (args ? ' ' + args : '')));
