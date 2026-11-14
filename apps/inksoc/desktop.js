@@ -229,6 +229,20 @@ const key = (kind) => (e) => {
   send(focus, kind, 0, 0, (e.keyCode & 0xFF) | (ch << 16));
   e.preventDefault();
 };
+// on-screen game controls: each button holds its key down while touched (several at once)
+const padTarget = () => focus && focus.cv ? focus : progs.filter((p) => p.cv && !p.hidden).sort((a, b) => b.z - a.z)[0];
+for (const k of document.querySelectorAll('#pad .k')) {
+  const vk = +k.dataset.vk, ch = /^[A-Z]$/.test(k.textContent) ? k.textContent.toLowerCase().codePointAt(0) : vk === 27 ? 27 : 0;
+  let held = null;
+  k.addEventListener('pointerdown', (e) => { e.preventDefault(); soundOn(); k.setPointerCapture(e.pointerId); held = padTarget(); if (held) send(held, 4, 0, 0, vk | (ch << 16)); k.classList.add('down'); });
+  const up = () => { if (held) send(held, 5, 0, 0, vk); held = null; k.classList.remove('down'); };
+  k.addEventListener('pointerup', up);
+  k.addEventListener('pointercancel', up);
+  k.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+// the 🎮 button shows on touch screens; the controls stay hidden until it is tapped
+if (matchMedia('(pointer: coarse)').matches) $('padbtn').hidden = false;
+$('padbtn').onclick = () => { const on = $('pad').hidden; $('pad').hidden = !on; $('padbtn').classList.toggle('on', on); };
 addEventListener('keydown', key(4));
 addEventListener('keyup', key(5));
 

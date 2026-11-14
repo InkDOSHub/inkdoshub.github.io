@@ -98,6 +98,7 @@ pub struct Thread {
     cpu_ms: f64,   // time spent on a core (ms), for GetThreadTimes
     ran: f64,      // when it last went on a core (that core's clock)
     shown: f64,    // highest CPU time reported (a thread running on another core is seen without its current turn)
+    pub core0: bool, // uses the page's OpenGL or sound, which live on core 0's worker: runs there only
 }
 const NO_CORE: u32 = u32::MAX;
 
@@ -129,6 +130,7 @@ impl Engine {
             exit: 0,
             suspend: 0,
             on_core: 0,
+            core0: false,
             pid: 0,
             wpid: 0,
             cpu_ms: 0.0,
@@ -387,6 +389,16 @@ impl Engine {
     }
 
     /// Native call that waits: finishes now when possible, else parks the thread.
+    /// Moves the current thread to core 0 for good (OpenGL and sound are there): it
+    /// waits a moment and runs the same call again, where only core 0 picks it up.
+    pub(crate) fn to_core0(&mut self) -> Option<u64> {
+        if self.core == 0 || self.cur == usize::MAX {
+            return None;
+        }
+        self.s.sched.th[self.cur].core0 = true;
+        Some(self.wait_on(W::Again, 1))
+    }
+
     pub(crate) fn wait_on(&mut self, w: W, ms: u64) -> u64 {
         let me = self.cur_tid();
         if let Some(v) = self.try_wait(&w, me) {
@@ -455,6 +467,7 @@ impl Engine {
             exit: STILL_ACTIVE as u32,
             suspend: suspended as u32,
             on_core: NO_CORE,
+            core0: false,
             pid: 0,
             wpid: self.s.wpid,
             cpu_ms: 0.0,
@@ -484,6 +497,7 @@ impl Engine {
             exit: STILL_ACTIVE as u32,
             suspend: suspended as u32,
             on_core: NO_CORE,
+            core0: false,
             pid: 0,
             wpid,
             cpu_ms: 0.0,
@@ -511,6 +525,7 @@ impl Engine {
             exit: 0,
             suspend: 0,
             on_core: NO_CORE,
+            core0: false,
             pid,
             wpid: 0,
             cpu_ms: 0.0,
@@ -585,7 +600,7 @@ impl Engine {
                 continue;
             }
             // threads this core leaves to core 0 are not stuck: core 0 runs them
-            if self.core != 0 && t.pid != 0 {
+            if self.core != 0 && (t.pid != 0 || t.core0) {
                 if t.st != St::Done {
                     held = true;
                 }

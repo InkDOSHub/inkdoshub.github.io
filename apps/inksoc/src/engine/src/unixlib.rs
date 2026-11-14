@@ -45,6 +45,11 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         return e.not_mine();
     }
     let (handle, code, params) = (e.arg(0), e.arg(1) as u32, e.arg(2));
+    if handle == OPENGL || handle == AUDIO {
+        if let Some(r) = e.to_core0() {
+            return Some(r);
+        }
+    }
     Some(match handle {
         OPENGL => e.opengl_call(code, params),
         AUDIO => e.audio_call(code, params),
