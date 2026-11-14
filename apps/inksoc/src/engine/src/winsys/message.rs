@@ -45,6 +45,19 @@ impl Engine {
     }
 
     /// Whether the thread has anything for GetMessage (posted, input, quit, paint, due timer).
+    /// Takes one "a message was sent to you" wake-up of a thread (at most one per 20 ms).
+    pub(crate) fn take_nudge(&mut self, tid: u32) -> bool {
+        let now = now_ms();
+        match self.s.win.queues.get_mut(&tid) {
+            Some(q) if q.nudge > 0 && now >= q.nudge_at => {
+                q.nudge -= 1;
+                q.nudge_at = now + 20.0;
+                true
+            }
+            _ => false,
+        }
+    }
+
     pub(crate) fn has_msgs(&mut self, tid: u32) -> bool {
         self.s.win.queues.get(&tid).map_or(false, |q| !q.posted.is_empty() || !q.input.is_empty() || q.quit.is_some())
             || self.paint_due(tid)

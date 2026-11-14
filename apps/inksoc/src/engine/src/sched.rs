@@ -22,6 +22,8 @@ const MAIN_TID: u32 = 8;
 #[derive(Clone)]
 pub enum W {
     Sleep,
+    /// sleep, then run the same call again (a native loop that waits between rounds)
+    Again,
     Objs {
         hs: Vec<u64>,
         all: bool,
@@ -246,7 +248,7 @@ impl Engine {
         // overlapped pipe I/O of this process that can finish now (its events get set)
         self.np_poll();
         match w {
-            W::Sleep => None,
+            W::Sleep | W::Again => None,
             W::Objs { hs, all } => {
                 if *all {
                     if hs.iter().all(|&h| self.signaled(h, me)) {
@@ -366,7 +368,7 @@ impl Engine {
                     self.acquire(hs[i], me);
                     return Some(i as u64);
                 }
-                if self.has_msgs(me) {
+                if self.take_nudge(me) || self.has_msgs(me) {
                     Some(hs.len() as u64)
                 } else {
                     None
@@ -630,7 +632,9 @@ impl Engine {
                     }
                     let r = self.try_wait(&w, id).or_else(|| {
                         if t_now >= dl {
-                            Some(if matches!(w, W::Sleep | W::Addr { win: true, .. }) {
+                            Some(if matches!(w, W::Again) {
+                                RETRY
+                            } else if matches!(w, W::Sleep | W::Addr { win: true, .. }) {
                                 0
                             } else if matches!(w, W::NpWait(_)) {
                                 IO_TIMEOUT

@@ -56,6 +56,7 @@ async function runOne({ files, exe, args }) {
     host_drive_write: (id, off, p, n) => { spillFd ??= fs.openSync(path.join(os.tmpdir(), 'inksoc-spill-' + process.pid), 'w+'); return fs.writeSync(spillFd, new Uint8Array(mem.buffer, p >>> 0, n), 0, n, off); },
     host_drive_read: (id, off, p, n) => spillFd === null ? 0 : fs.readSync(spillFd, new Uint8Array(mem.buffer, p >>> 0, n), 0, n, off),
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
+    host_audio: () => {}, // no sound in Node
     host_gl: () => NaN, // no WebGL in Node
     host_jit: (p, n) => {
       try {

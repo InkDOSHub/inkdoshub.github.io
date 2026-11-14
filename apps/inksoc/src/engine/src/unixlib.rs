@@ -1,6 +1,6 @@
 // Unix libraries: the Unix-side halves of Wine DLLs.
 //
-// A Wine DLL with a Unix half (opengl32.dll here) asks ntdll for its "unix funcs" handle
+// A Wine DLL with a Unix half (opengl32.dll, winepulse.drv) asks ntdll for its "unix funcs" handle
 // once (NtQueryVirtualMemory, class MemoryWineUnixFuncs), then calls
 // __wine_unix_call_dispatcher(handle, code, params) for each function. The engine plays
 // the Unix side: the dispatcher points at a native thunk, and each handle names one of
@@ -13,6 +13,7 @@ use crate::Engine;
 pub const MEMORY_WINE_UNIX_FUNCS: u32 = 1000;
 
 const OPENGL: u64 = 1;
+const AUDIO: u64 = 2;
 
 /// The variable ntdll exports for the dispatcher: a pointer to the native thunk.
 pub fn data_export(e: &mut Engine, dll: &str, name: &str) -> Option<u64> {
@@ -33,6 +34,7 @@ pub fn handle_of(e: &Engine, base: u64) -> Option<u64> {
     let m = e.s.modules.iter().find(|m| m.base == base)?;
     match m.name.trim_start_matches("wine-") {
         "opengl32.dll" => Some(OPENGL),
+        "winepulse.drv" => Some(AUDIO),
         _ => None,
     }
 }
@@ -45,6 +47,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
     let (handle, code, params) = (e.arg(0), e.arg(1) as u32, e.arg(2));
     Some(match handle {
         OPENGL => e.opengl_call(code, params),
+        AUDIO => e.audio_call(code, params),
         _ => NOT_IMPLEMENTED,
     })
 }

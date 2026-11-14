@@ -66,7 +66,49 @@ function consoleWindow(p, title) {
   return c;
 }
 
+// sound: each program's audio streams play through one Web Audio context. Browsers start
+// it only after a tap or click, so every tap on the page tries to wake it.
+const sound = { ctx: null, streams: new Map() };
+function soundOn() {
+  try {
+    if (!sound.ctx) sound.ctx = new (self.AudioContext || self.webkitAudioContext)();
+    if (sound.ctx.state === 'suspended') sound.ctx.resume();
+  } catch (e) {}
+}
+document.addEventListener('pointerdown', soundOn, true);
+document.addEventListener('keydown', soundOn, true);
+function soundStop(key) {
+  for (const [k, s] of sound.streams) {
+    if (k !== key && !k.startsWith(key + ':')) continue;
+    for (const n of s.nodes) try { n.stop(); } catch (e) {}
+    sound.streams.delete(k);
+  }
+}
+function play(p, d) {
+  const key = p.id + ':' + d.id;
+  if (d.stop) { soundStop(key); return; }
+  const ctx = sound.ctx;
+  if (!ctx || ctx.state !== 'running') return;
+  let s = sound.streams.get(key);
+  if (!s) sound.streams.set(key, s = { next: 0, nodes: new Set() });
+  const frames = d.data.length / d.ch, b = ctx.createBuffer(d.ch, frames, d.rate);
+  for (let c = 0; c < d.ch; c++) {
+    const out = b.getChannelData(c);
+    for (let i = 0; i < frames; i++) out[i] = d.data[i * d.ch + c];
+  }
+  const n = ctx.createBufferSource();
+  n.buffer = b;
+  n.connect(ctx.destination);
+  // a gap (the program fell behind): start again a little ahead, so blocks join smoothly
+  const t = s.next > ctx.currentTime ? s.next : ctx.currentTime + 0.05;
+  n.start(t);
+  s.next = t + b.duration;
+  s.nodes.add(n);
+  n.onended = () => s.nodes.delete(n);
+}
+
 function close(p) {
+  soundStop(p.id + '');
   // ask the program to stop so its files are kept on drive C:; force it after 5 s
   if (p.w) { const w = p.w; w.onmessage = (ev) => { if (ev.data.type === 'done') { w.terminate(); listDrive(); } }; w.postMessage({ type: 'stop' }); setTimeout(() => w.terminate(), 5000); }
   p.w = null;
@@ -92,7 +134,7 @@ function run(files, exe, args, label, home) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=56');
+  const w = p.w = new Worker('worker.js?v=57');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
@@ -101,7 +143,9 @@ function run(files, exe, args, label, home) {
       p.con.querySelector('table').innerHTML = '<tr><td>' + fmt(d.insns / d.ms / 1000) + ' MIPS · ' + (d.jit ? 'JIT' : 'interpreter') + ' · ' + d.cores + (d.cores > 1 ? ' cores' : ' core') + (d.threads > 1 ? ' · ' + d.threads + ' threads' : '') + ' · RAM ' + fmt(d.resident * 4 / 1024) + '/' + fmt(d.frames * 4 / 1024) + ' MB' + (d.swapOut || d.swapIn ? ' · swap ' + fmt(d.swapOut * 4 / 1024) + ' MB out, ' + fmt(d.swapIn * 4 / 1024) + ' MB in, ' + fmt(d.swapMs) + ' ms on ' + (d.opfs ? 'OPFS' : 'RAM') : '') + '</td></tr>';
       $('speed').textContent = d.cores + (d.cores > 1 ? ' cores' : ' core') + ' · ' + (gips >= 1 ? gips.toFixed(1) + ' GIPS' : fmt(gips * 1000) + ' MIPS');
     } else if (d.type === 'frame') frame(p, d);
+    else if (d.type === 'audio') play(p, d);
     else if (d.type === 'done') {
+      soundStop(p.id + '');
       listDrive();
       // a program with windows that printed nothing: no console to show at the end either
       const quiet = p.cv && !out.textContent.trim();

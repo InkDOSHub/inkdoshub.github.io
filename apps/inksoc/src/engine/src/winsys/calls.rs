@@ -486,6 +486,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     if h == 0xFFFF {
                         return Some(1);
                     } // broadcast
+                    // the sender runs the procedure; the thread that owns the window, if it waits
+                    // for messages, gets a look too (what it waits on may have changed)
+                    let owner = e.wnd(h).map_or(0, |w| w.tid);
+                    if owner != e.cur_tid() {
+                        let q = e.s.win.queues.entry(owner).or_default();
+                        q.nudge = 3;
+                        q.nudge_at = 0.0;
+                    }
                     if info != 0 && kind != 0x2b7 {
                         e.w64(info + 8, 0);
                         if e.fill_params(info, h, msg, wp, lp, ansi) {
@@ -583,6 +591,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if e.has_msgs(tid) {
                 return Some(n as u64);
             }
+            // a pending wake-up from a sent message: look again soon
+            let ms = if e.s.win.queues.get(&tid).map_or(false, |q| q.nudge > 0) { ms.min(20) } else { ms };
             return Some(e.wait_on(crate::sched::W::MsgOrObjs { hs: handles }, ms));
         }
         "NtUserWaitMessage" => return Some(e.wait_on(crate::sched::W::MsgOrObjs { hs: vec![] }, u64::MAX)),

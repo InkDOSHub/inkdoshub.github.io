@@ -41,6 +41,7 @@ onmessage = (ev) => {
     host_swap_write: (slot, p) => swapCall(swapCtl, 1, slot, p),
     host_swap_read: (slot, p) => swapCall(swapCtl, 2, slot, p),
     host_drive_read: (id, off, p, n) => driveCall(swapCtl, id, off, p, n),
+    host_audio: () => {}, // sound plays from core 0 only (worker.js)
     host_gl: () => NaN, // OpenGL runs on core 0 (gl.js in worker.js)
     host_drive_write: (id, off, p, n) => driveCall(swapCtl, id, off, p, n, 4),
     wine_call: (i, a, b, c, d) => wine.ink_call(i, a, b, c, d),

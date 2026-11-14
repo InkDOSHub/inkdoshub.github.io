@@ -169,6 +169,11 @@ pub struct Queue {
     pub posted: VecDeque<Msg>,
     pub input: VecDeque<Msg>,
     pub quit: Option<i32>,
+    /// a message was sent to one of this thread's windows (handled by the sender itself):
+    /// the thread's message waits return a few times, so it looks again at what changed
+    /// (the sender may still be inside the procedure at the first one)
+    pub nudge: u8,
+    pub nudge_at: f64,
 }
 
 pub struct Timer {

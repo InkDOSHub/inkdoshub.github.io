@@ -89,6 +89,22 @@ impl Registry {
         for (n, v) in [("CurrentMajorVersionNumber", 10u32), ("CurrentMinorVersionNumber", 0), ("UBR", 3803)] {
             vals.push((nt, n, 4, v.to_le_bytes().to_vec()));
         }
+        // COM classes of Wine's DLLs that programs create by CLSID (CoCreateInstance)
+        let mut com = vec![];
+        for (clsid, dll) in [
+            ("{BCDE0395-E52F-467C-8E3D-C4579291692E}", "mmdevapi.dll"), // MMDeviceEnumerator (sound)
+            ("{47D4D946-62E8-11CF-93BC-444553540000}", "dsound.dll"),   // DirectSound
+            ("{3901CC3F-84B5-4FA4-BA35-AA8172B8A09B}", "dsound.dll"),   // DirectSound8
+            ("{B0210780-89CD-11D0-AF08-00A0C925CD16}", "dsound.dll"),   // DirectSoundCapture
+            ("{E4BCAC13-7F99-4908-9A8E-74E3BF24B6E1}", "dsound.dll"),   // DirectSoundCapture8
+            ("{FEA4300C-7959-4147-B26A-2377B9E7A91D}", "dsound.dll"),   // DirectSoundFullDuplex
+        ] {
+            com.push((format!("\\Registry\\Machine\\Software\\Classes\\CLSID\\{}\\InprocServer32", clsid), dll));
+        }
+        for (path, dll) in &com {
+            vals.push((path.as_str(), "", 1, sz(&format!("C:\\Windows\\System32\\{}", dll))));
+            vals.push((path.as_str(), "ThreadingModel", 1, sz("Both")));
+        }
         for (path, n, t, d) in vals {
             self.create(path);
             if let Some(k) = self.keys.get_mut(&path.to_lowercase()) {
