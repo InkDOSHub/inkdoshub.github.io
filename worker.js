@@ -44,7 +44,7 @@ export default {
     if (url.pathname.startsWith("/net/github/")) return github(req, url);
     const res = await env.ASSETS.fetch(req);
     if (res.status !== 404 || req.method !== "GET") return res;
-    const up = await fetch(EXTERNOS[url.pathname] ? EXTERNOS[url.pathname] + url.search : ORIGEM + url.pathname + url.search, { cf: { cacheTtl: 3600, cacheEverything: true } });
+    const up = await fetch(EXTERNOS[url.pathname] ? EXTERNOS[url.pathname] + url.search : ORIGEM + url.pathname + url.search, { cf: { cacheTtlByStatus: { "200-299": 3600, "404": 0, "500-599": 0 }, cacheEverything: true } } // (a 404 is not kept: a folder just published on GitHub Pages works at once));
     const h = new Headers(up.headers);
     for (const [k, v] of Object.entries(ISOLAR)) h.set(k, v);
     if (EXTERNOS[url.pathname]) h.set("Access-Control-Allow-Origin", "*");
