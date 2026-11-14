@@ -20,7 +20,10 @@ onmessage = async (ev) => {
   } catch (e) { swap = null; }
   let spill = null;
   if (spillName) try { spill = await (await (await navigator.storage.getDirectory()).getFileHandle(spillName, { create: true })).createSyncAccessHandle(); spill.truncate(0); } catch (e) { spill = null; }
-  const files = await Promise.all(drive.map(async (h) => { try { return await h.createSyncAccessHandle({ mode: 'read-only' }); } catch (e) { try { return await h.createSyncAccessHandle(); } catch (e2) { return null; } } }));
+  // drive files come as OPFS paths (Safari cannot send file handles between workers)
+  const root = await navigator.storage.getDirectory();
+  const handleAt = async (at) => { let d = root; for (const n of at.slice(0, -1)) d = await d.getDirectoryHandle(n); return d.getFileHandle(at[at.length - 1]); };
+  const files = await Promise.all(drive.map(async (at) => { let h; try { h = await handleAt(at); } catch (e) { return null; } try { return await h.createSyncAccessHandle({ mode: 'read-only' }); } catch (e) { try { return await h.createSyncAccessHandle(); } catch (e2) { return null; } } }));
   postMessage({ ready: true, spill: !!spill, opfs: !!swap, drive: files.map((f) => !!f) });
   const buf = new Uint8Array(PAGE);
   for (;;) {

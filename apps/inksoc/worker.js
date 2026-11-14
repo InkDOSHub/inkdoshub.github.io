@@ -52,17 +52,17 @@ async function readDrive() {
   const files = [];
   let reg = null;
   const root = await driveRoot();
-  const walk = async (dir, path) => {
+  const walk = async (dir, path, at) => {
     let empty = true;
     for await (const [name, h] of dir.entries()) {
       empty = false;
-      if (h.kind === 'directory') await walk(h, path ? path + '\\' + name : name + ':');
+      if (h.kind === 'directory') await walk(h, path ? path + '\\' + name : name + ':', at.concat(name));
       else if (!path) { if (name === 'registry.bin') reg = await (await h.getFile()).arrayBuffer(); }
-      else files.push({ name: path + '\\' + name, handle: h, size: (await h.getFile()).size });
+      else files.push({ name: path + '\\' + name, handle: h, at: at.concat(name), size: (await h.getFile()).size });
     }
     if (empty && path && path.includes('\\')) files.push({ name: path + '\\', data: new ArrayBuffer(0) });
   };
-  await walk(root, '');
+  await walk(root, '', ['inksoc-c']);
   return { files, reg };
 }
 async function saveDrive(changes, reg, spill) {
@@ -216,8 +216,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   const coreWorkers = [];
   if (mt) {
     const sab = new SharedArrayBuffer(32);
-    swapW = new Worker('swapio.js?v=3');
-    await new Promise((res) => { swapW.onmessage = (ev) => { swapOpfs = ev.data.opfs; spillOk = !!ev.data.spill; (ev.data.drive || []).forEach((ok, i) => { open[i] = ok; }); res(); }; swapW.postMessage({ memory: mem, ctl: sab, name: 'inksoc-swap.bin', drive: lazy.map((f) => f.handle), spill: spillName }); });
+    swapW = new Worker('swapio.js?v=4');
+    await new Promise((res) => { swapW.onmessage = (ev) => { swapOpfs = ev.data.opfs; spillOk = !!ev.data.spill; (ev.data.drive || []).forEach((ok, i) => { open[i] = ok; }); res(); }; swapW.postMessage({ memory: mem, ctl: sab, name: 'inksoc-swap.bin', drive: lazy.map((f) => f.at), spill: spillName }); });
     swapCtl = new Int32Array(sab);
     if (!swapOpfs) post('log', { text: '[swap] OPFS sync access unavailable, using RAM instead\n' });
     const ready = [];
@@ -495,7 +495,7 @@ async function runExec(d) {
         for (const f of big) {
           const h = await spill.getFileHandle(String(big.indexOf(f)), { create: true }), s = await h.createSyncAccessHandle();
           s.truncate(0); s.write(new Uint8Array(f.data), { at: 0 }); s.flush(); s.close();
-          f.handle = h; f.size = f.data.byteLength; delete f.data;
+          f.handle = h; f.at = [spill.name, String(big.indexOf(f))]; f.size = f.data.byteLength; delete f.data;
         }
       } catch (e) { post('log', { text: `[engine] big file kept in memory (${e && e.message || e})\n` }); }
     }
