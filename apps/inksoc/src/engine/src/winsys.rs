@@ -194,41 +194,38 @@ pub struct Win {
     pub props_atoms: HashMap<String, u16>,
 }
 
-fn now_ms() -> f64 { unsafe { crate::host_now_ms() } }
+use crate::now_ms;
 
 impl Engine {
     // ---------- small helpers ----------
-    fn ur32(&mut self, a: u64) -> u32 { self.mmu.read32(a).unwrap_or(0) }
-    fn ur64(&mut self, a: u64) -> u64 { self.mmu.read64(a).unwrap_or(0) }
-    fn uw32(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write32(a, v); } }
-    fn uw64(&mut self, a: u64, v: u64) { if a != 0 { let _ = self.mmu.write64(a, v); } }
+    fn ur32(&mut self, a: u64) -> u32 { self.r32(a) }
     pub(crate) fn rd_rect(&mut self, a: u64) -> Rect {
         Rect::new(self.ur32(a) as i32, self.ur32(a + 4) as i32, self.ur32(a + 8) as i32, self.ur32(a + 12) as i32)
     }
     pub(crate) fn wr_rect(&mut self, a: u64, r: Rect) {
         if a == 0 { return; }
-        self.uw32(a, r.l as u32); self.uw32(a + 4, r.t as u32); self.uw32(a + 8, r.r as u32); self.uw32(a + 12, r.b as u32);
+        self.w32(a, r.l as u32); self.w32(a + 4, r.t as u32); self.w32(a + 8, r.r as u32); self.w32(a + 12, r.b as u32);
     }
     /// Text of a UNICODE_STRING (or an atom when the buffer is a small integer).
     fn ustr(&mut self, us: u64) -> (String, u16) {
         if us == 0 { return (String::new(), 0); }
-        let len = self.mmu.read16(us).unwrap_or(0) as usize / 2;
-        let buf = self.ur64(us + 8);
+        let len = self.r16(us) as usize / 2;
+        let buf = self.r64(us + 8);
         if buf < 0x10000 { return (String::new(), buf as u16); }
-        let v: Vec<u16> = (0..len).map(|i| self.mmu.read16(buf + 2 * i as u64).unwrap_or(0)).collect();
+        let v: Vec<u16> = (0..len).map(|i| self.r16(buf + 2 * i as u64)).collect();
         (String::from_utf16_lossy(&v), 0)
     }
     pub(crate) fn put_w(&mut self, a: u64, s: &str, max: usize) -> usize {
         if a == 0 || max == 0 { return 0; }
         let w: Vec<u16> = s.encode_utf16().take(max - 1).collect();
-        for (i, c) in w.iter().enumerate() { let _ = self.mmu.write16(a + 2 * i as u64, *c); }
-        let _ = self.mmu.write16(a + 2 * w.len() as u64, 0);
+        for (i, c) in w.iter().enumerate() { self.w16(a + 2 * i as u64, *c); }
+        self.w16(a + 2 * w.len() as u64, 0);
         w.len()
     }
     fn alloc_w(&mut self, s: &str) -> u64 {
         let w: Vec<u16> = s.encode_utf16().collect();
         let b = self.heap_alloc(2 * w.len() as u64 + 2, true);
-        for (i, c) in w.iter().enumerate() { let _ = self.mmu.write16(b + 2 * i as u64, *c); }
+        for (i, c) in w.iter().enumerate() { self.w16(b + 2 * i as u64, *c); }
         b
     }
 
@@ -280,9 +277,9 @@ impl Engine {
         let base = (rsp - 0x300 - args.len() as u64) & !0xF;
         let _ = self.mmu.write_bytes(base, args);
         let sp = (base - 0x100) & !0xF;
-        self.uw64(sp + 0x20, base);
-        self.uw32(sp + 0x28, args.len() as u32);
-        self.uw32(sp + 0x2C, id);
+        self.w64(sp + 0x20, base);
+        self.w32(sp + 0x28, args.len() as u32);
+        self.w32(sp + 0x2C, id);
         self.cpu.regs[4] = sp;
         self.cpu.rip = ki;
     }
@@ -290,7 +287,7 @@ impl Engine {
     /// NtCallbackReturn: the window procedure is done; go on with the native code.
     pub fn callback_return(&mut self) {
         let (ret, len) = (self.arg(0), self.arg(1) as u32);
-        let lres = if ret != 0 && len >= 8 { self.ur64(ret) } else { 0 };
+        let lres = if ret != 0 && len >= 8 { self.r64(ret) } else { 0 };
         let tid = self.cur_tid();
         let Some(i) = self.s.win.frames.iter().rposition(|f| f.tid == tid) else {
             self.set_error("NtCallbackReturn without a callback".into());
@@ -516,9 +513,9 @@ impl Engine {
         let cs = self.heap_alloc(80, true);
         let tw = self.alloc_w(&title);
         let cw = if atom != 0 { atom as u64 } else { self.alloc_w(&cname) };
-        self.uw64(cs, params); self.uw64(cs + 8, inst); self.uw64(cs + 16, menu); self.uw64(cs + 24, parent | owner);
-        self.uw32(cs + 32, cy as u32); self.uw32(cs + 36, cx as u32); self.uw32(cs + 40, y as u32); self.uw32(cs + 44, x as u32);
-        self.uw32(cs + 48, style); self.uw64(cs + 56, tw); self.uw64(cs + 64, cw); self.uw32(cs + 72, ex);
+        self.w64(cs, params); self.w64(cs + 8, inst); self.w64(cs + 16, menu); self.w64(cs + 24, parent | owner);
+        self.w32(cs + 32, cy as u32); self.w32(cs + 36, cx as u32); self.w32(cs + 40, y as u32); self.w32(cs + 44, x as u32);
+        self.w32(cs + 48, style); self.w64(cs + 56, tw); self.w64(cs + 64, cw); self.w32(cs + 72, ex);
         let s = self.send(h, WM_NCCREATE, 0, cs, move |e, r| {
             if r == 0 { e.destroy_now(h); return Step::Ret(0); }
             e.send(h, WM_CREATE, 0, cs, move |e, r| {
@@ -782,8 +779,8 @@ impl Engine {
     }
 
     fn write_msg(&mut self, out: u64, m: &Msg) {
-        self.uw64(out, m.hwnd); self.uw32(out + 8, m.msg); self.uw64(out + 16, m.wp); self.uw64(out + 24, m.lp);
-        self.uw32(out + 32, m.time); self.uw32(out + 36, m.x as u32); self.uw32(out + 40, m.y as u32);
+        self.w64(out, m.hwnd); self.w32(out + 8, m.msg); self.w64(out + 16, m.wp); self.w64(out + 24, m.lp);
+        self.w32(out + 32, m.time); self.w32(out + 36, m.x as u32); self.w32(out + 40, m.y as u32);
     }
 
     /// When the next timer of this thread is due (ms, host clock).
@@ -811,7 +808,7 @@ impl Engine {
                 if wp == 0 { return Step::Ret(0); }
                 let n = if ansi {
                     let b = t.as_bytes(); let k = b.len().min(wp as usize - 1);
-                    let _ = self.mmu.write_bytes(lp, &b[..k]); let _ = self.mmu.write8(lp + k as u64, 0); k
+                    let _ = self.mmu.write_bytes(lp, &b[..k]); self.w8(lp + k as u64, 0); k
                 } else { self.put_w(lp, &t, wp as usize) };
                 Step::Ret(n as u64)
             }
@@ -993,8 +990,8 @@ impl Engine {
             0 | 1 => {
                 // insert (0) or set (1)
                 let ftype = self.ur32(info + 8); let state = self.ur32(info + 12); let id = self.ur32(info + 16) as u64;
-                let sub = self.ur64(info + 24); let data = self.ur64(info + 48); let bmp = self.ur64(info + 72);
-                let text = if text_us != 0 { self.ustr(text_us).0 } else if mask & 0x50 != 0 && ftype & 0x800 == 0 { let p = self.ur64(info + 56); if p > 0xFFFF { self.read_wstr(p, 1024) } else { String::new() } } else { String::new() };
+                let sub = self.r64(info + 24); let data = self.r64(info + 48); let bmp = self.r64(info + 72);
+                let text = if text_us != 0 { self.ustr(text_us).0 } else if mask & 0x50 != 0 && ftype & 0x800 == 0 { let p = self.r64(info + 56); if p > 0xFFFF { self.read_wstr(p, 1024) } else { String::new() } } else { String::new() };
                 let Some(m) = self.s.win.menus.get_mut(&menu) else { return 0 };
                 if method == 0 {
                     let at = if by_pos { (pos as usize).min(m.items.len()) } else { m.items.iter().position(|i| i.id as u32 == pos).unwrap_or(m.items.len()) };
@@ -1018,14 +1015,14 @@ impl Engine {
                 let Some(m) = self.s.win.menus.get(&menu) else { return 0 };
                 let Some(i) = find(m, pos, by_pos) else { return 0 };
                 let (id, text, flags, state, sub, data) = { let it = &m.items[i]; (it.id, it.text.clone(), it.flags, it.state, it.sub, it.data) };
-                if mask & 0x10 != 0 || mask & 0x100 != 0 { self.uw32(info + 8, flags); }
-                if mask & 0x1 != 0 { self.uw32(info + 12, state); }
-                if mask & 0x2 != 0 { self.uw32(info + 16, id as u32); }
-                if mask & 0x4 != 0 { self.uw64(info + 24, sub); }
-                if mask & 0x20 != 0 { self.uw64(info + 48, data); }
+                if mask & 0x10 != 0 || mask & 0x100 != 0 { self.w32(info + 8, flags); }
+                if mask & 0x1 != 0 { self.w32(info + 12, state); }
+                if mask & 0x2 != 0 { self.w32(info + 16, id as u32); }
+                if mask & 0x4 != 0 { self.w64(info + 24, sub); }
+                if mask & 0x20 != 0 { self.w64(info + 48, data); }
                 if mask & 0x40 != 0 || mask & 0x10 != 0 {
-                    let p = self.ur64(info + 56); let n = self.ur32(info + 64);
-                    if p != 0 && n > 0 { let k = self.put_w(p, &text, n as usize); self.uw32(info + 64, k as u32); } else { self.uw32(info + 64, text.encode_utf16().count() as u32); }
+                    let p = self.r64(info + 56); let n = self.ur32(info + 64);
+                    if p != 0 && n > 0 { let k = self.put_w(p, &text, n as usize); self.w32(info + 64, k as u32); } else { self.w32(info + 64, text.encode_utf16().count() as u32); }
                 }
                 1
             }
@@ -1136,7 +1133,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserInitializeClientPfnArrays" => {
             let (pa, pw) = (a0, ar[1]);
             let mut va = vec![]; let mut vw = vec![];
-            for i in 0..19u64 { va.push(e.ur64(pa + 8 * i)); vw.push(e.ur64(pw + 8 * i)); }
+            for i in 0..19u64 { va.push(e.r64(pa + 8 * i)); vw.push(e.r64(pw + 8 * i)); }
             e.s.win.procs_a = va; e.s.win.procs_w = vw;
             0
         }
@@ -1156,7 +1153,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 9 => e.sys_metric(arg as u32) as u32 as u64,
                 10 => { e.wr_rect(arg, Rect::new(0, 0, SCREEN_W, SCREEN_H)); 1 }
                 12 => 0x12,
-                14 => { for i in 0..256u64 { let v = e.s.win.keys[i as usize]; let _ = e.mmu.write8(arg + i, v); } 1 }
+                14 => { for i in 0..256u64 { let v = e.s.win.keys[i as usize]; e.w8(arg + i, v); } 1 }
                 _ => 0,
             }
         }
@@ -1165,7 +1162,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             match code {
                 2 => { // GetMonitorInfo
                     let r = Rect::new(0, 0, SCREEN_W, SCREEN_H);
-                    e.wr_rect(a2 + 4, r); e.wr_rect(a2 + 20, Rect::new(0, 0, SCREEN_W, SCREEN_H - 30)); e.uw32(a2 + 36, 1);
+                    e.wr_rect(a2 + 4, r); e.wr_rect(a2 + 20, Rect::new(0, 0, SCREEN_W, SCREEN_H - 30)); e.w32(a2 + 36, 1);
                     if e.ur32(a2) >= 104 { e.put_w(a2 + 40, "\\\\.\\DISPLAY1", 32); }
                     1
                 }
@@ -1182,7 +1179,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 1 => { // GetMenuInfo
                     let Some(m) = e.s.win.menus.get(&a1) else { return Some(0) };
                     let (st, mh, br, help, data) = (m.style, m.max_h, m.brush, m.help, m.data);
-                    e.uw32(a2 + 8, st); e.uw32(a2 + 12, mh); e.uw64(a2 + 16, br); e.uw32(a2 + 24, help); e.uw64(a2 + 32, data);
+                    e.w32(a2 + 8, st); e.w32(a2 + 12, mh); e.w64(a2 + 16, br); e.w32(a2 + 24, help); e.w64(a2 + 32, data);
                     1
                 }
                 9 => a1, // AllocWinProc: the procedure itself
@@ -1219,10 +1216,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let _ = fnid;
             let (name, atom) = e.ustr(name_us);
             if e.find_class(&name, atom).is_some() { e.set_last_error(1410); return Some(0); }
-            let style = e.ur32(wc + 4); let proc_ = e.ur64(wc + 8); let ce = e.ur32(wc + 16); let we = e.ur32(wc + 20);
-            let inst = e.ur64(wc + 24); let icon = e.ur64(wc + 32); let cursor = e.ur64(wc + 40); let brush = e.ur64(wc + 48);
-            let icon_sm = e.ur64(wc + 72);
-            let (mn, mna) = if menu_name != 0 { (e.ur64(menu_name + 8), e.ur64(menu_name)) } else { (0, 0) };
+            let style = e.ur32(wc + 4); let proc_ = e.r64(wc + 8); let ce = e.ur32(wc + 16); let we = e.ur32(wc + 20);
+            let inst = e.r64(wc + 24); let icon = e.r64(wc + 32); let cursor = e.r64(wc + 40); let brush = e.r64(wc + 48);
+            let icon_sm = e.r64(wc + 72);
+            let (mn, mna) = if menu_name != 0 { (e.r64(menu_name + 8), e.r64(menu_name)) } else { (0, 0) };
             let name = if name.is_empty() { format!("#{}", atom) } else { name };
             e.add_class(Class {
                 atom: 0, name: name.to_lowercase(), style, proc_, proc_a: proc_, proc_w: proc_, ansi: flags != 0,
@@ -1238,9 +1235,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 Some(i) => {
                     let c = &e.s.win.classes[i];
                     let v = (c.style, c.proc_, c.cls_extra.len(), c.wnd_extra, c.inst, c.icon, c.cursor, c.brush, c.icon_sm, c.atom, c.menu_name, c.menu_name_a);
-                    e.uw32(out + 4, v.0); e.uw64(out + 8, v.1); e.uw32(out + 16, v.2 as u32); e.uw32(out + 20, v.3 as u32);
-                    e.uw64(out + 24, v.4); e.uw64(out + 32, v.5); e.uw64(out + 40, v.6); e.uw64(out + 48, v.7); e.uw64(out + 72, v.8);
-                    e.uw64(out + 56, v.10); let mp = ar[3]; if mp != 0 { e.uw64(mp, v.11); e.uw64(mp + 8, v.10); }
+                    e.w32(out + 4, v.0); e.w64(out + 8, v.1); e.w32(out + 16, v.2 as u32); e.w32(out + 20, v.3 as u32);
+                    e.w64(out + 24, v.4); e.w64(out + 32, v.5); e.w64(out + 40, v.6); e.w64(out + 48, v.7); e.w64(out + 72, v.8);
+                    e.w64(out + 56, v.10); let mp = ar[3]; if mp != 0 { e.w64(mp, v.11); e.w64(mp + 8, v.10); }
                     v.9 as u64
                 }
                 None => { e.set_last_error(1411); 0 }
@@ -1251,11 +1248,11 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (cn, atom) = e.ustr(a0);
             let menu = ar[2];
             let Some(i) = e.find_class(&cn, atom).filter(|&i| !e.s.win.classes[i].builtin) else {
-                if menu != 0 { for k in 0..3 { e.uw64(menu + 8 * k, 0); } }
+                if menu != 0 { for k in 0..3 { e.w64(menu + 8 * k, 0); } }
                 e.set_last_error(1411); return Some(0) // ERROR_CLASS_DOES_NOT_EXIST
             };
             let (mn, mna) = (e.s.win.classes[i].menu_name, e.s.win.classes[i].menu_name_a);
-            if menu != 0 { e.uw64(menu, mna); e.uw64(menu + 8, mn); e.uw64(menu + 16, 0); }
+            if menu != 0 { e.w64(menu, mna); e.w64(menu + 8, mn); e.w64(menu + 16, 0); }
             // the slot stays (windows index classes) but can no longer be found
             let c = &mut e.s.win.classes[i]; c.name.clear(); c.atom = 0; c.menu_name = 0; c.menu_name_a = 0;
             1
@@ -1264,7 +1261,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (h, us) = (full(a0), ar[2]);
             let n = e.wnd(h).map(|w| e.s.win.classes[w.class].name.clone()).unwrap_or_default();
             let n = match n.as_str() { "button" => "Button".into(), "static" => "Static".into(), "edit" => "Edit".into(), "listbox" => "ListBox".into(), "combobox" => "ComboBox".into(), "scrollbar" => "ScrollBar".into(), _ => n };
-            let buf = e.ur64(us + 8); let max = e.mmu.read16(us + 2).unwrap_or(0) as usize / 2;
+            let buf = e.r64(us + 8); let max = e.r16(us + 2) as usize / 2;
             e.put_w(buf, &n, max) as u64
         }
         "NtUserCreateWindowEx" => return Some(e.create_window()),
@@ -1332,9 +1329,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     sib.iter().position(|&x| x == h).map_or(vec![], |i| sib[i..].to_vec())
                 };
             let n = list.len().min(max.saturating_sub(1));
-            for (i, h) in list.iter().take(n).enumerate() { e.uw64(buf + 8 * i as u64, *h); }
-            e.uw64(buf + 8 * n as u64, 1); // terminator HWND_BOTTOM-like
-            e.uw32(size, n as u32 + 1);
+            for (i, h) in list.iter().take(n).enumerate() { e.w64(buf + 8 * i as u64, *h); }
+            e.w64(buf + 8 * n as u64, 1); // terminator HWND_BOTTOM-like
+            e.w32(size, n as u32 + 1);
             0
         }
         "NtUserFindWindowEx" => {
@@ -1353,8 +1350,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let us = ar[1];
             let t = if us == 0 { String::new() } else {
                 // LARGE_STRING { Length, MaximumLength|bAnsi, Buffer }
-                let len = e.ur32(us) as usize; let ansi = e.ur32(us + 4) & 0x8000_0000 != 0; let b = e.ur64(us + 8);
-                if b == 0 { String::new() } else if ansi { let mut v = vec![0u8; len]; let _ = e.mmu.read_bytes(b, &mut v); String::from_utf8_lossy(&v).into_owned() } else { let v: Vec<u16> = (0..len / 2).map(|i| e.mmu.read16(b + 2 * i as u64).unwrap_or(0)).collect(); String::from_utf16_lossy(&v) }
+                let len = e.ur32(us) as usize; let ansi = e.ur32(us + 4) & 0x8000_0000 != 0; let b = e.r64(us + 8);
+                if b == 0 { String::new() } else if ansi { let mut v = vec![0u8; len]; let _ = e.mmu.read_bytes(b, &mut v); String::from_utf8_lossy(&v).into_owned() } else { let v: Vec<u16> = (0..len / 2).map(|i| e.r16(b + 2 * i as u64)).collect(); String::from_utf16_lossy(&v) }
             };
             if let Some(w) = e.wnd_mut(a0) { w.text = t; w.nc_dirty = true; }
             e.s.win.dirty = true;
@@ -1367,7 +1364,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 0x2b1 | 0x2b3 | 0x2b7 | 0x2b8 => {
                     // SendMessage: same-thread target, user32 calls the procedure itself
                     if h == 0xFFFF { return Some(1); } // broadcast
-                    if info != 0 && kind != 0x2b7 { e.uw64(info + 8, 0); if e.fill_params(info, h, msg, wp, lp, ansi) { return Some(0); } }
+                    if info != 0 && kind != 0x2b7 { e.w64(info + 8, 0); if e.fill_params(info, h, msg, wp, lp, ansi) { return Some(0); } }
                     if e.wnd(h).is_none() { return Some(0); }
                     // no params to fill (notify): call it from here
                     let s = e.send(h, msg, wp, lp, |_, r| Step::Ret(r));
@@ -1376,7 +1373,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 0x3001 => e.fill_params(info, h, msg, wp, lp, ansi) as u64, // GetDispatchParams
                 0x2ab => {
                     // CallWindowProc: params.func set by user32
-                    let func = e.ur64(info);
+                    let func = e.r64(info);
                     let mut p = vec![0u8; 72];
                     p[0..8].copy_from_slice(&func.to_le_bytes());
                     p[8..16].copy_from_slice(&h.to_le_bytes());
@@ -1425,7 +1422,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             // (count, handles, timeout, mask, flags): wake on input as well
             let (n, hs, ms) = (a0 as u32, ar[1], ar[2] as u32 as u64);
             let tid = e.cur_tid();
-            let handles: Vec<u64> = (0..n as u64).map(|i| e.ur64(hs + 8 * i)).collect();
+            let handles: Vec<u64> = (0..n as u64).map(|i| e.r64(hs + 8 * i)).collect();
             // the objects first (WAIT_OBJECT_0 + i), then input (WAIT_OBJECT_0 + n)
             if let Some(i) = handles.iter().position(|&h| e.signaled(h, tid)) { e.acquire(handles[i], tid); return Some(i as u64); }
             if e.has_msgs(tid) { return Some(n as u64); }
@@ -1444,7 +1441,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtUserDispatchMessage" => {
             let m = a0;
-            let (h, msg, wp, lp) = (e.ur64(m), e.ur32(m + 8), e.ur64(m + 16), e.ur64(m + 24));
+            let (h, msg, wp, lp) = (e.r64(m), e.ur32(m + 8), e.r64(m + 16), e.r64(m + 24));
             if msg == WM_PAINT {
                 // a window that does not paint would get WM_PAINT forever
                 let s = e.send(h, msg, wp, lp, move |e, r| { if let Some(w) = e.wnd_mut(h) { w.update = Rect::default(); w.erase = false; } Step::Ret(r) });
@@ -1455,7 +1452,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtUserTranslateMessage" => {
             let m = a0;
-            let (h, msg, _wp, time) = (e.ur64(m), e.ur32(m + 8), e.ur64(m + 16), e.ur32(m + 32));
+            let (h, msg, _wp, time) = (e.r64(m), e.ur32(m + 8), e.r64(m + 16), e.ur32(m + 32));
             if msg != WM_KEYDOWN && msg != WM_SYSKEYDOWN { return Some(0); }
             match e.s.win.chars.remove(&time) {
                 Some(c) => { e.post(h, if msg == WM_KEYDOWN { WM_CHAR } else { 0x106 }, c as u64, 1); 1 }
@@ -1509,7 +1506,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if let Some(w) = e.wnd_mut(h) { w.update = Rect::default(); w.erase = false; }
             let hdc = e.get_dc(h, false);
             e.dc_clip_to(hdc, upd);
-            e.uw64(ps, hdc); e.uw32(ps + 8, 0); e.wr_rect(ps + 12, upd);
+            e.w64(ps, hdc); e.w32(ps + 8, 0); e.wr_rect(ps + 12, upd);
             if erase {
                 let s = e.send(h, WM_ERASEBKGND, hdc, 0, move |e, r| {
                     if r == 0 { /* not erased */ }
@@ -1520,7 +1517,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
             hdc
         }
-        "NtUserEndPaint" => { let ps = ar[1]; let hdc = e.ur64(ps); e.release_dc(hdc); 1 }
+        "NtUserEndPaint" => { let ps = ar[1]; let hdc = e.r64(ps); e.release_dc(hdc); 1 }
         "NtUserGetDCEx" => { let fl = ar[2] as u32; e.get_dc(full(a0), fl & 1 != 0) }
         "NtUserGetWindowDC" => e.get_dc(full(a0), true),
         "NtUserReleaseDC" => { let hdc = ar[1]; e.release_dc(hdc); 1 }
@@ -1538,7 +1535,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserSetForegroundWindow" | "NtUserSetActiveWindow" => { let old = e.s.win.active; e.activate(a0); if name == "NtUserSetActiveWindow" { old } else { 1 } }
         "NtUserGetGUIThreadInfo" => {
             let p = ar[1];
-            e.uw32(p + 4, 0); e.uw64(p + 8, e.s.win.active); e.uw64(p + 16, e.s.win.focus); e.uw64(p + 24, e.s.win.capture);
+            e.w32(p + 4, 0); e.w64(p + 8, e.s.win.active); e.w64(p + 16, e.s.win.focus); e.w64(p + 24, e.s.win.capture);
             1
         }
         "NtUserSetCapture" => { let old = e.s.win.capture; e.s.win.capture = full(a0); old }
@@ -1554,13 +1551,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserIsWindowRectFullyVisible" => 1,
         "NtUserGetKeyState" => { let k = a0 as usize & 0xFF; let v = e.s.win.keys[k]; (if v & 0x80 != 0 { 0xFF80 } else { 0 } | (v & 1) as u64) }
         "NtUserGetAsyncKeyState" => { let k = a0 as usize & 0xFF; if e.s.win.keys[k] & 0x80 != 0 { 0x8000 } else { 0 } }
-        "NtUserGetKeyboardState" => { for i in 0..256u64 { let v = e.s.win.keys[i as usize]; let _ = e.mmu.write8(a0 + i, v); } 1 }
+        "NtUserGetKeyboardState" => { for i in 0..256u64 { let v = e.s.win.keys[i as usize]; e.w8(a0 + i, v); } 1 }
         "NtUserSetKeyboardState" => 1,
         "NtUserGetKeyboardLayout" => 0x0409_0409,
         "NtUserGetKeyboardLayoutName" => { e.put_w(a0, "00000409", 9); 1 }
         "NtUserMapVirtualKeyEx" => a0 & 0xFF,
-        "NtUserGetCursorInfo" => { e.uw32(a0 + 4, 1); e.uw32(a0 + 16, e.s.win.mouse.0 as u32); e.uw32(a0 + 20, e.s.win.mouse.1 as u32); 1 }
-        "NtUserGetCursorPos" | "NtUserGetPhysicalCursorPos" => { let (x, y) = e.s.win.mouse; e.uw32(a0, x as u32); e.uw32(a0 + 4, y as u32); 1 }
+        "NtUserGetCursorInfo" => { e.w32(a0 + 4, 1); e.w32(a0 + 16, e.s.win.mouse.0 as u32); e.w32(a0 + 20, e.s.win.mouse.1 as u32); 1 }
+        "NtUserGetCursorPos" | "NtUserGetPhysicalCursorPos" => { let (x, y) = e.s.win.mouse; e.w32(a0, x as u32); e.w32(a0 + 4, y as u32); 1 }
         "NtUserSetCursorPos" => { e.s.win.mouse = (a0 as i32, ar[1] as i32); 1 }
         "NtUserSetCursor" | "NtUserGetCursor" => 0x20004,
         "NtUserShowCursor" => 1,
@@ -1568,7 +1565,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserGetClipCursor" => { e.wr_rect(a0, Rect::new(0, 0, SCREEN_W, SCREEN_H)); 1 }
         "NtUserSetCursorIconData" | "NtUserDestroyCursor" => 1,
         "NtUserFindExistingCursorIcon" => 0,
-        "NtUserGetIconSize" => { let (w, h) = (ar[2], ar[3]); e.uw32(w, 32); e.uw32(h, 64); 1 }
+        "NtUserGetIconSize" => { let (w, h) = (ar[2], ar[3]); e.w32(w, 32); e.w32(h, 64); 1 }
         "NtUserGetIconInfo" => 0,
         "NtUserDrawIconEx" => 1,
         "NtUserGetDoubleClickTime" => 500,
@@ -1644,9 +1641,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (atom, us) = (a0 as u16, ar[1]);
             let Some(i) = e.find_class("", atom) else { return Some(0) };
             let n = e.s.win.classes[i].name.clone();
-            let buf = e.ur64(us + 8); let max = e.mmu.read16(us + 2).unwrap_or(0) as usize / 2;
+            let buf = e.r64(us + 8); let max = e.r16(us + 2) as usize / 2;
             let k = e.put_w(buf, &n, max);
-            let _ = e.mmu.write16(us, (2 * k) as u16);
+            e.w16(us, (2 * k) as u16);
             k as u64
         }
         "NtUserGetThreadState" => match a0 as u32 {
@@ -1660,7 +1657,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let p = ar[1];
             let Some(w) = e.wnd(a0) else { return Some(0) };
             let r = w.wrect;
-            e.uw32(p, 44); e.uw32(p + 4, 0); e.uw32(p + 8, 1); e.wr_rect(p + 28, r);
+            e.w32(p, 44); e.w32(p + 4, 0); e.w32(p + 8, 1); e.wr_rect(p + 28, r);
             1
         }
         "NtUserSetWindowPlacement" => {
@@ -1690,28 +1687,28 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserIsChildWindowDpiMessageEnabled" | "NtUserEnableNonClientDpiScaling" => 1,
         "NtUserSetThreadDesktop" | "NtUserCloseDesktop" | "NtUserCloseWindowStation" | "NtUserSetProcessWindowStation" => 1,
         "NtUserGetThreadDesktop" | "NtUserGetProcessWindowStation" | "NtUserOpenInputDesktop" | "NtUserOpenDesktop" | "NtUserCreateDesktopEx" | "NtUserCreateWindowStation" | "NtUserOpenWindowStation" => 0x5000,
-        "NtUserGetObjectInformation" => { let len = ar[3] as u64; let b = ar[2]; for i in 0..len { let _ = e.mmu.write8(b + i, 0); } 1 }
+        "NtUserGetObjectInformation" => { let len = ar[3] as u64; let b = ar[2]; for i in 0..len { e.w8(b + i, 0); } 1 }
         "NtUserSetObjectInformation" => 1,
         "NtUserGetProcessDpiAwarenessContext" | "NtUserGetDpiForWindow" => 0x12,
         "NtUserSetProcessDpiAwarenessContext" => 1,
-        "NtUserGetDisplayConfigBufferSizes" => { e.uw32(ar[1], 1); e.uw32(ar[2], 1); 0 }
-        "NtUserEnumDisplayDevices" => if ar[1] == 0 { e.put_w(ar[3] + 4, "\\\\.\\DISPLAY1", 32); e.put_w(ar[3] + 68, "InkSoC display", 128); e.uw32(ar[3] + 324, 5); 0 } else { 0xC000_0001 },
+        "NtUserGetDisplayConfigBufferSizes" => { e.w32(ar[1], 1); e.w32(ar[2], 1); 0 }
+        "NtUserEnumDisplayDevices" => if ar[1] == 0 { e.put_w(ar[3] + 4, "\\\\.\\DISPLAY1", 32); e.put_w(ar[3] + 68, "InkSoC display", 128); e.w32(ar[3] + 324, 5); 0 } else { 0xC000_0001 },
         "NtUserEnumDisplaySettings" => {
             let dm = ar[2];
-            e.uw32(dm + 168, 32); e.uw32(dm + 172, SCREEN_W as u32); e.uw32(dm + 176, SCREEN_H as u32); e.uw32(dm + 184, 60);
-            e.uw32(dm + 72, 0x1C0000);
+            e.w32(dm + 168, 32); e.w32(dm + 172, SCREEN_W as u32); e.w32(dm + 176, SCREEN_H as u32); e.w32(dm + 184, 60);
+            e.w32(dm + 72, 0x1C0000);
             if ar[1] == u32::MAX as u64 - 0 || ar[1] <= 1 { 1 } else { 0 }
         }
         "NtUserChangeDisplaySettings" => 0,
         "NtUserEnumDisplayMonitors" => 1,
         "NtUserGetLayeredWindowAttributes" | "NtUserSetLayeredWindowAttributes" | "NtUserUpdateLayeredWindow" => 1,
         "NtUserActivateKeyboardLayout" => 0x0409_0409,
-        "NtUserGetKeyboardLayoutList" => { if a0 > 0 && ar[1] != 0 { e.uw64(ar[1], 0x0409_0409); } 1 }
+        "NtUserGetKeyboardLayoutList" => { if a0 > 0 && ar[1] != 0 { e.w64(ar[1], 0x0409_0409); } 1 }
         "NtUserVkKeyScanEx" => a0 & 0xFF,
         "NtUserToUnicodeEx" => {
             let (vk, buf) = (a0 as u32, ar[3]);
             let c = if (0x41..=0x5A).contains(&vk) { vk + 32 } else if (0x30..=0x39).contains(&vk) || vk == 0x20 { vk } else { 0 };
-            if c != 0 { let _ = e.mmu.write16(buf, c as u16); 1 } else { 0 }
+            if c != 0 { e.w16(buf, c as u16); 1 } else { 0 }
         }
         "NtUserGetKeyNameText" => 0,
         "NtUserAttachThreadInput" | "NtUserLockWindowUpdate" | "NtUserRegisterHotKey" | "NtUserUnregisterHotKey" => 1,
@@ -1720,11 +1717,11 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserSetWinEventHook" => 0x60008,
         "NtUserCallMsgFilter" => 0,
         "NtUserNotifyWinEvent" => 0,
-        "NtUserGetLastInputInfo" => { e.uw32(a0 + 4, now_ms() as u32); 1 }
+        "NtUserGetLastInputInfo" => { e.w32(a0 + 4, now_ms() as u32); 1 }
         "NtUserDragDetect" | "NtUserDragObject" => 0,
         "NtUserCreateCaret" | "NtUserShowCaret" | "NtUserHideCaret" | "NtUserSetCaretPos" | "NtUserDestroyCaret" | "NtUserSetCaretBlinkTime" => 1,
         "NtUserGetCaretBlinkTime" => 530,
-        "NtUserGetCaretPos" => { e.uw32(a0, 0); e.uw32(a0 + 4, 0); 1 }
+        "NtUserGetCaretPos" => { e.w32(a0, 0); e.w32(a0 + 4, 0); 1 }
         "NtUserCopyAcceleratorTable" => 0,
         "NtUserCreateAcceleratorTable" => { 0x70004 }
         "NtUserDestroyAcceleratorTable" => 1,
@@ -1780,7 +1777,7 @@ impl Engine {
                 let (ox, oy) = self.client_origin(h);
                 let (x, y) = (self.ur32(p) as i32, self.ur32(p + 4) as i32);
                 let (nx, ny) = if code == 0 { (x + ox, y + oy) } else { (x - ox, y - oy) };
-                self.uw32(p, nx as u32); self.uw32(p + 4, ny as u32);
+                self.w32(p, nx as u32); self.w32(p + 4, ny as u32);
                 1
             }
             1 => { // GetChildRect: window rect relative to parent client
@@ -1804,9 +1801,9 @@ impl Engine {
             8 => { // GetWindowInfo
                 let Some(w) = self.wnd(h) else { return 0 };
                 let (wr, cr, st, ex, act) = (w.wrect, w.crect, w.style, w.ex_style, self.s.win.active == h);
-                self.wr_rect(p + 4, wr); self.wr_rect(p + 20, cr); self.uw32(p + 36, st); self.uw32(p + 40, ex); self.uw32(p + 44, act as u32);
+                self.wr_rect(p + 4, wr); self.wr_rect(p + 20, cr); self.w32(p + 36, st); self.w32(p + 40, ex); self.w32(p + 44, act as u32);
                 let (l, _, _, _) = Engine::nc_insets(st, ex, false);
-                self.uw32(p + 48, l as u32); self.uw32(p + 52, l as u32); self.uw32(p + 60, 1);
+                self.w32(p + 48, l as u32); self.w32(p + 52, l as u32); self.w32(p + 60, 1);
                 1
             }
             9..=12 | 18 => {
@@ -1816,7 +1813,7 @@ impl Engine {
             }
             13 | 14 => {
                 // GetWindowRect / GetClientRect (RECT*, dpi): param points at { RECT*, dpi }
-                let out = self.ur64(p);
+                let out = self.r64(p);
                 let Some(w) = self.wnd(h) else {
                     if h == DESKTOP { self.wr_rect(out, Rect::new(0, 0, SCREEN_W, SCREEN_H)); return 1; }
                     return 0;
@@ -1826,14 +1823,14 @@ impl Engine {
                 1
             }
             16 => self.get_window(h, p as u32),
-            17 => { let tid = self.wnd(h).map_or(0, |w| w.tid); let pp = p; if pp != 0 { self.uw32(pp, 4); } tid as u64 }
+            17 => { let tid = self.wnd(h).map_or(0, |w| w.tid); let pp = p; if pp != 0 { self.w32(pp, 4); } tid as u64 }
             19 => self.is_child_of(full(p), h) as u64,
             20 => {
                 // MapWindowPoints(to, points, count, dpi): param -> { hwnd_to, points*, count, dpi }
-                let to = full(self.ur64(p)); let pts = self.ur64(p + 8); let n = self.ur32(p + 16);
+                let to = full(self.r64(p)); let pts = self.r64(p + 8); let n = self.ur32(p + 16);
                 let (fx, fy) = self.client_origin(h); let (tx, ty) = self.client_origin(to);
                 let (dx, dy) = (fx - tx, fy - ty);
-                for i in 0..n as u64 { let (x, y) = (self.ur32(pts + 8 * i) as i32, self.ur32(pts + 8 * i + 4) as i32); self.uw32(pts + 8 * i, (x + dx) as u32); self.uw32(pts + 8 * i + 4, (y + dy) as u32); }
+                for i in 0..n as u64 { let (x, y) = (self.ur32(pts + 8 * i) as i32, self.ur32(pts + 8 * i + 4) as i32); self.w32(pts + 8 * i, (x + dx) as u32); self.w32(pts + 8 * i + 4, (y + dy) as u32); }
                 ((dy as u16 as u64) << 16) | (dx as u16 as u64)
             }
             22 => 0x10001,
@@ -1901,31 +1898,31 @@ impl Engine {
             0x29 => {
                 // SPI_GETNONCLIENTMETRICS: sizes and fonts
                 let n = self.ur32(p).max(340) as u64;
-                for i in 4..n { let _ = self.mmu.write8(p + i, 0); }
+                for i in 4..n { self.w8(p + i, 0); }
                 let m = [1u32, 17, 17, 19, 18];
-                for (i, v) in m.iter().enumerate() { self.uw32(p + 4 + 4 * i as u64, *v); }
+                for (i, v) in m.iter().enumerate() { self.w32(p + 4 + 4 * i as u64, *v); }
                 for (k, off) in [24u64, 24 + 92 + 8, 24 + 92 + 8 + 92 + 8, 24 + 92 * 3 + 16, 24 + 92 * 4 + 16].iter().enumerate() {
                     let f = p + off;
                     if f + 92 > p + n { break; }
-                    self.uw32(f, (-11i32) as u32); self.uw32(f + 16, if k == 0 { 700 } else { 400 });
+                    self.w32(f, (-11i32) as u32); self.w32(f + 16, if k == 0 { 700 } else { 400 });
                     self.put_w(f + 28, "Tahoma", 32);
                 }
                 1
             }
             0x1F => { // SPI_GETICONTITLELOGFONT
-                for i in 0..92 { let _ = self.mmu.write8(p + i, 0); }
-                self.uw32(p, (-11i32) as u32); self.uw32(p + 16, 400); self.put_w(p + 28, "Tahoma", 32); 1
+                for i in 0..92 { self.w8(p + i, 0); }
+                self.w32(p, (-11i32) as u32); self.w32(p + 16, 400); self.put_w(p + 28, "Tahoma", 32); 1
             }
-            0x2C => { if p != 0 { self.uw32(p, 0); } 1 }
-            0x1000 | 0x1002 | 0x100A | 0x1012 | 0x1016 | 0x1024 | 0x103E | 0x1042 | 0x104A | 0x1014 | 0x2006 => { if p != 0 { self.uw32(p, 0); } 1 }
-            0x26 | 0x0E => { if p != 0 { self.uw32(p, 1); } 1 } // icon metrics / grid
-            0x0D => { if p != 0 { self.uw32(p, 75); } 1 }
-            0x48 => { if p != 0 { self.uw32(p, 1); } 1 } // font smoothing
-            0x200C => { if p != 0 { self.uw32(p, 3); } 1 }
-            0x68 => { if p != 0 { self.uw32(p, 3); } 1 } // wheel lines
-            0x0A | 0x0016 => { if p != 0 { self.uw32(p, 400); } 1 }
-            0x5C | 0x5E => { if p != 0 { self.uw32(p, 0); } 1 }
-            _ => { let _ = val; if p != 0 { self.uw32(p, 0); } 1 }
+            0x2C => { if p != 0 { self.w32(p, 0); } 1 }
+            0x1000 | 0x1002 | 0x100A | 0x1012 | 0x1016 | 0x1024 | 0x103E | 0x1042 | 0x104A | 0x1014 | 0x2006 => { if p != 0 { self.w32(p, 0); } 1 }
+            0x26 | 0x0E => { if p != 0 { self.w32(p, 1); } 1 } // icon metrics / grid
+            0x0D => { if p != 0 { self.w32(p, 75); } 1 }
+            0x48 => { if p != 0 { self.w32(p, 1); } 1 } // font smoothing
+            0x200C => { if p != 0 { self.w32(p, 3); } 1 }
+            0x68 => { if p != 0 { self.w32(p, 3); } 1 } // wheel lines
+            0x0A | 0x0016 => { if p != 0 { self.w32(p, 400); } 1 }
+            0x5C | 0x5E => { if p != 0 { self.w32(p, 0); } 1 }
+            _ => { let _ = val; if p != 0 { self.w32(p, 0); } 1 }
         }
     }
 }

@@ -10,10 +10,7 @@ const PROCESS_HEAP: u64 = 0x0000_0000_00AA_0000;
 const ERROR_ENVVAR_NOT_FOUND: u32 = 203;
 
 impl Engine {
-    pub(crate) fn set_last_error(&mut self, v: u32) { let _ = self.mmu.write32(self.cpu.gs_base + 0x68, v); }
-    pub(crate) fn w32(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write32(a, v); } }
-    pub(crate) fn w64(&mut self, a: u64, v: u64) { if a != 0 { let _ = self.mmu.write64(a, v); } }
-    pub(crate) fn zero(&mut self, a: u64, n: u64) { for i in 0..n { let _ = self.mmu.write8(a + i, 0); } }
+    pub(crate) fn zero(&mut self, a: u64, n: u64) { for i in 0..n { self.w8(a + i, 0); } }
 
     fn module_by_handle(&self, h: u64) -> Option<usize> {
         if h == 0 { return self.s.modules.iter().position(|m| m.base == self.s.exe_base); }
@@ -54,7 +51,7 @@ impl Engine {
 
     fn get_system_info(&mut self, a: u64) {
         self.zero(a, 48);
-        let _ = self.mmu.write16(a, 9); // AMD64
+        self.w16(a, 9); // AMD64
         self.w32(a + 4, 4096);
         self.w64(a + 8, 0x10000);
         self.w64(a + 16, 0x7FFF_FFFE_FFFF);
@@ -62,7 +59,7 @@ impl Engine {
         self.w32(a + 32, self.s.cores); // processors: one per engine core
         self.w32(a + 36, 8664);
         self.w32(a + 40, 0x10000);
-        let _ = self.mmu.write16(a + 44, 6);
+        self.w16(a + 44, 6);
     }
 }
 
@@ -112,8 +109,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 Some(v) => {
                     let len = if wide { v.encode_utf16().count() } else { v.len() } as u64;
                     if buf == 0 || size <= len { len + 1 }
-                    else if wide { for (k, c) in v.encode_utf16().chain([0]).enumerate() { let _ = e.mmu.write16(buf + 2 * k as u64, c); } len }
-                    else { let _ = e.mmu.write_bytes(buf, v.as_bytes()); let _ = e.mmu.write8(buf + len, 0); len }
+                    else if wide { for (k, c) in v.encode_utf16().chain([0]).enumerate() { e.w16(buf + 2 * k as u64, c); } len }
+                    else { let _ = e.mmu.write_bytes(buf, v.as_bytes()); e.w8(buf + len, 0); len }
                 }
             }
         }
@@ -127,17 +124,17 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "SetDefaultDllDirectories" => 1,
         "SetFileApisToOEM" | "SetFileApisToANSI" => 0,
         "AreFileApisANSI" => 1,
-        "GetConsoleCursorInfo" => { let p = e.arg(1); if a0 == 0 || a0 > 3 || p == 0 { e.set_last_error(6); return Some(0); } let _ = e.mmu.write32(p, 25); let _ = e.mmu.write32(p + 4, 1); 1 }
+        "GetConsoleCursorInfo" => { let p = e.arg(1); if a0 == 0 || a0 > 3 || p == 0 { e.set_last_error(6); return Some(0); } e.w32(p, 25); e.w32(p + 4, 1); 1 }
         "SetConsoleCursorInfo" | "SetConsoleScreenBufferSize" | "SetConsoleWindowInfo" | "FillConsoleOutputCharacterW" | "FillConsoleOutputCharacterA" | "FillConsoleOutputAttribute" => {
             // a count of written cells (fill functions): report all done
-            if name.starts_with("Fill") { let (n, out) = (e.arg(2), e.arg(4)); let _ = e.mmu.write32(out, n as u32); }
+            if name.starts_with("Fill") { let (n, out) = (e.arg(2), e.arg(4)); e.w32(out, n as u32); }
             1
         }
         "GetConsoleScreenBufferInfo" => {
             // the page's terminal: 120 x 30 (only for the console handles)
             let p = e.arg(1);
             if a0 == 0 || a0 > 3 || p == 0 { e.set_last_error(6); return Some(0); }
-            for (o, v) in [(0u64, 120u16), (2, 9000), (4, 0), (6, 0), (8, 7), (10, 0), (12, 0), (14, 119), (16, 29), (18, 120), (20, 30)] { let _ = e.mmu.write16(p + o, v); }
+            for (o, v) in [(0u64, 120u16), (2, 9000), (4, 0), (6, 0), (8, 7), (10, 0), (12, 0), (14, 119), (16, 29), (18, 120), (20, 30)] { e.w16(p + o, v); }
             1
         }
         "GetProcessAffinityMask" => { let (p, s) = (e.arg(1), e.arg(2)); let m = (1u64 << e.s.cores) - 1; e.w64(p, m); e.w64(s, m); 1 }
@@ -146,13 +143,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         // user32 text helpers (no windows needed)
         "CharPrevExA" => { let (start, cur) = (e.arg(1), e.arg(2)); if cur > start { cur - 1 } else { start } }
         "CharPrevA" | "CharPrevW" => { let cur = e.arg(1); let step = if name.ends_with('W') { 2 } else { 1 }; if cur > a0 { cur - step } else { a0 } }
-        "CharNextA" => { if e.mmu.read8(a0).unwrap_or(0) != 0 { a0 + 1 } else { a0 } }
-        "CharNextW" => { if e.mmu.read16(a0).unwrap_or(0) != 0 { a0 + 2 } else { a0 } }
+        "CharNextA" => { if e.r8(a0) != 0 { a0 + 1 } else { a0 } }
+        "CharNextW" => { if e.r16(a0) != 0 { a0 + 2 } else { a0 } }
         "CharUpperW" | "CharLowerW" => {
             let up = name == "CharUpperW";
             let conv = |c: u16| -> u16 { let ch = char::from_u32(c as u32).unwrap_or('?'); let s: String = if up { ch.to_uppercase().collect() } else { ch.to_lowercase().collect() }; s.encode_utf16().next().unwrap_or(c) };
             if a0 >> 16 == 0 { conv(a0 as u16) as u64 } else {
-                let mut i = 0; loop { let c = e.mmu.read16(a0 + 2 * i).unwrap_or(0); if c == 0 { break; } let _ = e.mmu.write16(a0 + 2 * i, conv(c)); i += 1; }
+                let mut i = 0; loop { let c = e.r16(a0 + 2 * i); if c == 0 { break; } e.w16(a0 + 2 * i, conv(c)); i += 1; }
                 a0
             }
         }
@@ -161,13 +158,13 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (up, wide, n) = (name.starts_with("CharUpper"), name.ends_with('W'), e.arg(1) as u32 as u64);
             for i in 0..n {
                 if wide {
-                    let c = e.mmu.read16(a0 + 2 * i).unwrap_or(0);
+                    let c = e.r16(a0 + 2 * i);
                     let ch = char::from_u32(c as u32).unwrap_or('?');
                     let s: String = if up { ch.to_uppercase().collect() } else { ch.to_lowercase().collect() };
-                    let _ = e.mmu.write16(a0 + 2 * i, s.encode_utf16().next().filter(|_| s.chars().count() == 1).unwrap_or(c));
+                    e.w16(a0 + 2 * i, s.encode_utf16().next().filter(|_| s.chars().count() == 1).unwrap_or(c));
                 } else {
-                    let c = e.mmu.read8(a0 + i).unwrap_or(0);
-                    let _ = e.mmu.write8(a0 + i, if up { c.to_ascii_uppercase() } else { c.to_ascii_lowercase() });
+                    let c = e.r8(a0 + i);
+                    e.w8(a0 + i, if up { c.to_ascii_uppercase() } else { c.to_ascii_lowercase() });
                 }
             }
             n
@@ -191,12 +188,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetVersion" => (19045 << 16) | 10,
 
         // ---- time ----
-        "GetTickCount" => unsafe { crate::host_now_ms() as u64 & 0xFFFF_FFFF },
-        "GetTickCount64" => unsafe { crate::host_now_ms() as u64 },
+        "GetTickCount" => crate::now_ms() as u64 & 0xFFFF_FFFF,
+        "GetTickCount64" => crate::now_ms() as u64,
         "QueryPerformanceFrequency" => { e.w64(a0, 10_000_000); 1 }
-        "QueryPerformanceCounter" => { let v = unsafe { crate::host_now_ms() * 10_000.0 } as u64; e.w64(a0, v); 1 }
+        "QueryPerformanceCounter" => { let v = (crate::now_ms() * 10_000.0) as u64; e.w64(a0, v); 1 }
         "GetSystemTimeAsFileTime" | "GetSystemTimePreciseAsFileTime" => {
-            let ft = (unsafe { crate::host_epoch_ms() } as u64 + 11_644_473_600_000) * 10_000;
+            let ft = (crate::epoch_ms() as u64 + 11_644_473_600_000) * 10_000;
             e.w64(a0, ft); 0
         }
         "Sleep" | "SleepEx" => 0,
@@ -216,19 +213,19 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             1
         }
         "IsProcessorFeaturePresent" => matches!(a0, 6 | 10 | 3 | 8 | 12 | 20) as u64, // SSE, SSE2, MMX, RDTSC, NX, ...
-        "GetLastError" => e.mmu.read32(e.cpu.gs_base + 0x68).unwrap_or(0) as u64,
+        "GetLastError" => e.r32(e.cpu.gs_base + 0x68) as u64,
         "SetLastError" => { e.set_last_error(a0 as u32); 0 }
 
         // ---- TLS / FLS (64 slots in the TEB) ----
         "TlsAlloc" | "FlsAlloc" => {
             match (0..64).find(|i| e.s.tls_used & (1 << i) == 0) {
-                Some(i) => { e.s.tls_used |= 1 << i; let _ = e.mmu.write64(e.cpu.gs_base + 0x1480 + 8 * i, 0); i }
+                Some(i) => { e.s.tls_used |= 1 << i; e.w64(e.cpu.gs_base + 0x1480 + 8 * i, 0); i }
                 None => 0xFFFF_FFFF,
             }
         }
         "TlsFree" | "FlsFree" => { if a0 < 64 { e.s.tls_used &= !(1 << a0); } 1 }
-        "TlsGetValue" | "FlsGetValue" => { e.set_last_error(0); if a0 < 64 { e.mmu.read64(e.cpu.gs_base + 0x1480 + 8 * a0).unwrap_or(0) } else { 0 } }
-        "TlsSetValue" | "FlsSetValue" => { let v = e.arg(1); if a0 < 64 { let _ = e.mmu.write64(e.cpu.gs_base + 0x1480 + 8 * a0, v); 1 } else { 0 } }
+        "TlsGetValue" | "FlsGetValue" => { e.set_last_error(0); if a0 < 64 { e.r64(e.cpu.gs_base + 0x1480 + 8 * a0) } else { 0 } }
+        "TlsSetValue" | "FlsSetValue" => { let v = e.arg(1); if a0 < 64 { e.w64(e.cpu.gs_base + 0x1480 + 8 * a0, v); 1 } else { 0 } }
 
         // ---- locks: one thread for now, so they only need to exist ----
         "InitializeCriticalSection" | "InitializeCriticalSectionAndSpinCount" | "InitializeCriticalSectionEx" => { e.zero(a0, 40); 1 }
@@ -290,11 +287,11 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let path = match e.module_by_handle(a0) { Some(i) => format!("{}\\{}", crate::files::home_win(), e.s.modules[i].name), None => { e.set_last_error(126); return Some(0); } };
             let k = (path.len() as u64).min(n.saturating_sub(1));
             if name.ends_with('W') {
-                for (i, c) in path.encode_utf16().take(k as usize).enumerate() { let _ = e.mmu.write16(buf + 2 * i as u64, c); }
-                let _ = e.mmu.write16(buf + 2 * k, 0);
+                for (i, c) in path.encode_utf16().take(k as usize).enumerate() { e.w16(buf + 2 * i as u64, c); }
+                e.w16(buf + 2 * k, 0);
             } else {
                 let _ = e.mmu.write_bytes(buf, &path.as_bytes()[..k as usize]);
-                let _ = e.mmu.write8(buf + k, 0);
+                e.w8(buf + k, 0);
             }
             k
         }

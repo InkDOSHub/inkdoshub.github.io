@@ -690,7 +690,7 @@ fn step_raw(e: &mut Engine) {
                 _ => e.unsupported(&buf),
             }
         }
-        0xCC => { let sp = e.cpu.regs[4]; let r1 = e.mmu.read32(sp).unwrap_or(0); let r2 = e.mmu.read32(sp + 4).unwrap_or(0); e.set_error(format!("breakpoint at 0x{:x} (stack {:x} {:x})", rip, r1, r2)); }
+        0xCC => { let sp = e.cpu.regs[4]; let r1 = e.r32(sp); let r2 = e.r32(sp + 4); e.set_error(format!("breakpoint at 0x{:x} (stack {:x} {:x})", rip, r1, r2)); }
         0x9C => { let f = e.flags(); e.cpu.rip = rip + d.p as u64; g!(e, e.push(f)); }
         0x9D => { let f = g!(e, e.pop()); e.set_flags(f); e.cpu.rip = rip + d.p as u64; }
         0x9E => { let ah = (e.cpu.regs[0] >> 8) & 0xFF; let f = (e.flags() & !0xFF) | ah; e.set_flags(f); e.cpu.rip = rip + d.p as u64; }
@@ -1003,7 +1003,7 @@ fn two_byte(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, osz:
             e.cpu.rip = next;
         }
         0x31 => {
-            let t = (unsafe { crate::host_now_ms() } * 1e6) as u64;
+            let t = (crate::now_ms() * 1e6) as u64;
             e.cpu.regs[0] = t & 0xFFFF_FFFF; e.cpu.regs[2] = t >> 32;
             e.cpu.rip = rip + d.p as u64;
         }

@@ -65,7 +65,7 @@ impl Engine {
 
     /// Byte access that works for program and Wine-private addresses.
     fn any_read(&mut self, a: u64) -> u8 {
-        if a < WINE_PRIVATE_END { unsafe { *(a as *const u8) } } else { self.mmu.read8(a).unwrap_or(0) }
+        if a < WINE_PRIVATE_END { unsafe { *(a as *const u8) } } else { self.r8(a) }
     }
     fn any_write(&mut self, a: u64, v: u8) {
         if a < WINE_PRIVATE_END { unsafe { *(a as *mut u8) = v; } } else if self.mmu.write8(a, v).is_err() { self.fault(a); }
@@ -114,7 +114,7 @@ impl Engine {
         let rsp = self.cpu.regs[4];
         for i in first..4 {
             let v = self.arg(i);
-            let _ = self.mmu.write64(rsp + 8 + 8 * i as u64, v);
+            self.w64(rsp + 8 + 8 * i as u64, v);
         }
         rsp + 8 + 8 * first as u64
     }
@@ -163,8 +163,8 @@ pub fn data_export(e: &mut Engine, dll: &str, name: &str) -> Option<u64> {
     if !["_fmode", "_commode", "__initenv", "_environ", "__argc", "__argv", "_iob", "__mb_cur_max", "_acmdln"].contains(&name) { return None; }
     if let Some(&a) = e.s.crt.data.get(name) { return Some(a); }
     let a = if name == "_iob" { e.iob() } else { e.heap_alloc(16, true) };
-    if name == "__mb_cur_max" { let _ = e.mmu.write32(a, 1); }
-    if name == "_acmdln" { let c = e.s.cmdline.0; let _ = e.mmu.write64(a, c); }
+    if name == "__mb_cur_max" { e.w32(a, 1); }
+    if name == "_acmdln" { let c = e.s.cmdline.0; e.w64(a, c); }
     e.s.crt.data.insert(name.to_string(), a);
     Some(a)
 }
@@ -268,20 +268,20 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let cmd = { let c = e.s.cmdline.0; e.read_cstr(c, 32768) };
             let args = split_cmdline(&cmd);
             let argv = e.heap_alloc(8 * (args.len() as u64 + 1), true);
-            for (i, a) in args.iter().enumerate() { let s = e.put_str(a, false); let _ = e.mmu.write64(argv + 8 * i as u64, s); }
+            for (i, a) in args.iter().enumerate() { let s = e.put_str(a, false); e.w64(argv + 8 * i as u64, s); }
             let env = e.heap_alloc(16, true);
             let (pargv, penv) = (e.arg(1), e.arg(2));
-            let _ = e.mmu.write32(a0, args.len() as u32);
-            let _ = e.mmu.write64(pargv, argv);
-            let _ = e.mmu.write64(penv, env);
-            if let Some(&v) = e.s.crt.data.get("__initenv") { let _ = e.mmu.write64(v, env); }
+            e.w32(a0, args.len() as u32);
+            e.w64(pargv, argv);
+            e.w64(penv, env);
+            if let Some(&v) = e.s.crt.data.get("__initenv") { e.w64(v, env); }
             0
         }
         "_initterm" => {
             let end = e.arg(1);
             let mut list = Vec::new();
             let mut p = a0;
-            while p < end { let f = e.mmu.read64(p).unwrap_or(0); if f != 0 && f != u64::MAX { list.push(f); } p += 8; }
+            while p < end { let f = e.r64(p); if f != 0 && f != u64::MAX { list.push(f); } p += 8; }
             list.reverse();
             let sp = e.cpu.regs[4];
             e.s.crt.initterm.push((list, sp));
@@ -304,8 +304,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 let l = e.heap_alloc(0x60, true);
                 let dot = e.put_str(".", false);
                 let empty = e.put_str("", false);
-                let _ = e.mmu.write64(l, dot);
-                for i in 1..10 { let _ = e.mmu.write64(l + 8 * i, empty); }
+                e.w64(l, dot);
+                for i in 1..10 { e.w64(l + 8 * i, empty); }
                 e.s.crt.lconv = l;
             }
             e.s.crt.lconv
@@ -317,7 +317,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let write = mode.contains('w') || mode.contains('a');
             let data = match e.s.files.get(&key) {
                 Some(d) if !mode.contains('w') => d.clone(),
-                None if !write => { let _ = e.mmu.write32(e.cpu.gs_base + 0x68, 2); return Some(0); } // ENOENT
+                None if !write => { e.w32(e.cpu.gs_base + 0x68, 2); return Some(0); } // ENOENT
                 _ => Vec::new(),
             };
             let f = e.heap_alloc(FILE_SIZE, true);

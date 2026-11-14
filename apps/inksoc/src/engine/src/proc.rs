@@ -154,7 +154,7 @@ impl Engine {
         self.mmu.add_region(PEB, 0x1000);
         let stack = self.alloc(crate::STACK_SIZE).ok_or("out of memory")?;
         self.s.stack_top = stack + crate::STACK_SIZE - 0x100;
-        let w = |e: &mut Engine, a: u64, v: u64| { let _ = e.mmu.write64(a, v); };
+        let w = |e: &mut Engine, a: u64, v: u64| { e.w64(a, v); };
         w(self, TEB + 0x08, stack + crate::STACK_SIZE);
         w(self, TEB + 0x10, stack);
         w(self, TEB + 0x30, TEB);
@@ -163,7 +163,7 @@ impl Engine {
         w(self, TEB + 0x58, TEB + 0x1800);
         w(self, TEB + 0x60, PEB);
         // StaticUnicodeString (ANSI functions convert names into it): 522 bytes at +0x1268
-        let _ = self.mmu.write16(TEB + 0x125A, 522); w(self, TEB + 0x1260, TEB + 0x1268);
+        self.w16(TEB + 0x125A, 522); w(self, TEB + 0x1260, TEB + 0x1268);
         self.cpu.gs_base = TEB;
         self.s.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
         self.process_parameters(name);
@@ -183,12 +183,12 @@ impl Engine {
     // ---- environment: the block in the process parameters, as Wine's ntdll reads it ----
 
     pub fn env_vec(&mut self) -> Vec<u16> {
-        let p = self.mmu.read64(PEB + 0x20).unwrap_or(0);
-        let b = self.mmu.read64(p + 0x80).unwrap_or(0);
+        let p = self.r64(PEB + 0x20);
+        let b = self.r64(p + 0x80);
         let mut v = Vec::new();
         if b == 0 { return vec![0, 0]; }
         for i in 0..0x40000u64 {
-            let c = self.mmu.read16(b + 2 * i).unwrap_or(0);
+            let c = self.r16(b + 2 * i);
             v.push(c);
             if c == 0 && v.len() >= 2 && v[v.len() - 2] == 0 { break; }
             if c == 0 && v.len() == 1 { v.push(0); break; }
@@ -196,11 +196,11 @@ impl Engine {
         v
     }
     pub fn set_env_block(&mut self, env: &[u16]) {
-        let p = self.mmu.read64(PEB + 0x20).unwrap_or(0);
+        let p = self.r64(PEB + 0x20);
         let eb = self.heap_alloc(2 * env.len() as u64 + 4, true);
-        for (k, c) in env.iter().enumerate() { let _ = self.mmu.write16(eb + 2 * k as u64, *c); }
-        let _ = self.mmu.write64(p + 0x80, eb);
-        let _ = self.mmu.write64(p + 0x3F0, 2 * env.len() as u64);
+        for (k, c) in env.iter().enumerate() { self.w16(eb + 2 * k as u64, *c); }
+        self.w64(p + 0x80, eb);
+        self.w64(p + 0x3F0, 2 * env.len() as u64);
         self.s.env_block = eb;
     }
     fn env_vars(&mut self) -> Vec<String> {

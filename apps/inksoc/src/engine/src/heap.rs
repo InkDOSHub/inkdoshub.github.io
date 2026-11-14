@@ -31,7 +31,7 @@ impl Engine {
         let csize = 16u64 << c;
         if self.s.heap.free.len() <= c { self.s.heap.free.resize(c + 1, Vec::new()); }
         let a = if let Some(a) = self.s.heap.free[c].pop() {
-            if zero { for i in (0..csize).step_by(8) { let _ = self.mmu.write64(a + i, 0); } }
+            if zero { for i in (0..csize).step_by(8) { self.w64(a + i, 0); } }
             a
         } else {
             if self.s.heap.bump + csize > self.s.heap.bump_end {
@@ -63,7 +63,7 @@ impl Engine {
         let old = self.heap_size(a);
         if old == u64::MAX { return 0; }
         if size <= MAX_SMALL && old <= MAX_SMALL && class(size) == class(old) {
-            if zero && size > old { for i in old..size { let _ = self.mmu.write8(a + i, 0); } }
+            if zero && size > old { for i in old..size { self.w8(a + i, 0); } }
             self.s.heap.sizes.insert(a, size);
             return a;
         }
@@ -71,8 +71,8 @@ impl Engine {
         if n == 0 { return 0; }
         let k = old.min(size);
         let mut i = 0;
-        while i + 8 <= k { let v = self.mmu.read64(a + i).unwrap_or(0); let _ = self.mmu.write64(n + i, v); i += 8; }
-        while i < k { let v = self.mmu.read8(a + i).unwrap_or(0); let _ = self.mmu.write8(n + i, v); i += 1; }
+        while i + 8 <= k { let v = self.r64(a + i); self.w64(n + i, v); i += 8; }
+        while i < k { let v = self.r8(a + i); self.w8(n + i, v); i += 1; }
         self.heap_free(a);
         n
     }

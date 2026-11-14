@@ -80,7 +80,7 @@ impl Jit {
         *h += 1;
         if *h < HOT { return None; }
         e.jit.hits.remove(&rip);
-        let t0 = unsafe { crate::host_now_ms() };
+        let t0 = crate::now_ms();
         let f = match compile(e, rip) {
             Some(code) => {
                 e.jit.bytes += code.len() as u64;
@@ -89,7 +89,7 @@ impl Jit {
             }
             None => NONE,
         };
-        e.jit.ms += unsafe { crate::host_now_ms() } - t0;
+        e.jit.ms += crate::now_ms() - t0;
         e.jit.map.insert(rip, f);
         e.jit.l1[k] = (rip, f);
         if f == NONE { None } else { Some(f) }

@@ -76,7 +76,6 @@ pub struct Sched {
     pub keyed: std::collections::HashMap<u64, u32>,
 }
 
-fn now() -> f64 { unsafe { crate::host_now_ms() } }
 
 impl Sched {
     pub fn multi(&self) -> bool { self.th.len() > 1 }
@@ -86,7 +85,7 @@ impl Engine {
     pub fn sched_init(&mut self) {
         self.s.sched.th.push(Thread {
             id: MAIN_TID, teb: TEB, cpu: Box::new(Cpu::new()), eh: Default::default(), st: St::Running,
-            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: 0, pid: 0, wpid: 0, cpu_ms: 0.0, ran: now(), shown: 0.0,
+            wait: None, deadline: f64::INFINITY, pending: None, exit: 0, suspend: 0, on_core: 0, pid: 0, wpid: 0, cpu_ms: 0.0, ran: crate::now_ms(), shown: 0.0,
         });
         self.cur = 0;
         self.slice = SLICE;
@@ -106,12 +105,12 @@ impl Engine {
 
     fn off_core(&mut self, c: usize) {
         let t = &mut self.s.sched.th[c];
-        t.cpu_ms += (now() - t.ran).max(0.0);
+        t.cpu_ms += (crate::now_ms() - t.ran).max(0.0);
     }
     fn cpu_ms_of(&mut self, i: usize) -> f64 {
         let (cur, core) = (self.cur, self.core);
         let t = &mut self.s.sched.th[i];
-        let v = t.cpu_ms + if i == cur && t.on_core == core { (now() - t.ran).max(0.0) } else { 0.0 };
+        let v = t.cpu_ms + if i == cur && t.on_core == core { (crate::now_ms() - t.ran).max(0.0) } else { 0.0 };
         t.shown = t.shown.max(v);
         t.shown
     }
@@ -121,7 +120,7 @@ impl Engine {
             let id = if h == u64::MAX { self.s.wpid } else { match self.s.fs.handles.get(&h) { Some(crate::files::Handle::Process { pid }) => *pid, _ => return None } };
             { let ids: Vec<usize> = (0..self.s.sched.th.len()).filter(|&i| self.s.sched.th[i].wpid == id && self.s.sched.th[i].pid == 0).collect(); ids.into_iter().map(|i| self.cpu_ms_of(i)).sum() }
         } else { let i = self.thread_of(h)?; self.cpu_ms_of(i) };
-        let created = ((unsafe { crate::host_epoch_ms() } - now()) as i64 + 11_644_473_600_000) as u64 * 10_000;
+        let created = ((crate::epoch_ms() - crate::now_ms()) as i64 + 11_644_473_600_000) as u64 * 10_000;
         Some((created, (ms * 10_000.0) as u64))
     }
 
@@ -140,7 +139,7 @@ impl Engine {
             Some(Handle::Mutex { owner, .. }) => *owner == 0 || *owner == me,
             Some(Handle::Semaphore { count, .. }) => *count > 0,
             Some(Handle::Thread { tid }) => self.s.sched.th.iter().find(|t| t.id == *tid).map_or(true, |t| t.st == St::Done),
-            Some(Handle::Timer { due, .. }) => now() >= *due,
+            Some(Handle::Timer { due, .. }) => crate::now_ms() >= *due,
             Some(Handle::Process { pid }) => self.s.pinfo.get(pid).map_or(true, |i| i.exit.is_some()),
             Some(Handle::NPipe { .. }) => self.np_idle(h),
             _ => true,
@@ -176,16 +175,16 @@ impl Engine {
                 }
             }
             W::Cs(cs) => {
-                let owner = self.mmu.read64(cs + 16).unwrap_or(0);
+                let owner = self.r64(cs + 16);
                 if owner == 0 || owner == me as u64 {
-                    let rc = self.mmu.read32(cs + 12).unwrap_or(0);
-                    let _ = self.mmu.write64(cs + 16, me as u64);
-                    let _ = self.mmu.write32(cs + 12, rc + 1);
+                    let rc = self.r32(cs + 12);
+                    self.w64(cs + 16, me as u64);
+                    self.w32(cs + 12, rc + 1);
                     Some(0)
                 } else { None }
             }
             W::SrwEx(l) => {
-                if self.mmu.read64(*l).unwrap_or(0) == 0 { let _ = self.mmu.write64(*l, SRW_EX); Some(0) } else { None }
+                if self.r64(*l) == 0 { self.w64(*l, SRW_EX); Some(0) } else { None }
             }
             W::Lx(_) => None,
             W::Port { h, ex, out, count } => {
@@ -195,14 +194,14 @@ impl Engine {
                 }
                 if got.is_empty() { return None; }
                 if *ex {
-                    for (i, p) in got.iter().enumerate() { for k in 0..4 { let _ = self.mmu.write64(out[0] + 32 * i as u64 + 8 * k as u64, p[k]); } }
-                    if out[2] != 0 { let _ = self.mmu.write32(out[2], got.len() as u32); }
+                    for (i, p) in got.iter().enumerate() { for k in 0..4 { self.w64(out[0] + 32 * i as u64 + 8 * k as u64, p[k]); } }
+                    if out[2] != 0 { self.w32(out[2], got.len() as u32); }
                 } else {
                     let p = got[0];
-                    let _ = self.mmu.write64(out[0], p[0]);
-                    let _ = self.mmu.write64(out[1], p[1]);
-                    let _ = self.mmu.write64(out[2], p[2]);
-                    let _ = self.mmu.write64(out[2] + 8, p[3]);
+                    self.w64(out[0], p[0]);
+                    self.w64(out[1], p[1]);
+                    self.w64(out[2], p[2]);
+                    self.w64(out[2] + 8, p[3]);
                 }
                 Some(0)
             }
@@ -228,8 +227,8 @@ impl Engine {
                 if self.has_msgs(me) { Some(hs.len() as u64) } else { None }
             }
             W::SrwSh(l) => {
-                let v = self.mmu.read64(*l).unwrap_or(0);
-                if v != SRW_EX { let _ = self.mmu.write64(*l, v + 1); Some(0) } else { None }
+                let v = self.r64(*l);
+                if v != SRW_EX { self.w64(*l, v + 1); Some(0) } else { None }
             }
         }
     }
@@ -242,7 +241,7 @@ impl Engine {
         let t = &mut self.s.sched.th[self.cur];
         t.st = St::Wait;
         t.wait = Some(w);
-        t.deadline = if ms >= 0xFFFF_FFFF { f64::INFINITY } else { now() + ms as f64 };
+        t.deadline = if ms >= 0xFFFF_FFFF { f64::INFINITY } else { crate::now_ms() + ms as f64 };
         self.want_switch = true;
         BLOCK
     }
@@ -252,7 +251,7 @@ impl Engine {
         let st = self.alloc(size)?;
         let teb = self.alloc(if self.s.wow64 { 0x4000 } else { 0x2000 })?;
         let id = MAIN_TID + 4 * self.s.sched.th.len() as u32;
-        let w = |e: &mut Engine, a: u64, v: u64| { let _ = e.mmu.write64(a, v); };
+        let w = |e: &mut Engine, a: u64, v: u64| { e.w64(a, v); };
         w(self, teb + 0x08, st + size);
         w(self, teb + 0x10, st);
         w(self, teb + 0x30, teb);
@@ -261,7 +260,7 @@ impl Engine {
         w(self, teb + 0x58, teb + 0x1800);
         w(self, teb + 0x60, PEB);
         // StaticUnicodeString (ANSI functions convert names into it): 522 bytes at +0x1268
-        let _ = self.mmu.write16(teb + 0x125A, 522); w(self, teb + 0x1260, teb + 0x1268);
+        self.w16(teb + 0x125A, 522); w(self, teb + 0x1260, teb + 0x1268);
         self.tls_blocks(teb);
         self.teb_extras(teb);
         let mut cpu = Box::new(Cpu::new());
@@ -319,7 +318,7 @@ impl Engine {
         let t = &mut self.s.sched.th[self.cur];
         t.st = St::Wait;
         t.wait = Some(W::Lx(c));
-        t.deadline = ms.map_or(f64::INFINITY, |m| now() + m);
+        t.deadline = ms.map_or(f64::INFINITY, |m| crate::now_ms() + m);
         self.want_switch = true;
     }
     /// Every thread of Linux process `pid` ends.
@@ -350,7 +349,7 @@ impl Engine {
         let n = self.s.sched.th.len();
         let c = self.cur;
         let running = c != usize::MAX && self.s.sched.th[c].st == St::Running;
-        let t_now = now();
+        let t_now = crate::now_ms();
         let mut soonest = f64::INFINITY;
         let mut held = false;
         let orig = self.s.wpid;
@@ -450,7 +449,7 @@ impl Engine {
             core::mem::swap(&mut self.eh, &mut self.s.sched.th[i].eh);
             self.cur = i;
             self.s.sched.th[i].on_core = self.core;
-            self.s.sched.th[i].ran = now();
+            self.s.sched.th[i].ran = crate::now_ms();
             self.s.sched.switches += 1;
             if c != usize::MAX { crate::lock::kick(); }
         }
@@ -463,7 +462,7 @@ impl Engine {
     }
 
     fn handles_arg(&mut self, n: u64, p: u64) -> Vec<u64> {
-        (0..n.min(64)).map(|k| self.mmu.read64(p + 8 * k).unwrap_or(0)).collect()
+        (0..n.min(64)).map(|k| self.r64(p + 8 * k)).collect()
     }
 }
 
@@ -471,18 +470,18 @@ impl Engine {
 /// NT timeout (LARGE_INTEGER*: null = forever, < 0 relative 100 ns, >= 0 absolute FILETIME) in ms.
 fn nt_timeout(e: &mut Engine, p: u64) -> u64 {
     if p == 0 { return 0xFFFF_FFFF; }
-    let v = e.mmu.read64(p).unwrap_or(0) as i64;
+    let v = e.r64(p) as i64;
     if v < 0 { ((-v) as u64 / 10_000).min(0xFFFF_FFFE) } else {
-        let now_ft = (unsafe { crate::host_epoch_ms() } as i64 + 11_644_473_600_000) * 10_000;
+        let now_ft = (crate::epoch_ms() as i64 + 11_644_473_600_000) * 10_000;
         ((v - now_ft).max(0) as u64 / 10_000).min(0xFFFF_FFFE)
     }
 }
 
 /// Due time (host ms) of an NT/Win32 timer setting (LARGE_INTEGER value).
 fn timer_due(v: i64) -> f64 {
-    if v < 0 { now() + (-v) as f64 / 10_000.0 } else {
-        let now_ft = (unsafe { crate::host_epoch_ms() } as i64 + 11_644_473_600_000) * 10_000;
-        now() + (v - now_ft).max(0) as f64 / 10_000.0
+    if v < 0 { crate::now_ms() + (-v) as f64 / 10_000.0 } else {
+        let now_ft = (crate::epoch_ms() as i64 + 11_644_473_600_000) * 10_000;
+        crate::now_ms() + (v - now_ft).max(0) as f64 / 10_000.0
     }
 }
 
@@ -500,7 +499,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let r = e.wait_on(W::Addr { addr: a0, val, size, seq, win }, ms);
             if win && r == WAIT_TIMEOUT { e.set_last_error(1460); 0 } else { r }
         }
-        "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Port { q: Default::default() }); let _ = e.mmu.write64(a0, h); 0 }
+        "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Port { q: Default::default() }); e.w64(a0, h); 0 }
         "NtSetIoCompletion" => {
             let p = [e.arg(1), e.arg(2), e.arg(3), e.arg(4)];
             match e.s.fs.handles.get_mut(&a0) { Some(Handle::Port { q }) => { q.push_back(p); 0 } _ => 0xC000_0008 }
@@ -517,7 +516,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtQueryIoCompletion" => {
             let n = match e.s.fs.handles.get(&a0) { Some(Handle::Port { q }) => q.len() as u32, _ => 0 };
-            let b = e.arg(2); let _ = e.mmu.write32(b, n); 0
+            let b = e.arg(2); e.w32(b, n); 0
         }
         "NtWaitForKeyedEvent" => { let p = e.arg(3); let ms = nt_timeout(e, p); let k = e.arg(1); e.wait_on(W::Keyed(k), ms) }
         // thread alerts (Wine's 32-bit ntdll locks): a keyed event per thread, at most one pending
@@ -528,7 +527,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtAlertThreadByThreadId" => { e.s.sched.keyed.insert(1 << 63 | a0, 1); crate::lock::kick(); 0 }
         "NtReleaseKeyedEvent" => { let k = e.arg(1); *e.s.sched.keyed.entry(k).or_insert(0) += 1; 0 }
-        "NtCreateKeyedEvent" | "NtOpenKeyedEvent" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); let _ = e.mmu.write64(a0, h); 0 }
+        "NtCreateKeyedEvent" | "NtOpenKeyedEvent" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); e.w64(a0, h); 0 }
         "RtlWakeAddressAll" | "RtlWakeAddressSingle" | "WakeByAddressAll" | "WakeByAddressSingle" => {
             *e.s.sched.addr_seq.entry(a0).or_insert(0) += 1;
             0
@@ -557,19 +556,19 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtOpenMutant" | "NtOpenEvent" | "NtOpenSemaphore" => {
             let n = obj_name(e);
             match e.s.fs.named.get(&n).copied().filter(|h| e.s.fs.handles.contains_key(h)) {
-                Some(h) => { let h = e.dup_handle(h); let _ = e.mmu.write64(a0, h); 0 }
+                Some(h) => { let h = e.dup_handle(h); e.w64(a0, h); 0 }
                 None => 0xC000_0034,
             }
         }
         "NtCreateMutant" | "NtCreateEvent" | "NtCreateSemaphore" if existing(e).is_some() => {
-            let h = existing(e).unwrap(); let h = e.dup_handle(h); let _ = e.mmu.write64(a0, h);
+            let h = existing(e).unwrap(); let h = e.dup_handle(h); e.w64(a0, h);
             0x4000_0035
         }
         "NtCreateEvent" => {
             let (kind, init) = (e.arg(3) as u32, e.arg(4) as u8 != 0);
             let h = e.new_handle(Handle::Event { set: init, manual: kind == 0 });
             { let n = obj_name(e); if !n.is_empty() { e.s.fs.named.insert(n, h); } }
-            let _ = e.mmu.write64(a0, h); 0
+            e.w64(a0, h); 0
         }
         "NtSetEvent" | "NtResetEvent" | "NtPulseEvent" => {
             let set = name == "NtSetEvent";
@@ -579,7 +578,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let owned = e.arg(3) as u8 != 0;
             let h = e.new_handle(Handle::Mutex { owner: if owned { me } else { 0 }, count: owned as u32 });
             { let n = obj_name(e); if !n.is_empty() { e.s.fs.named.insert(n, h); } }
-            let _ = e.mmu.write64(a0, h); 0
+            e.w64(a0, h); 0
         }
         "NtReleaseMutant" => match e.s.fs.handles.get_mut(&a0) {
             Some(Handle::Mutex { owner, count }) if *owner == me => { *count -= 1; if *count == 0 { *owner = 0; } 0 }
@@ -589,24 +588,24 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (c, m) = (e.arg(3) as i32, e.arg(4) as i32);
             let h = e.new_handle(Handle::Semaphore { count: c, max: m });
             { let n = obj_name(e); if !n.is_empty() { e.s.fs.named.insert(n, h); } }
-            let _ = e.mmu.write64(a0, h); 0
+            e.w64(a0, h); 0
         }
         "NtReleaseSemaphore" => {
             let (n, p) = (e.arg(1) as i32, e.arg(2));
             match e.s.fs.handles.get_mut(&a0) {
-                Some(Handle::Semaphore { count, max }) if *count + n <= *max => { let prev = *count; *count += n; if p != 0 { let _ = e.mmu.write32(p, prev as u32); } 0 }
+                Some(Handle::Semaphore { count, max }) if *count + n <= *max => { let prev = *count; *count += n; if p != 0 { e.w32(p, prev as u32); } 0 }
                 _ => 0xC000_0047, // STATUS_SEMAPHORE_LIMIT_EXCEEDED
             }
         }
         "NtCreateTimer" => {
             let kind = e.arg(3) as u32;
             let h = e.new_handle(Handle::Timer { due: f64::INFINITY, manual: kind == 0, period: 0.0 });
-            let _ = e.mmu.write64(a0, h); 0
+            e.w64(a0, h); 0
         }
         "CreateWaitableTimerW" | "CreateWaitableTimerA" => { let manual = e.arg(1) as u32 != 0; e.new_handle(Handle::Timer { due: f64::INFINITY, manual, period: 0.0 }) }
         "CreateWaitableTimerExW" | "CreateWaitableTimerExA" => { let manual = e.arg(2) as u32 & 1 != 0; e.new_handle(Handle::Timer { due: f64::INFINITY, manual, period: 0.0 }) }
         "NtSetTimer" | "SetWaitableTimer" | "SetWaitableTimerEx" => {
-            let vp = e.arg(1); let v = e.mmu.read64(vp).unwrap_or(0) as i64;
+            let vp = e.arg(1); let v = e.r64(vp) as i64;
             let period = if name == "NtSetTimer" { e.arg(5) as u32 } else { e.arg(2) as u32 } as f64;
             let ok = match e.s.fs.handles.get_mut(&a0) { Some(Handle::Timer { due, period: p, .. }) => { *due = timer_due(v); *p = period; true } _ => false };
             if name == "NtSetTimer" { if ok { 0 } else { 0xC000_0008 } } else { ok as u64 }
@@ -621,14 +620,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (start, param, flags, stack, list) = (e.arg(4), e.arg(5), e.arg(6), e.arg(8), e.arg(10));
             match e.new_thread(stack, start, param, if flags & 1 != 0 { 4 } else { 0 }) {
                 Some((h, id)) => {
-                    let _ = e.mmu.write64(a0, h);
+                    e.w64(a0, h);
                     if list != 0 {
-                        let total = e.mmu.read64(list).unwrap_or(0);
+                        let total = e.r64(list);
                         let mut p = list + 8;
                         while p + 32 <= list + total {
-                            let (attr, val) = (e.mmu.read64(p).unwrap_or(0), e.mmu.read64(p + 16).unwrap_or(0));
-                            if attr & 0xFFFF == 3 && val != 0 { let _ = e.mmu.write64(val, 4); let _ = e.mmu.write64(val + 8, id as u64); }
-                            if attr & 0xFFFF == 4 && val != 0 { let teb = e.thread_of(h).map_or(0, |i| e.s.sched.th[i].teb); let _ = e.mmu.write64(val, teb); }
+                            let (attr, val) = (e.r64(p), e.r64(p + 16));
+                            if attr & 0xFFFF == 3 && val != 0 { e.w64(val, 4); e.w64(val + 8, id as u64); }
+                            if attr & 0xFFFF == 4 && val != 0 { let teb = e.thread_of(h).map_or(0, |i| e.s.sched.th[i].teb); e.w64(val, teb); }
                             p += 32;
                         }
                     }
@@ -641,7 +640,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (stack, start, param, flags) = if name == "_beginthread" { (e.arg(1), a0, e.arg(2), 0) } else { (e.arg(1), e.arg(2), e.arg(3), e.arg(4)) };
             match e.new_thread(stack, start, param, flags) {
                 Some((h, id)) => {
-                    if name != "_beginthread" { let p = e.arg(5); if p != 0 { let _ = e.mmu.write32(p, id); } }
+                    if name != "_beginthread" { let p = e.arg(5); if p != 0 { e.w32(p, id); } }
                     h
                 }
                 None => 0,
@@ -672,7 +671,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if name == "NtSuspendThread" { if i != e.cur { t.suspend += 1; if t.st == St::Ready { t.st = St::Suspended; } } }
             else if t.suspend > 0 { t.suspend -= 1; if t.suspend == 0 && t.st == St::Suspended { t.st = St::Ready; } }
             let p = e.arg(1);
-            if p != 0 { let _ = e.mmu.write32(p, prev); }
+            if p != 0 { e.w32(p, prev); }
             0
         }
         "NtGetContextThread" | "NtSetContextThread" => {
@@ -684,18 +683,18 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if get {
                 let f = 0x202 | cpu.cf as u64 | (cpu.pf as u64) << 2 | (cpu.zf as u64) << 6 | (cpu.sf as u64) << 7 | (cpu.df as u64) << 10 | (cpu.of as u64) << 11;
                 let (regs, rip, xmm) = (cpu.regs, cpu.rip, cpu.xmm);
-                let _ = e.mmu.write32(c + 0x34, 0x1F80);
-                for (o, v) in [(0x38u64, 0x33u16), (0x3A, 0x2B), (0x3C, 0x2B), (0x3E, 0x53), (0x40, 0x2B), (0x42, 0x2B)] { let _ = e.mmu.write16(c + o, v); }
-                let _ = e.mmu.write32(c + 0x44, f as u32);
-                for k in 0..16 { let _ = e.mmu.write64(c + 0x78 + 8 * k as u64, regs[k]); }
-                let _ = e.mmu.write64(c + 0xF8, rip);
+                e.w32(c + 0x34, 0x1F80);
+                for (o, v) in [(0x38u64, 0x33u16), (0x3A, 0x2B), (0x3C, 0x2B), (0x3E, 0x53), (0x40, 0x2B), (0x42, 0x2B)] { e.w16(c + o, v); }
+                e.w32(c + 0x44, f as u32);
+                for k in 0..16 { e.w64(c + 0x78 + 8 * k as u64, regs[k]); }
+                e.w64(c + 0xF8, rip);
                 for k in 0..16 { let _ = e.mmu.write_bytes(c + 0x1A0 + 16 * k as u64, &xmm[k].to_le_bytes()); }
-                let _ = e.mmu.write32(c + 0x100 + 24, 0x1F80);
+                e.w32(c + 0x100 + 24, 0x1F80);
             } else {
-                let fl = e.mmu.read32(c + 0x30).unwrap_or(0);
+                let fl = e.r32(c + 0x30);
                 let mut regs = [0u64; 16];
-                for k in 0..16 { regs[k] = e.mmu.read64(c + 0x78 + 8 * k as u64).unwrap_or(0); }
-                let rip = e.mmu.read64(c + 0xF8).unwrap_or(0);
+                for k in 0..16 { regs[k] = e.r64(c + 0x78 + 8 * k as u64); }
+                let rip = e.r64(c + 0xF8);
                 let f = e.mmu.read32(c + 0x44).unwrap_or(0x202) as u64;
                 let mut xmm = [0u128; 16];
                 for k in 0..16 { let mut b = [0u8; 16]; let _ = e.mmu.read_bytes(c + 0x1A0 + 16 * k as u64, &mut b); xmm[k] = u128::from_le_bytes(b); }
@@ -714,7 +713,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetExitCodeThread" => {
             let p = e.arg(1);
             let v = e.thread_of(a0).map_or(0, |i| if e.s.sched.th[i].st == St::Done { e.s.sched.th[i].exit as u64 } else { STILL_ACTIVE });
-            let _ = e.mmu.write32(p, v as u32);
+            e.w32(p, v as u32);
             1
         }
         "WaitForSingleObject" | "WaitForSingleObjectEx" => {
@@ -752,7 +751,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 Some(Handle::Semaphore { count, max }) if *count + n <= *max => {
                     let prev = *count;
                     *count += n;
-                    if p != 0 { let _ = e.mmu.write32(p, prev as u32); }
+                    if p != 0 { e.w32(p, prev as u32); }
                     1
                 }
                 _ => 0,
@@ -760,23 +759,23 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "InitializeCriticalSection" | "InitializeCriticalSectionAndSpinCount" | "InitializeCriticalSectionEx" => {
             // DebugInfo: some code (Wine's CRT) writes a name into it
-            e.zero(a0, 40); let d = e.heap_alloc(64, true); let _ = e.mmu.write64(a0, d); 1
+            e.zero(a0, 40); let d = e.heap_alloc(64, true); e.w64(a0, d); 1
         }
         "DeleteCriticalSection" => 0,
         "EnterCriticalSection" => e.wait_on(W::Cs(a0), u64::MAX),
         "TryEnterCriticalSection" => (e.try_wait(&W::Cs(a0), me).is_some()) as u64,
         "LeaveCriticalSection" => {
-            let rc = e.mmu.read32(a0 + 12).unwrap_or(0);
-            if rc <= 1 { let _ = e.mmu.write32(a0 + 12, 0); let _ = e.mmu.write64(a0 + 16, 0); } else { let _ = e.mmu.write32(a0 + 12, rc - 1); }
+            let rc = e.r32(a0 + 12);
+            if rc <= 1 { e.w32(a0 + 12, 0); e.w64(a0 + 16, 0); } else { e.w32(a0 + 12, rc - 1); }
             0
         }
-        "InitializeSRWLock" => { let _ = e.mmu.write64(a0, 0); 0 }
+        "InitializeSRWLock" => { e.w64(a0, 0); 0 }
         "AcquireSRWLockExclusive" => { let r = e.wait_on(W::SrwEx(a0), u64::MAX); if r == BLOCK { r } else { 0 } }
         "AcquireSRWLockShared" => { let r = e.wait_on(W::SrwSh(a0), u64::MAX); if r == BLOCK { r } else { 0 } }
         "TryAcquireSRWLockExclusive" => e.try_wait(&W::SrwEx(a0), me).is_some() as u64,
         "TryAcquireSRWLockShared" => e.try_wait(&W::SrwSh(a0), me).is_some() as u64,
-        "ReleaseSRWLockExclusive" => { let _ = e.mmu.write64(a0, 0); 0 }
-        "ReleaseSRWLockShared" => { let v = e.mmu.read64(a0).unwrap_or(1); let _ = e.mmu.write64(a0, v.saturating_sub(1)); 0 }
+        "ReleaseSRWLockExclusive" => { e.w64(a0, 0); 0 }
+        "ReleaseSRWLockShared" => { let v = e.mmu.read64(a0).unwrap_or(1); e.w64(a0, v.saturating_sub(1)); 0 }
         _ => return None,
     })
 }

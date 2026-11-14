@@ -27,8 +27,6 @@ pub struct Eh {
 struct Frame { ctx: Ctx, establisher: u64, image: u64, func_info: Option<u64> }
 
 impl Engine {
-    fn r32(&mut self, a: u64) -> u32 { self.mmu.read32(a).unwrap_or(0) }
-    fn r64(&mut self, a: u64) -> u64 { self.mmu.read64(a).unwrap_or(0) }
 
     fn image_of(&self, ip: u64) -> Option<u64> {
         self.s.modules.iter().find(|m| !m.native && ip >= m.base && ip < m.base + m.size).map(|m| m.base)
@@ -53,7 +51,7 @@ impl Engine {
 
     fn is_cxx_handler(&mut self, h: u64) -> bool {
         // usually a jmp through the import table
-        let target = if self.mmu.read16(h).unwrap_or(0) == 0x25FF {
+        let target = if self.r16(h) == 0x25FF {
             let d = self.r32(h + 2) as i32 as i64;
             self.r64((h as i64 + 6 + d) as u64)
         } else { h };
@@ -78,10 +76,10 @@ impl Engine {
         loop {
             let begin = base + self.r32(rf) as u64;
             let ui = base + self.r32(rf + 8) as u64;
-            let b0 = self.mmu.read8(ui).unwrap_or(0);
-            let (flags, prolog) = (b0 >> 3, self.mmu.read8(ui + 1).unwrap_or(0) as u64);
-            let count = self.mmu.read8(ui + 2).unwrap_or(0) as u64;
-            let fr = self.mmu.read8(ui + 3).unwrap_or(0);
+            let b0 = self.r8(ui);
+            let (flags, prolog) = (b0 >> 3, self.r8(ui + 1) as u64);
+            let count = self.r8(ui + 2) as u64;
+            let fr = self.r8(ui + 3);
             let (freg, foff) = ((fr & 15) as usize, (fr >> 4) as u64);
             if first {
                 establisher = if freg != 0 { ctx.regs[freg].wrapping_sub(16 * foff) } else { ctx.regs[4] };
@@ -95,8 +93,8 @@ impl Engine {
             let mut i = 0;
             while i < count {
                 let c = ui + 4 + 2 * i;
-                let code_off = self.mmu.read8(c).unwrap_or(0) as u64;
-                let b = self.mmu.read8(c + 1).unwrap_or(0);
+                let code_off = self.r8(c) as u64;
+                let b = self.r8(c + 1);
                 let (op, info) = (b & 15, (b >> 4) as usize);
                 let skip = first && offset_in < prolog && code_off > offset_in;
                 let slots = match op { 1 => if info == 0 { 2 } else { 3 }, 4 | 8 => 2, 5 | 9 => 3, _ => 1 };
@@ -104,15 +102,15 @@ impl Engine {
                     match op {
                         0 => { ctx.regs[info] = self.r64(ctx.regs[4]); ctx.regs[4] += 8; }
                         1 => {
-                            let size = if info == 0 { self.mmu.read16(c + 2).unwrap_or(0) as u64 * 8 } else { self.r32(c + 2) as u64 };
+                            let size = if info == 0 { self.r16(c + 2) as u64 * 8 } else { self.r32(c + 2) as u64 };
                             ctx.regs[4] += size;
                         }
                         2 => { ctx.regs[4] += info as u64 * 8 + 8; }
                         3 => { ctx.regs[4] = ctx.regs[freg].wrapping_sub(16 * foff); }
-                        4 => { let o = self.mmu.read16(c + 2).unwrap_or(0) as u64 * 8; ctx.regs[info] = self.r64(ctx.regs[4] + o); }
+                        4 => { let o = self.r16(c + 2) as u64 * 8; ctx.regs[info] = self.r64(ctx.regs[4] + o); }
                         5 => { let o = self.r32(c + 2) as u64; ctx.regs[info] = self.r64(ctx.regs[4] + o); }
                         8 | 9 => {
-                            let o = if op == 8 { self.mmu.read16(c + 2).unwrap_or(0) as u64 * 16 } else { self.r32(c + 2) as u64 };
+                            let o = if op == 8 { self.r16(c + 2) as u64 * 16 } else { self.r32(c + 2) as u64 };
                             let a = ctx.regs[4] + o;
                             ctx.xmm[info] = self.r64(a) as u128 | (self.r64(a + 8) as u128) << 64;
                         }
@@ -222,10 +220,10 @@ impl Engine {
                     if let Some(ct) = ct {
                         let dst = frame.establisher.wrapping_add(catch_obj as i64 as u64);
                         let src = obj.wrapping_add(self.r32(ct + 8) as i32 as i64 as u64);
-                        if adj & 8 != 0 { let _ = self.mmu.write64(dst, src); } else {
+                        if adj & 8 != 0 { self.w64(dst, src); } else {
                             let size = self.r32(ct + 20) as u64;
                             let props = self.r32(ct);
-                            if props & 1 != 0 { let p = self.r64(src); let _ = self.mmu.write64(dst, p); }
+                            if props & 1 != 0 { let p = self.r64(src); self.w64(dst, p); }
                             else { let v = self.read_bytes_vec(src, size.min(4096)); let _ = self.mmu.write_bytes(dst, &v); }
                         }
                     }

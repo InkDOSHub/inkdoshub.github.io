@@ -211,18 +211,18 @@ impl Engine {
             let a = self.heap_alloc(cm.len() as u64, false);
             let _ = self.mmu.write_bytes(a, &cm);
             let n = u16::from_le_bytes([cm[2], cm[3]]) as u64;
-            let _ = self.mmu.write64(nls + 0x80, a + 4);
-            let _ = self.mmu.write64(nls + 0x88, a + 4 + 2 * n);
+            self.w64(nls + 0x80, a + 4);
+            self.w64(nls + 0x88, a + 4 + 2 * n);
         }
-        if let Some(a) = acp { let _ = self.mmu.write16(a, 65001); } // NlsAnsiCodePage
+        if let Some(a) = acp { self.w16(a, 65001); } // NlsAnsiCodePage
     }
 
     /// Per-thread blocks Wine's ntdll expects in the TEB (activation context stack).
     pub fn teb_extras(&mut self, teb: u64) {
         let a = self.heap_alloc(0x40, true);
-        let _ = self.mmu.write64(a + 0x18, a + 0x18); // FrameListCache: empty list
-        let _ = self.mmu.write64(a + 0x20, a + 0x18);
-        let _ = self.mmu.write64(teb + 0x2C8, a);
+        self.w64(a + 0x18, a + 0x18); // FrameListCache: empty list
+        self.w64(a + 0x20, a + 0x18);
+        self.w64(teb + 0x2C8, a);
     }
 
     /// KUSER_SHARED_DATA at 0x7FFE0000: versions, processor features, clocks.
@@ -230,36 +230,36 @@ impl Engine {
         const K: u64 = 0x7FFE_0000;
         self.mmu.add_region(K, 0x1000);
         self.s.user_shared = true;
-        let _ = self.mmu.write32(K + 0x4, 0x0FA0_0000); // TickCountMultiplier
-        let _ = self.mmu.write32(K + 0x2C, 0x8664_8664);
+        self.w32(K + 0x4, 0x0FA0_0000); // TickCountMultiplier
+        self.w32(K + 0x2C, 0x8664_8664);
         let root: Vec<u16> = "C:\\Windows".encode_utf16().collect();
-        for (k, c) in root.iter().enumerate() { let _ = self.mmu.write16(K + 0x30 + 2 * k as u64, *c); }
-        let _ = self.mmu.write32(K + 0x260, 19045); // NtBuildNumber
-        let _ = self.mmu.write32(K + 0x264, 1); // NtProductType: workstation
-        let _ = self.mmu.write8(K + 0x268, 1); // ProductTypeIsValid
-        let _ = self.mmu.write32(K + 0x26C, 10);
-        let _ = self.mmu.write32(K + 0x270, 0);
+        for (k, c) in root.iter().enumerate() { self.w16(K + 0x30 + 2 * k as u64, *c); }
+        self.w32(K + 0x260, 19045); // NtBuildNumber
+        self.w32(K + 0x264, 1); // NtProductType: workstation
+        self.w8(K + 0x268, 1); // ProductTypeIsValid
+        self.w32(K + 0x26C, 10);
+        self.w32(K + 0x270, 0);
         // PF_: RDTSC 8, XMMI 6, XMMI64 10, SSE3 13, NX 12, CMPXCHG16B 14, FASTFAIL 23, SSSE3 36, SSE4_1 37, SSE4_2 38
-        for f in [6u64, 8, 10, 12, 13, 14, 23, 36, 37, 38] { let _ = self.mmu.write8(K + 0x274 + f, 1); }
-        let _ = self.mmu.write32(K + 0x2E8, 0x20_0000); // NumberOfPhysicalPages (8 GB)
-        let _ = self.mmu.write32(K + 0x3C0, self.s.cores.max(1)); // ActiveProcessorCount
-        let _ = self.mmu.write64(K + 0x3C8, 10_000_000); // QpcFrequency
+        for f in [6u64, 8, 10, 12, 13, 14, 23, 36, 37, 38] { self.w8(K + 0x274 + f, 1); }
+        self.w32(K + 0x2E8, 0x20_0000); // NumberOfPhysicalPages (8 GB)
+        self.w32(K + 0x3C0, self.s.cores.max(1)); // ActiveProcessorCount
+        self.w64(K + 0x3C8, 10_000_000); // QpcFrequency
         self.shared_time();
     }
 
     /// Refreshes the clocks of KUSER_SHARED_DATA (called every time slice).
     pub fn shared_time(&mut self) {
         const K: u64 = 0x7FFE_0000;
-        let ms = unsafe { crate::host_now_ms() };
+        let ms = crate::now_ms();
         let it = (ms * 10_000.0) as u64;
-        let st = (unsafe { crate::host_epoch_ms() } as u64 + 11_644_473_600_000) * 10_000;
+        let st = (crate::epoch_ms() as u64 + 11_644_473_600_000) * 10_000;
         let tick = (ms * 64.0 / 1000.0) as u64;
         for (o, v) in [(0x08u64, it), (0x14, st), (0x320, tick)] {
-            let _ = self.mmu.write32(K + o + 8, (v >> 32) as u32);
-            let _ = self.mmu.write32(K + o, v as u32);
-            let _ = self.mmu.write32(K + o + 4, (v >> 32) as u32);
+            self.w32(K + o + 8, (v >> 32) as u32);
+            self.w32(K + o, v as u32);
+            self.w32(K + o + 4, (v >> 32) as u32);
         }
-        let _ = self.mmu.write32(K, tick as u32);
+        self.w32(K, tick as u32);
     }
 
     /// Whether GetProcAddress should find `name` in the native `dll`: Wine has it
@@ -304,18 +304,18 @@ impl Engine {
         let us = |e: &mut Engine, at: u64, s: &str| {
             let w: Vec<u16> = s.encode_utf16().collect();
             let b = e.heap_alloc(2 * w.len() as u64 + 2, true);
-            for (k, c) in w.iter().enumerate() { let _ = e.mmu.write16(b + 2 * k as u64, *c); }
-            let _ = e.mmu.write16(at, 2 * w.len() as u16);
-            let _ = e.mmu.write16(at + 2, 2 * w.len() as u16 + 2);
-            let _ = e.mmu.write64(at + 8, b);
+            for (k, c) in w.iter().enumerate() { e.w16(b + 2 * k as u64, *c); }
+            e.w16(at, 2 * w.len() as u16);
+            e.w16(at + 2, 2 * w.len() as u16 + 2);
+            e.w64(at + 8, b);
         };
-        let _ = self.mmu.write32(p, 0x400);
-        let _ = self.mmu.write32(p + 4, 0x400);
-        let _ = self.mmu.write32(p + 8, 1); // normalized
+        self.w32(p, 0x400);
+        self.w32(p + 4, 0x400);
+        self.w32(p + 8, 1); // normalized
         let std = self.s.std;
-        let _ = self.mmu.write64(p + 0x20, std[0]);
-        let _ = self.mmu.write64(p + 0x28, std[1]);
-        let _ = self.mmu.write64(p + 0x30, std[2]);
+        self.w64(p + 0x20, std[0]);
+        self.w64(p + 0x28, std[1]);
+        self.w64(p + 0x30, std[2]);
         us(self, p + 0x38, &format!("{}\\", crate::files::home_win()));
         us(self, p + 0x50, &format!("{};C:\\Windows\\System32", crate::files::home_win()));
         us(self, p + 0x60, &format!("{}\\{}", crate::files::home_win(), exe));
@@ -334,11 +334,11 @@ impl Engine {
         ];
         let env: Vec<u16> = (vars.join("\0") + "\0\0").encode_utf16().collect();
         let eb = self.heap_alloc(2 * env.len() as u64, true);
-        for (k, c) in env.iter().enumerate() { let _ = self.mmu.write16(eb + 2 * k as u64, *c); }
-        let _ = self.mmu.write64(p + 0x80, eb);
-        let _ = self.mmu.write64(p + 0x3F0, 2 * env.len() as u64);
+        for (k, c) in env.iter().enumerate() { self.w16(eb + 2 * k as u64, *c); }
+        self.w64(p + 0x80, eb);
+        self.w64(p + 0x3F0, 2 * env.len() as u64);
         us(self, p + 0xB0, "WinSta0\\Default"); // DesktopInfo
-        let _ = self.mmu.write64(crate::PEB + 0x20, p);
+        self.w64(crate::PEB + 0x20, p);
         self.s.env_block = eb;
     }
 }

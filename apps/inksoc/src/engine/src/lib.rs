@@ -43,6 +43,10 @@ extern "C" {
     pub fn host_epoch_ms() -> f64;
 }
 
+/// The host's clock: milliseconds since the page started (monotonic), and since 1970.
+pub(crate) fn now_ms() -> f64 { unsafe { host_now_ms() } }
+pub(crate) fn epoch_ms() -> f64 { unsafe { host_epoch_ms() } }
+
 extern "C" {
     fn wine_RtlComputeCrc32(init: u32, data: u64, len: i32) -> u32;
     fn wine_lstrlenA(s: u64) -> i32;
@@ -560,7 +564,7 @@ impl Engine {
         let b = self.heap_alloc((n + z).max(16), true);
         let mut v = vec![0u8; n as usize];
         if self.mmu.read_bytes(t, &mut v).is_ok() { let _ = self.mmu.write_bytes(b, &v); }
-        let _ = self.mmu.write64(teb + 0x1800 + 8 * i as u64, b);
+        self.w64(teb + 0x1800 + 8 * i as u64, b);
     }
 
     pub fn thunk_lookup(&self, dll: &str, func: &str) -> Option<u64> { self.s.thunk_ids.get(&format!("{}!{}", dll, func)).copied() }
@@ -592,12 +596,12 @@ impl Engine {
         if wide {
             let w: Vec<u16> = s.encode_utf16().chain([0]).collect();
             let a = self.heap_alloc(w.len() as u64 * 2, false);
-            for (i, c) in w.iter().enumerate() { let _ = self.mmu.write16(a + 2 * i as u64, *c); }
+            for (i, c) in w.iter().enumerate() { self.w16(a + 2 * i as u64, *c); }
             a
         } else {
             let a = self.heap_alloc(s.len() as u64 + 1, false);
             let _ = self.mmu.write_bytes(a, s.as_bytes());
-            let _ = self.mmu.write8(a + s.len() as u64, 0);
+            self.w8(a + s.len() as u64, 0);
             a
         }
     }
@@ -616,7 +620,7 @@ impl Engine {
         if self.s.files.get(name).map_or(false, |b| wow64::is_pe32(b)) { self.s.wow64 = true; self.s.next_alloc = wow64::LOW_ALLOC; }
         let stack = self.alloc(STACK_SIZE).ok_or("out of memory")?;
         self.s.stack_top = stack + STACK_SIZE - 0x100;
-        let w = |e: &mut Engine, a: u64, v: u64| { let _ = e.mmu.write64(a, v); };
+        let w = |e: &mut Engine, a: u64, v: u64| { e.w64(a, v); };
         w(self, TEB + 0x08, stack + STACK_SIZE);
         w(self, TEB + 0x10, stack);
         w(self, TEB + 0x30, TEB);
@@ -625,7 +629,7 @@ impl Engine {
         w(self, TEB + 0x58, TEB + 0x1800); // ThreadLocalStoragePointer (static TLS array)
         w(self, TEB + 0x60, PEB);
         // StaticUnicodeString (ANSI functions convert names into it): 522 bytes at +0x1268
-        let _ = self.mmu.write16(TEB + 0x125A, 522); w(self, TEB + 0x1260, TEB + 0x1268);
+        self.w16(TEB + 0x125A, 522); w(self, TEB + 0x1260, TEB + 0x1268);
         self.cpu.gs_base = TEB;
         self.sched_init();
         let bytes = self.s.files.get(name).cloned().ok_or_else(|| format!("{} not found", name))?;
@@ -654,7 +658,7 @@ impl Engine {
     pub fn call_guest(&mut self, f: u64, args: [u64; 3], ret: u64) {
         let sp = (self.cpu.regs[4] - 0x60) & !0xF;
         let sp = sp - 8;
-        let _ = self.mmu.write64(sp, ret);
+        self.w64(sp, ret);
         self.cpu.regs[4] = sp;
         self.cpu.regs[1] = args[0];
         self.cpu.regs[2] = args[1];
@@ -674,6 +678,19 @@ impl Engine {
         }
     }
 
+    // Program memory where a failure needs no handling: a read gives 0, a write to
+    // address 0 (an optional out-parameter left out) is skipped.
+    pub(crate) fn r8(&mut self, a: u64) -> u8 { self.mmu.read8(a).unwrap_or(0) }
+    pub(crate) fn r16(&mut self, a: u64) -> u16 { self.mmu.read16(a).unwrap_or(0) }
+    pub(crate) fn r32(&mut self, a: u64) -> u32 { self.mmu.read32(a).unwrap_or(0) }
+    pub(crate) fn r64(&mut self, a: u64) -> u64 { self.mmu.read64(a).unwrap_or(0) }
+    pub(crate) fn w8(&mut self, a: u64, v: u8) { if a != 0 { let _ = self.mmu.write8(a, v); } }
+    pub(crate) fn w16(&mut self, a: u64, v: u16) { if a != 0 { let _ = self.mmu.write16(a, v); } }
+    pub(crate) fn w32(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write32(a, v); } }
+    pub(crate) fn w64(&mut self, a: u64, v: u64) { if a != 0 { let _ = self.mmu.write64(a, v); } }
+    /// The thread's Windows "last error" (TEB.LastErrorValue).
+    pub(crate) fn set_last_error(&mut self, v: u32) { let a = self.cpu.gs_base + 0x68; self.w32(a, v); }
+
     pub fn arg(&mut self, i: usize) -> u64 {
         match i {
             0 => self.cpu.regs[1],
@@ -681,7 +698,7 @@ impl Engine {
             2 => self.cpu.regs[8],
             3 => self.cpu.regs[9],
             // stack args: [rsp] = return address, then 32 bytes of shadow space
-            _ => self.mmu.read64(self.cpu.regs[4] + 8 + 8 * i as u64).unwrap_or(0),
+            _ => self.r64(self.cpu.regs[4] + 8 + 8 * i as u64),
         }
     }
 
@@ -712,7 +729,7 @@ impl Engine {
         }
         let idx = ((self.cpu.rip - THUNK_BASE) / 16) as usize;
         if let Some(&a) = self.s.thunk_fb.get(&idx) { self.cpu.rip = a; return; }
-        let ra = self.mmu.read64(self.cpu.regs[4]).unwrap_or(0);
+        let ra = self.r64(self.cpu.regs[4]);
         let k = self.s.recent_n % 16; self.s.recent[k] = (idx as u32, ra); self.s.recent_n += 1;
         if unsafe { TRACE } { if let Some((d, n)) = self.s.thunks.get(idx).cloned() {
             let t = self.cur_tid(); let p = self.cpu.regs[1];

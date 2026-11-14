@@ -127,7 +127,7 @@ fn utf16(s: &str) -> Vec<u8> { s.encode_utf16().flat_map(|c| c.to_le_bytes()).co
 impl Engine {
     /// Full lowercase key path of an OBJECT_ATTRIBUTES (root key handle + relative name).
     fn key_path(&mut self, oa: u64) -> Option<String> {
-        let root = self.mmu.read64(oa + 8).unwrap_or(0);
+        let root = self.r64(oa + 8);
         let name = self.oa_name(oa);
         let base = if root != 0 {
             match self.s.fs.handles.get(&root) { Some(Handle::Key { path }) => path.clone(), _ => return None }
@@ -142,7 +142,7 @@ impl Engine {
     /// Writes `fixed` then `var` (as much as fits) to buf; the status says whether all of it fit.
     fn reg_out(&mut self, buf: u64, len: u64, retlen: u64, fixed: &[u8], var: &[u8]) -> u64 {
         let total = (fixed.len() + var.len()) as u64;
-        if retlen != 0 { let _ = self.mmu.write32(retlen, total as u32); }
+        if retlen != 0 { self.w32(retlen, total as u32); }
         if len < fixed.len() as u64 { return BUFFER_TOO_SMALL; }
         let _ = self.mmu.write_bytes(buf, fixed);
         let room = (len - fixed.len() as u64).min(var.len() as u64) as usize;
@@ -206,10 +206,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if name == "NtCreateKey" {
                 let new = e.s.fs.reg.create(&p);
                 let disp = e.arg(6);
-                if disp != 0 { let _ = e.mmu.write32(disp, if new { 1 } else { 2 }); } // REG_CREATED_NEW_KEY / REG_OPENED_EXISTING_KEY
+                if disp != 0 { e.w32(disp, if new { 1 } else { 2 }); } // REG_CREATED_NEW_KEY / REG_OPENED_EXISTING_KEY
             } else if !e.s.fs.reg.keys.contains_key(&p) { return Some(NAME_NOT_FOUND); }
             let h = e.new_handle(Handle::Key { path: p });
-            let _ = e.mmu.write64(a0, h);
+            e.w64(a0, h);
             OK
         }
         "NtSetValueKey" => {

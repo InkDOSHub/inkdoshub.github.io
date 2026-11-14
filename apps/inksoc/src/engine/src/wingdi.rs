@@ -353,11 +353,7 @@ fn std_palette(bpp: u16) -> Vec<u32> {
 fn idx(h: u64) -> u32 { (h & 0xFFFF) as u32 }
 
 impl Engine {
-    fn g16(&mut self, a: u64) -> u32 { self.mmu.read16(a).unwrap_or(0) as u32 }
-    fn g32(&mut self, a: u64) -> u32 { self.mmu.read32(a).unwrap_or(0) }
-    fn s16(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write16(a, v as u16); } }
-    fn s32(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write32(a, v); } }
-    fn s64(&mut self, a: u64, v: u64) { if a != 0 { let _ = self.mmu.write64(a, v); } }
+    fn s64(&mut self, a: u64, v: u64) { if a != 0 { self.w64(a, v); } }
     fn bytes(&mut self, a: u64, n: usize) -> Vec<u8> { let mut v = vec![0u8; n]; let _ = self.mmu.read_bytes(a, &mut v); v }
 
     /// The GDI handle table (at PEB+0xF8) with the stock objects in Wine's slots.
@@ -365,7 +361,7 @@ impl Engine {
         if self.s.gdi.table != 0 { return; }
         let Some(t) = self.reserve(0x10000 * 24) else { return };
         self.s.gdi.table = t;
-        let _ = self.mmu.write64(crate::PEB + 0xF8, t);
+        self.w64(crate::PEB + 0xF8, t);
         self.s.gdi.next = FIRST;
         for c in [0xFFFFFF, 0xC0C0C0, 0x808080, 0x404040, 0] { self.gdi_new(E_BRUSH, Obj::Brush(Brush::Solid(c))); }
         self.gdi_new(E_BRUSH, Obj::Brush(Brush::Null));
@@ -388,8 +384,8 @@ impl Engine {
         font(self, -11, 400, "MS Shell Dlg");
         for i in FIRST..FIRST + 24 {
             let a = t + 24 * i as u64 + 12;
-            let v = self.mmu.read8(a).unwrap_or(0);
-            let _ = self.mmu.write8(a, v | 0x80);
+            let v = self.r8(a);
+            self.w8(a, v | 0x80);
         }
     }
 
@@ -400,23 +396,23 @@ impl Engine {
         if i >= 0x10000 { return 0; }
         g.objs.insert(i, obj);
         let e = g.table + 24 * i as u64;
-        let gen = self.mmu.read8(e + 13).unwrap_or(0);
+        let gen = self.r8(e + 13);
         let gen = if gen + 1 >= 0x80 { 1 } else { gen + 1 };
-        let _ = self.mmu.write64(e, 1 + i as u64);
-        let _ = self.mmu.write32(e + 8, 0);
-        let _ = self.mmu.write8(e + 12, ext as u8);
-        let _ = self.mmu.write8(e + 13, gen);
-        let _ = self.mmu.write8(e + 14, (ext & 0x1F) as u8);
-        let _ = self.mmu.write8(e + 15, 0);
-        let _ = self.mmu.write64(e + 16, 0);
-        i as u64 | (self.g16(e + 12) as u64) << 16
+        self.w64(e, 1 + i as u64);
+        self.w32(e + 8, 0);
+        self.w8(e + 12, ext as u8);
+        self.w8(e + 13, gen);
+        self.w8(e + 14, (ext & 0x1F) as u8);
+        self.w8(e + 15, 0);
+        self.w64(e + 16, 0);
+        i as u64 | ((self.r16(e + 12) as u32) as u64) << 16
     }
 
     /// Full handle (with the type and generation bits) of a table slot.
     fn handle_of(&mut self, i: u32) -> u64 {
         let t = self.s.gdi.table;
         if t == 0 { return 0; }
-        i as u64 | (self.g16(t + 24 * i as u64 + 12) as u64) << 16
+        i as u64 | ((self.r16(t + 24 * i as u64 + 12) as u32) as u64) << 16
     }
     fn stock(&mut self, i: u32) -> u64 { self.gdi_init(); self.handle_of(FIRST + i) }
     fn is_stock(&self, h: u64) -> bool { let i = idx(h); i >= FIRST && i < FIRST + 24 }
@@ -424,9 +420,9 @@ impl Engine {
     fn gdi_free(&mut self, i: u32) {
         if self.s.gdi.objs.remove(&i).is_none() { return; }
         let e = self.s.gdi.table + 24 * i as u64;
-        let _ = self.mmu.write64(e, 0);
-        let _ = self.mmu.write8(e + 14, 0);
-        let _ = self.mmu.write64(e + 16, 0);
+        self.w64(e, 0);
+        self.w8(e + 14, 0);
+        self.w64(e + 16, 0);
         self.s.gdi.free.push(i);
     }
 
@@ -446,21 +442,21 @@ impl Engine {
             }
         };
         let _ = self.mmu.write_bytes(a, &[0u8; ATTR_SIZE as usize]);
-        self.s32(a, hdc as u32);
-        self.s32(a + 12, 0xFFFFFF); // background
-        self.s32(a + 16, 0xFFFFFF); // DC brush
-        self.s32(a + 36, 1); // GM_COMPATIBLE
-        self.s32(a + 40, 1); // AD_COUNTERCLOCKWISE
-        self.s16(a + 50, 2); // OPAQUE
-        self.s16(a + 52, 1); // ALTERNATE
-        self.s16(a + 54, 13); // R2_COPYPEN
-        self.s16(a + 56, 1);
-        self.s16(a + 58, 1); // BLACKONWHITE
-        self.s32(a + 60, 1); // MM_TEXT
-        self.s32(a + 88, 10.0f32.to_bits());
-        for o in [108u64, 112, 124, 128] { self.s32(a + o, 1); }
-        self.s32(a + 132, SCREEN_W as u32); self.s32(a + 136, SCREEN_H as u32);
-        self.s32(a + 140, 320); self.s32(a + 144, 240);
+        self.w32(a, hdc as u32);
+        self.w32(a + 12, 0xFFFFFF); // background
+        self.w32(a + 16, 0xFFFFFF); // DC brush
+        self.w32(a + 36, 1); // GM_COMPATIBLE
+        self.w32(a + 40, 1); // AD_COUNTERCLOCKWISE
+        self.w16(a + 50, (2) as u16); // OPAQUE
+        self.w16(a + 52, (1) as u16); // ALTERNATE
+        self.w16(a + 54, (13) as u16); // R2_COPYPEN
+        self.w16(a + 56, (1) as u16);
+        self.w16(a + 58, (1) as u16); // BLACKONWHITE
+        self.w32(a + 60, 1); // MM_TEXT
+        self.w32(a + 88, 10.0f32.to_bits());
+        for o in [108u64, 112, 124, 128] { self.w32(a + o, 1); }
+        self.w32(a + 132, SCREEN_W as u32); self.w32(a + 136, SCREEN_H as u32);
+        self.w32(a + 140, 320); self.w32(a + 144, 240);
         a
     }
 
@@ -529,7 +525,7 @@ impl Engine {
                 let c = colorref(sys_color_px(k));
                 let h = self.gdi_new(E_BRUSH, Obj::Brush(Brush::Solid(c)));
                 let a = self.s.gdi.table + 24 * idx(h) as u64 + 12;
-                let v = self.mmu.read8(a).unwrap_or(0); let _ = self.mmu.write8(a, v | 0x80);
+                let v = self.r8(a); self.w8(a, v | 0x80);
                 let h = self.handle_of(idx(h));
                 self.s.gdi.sysbrush.push(h);
             }
@@ -544,7 +540,7 @@ impl Engine {
                 let c = colorref(sys_color_px(k));
                 let h = self.gdi_new(E_PEN, Obj::Pen(Pen { style: 0, width: 0, color: c, dc: false, ext: false }));
                 let a = self.s.gdi.table + 24 * idx(h) as u64 + 12;
-                let v = self.mmu.read8(a).unwrap_or(0); let _ = self.mmu.write8(a, v | 0x80);
+                let v = self.r8(a); self.w8(a, v | 0x80);
                 let h = self.handle_of(idx(h));
                 self.s.gdi.syspen.push(h);
             }
@@ -605,18 +601,18 @@ impl Engine {
 
     /// Logical to device coordinates.
     fn lp(&mut self, attr: u64, x: i32, y: i32) -> (i32, i32) {
-        let mm = self.g32(attr + 60);
-        let (wox, woy, vox, voy) = (self.g32(attr + 100) as i32, self.g32(attr + 104) as i32, self.g32(attr + 116) as i32, self.g32(attr + 120) as i32);
+        let mm = self.r32(attr + 60);
+        let (wox, woy, vox, voy) = (self.r32(attr + 100) as i32, self.r32(attr + 104) as i32, self.r32(attr + 116) as i32, self.r32(attr + 120) as i32);
         if mm <= 1 { return (x - wox + vox, y - woy + voy); }
-        let (wex, wey, vex, vey) = (self.g32(attr + 108) as i32, self.g32(attr + 112) as i32, self.g32(attr + 124) as i32, self.g32(attr + 128) as i32);
+        let (wex, wey, vex, vey) = (self.r32(attr + 108) as i32, self.r32(attr + 112) as i32, self.r32(attr + 124) as i32, self.r32(attr + 128) as i32);
         let sx = |v: i32, we: i32, ve: i32| if we == 0 { v } else { (v as i64 * ve as i64 / we as i64) as i32 };
         (sx(x - wox, wex, vex) + vox, sx(y - woy, wey, vey) + voy)
     }
     fn dp(&mut self, attr: u64, x: i32, y: i32) -> (i32, i32) {
-        let mm = self.g32(attr + 60);
-        let (wox, woy, vox, voy) = (self.g32(attr + 100) as i32, self.g32(attr + 104) as i32, self.g32(attr + 116) as i32, self.g32(attr + 120) as i32);
+        let mm = self.r32(attr + 60);
+        let (wox, woy, vox, voy) = (self.r32(attr + 100) as i32, self.r32(attr + 104) as i32, self.r32(attr + 116) as i32, self.r32(attr + 120) as i32);
         if mm <= 1 { return (x - vox + wox, y - voy + woy); }
-        let (wex, wey, vex, vey) = (self.g32(attr + 108) as i32, self.g32(attr + 112) as i32, self.g32(attr + 124) as i32, self.g32(attr + 128) as i32);
+        let (wex, wey, vex, vey) = (self.r32(attr + 108) as i32, self.r32(attr + 112) as i32, self.r32(attr + 124) as i32, self.r32(attr + 128) as i32);
         let sx = |v: i32, we: i32, ve: i32| if ve == 0 { v } else { (v as i64 * we as i64 / ve as i64) as i32 };
         (sx(x - vox, wex, vex) + wox, sx(y - voy, wey, vey) + woy)
     }
@@ -671,17 +667,17 @@ impl Engine {
         match b {
             Brush::Null => Be::None,
             Brush::Solid(c) => Be::Solid(rgb(c)),
-            Brush::Dc => Be::Solid(rgb(self.g32(attr + 16))),
+            Brush::Dc => Be::Solid(rgb(self.r32(attr + 16))),
             Brush::Hatch(st, c) => {
-                let bg = if self.g16(attr + 50) == 2 { Some(rgb(self.g32(attr + 12))) } else { None };
+                let bg = if (self.r16(attr + 50) as u32) == 2 { Some(rgb(self.r32(attr + 12))) } else { None };
                 Be::Hatch(st, rgb(c), bg)
             }
             Brush::Pat { w, h, mut px, mono } => {
                 if mono && !mono_dst {
-                    let (fg, bg) = (rgb(self.g32(attr + 24)), rgb(self.g32(attr + 12)));
+                    let (fg, bg) = (rgb(self.r32(attr + 24)), rgb(self.r32(attr + 12)));
                     for p in px.iter_mut() { *p = if *p & 0xFFFFFF != 0 { bg } else { fg }; }
                 }
-                let (bx, by) = (self.g32(attr + 92) as i32, self.g32(attr + 96) as i32);
+                let (bx, by) = (self.r32(attr + 92) as i32, self.r32(attr + 96) as i32);
                 Be::Pat { w, h, px, ox: ox + bx, oy: oy + by }
             }
         }
@@ -710,11 +706,11 @@ impl Engine {
         let pen = self.dc(hdc)?.pen;
         let (style, width, color, dc) = match self.s.gdi.objs.get(&idx(pen)) { Some(Obj::Pen(p)) => (p.style, p.width, p.color, p.dc), _ => return None };
         if style & 0xF == 5 { return None; }
-        let c = if dc { self.g32(attr + 20) } else { color };
+        let c = if dc { self.r32(attr + 20) } else { color };
         Some((rgb(c), width.max(1), style & 0xF))
     }
 
-    fn rop_mode(&mut self, attr: u64) -> u32 { self.g16(attr + 54) }
+    fn rop_mode(&mut self, attr: u64) -> u32 { self.r16(attr + 54) as u32 }
 
     // ---------- shapes ----------
 
@@ -847,20 +843,20 @@ impl Engine {
             // PolyPolygonRgn: the bounding box
             let mut r = Rect::default();
             let mut k = 0u64;
-            for i in 0..n as u64 { let c = self.g32(counts + 4 * i) as u64; for j in 0..c { let (x, y) = (self.g32(pts + 8 * (k + j)) as i32, self.g32(pts + 8 * (k + j) + 4) as i32); r = r.union(&Rect::new(x, y, x + 1, y + 1)); } k += c; }
+            for i in 0..n as u64 { let c = self.r32(counts + 4 * i) as u64; for j in 0..c { let (x, y) = (self.r32(pts + 8 * (k + j)) as i32, self.r32(pts + 8 * (k + j) + 4) as i32); r = r.union(&Rect::new(x, y, x + 1, y + 1)); } k += c; }
             return self.gdi_new(E_RGN, Obj::Rgn(r));
         }
         let Some(v) = self.view(hdc) else { return 0 };
         let attr = v.attr;
         let mut polys = vec![];
         let mut k = 0u64;
-        let cur = (self.g32(attr + 28) as i32, self.g32(attr + 32) as i32);
+        let cur = (self.r32(attr + 28) as i32, self.r32(attr + 32) as i32);
         for i in 0..n as u64 {
-            let c = self.g32(counts + 4 * i) as u64;
+            let c = self.r32(counts + 4 * i) as u64;
             let mut p = vec![];
             if func == 4 || func == 5 { let (x, y) = self.lp(attr, cur.0, cur.1); p.push((x + v.ox, y + v.oy)); }
             for j in 0..c {
-                let (x, y) = (self.g32(pts + 8 * (k + j)) as i32, self.g32(pts + 8 * (k + j) + 4) as i32);
+                let (x, y) = (self.r32(pts + 8 * (k + j)) as i32, self.r32(pts + 8 * (k + j) + 4) as i32);
                 let (x, y) = self.lp(attr, x, y);
                 p.push((x + v.ox, y + v.oy));
             }
@@ -868,8 +864,8 @@ impl Engine {
             polys.push(p);
         }
         if (func == 4 || func == 5) && k > 0 {
-            let (x, y) = (self.g32(pts + 8 * (k - 1)), self.g32(pts + 8 * (k - 1) + 4));
-            self.s32(attr + 28, x); self.s32(attr + 32, y);
+            let (x, y) = (self.r32(pts + 8 * (k - 1)), self.r32(pts + 8 * (k - 1) + 4));
+            self.w32(attr + 28, x); self.w32(attr + 32, y);
         }
         if func == 3 || func == 4 {
             // Béziers: flatten
@@ -892,7 +888,7 @@ impl Engine {
         if func == 1 {
             let brush = self.dc(hdc).map_or(0, |d| d.brush);
             let be = self.brush_eval(brush, attr, v.mono, v.ox, v.oy);
-            let winding = self.g16(attr + 52) == 2;
+            let winding = (self.r16(attr + 52) as u32) == 2;
             self.polygon_dev(v, &polys, &be, r2, winding);
         }
         if let Some(pen) = self.pen_eval(hdc, attr) {
@@ -913,21 +909,21 @@ impl Engine {
         let attr = v.attr;
         let (fi, lf) = self.dc_font(hdc);
         let fd = &fonts()[fi];
-        let chars: Vec<u32> = (0..n as u64).map(|i| self.g16(s + 2 * i)).collect();
-        let extra = self.g32(attr + 64) as i32;
+        let chars: Vec<u32> = (0..n as u64).map(|i| self.r16(s + 2 * i) as u32).collect();
+        let extra = self.r32(attr + 64) as i32;
         let pdy = flags & 0x2000 != 0;
-        let advs: Vec<i32> = chars.iter().enumerate().map(|(i, &c)| if dx != 0 { self.g32(dx + if pdy { 8 } else { 4 } * i as u64) as i32 } else { glyph(fd, c).map_or(0, |g| g.0) + extra }).collect();
+        let advs: Vec<i32> = chars.iter().enumerate().map(|(i, &c)| if dx != 0 { self.r32(dx + if pdy { 8 } else { 4 } * i as u64) as i32 } else { glyph(fd, c).map_or(0, |g| g.0) + extra }).collect();
         let width: i32 = advs.iter().sum();
-        let align = self.g16(attr + 48);
-        let (mut x, mut y) = if align & 1 != 0 { (self.g32(attr + 28) as i32, self.g32(attr + 32) as i32) } else { (x, y) };
-        if align & 1 != 0 { let nx = x + if align & 6 == 2 { -width } else { width }; self.s32(attr + 28, nx as u32); }
+        let align = self.r16(attr + 48) as u32;
+        let (mut x, mut y) = if align & 1 != 0 { (self.r32(attr + 28) as i32, self.r32(attr + 32) as i32) } else { (x, y) };
+        if align & 1 != 0 { let nx = x + if align & 6 == 2 { -width } else { width }; self.w32(attr + 28, nx as u32); }
         match align & 6 { 6 => x -= width / 2, 2 => x -= width, _ => {} }
         match align & 24 { 24 => y -= fd.asc, 8 => y -= fd.h, _ => {} }
         let (dx0, dy0) = self.lp(attr, x, y);
         let (tx, ty) = (dx0 + v.ox, dy0 + v.oy);
         let rc = if rect != 0 { let r = self.rd_rect(rect); Some(self.lpr(attr, r).off(v.ox, v.oy)) } else { None };
-        let (fg, bg) = (rgb(self.g32(attr + 24)), rgb(self.g32(attr + 12)));
-        let opaque_mode = self.g16(attr + 50) == 2;
+        let (fg, bg) = (rgb(self.r32(attr + 24)), rgb(self.r32(attr + 12)));
+        let opaque_mode = (self.r16(attr + 50) as u32) == 2;
         let (mut px, sw, sh) = self.take(v.tgt);
         let mut clip = v.clip.inter(&Rect::new(0, 0, sw, sh));
         if let (Some(r), true) = (rc, flags & 2 != 0) {
@@ -964,8 +960,8 @@ impl Engine {
         let avg = glyph(fd, 'x' as u32).map_or(5, |g| g.0);
         let max = (32..256).filter_map(|c| glyph(fd, c)).map(|g| g.0).max().unwrap_or(10);
         let v: [i32; 11] = [fd.h, fd.asc, fd.h - fd.asc, fd.h - fd.px, 0, avg, max, if fd.bold { 700 } else { 400 }, 0, 96, 96];
-        for (i, x) in v.iter().enumerate() { self.s32(tm + 4 * i as u64, *x as u32); }
-        self.s16(tm + 44, 0x1E); self.s16(tm + 46, 0xFFFC); self.s16(tm + 48, 0x1F); self.s16(tm + 50, 0x20);
+        for (i, x) in v.iter().enumerate() { self.w32(tm + 4 * i as u64, *x as u32); }
+        self.w16(tm + 44, (0x1E) as u16); self.w16(tm + 46, (0xFFFC) as u16); self.w16(tm + 48, (0x1F) as u16); self.w16(tm + 50, (0x20) as u16);
         let _ = self.mmu.write_bytes(tm + 52, &[lf.get(20).copied().unwrap_or(0), lf.get(21).copied().unwrap_or(0), lf.get(22).copied().unwrap_or(0), 0x27, 0]);
         true
     }
@@ -979,20 +975,20 @@ impl Engine {
     }
 
     fn dib_fmt(&mut self, bmi: u64, coloruse: u32) -> Fmt {
-        let size = self.g32(bmi);
+        let size = self.r32(bmi);
         let core = size == 12;
-        let (w, h, bpp, comp, used) = if core { (self.g16(bmi + 4) as i32, self.g16(bmi + 6) as i16 as i32, self.g16(bmi + 10) as u16, 0, 0) } else { (self.g32(bmi + 4) as i32, self.g32(bmi + 8) as i32, self.g16(bmi + 14) as u16, self.g32(bmi + 16), self.g32(bmi + 32)) };
+        let (w, h, bpp, comp, used) = if core { ((self.r16(bmi + 4) as u32) as i32, (self.r16(bmi + 6) as u32) as i16 as i32, (self.r16(bmi + 10) as u32) as u16, 0, 0) } else { (self.r32(bmi + 4) as i32, self.r32(bmi + 8) as i32, (self.r16(bmi + 14) as u32) as u16, self.r32(bmi + 16), self.r32(bmi + 32)) };
         let mut masks = match bpp { 16 => [0x7C00, 0x3E0, 0x1F], _ => [0xFF0000, 0xFF00, 0xFF] };
         let mut ct = bmi + size as u64;
         if comp == 3 || comp == 6 {
-            if size <= 40 { masks = [self.g32(ct), self.g32(ct + 4), self.g32(ct + 8)]; ct += 12; } else { masks = [self.g32(bmi + 40), self.g32(bmi + 44), self.g32(bmi + 48)]; }
+            if size <= 40 { masks = [self.r32(ct), self.r32(ct + 4), self.r32(ct + 8)]; ct += 12; } else { masks = [self.r32(bmi + 40), self.r32(bmi + 44), self.r32(bmi + 48)]; }
         }
         let n = if bpp <= 8 { if used != 0 { used.min(1 << bpp) } else { 1 << bpp } } else { 0 };
         let dp = default_pal();
         let pal: Vec<u32> = (0..n as u64).map(|i| {
-            if coloruse == 1 { dp[self.g16(ct + 2 * i) as usize % 20] }
+            if coloruse == 1 { dp[(self.r16(ct + 2 * i) as u32) as usize % 20] }
             else if core { let b = self.bytes(ct + 3 * i, 3); (b[2] as u32) << 16 | (b[1] as u32) << 8 | b[0] as u32 }
-            else { self.g32(ct + 4 * i) & 0xFFFFFF }
+            else { self.r32(ct + 4 * i) & 0xFFFFFF }
         }).collect();
         let hdr = (ct - bmi) as u32 + if coloruse == 1 { 2 * n } else if core { 3 * n } else { 4 * n };
         Fmt { w, h, bpp, masks, pal, comp, hdr }
@@ -1028,7 +1024,7 @@ impl Engine {
         let be = if uses_p { self.brush_eval(brush, attr, v.mono, v.ox, v.oy) } else { Be::None };
         // a pattern-only blit with the null brush (NULL_BRUSH, a transparent control) draws nothing
         if uses_p && src.is_none() && mask.is_none() && matches!(be, Be::None) { return true; }
-        let (dfg, dbg) = (rgb(self.g32(attr + 24)), rgb(self.g32(attr + 12)));
+        let (dfg, dbg) = (rgb(self.r32(attr + 24)), rgb(self.r32(attr + 12)));
         let d = d.off(v.ox, v.oy);
         let (mut px, sw, sh) = self.take(v.tgt);
         let clip = v.clip.inter(&Rect::new(0, 0, sw, sh)).inter(&d);
@@ -1101,7 +1097,7 @@ impl Engine {
         let (a1, b1) = self.lp(sv.attr, s.0 + s.2, s.1 + s.3);
         let sr = Rect::new(a0.min(a1), b0.min(b1), a0.max(a1), b0.max(b1)).off(sv.ox, sv.oy);
         let flip = ((x1 < x0) != (a1 < a0), (y1 < y0) != (b1 < b0));
-        let sbk = rgb(self.g32(sv.attr + 12));
+        let sbk = rgb(self.r32(sv.attr + 12));
         let mpx = if mask != 0 { let t = Tgt::Bmp(idx(mask)); let (m, w, h) = self.take(t); Some((t, m, w, h)) } else { None };
         let r = if sv.tgt == dv.tgt {
             let (p, w, h) = self.take(sv.tgt);
@@ -1136,38 +1132,38 @@ impl Engine {
     fn get_dibits(&mut self, hbmp: u64, start: u32, lines: u32, bits: u64, info: u64, coloruse: u32) -> u64 {
         let t = Tgt::Bmp(idx(hbmp));
         let (bw, bh, bbpp, bpal, isdib) = match self.s.gdi.objs.get(&idx(hbmp)) { Some(Obj::Bmp(b)) => (b.w, b.h, b.bpp, b.pal.clone(), b.dib != 0), _ => return 0 };
-        let size = self.g32(info);
+        let size = self.r32(info);
         if size < 12 { return 0; }
-        let mut bpp = self.g16(info + 14) as u16;
+        let mut bpp = (self.r16(info + 14) as u32) as u16;
         if bpp == 0 {
             // fill the header only
             let bpp = if bbpp <= 8 && !isdib { bbpp } else { bbpp.max(1) };
-            self.s32(info + 4, bw as u32); self.s32(info + 8, bh as u32); self.s16(info + 12, 1); self.s16(info + 14, bpp as u32);
-            self.s32(info + 16, if bpp == 16 || bpp == 32 { 3 } else { 0 });
-            self.s32(info + 20, (((bw as usize * bpp as usize + 31) / 32) * 4 * bh as usize) as u32);
+            self.w32(info + 4, bw as u32); self.w32(info + 8, bh as u32); self.w16(info + 12, (1) as u16); self.w16(info + 14, (bpp as u32) as u16);
+            self.w32(info + 16, if bpp == 16 || bpp == 32 { 3 } else { 0 });
+            self.w32(info + 20, (((bw as usize * bpp as usize + 31) / 32) * 4 * bh as usize) as u32);
             if bpp == 16 || bpp == 32 {
                 let m = if bpp == 16 { [0xF800, 0x7E0, 0x1F] } else { [0xFF0000, 0xFF00, 0xFF] };
                 let ct = info + size as u64;
-                for (k, v) in m.iter().enumerate() { self.s32(ct + 4 * k as u64, *v); }
+                for (k, v) in m.iter().enumerate() { self.w32(ct + 4 * k as u64, *v); }
             }
             return 1;
         }
         if bpp != 1 && bpp != 4 && bpp != 8 && bpp != 16 && bpp != 24 && bpp != 32 { bpp = 32; }
-        let ih = self.g32(info + 8) as i32;
-        let comp = self.g32(info + 16);
-        let masks = if comp == 3 { let ct = info + size as u64; [self.g32(ct), self.g32(ct + 4), self.g32(ct + 8)] } else if bpp == 16 { [0x7C00, 0x3E0, 0x1F] } else { [0xFF0000, 0xFF00, 0xFF] };
+        let ih = self.r32(info + 8) as i32;
+        let comp = self.r32(info + 16);
+        let masks = if comp == 3 { let ct = info + size as u64; [self.r32(ct), self.r32(ct + 4), self.r32(ct + 8)] } else if bpp == 16 { [0x7C00, 0x3E0, 0x1F] } else { [0xFF0000, 0xFF00, 0xFF] };
         let pal = if bpp <= 8 { if !bpal.is_empty() && bpal.len() == 1 << bpp { bpal } else { std_palette(bpp) } } else { vec![] };
         // color table
         if bpp <= 8 && coloruse == 0 {
             let ct = info + size as u64;
-            for (k, c) in pal.iter().enumerate() { self.s32(ct + 4 * k as u64, *c); }
-            if size >= 36 { self.s32(info + 32, 0); }
+            for (k, c) in pal.iter().enumerate() { self.w32(ct + 4 * k as u64, *c); }
+            if size >= 36 { self.w32(info + 32, 0); }
         }
         let height = ih.abs().min(bh).max(0);
-        let iw = self.g32(info + 4) as i32;
-        self.s32(info + 20, (((bw.min(iw).max(0) as usize * bpp as usize + 31) / 32) * 4 * height as usize) as u32);
+        let iw = self.r32(info + 4) as i32;
+        self.w32(info + 20, (((bw.min(iw).max(0) as usize * bpp as usize + 31) / 32) * 4 * height as usize) as u32);
         if bits == 0 { return bh as u64; }
-        let w = (self.g32(info + 4) as i32).min(bw).max(0);
+        let w = (self.r32(info + 4) as i32).min(bw).max(0);
         let f = Fmt { w, h: height, bpp, masks, pal, comp: 0, hdr: 0 };
         let (px, sw, _) = self.take(t);
         let topdown = ih < 0;
@@ -1279,30 +1275,30 @@ impl Engine {
         };
         match o {
             O::Pen(st, w, c, ext) => {
-                if ext { if buf == 0 { return 32; } if n < 28 { return 0; } self.s32(buf, st); self.s32(buf + 4, w as u32); self.s32(buf + 8, 0); self.s32(buf + 12, c); self.s64(buf + 16, 0); self.s32(buf + 24, 0); return 28; }
+                if ext { if buf == 0 { return 32; } if n < 28 { return 0; } self.w32(buf, st); self.w32(buf + 4, w as u32); self.w32(buf + 8, 0); self.w32(buf + 12, c); self.s64(buf + 16, 0); self.w32(buf + 24, 0); return 28; }
                 if buf == 0 { return 16; }
                 if n < 16 { return 0; }
-                self.s32(buf, st); self.s32(buf + 4, w as u32); self.s32(buf + 8, 0); self.s32(buf + 12, c); 16
+                self.w32(buf, st); self.w32(buf + 4, w as u32); self.w32(buf + 8, 0); self.w32(buf + 12, c); 16
             }
-            O::Brush(st, c) => { if buf == 0 { return 16; } if n < 16 { return 0; } self.s32(buf, st); self.s32(buf + 4, c); self.s64(buf + 8, 0); 16 }
+            O::Brush(st, c) => { if buf == 0 { return 16; } if n < 16 { return 0; } self.w32(buf, st); self.w32(buf + 4, c); self.s64(buf + 8, 0); 16 }
             O::Font(lf) => { if buf == 0 { return 92; } let k = (n as usize).min(92); let _ = self.mmu.write_bytes(buf, &lf[..k]); k as u64 }
             O::Bmp(w, h, bpp, dib, hdr) => {
                 let wb = ((w as u32 * bpp as u32 + 15) / 16) * 2;
                 if buf == 0 { return if dib != 0 { 104 } else { 32 }; }
                 if n < 24 { return 0; }
-                self.s32(buf, 0); self.s32(buf + 4, w as u32); self.s32(buf + 8, h as u32);
-                self.s32(buf + 12, if dib != 0 { ((w as u32 * bpp as u32 + 31) / 32) * 4 } else { wb });
-                self.s16(buf + 16, 1); self.s16(buf + 18, bpp as u32);
+                self.w32(buf, 0); self.w32(buf + 4, w as u32); self.w32(buf + 8, h as u32);
+                self.w32(buf + 12, if dib != 0 { ((w as u32 * bpp as u32 + 31) / 32) * 4 } else { wb });
+                self.w16(buf + 16, (1) as u16); self.w16(buf + 18, (bpp as u32) as u16);
                 if n >= 32 { self.s64(buf + 24, dib); }
                 if dib != 0 && n >= 104 {
                     let _ = self.mmu.write_bytes(buf + 32, &hdr);
-                    for k in 0..3 { self.s32(buf + 72 + 4 * k, 0); }
-                    self.s64(buf + 88, 0); self.s32(buf + 96, 0);
+                    for k in 0..3 { self.w32(buf + 72 + 4 * k, 0); }
+                    self.s64(buf + 88, 0); self.w32(buf + 96, 0);
                     return 104;
                 }
                 if n >= 32 { 32 } else { 24 }
             }
-            O::Pal(k) => { if buf == 0 { return 2; } self.s16(buf, k); 2 }
+            O::Pal(k) => { if buf == 0 { return 2; } self.w16(buf, (k) as u16); 2 }
             O::None => 0,
         }
     }
@@ -1552,50 +1548,50 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (m, v, out) = (ar[1] as u32, ar[2] as u32, ar[3]);
             let Some(attr) = e.dc(a0).map(|d| d.attr) else { return Some(0) };
             let (off, w16) = match m { 8 => (60, false), 100 => (12, false), 101 => (50, true), 102 => (24, false), 103 => (16, false), 104 => (20, false), 105 => (36, false), 106 => (54, true), 107 => (48, true), _ => return Some(0) };
-            let old = if w16 { e.g16(attr + off) } else { e.g32(attr + off) };
-            if w16 { e.s16(attr + off, v); } else { e.s32(attr + off, v); }
-            if m == 8 && v == 1 { for o in [108u64, 112, 124, 128] { e.s32(attr + o, 1); } }
-            if m == 8 && v == 8 { e.s32(attr + 108, 1); e.s32(attr + 112, 1); e.s32(attr + 124, 1); e.s32(attr + 128, 1); }
-            e.s32(out, old);
+            let old = if w16 { e.r16(attr + off) as u32 } else { e.r32(attr + off) };
+            if w16 { e.w16(attr + off, (v) as u16); } else { e.w32(attr + off, v); }
+            if m == 8 && v == 1 { for o in [108u64, 112, 124, 128] { e.w32(attr + o, 1); } }
+            if m == 8 && v == 8 { e.w32(attr + 108, 1); e.w32(attr + 112, 1); e.w32(attr + 124, 1); e.w32(attr + 128, 1); }
+            e.w32(out, old);
             1
         }
         "NtGdiGetDCDword" => {
             let (m, out) = (ar[1] as u32, ar[2]);
             let Some((attr, mem)) = e.dc(a0).map(|d| (d.attr, d.mem)) else { return Some(0) };
-            let v = match m { 0 => e.g32(attr + 40), 1 => e.g32(attr + 12), 2 => e.g16(attr + 50), 3 => e.g32(attr + 16), 4 => e.g32(attr + 20), 5 => e.g32(attr + 36), 6 => e.g32(attr + 44), 7 => e.g16(attr + 52), 8 => e.g16(attr + 54), 9 => e.g32(attr + 24), 10 => mem as u32, _ => 0 };
-            e.s32(out, v);
+            let v = match m { 0 => e.r32(attr + 40), 1 => e.r32(attr + 12), 2 => e.r16(attr + 50) as u32, 3 => e.r32(attr + 16), 4 => e.r32(attr + 20), 5 => e.r32(attr + 36), 6 => e.r32(attr + 44), 7 => e.r16(attr + 52) as u32, 8 => e.r16(attr + 54) as u32, 9 => e.r32(attr + 24), 10 => mem as u32, _ => 0 };
+            e.w32(out, v);
             1
         }
         "NtGdiGetDCPoint" => {
             let (m, out) = (ar[1] as u32, ar[2]);
             let Some((attr, hwnd, whole)) = e.dc(a0).map(|d| (d.attr, d.hwnd, d.whole)) else { return Some(0) };
             let (x, y) = match m {
-                0 => (e.g32(attr + 92), e.g32(attr + 96)),
-                1 => (e.g32(attr + 28), e.g32(attr + 32)),
+                0 => (e.r32(attr + 92), e.r32(attr + 96)),
+                1 => (e.r32(attr + 28), e.r32(attr + 32)),
                 _ => e.wnd(hwnd).map_or((0, 0), |w| { let r = if whole { w.wrect } else { w.crect }; (r.l as u32, r.t as u32) }),
             };
-            e.s32(out, x); e.s32(out + 4, y);
+            e.w32(out, x); e.w32(out + 4, y);
             1
         }
         "NtGdiSetBrushOrg" => {
             let (x, y, prev) = (ar[1] as u32, ar[2] as u32, ar[3]);
             let Some(attr) = e.dc(a0).map(|d| d.attr) else { return Some(0) };
-            if prev != 0 { let (px, py) = (e.g32(attr + 92), e.g32(attr + 96)); e.s32(prev, px); e.s32(prev + 4, py); }
-            e.s32(attr + 92, x); e.s32(attr + 96, y);
+            if prev != 0 { let (px, py) = (e.r32(attr + 92), e.r32(attr + 96)); e.w32(prev, px); e.w32(prev + 4, py); }
+            e.w32(attr + 92, x); e.w32(attr + 96, y);
             1
         }
         "NtGdiMoveTo" => {
             let (x, y, pt) = (ar[1] as u32, ar[2] as u32, ar[3]);
             let Some(attr) = e.dc(a0).map(|d| d.attr) else { return Some(0) };
-            if pt != 0 { let (px, py) = (e.g32(attr + 28), e.g32(attr + 32)); e.s32(pt, px); e.s32(pt + 4, py); }
-            e.s32(attr + 28, x); e.s32(attr + 32, y);
+            if pt != 0 { let (px, py) = (e.r32(attr + 28), e.r32(attr + 32)); e.w32(pt, px); e.w32(pt + 4, py); }
+            e.w32(attr + 28, x); e.w32(attr + 32, y);
             1
         }
         "NtGdiLineTo" => {
             let (x, y) = ((ar[1] as i32), (ar[2] as i32));
             let Some(v) = e.view(a0) else { return Some(0) };
-            let (cx, cy) = (e.g32(v.attr + 28) as i32, e.g32(v.attr + 32) as i32);
-            e.s32(v.attr + 28, x as u32); e.s32(v.attr + 32, y as u32);
+            let (cx, cy) = (e.r32(v.attr + 28) as i32, e.r32(v.attr + 32) as i32);
+            e.w32(v.attr + 28, x as u32); e.w32(v.attr + 32, y as u32);
             if let Some(pen) = e.pen_eval(a0, v.attr) {
                 let p0 = e.lp(v.attr, cx, cy); let p1 = e.lp(v.attr, x, y);
                 let r2 = e.rop_mode(v.attr);
@@ -1637,10 +1633,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtGdiGradientFill" => {
             let (vert, nv, mesh, nm, mode) = (ar[1], ar[2] as u64, ar[3], ar[4] as u64, ar[5] as u32);
             let Some(v) = e.view(a0) else { return Some(0) };
-            let vx: Vec<(i32, i32, u32, u32, u32)> = (0..nv).map(|i| { let b = vert + 16 * i; (e.g32(b) as i32, e.g32(b + 4) as i32, e.g16(b + 8) >> 8, e.g16(b + 10) >> 8, e.g16(b + 12) >> 8) }).collect();
+            let vx: Vec<(i32, i32, u32, u32, u32)> = (0..nv).map(|i| { let b = vert + 16 * i; (e.r32(b) as i32, e.r32(b + 4) as i32, (e.r16(b + 8) as u32) >> 8, (e.r16(b + 10) as u32) >> 8, (e.r16(b + 12) as u32) >> 8) }).collect();
             for m in 0..nm {
                 if mode < 2 {
-                    let (i0, i1) = (e.g32(mesh + 8 * m) as usize, e.g32(mesh + 8 * m + 4) as usize);
+                    let (i0, i1) = (e.r32(mesh + 8 * m) as usize, e.r32(mesh + 8 * m + 4) as usize);
                     let (Some(&p0), Some(&p1)) = (vx.get(i0), vx.get(i1)) else { continue };
                     let r = e.lpr(v.attr, Rect::new(p0.0, p0.1, p1.0, p1.1)).off(v.ox, v.oy);
                     let n = if mode == 0 { r.w() } else { r.h() };
@@ -1652,7 +1648,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                         e.fill_with(v, band, &Be::Solid(c), 0xF0);
                     }
                 } else {
-                    let ids: Vec<usize> = (0..3).map(|k| e.g32(mesh + 12 * m + 4 * k) as usize).collect();
+                    let ids: Vec<usize> = (0..3).map(|k| e.r32(mesh + 12 * m + 4 * k) as usize).collect();
                     let pts: Vec<_> = ids.iter().filter_map(|&i| vx.get(i).copied()).collect();
                     if pts.len() < 3 { continue; }
                     let c = ((pts[0].2 + pts[1].2 + pts[2].2) / 3) << 16 | ((pts[0].3 + pts[1].3 + pts[2].3) / 3) << 8 | (pts[0].4 + pts[1].4 + pts[2].4) / 3;
@@ -1687,17 +1683,17 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (s, n, max, nfit, dxs, size) = (ar[1], ar[2] as u64, (ar[3] as i32), ar[4], ar[5], ar[6]);
             let (fi, _) = e.dc_font(a0);
             let attr = e.dc(a0).map_or(0, |d| d.attr);
-            let extra = if attr != 0 { e.g32(attr + 64) as i32 } else { 0 };
+            let extra = if attr != 0 { e.r32(attr + 64) as i32 } else { 0 };
             let mut tot = 0;
             let mut fit = 0;
             for i in 0..n {
-                let c = e.g16(s + 2 * i);
+                let c = e.r16(s + 2 * i) as u32;
                 tot += char_adv(fi, c) + extra;
                 if tot <= max || max < 0 { fit = i + 1; }
-                if dxs != 0 { e.s32(dxs + 4 * i, tot as u32); }
+                if dxs != 0 { e.w32(dxs + 4 * i, tot as u32); }
             }
-            if nfit != 0 { e.s32(nfit, fit as u32); }
-            e.s32(size, tot as u32); e.s32(size + 4, fonts()[fi].h as u32);
+            if nfit != 0 { e.w32(nfit, fit as u32); }
+            e.w32(size, tot as u32); e.w32(size + 4, fonts()[fi].h as u32);
             1
         }
         "NtGdiGetTextMetricsW" => { let tm = ar[1]; e.text_metrics(a0, tm) as u64 }
@@ -1708,12 +1704,12 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let int = if abc { flags & 1 != 0 } else { flags & 2 != 0 };
             let n = if chars != 0 { last as u64 } else { (last.saturating_sub(first) + 1) as u64 };
             for i in 0..n {
-                let c = if chars != 0 { e.g16(chars + 2 * i) } else { first + i as u32 };
+                let c = if chars != 0 { e.r16(chars + 2 * i) as u32 } else { first + i as u32 };
                 let w = char_adv(fi, c);
                 if abc {
                     let b = buf + 12 * i;
-                    if int { e.s32(b, 0); e.s32(b + 4, w as u32); e.s32(b + 8, 0); } else { e.s32(b, 0); e.s32(b + 4, (w as f32).to_bits()); e.s32(b + 8, 0); }
-                } else if int { e.s32(buf + 4 * i, w as u32); } else { e.s32(buf + 4 * i, (w as f32).to_bits()); }
+                    if int { e.w32(b, 0); e.w32(b + 4, w as u32); e.w32(b + 8, 0); } else { e.w32(b, 0); e.w32(b + 4, (w as f32).to_bits()); e.w32(b + 8, 0); }
+                } else if int { e.w32(buf + 4 * i, w as u32); } else { e.w32(buf + 4 * i, (w as f32).to_bits()); }
             }
             1
         }
@@ -1728,14 +1724,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtGdiGetOutlineTextMetricsInternalW" | "NtGdiGetKerningPairs" | "NtGdiGetFontUnicodeRanges" | "NtGdiGetFontFileData" | "NtGdiGetFontFileInfo" => 0,
         "NtGdiGetFontData" | "NtGdiGetGlyphOutline" => u32::MAX as u64,
-        "NtGdiGetTextCharsetInfo" => { let fs = ar[1]; if fs != 0 { for k in 0..6 { e.s32(fs + 4 * k, 0); } e.s32(fs + 16, 1); } 0 }
-        "NtGdiGetRealizationInfo" => { let p = ar[1]; let (fi, _) = e.dc_font(a0); e.s32(p + 4, 1); e.s32(p + 8, 1); e.s32(p + 12, fi as u32 + 1); 1 }
+        "NtGdiGetTextCharsetInfo" => { let fs = ar[1]; if fs != 0 { for k in 0..6 { e.w32(fs + 4 * k, 0); } e.w32(fs + 16, 1); } 0 }
+        "NtGdiGetRealizationInfo" => { let p = ar[1]; let (fi, _) = e.dc_font(a0); e.w32(p + 4, 1); e.w32(p + 8, 1); e.w32(p + 12, fi as u32 + 1); 1 }
         "NtGdiGetGlyphIndicesW" => {
             let (s, n, out, fl) = (ar[1], ar[2] as u64, ar[3], ar[4] as u32);
-            for i in 0..n { let c = e.g16(s + 2 * i); let g = if map_char(c) == c || c < 32 { c } else if fl & 1 != 0 { 0xFFFF } else { 0 }; e.s16(out + 2 * i, g); }
+            for i in 0..n { let c = e.r16(s + 2 * i) as u32; let g = if map_char(c) == c || c < 32 { c } else if fl & 1 != 0 { 0xFFFF } else { 0 }; e.w16(out + 2 * i, (g) as u16); }
             n
         }
-        "NtGdiEnumFonts" => { let cnt = ar[6]; e.s32(cnt, 0); 1 }
+        "NtGdiEnumFonts" => { let cnt = ar[6]; e.w32(cnt, 0); 1 }
         "NtGdiHfontCreate" => {
             let lf = e.bytes(a0, 92);
             let (h, wt) = (i32::from_le_bytes([lf[0], lf[1], lf[2], lf[3]]), i32::from_le_bytes([lf[16], lf[17], lf[18], lf[19]]));
@@ -1743,7 +1739,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             e.gdi_new(E_FONT, Obj::Font(Font { lf, fi }))
         }
         "NtGdiAddFontResourceW" | "NtGdiRemoveFontResourceW" | "NtGdiRemoveFontMemResourceEx" => 1,
-        "NtGdiAddFontMemResourceEx" => { let n = ar[4]; if n != 0 { e.s32(n, 1); } 0x7F00_0001 }
+        "NtGdiAddFontMemResourceEx" => { let n = ar[4]; if n != 0 { e.w32(n, 1); } 0x7F00_0001 }
         "NtGdiCreateSolidBrush" => e.gdi_new(E_BRUSH, Obj::Brush(Brush::Solid(a0 as u32))),
         "NtGdiCreateHatchBrushInternal" => { let c = ar[1] as u32; e.gdi_new(E_BRUSH, Obj::Brush(Brush::Hatch(a0 as u32, c))) }
         "NtGdiCreatePatternBrushInternal" => {
@@ -1838,7 +1834,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             k as u64
         }
         "NtGdiSetBitmapBits" => { let (n, bits) = (ar[1] as u32, ar[2]); e.set_bitmap_bits(a0, bits, n) }
-        "NtGdiGetBitmapDimension" => { let s = ar[1]; e.s32(s, 0); e.s32(s + 4, 0); 1 }
+        "NtGdiGetBitmapDimension" => { let s = ar[1]; e.w32(s, 0); e.w32(s + 4, 0); 1 }
         "NtGdiSetBitmapDimension" => 1,
         "NtGdiExtGetObjectW" => { let (n, buf) = (ar[1] as u32, ar[2]); e.get_object(a0, n, buf) }
         "NtGdiGetDeviceCaps" => {
@@ -1858,7 +1854,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let d = e.dc_mut(a0).unwrap();
             d.saved.push(Saved { attr: ab, bmp, brush, pen, font, pal, clip });
             let n = d.saved.len() as u32;
-            e.s32(attr + 8, n);
+            e.w32(attr + 8, n);
             n as u64
         }
         "NtGdiRestoreDC" => {
@@ -1880,14 +1876,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtGdiResetDC" | "NtGdiCancelDC" => 1,
         "NtGdiComputeXformCoefficients" | "NtGdiModifyWorldTransform" | "NtGdiSetVirtualResolution" | "NtGdiSetSizeDevice" | "NtGdiSetMiterLimit" | "NtGdiSetTextJustification" | "NtGdiScaleViewportExtEx" | "NtGdiScaleWindowExtEx" => 1,
         "NtGdiSetMetaRgn" => 2,
-        "NtGdiSetLayout" => { let (l, attr) = (ar[2] as u32, e.dc(a0).map_or(0, |d| d.attr)); if attr == 0 { return Some(u32::MAX as u64) } let o = e.g32(attr + 44); e.s32(attr + 44, l); o as u64 }
+        "NtGdiSetLayout" => { let (l, attr) = (ar[2] as u32, e.dc(a0).map_or(0, |d| d.attr)); if attr == 0 { return Some(u32::MAX as u64) } let o = e.r32(attr + 44); e.w32(attr + 44, l); o as u64 }
         "NtGdiTransformPoints" => {
             let (pin, pout, n, mode) = (ar[1], ar[2], ar[3] as u64, ar[4] as u32);
             let Some(attr) = e.dc(a0).map(|d| d.attr) else { return Some(0) };
             for i in 0..n {
-                let (x, y) = (e.g32(pin + 8 * i) as i32, e.g32(pin + 8 * i + 4) as i32);
+                let (x, y) = (e.r32(pin + 8 * i) as i32, e.r32(pin + 8 * i + 4) as i32);
                 let (x, y) = if mode == 0 { e.lp(attr, x, y) } else { e.dp(attr, x, y) };
-                e.s32(pout + 8 * i, x as u32); e.s32(pout + 8 * i + 4, y as u32);
+                e.w32(pout + 8 * i, x as u32); e.w32(pout + 8 * i + 4, y as u32);
             }
             1
         }
@@ -1898,7 +1894,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (p0, p1) = e.lp(attr, 1000, 1000);
             let vals = [(p0 - o0) as f32 / 1000.0, 0.0, 0.0, (p1 - o1) as f32 / 1000.0, o0 as f32, o1 as f32];
             let world = ar[1] as u32 == 0x203 || ar[1] as u32 == 0x204;
-            for (k, v) in vals.iter().enumerate() { let v = if world { *v } else if k == 0 || k == 3 { 1.0 } else { 0.0 }; e.s32(x + 4 * k as u64, v.to_bits()); }
+            for (k, v) in vals.iter().enumerate() { let v = if world { *v } else if k == 0 || k == 3 { 1.0 } else { 0.0 }; e.w32(x + 4 * k as u64, v.to_bits()); }
             1
         }
         "NtGdiGetBoundsRect" | "NtGdiSetBoundsRect" => 0,
@@ -1961,7 +1957,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtGdiCreateEllipticRgn" | "NtGdiCreateRoundRectRgn" => { let r = Rect::new(ar[0] as i32, ar[1] as i32, ar[2] as i32, ar[3] as i32); e.gdi_new(E_RGN, Obj::Rgn(r)) }
         "NtGdiExtCreateRegion" => {
             let data = ar[2];
-            let n = e.g32(data + 8);
+            let n = e.r32(data + 8);
             let r = if n == 0 { Rect::default() } else { e.rd_rect(data + 16) };
             e.gdi_new(E_RGN, Obj::Rgn(r))
         }
@@ -1986,7 +1982,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let cnt = if r.empty() { 0 } else { 1 };
             let need = 32 + 16 * cnt;
             if out == 0 || n < need { return Some(need as u64); }
-            e.s32(out, 32); e.s32(out + 4, 1); e.s32(out + 8, cnt); e.s32(out + 12, 16 * cnt); e.wr_rect(out + 16, r);
+            e.w32(out, 32); e.w32(out + 4, 1); e.w32(out + 8, cnt); e.w32(out + 12, 16 * cnt); e.wr_rect(out + 16, r);
             if cnt == 1 { e.wr_rect(out + 32, r); }
             need as u64
         }
@@ -2034,7 +2030,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     let Some(Obj::Bmp(b)) = e.s.gdi.objs.get(&idx(bmp)) else { return Some(0) };
                     let mut p = b.pal.clone();
                     let k = n.min(p.len().saturating_sub(start));
-                    for i in 0..k { let a = ent + 4 * i as u64; if func == 4 { e.s32(a, p[start + i]); } else { p[start + i] = e.g32(a) & 0xFFFFFF; } }
+                    for i in 0..k { let a = ent + 4 * i as u64; if func == 4 { e.w32(a, p[start + i]); } else { p[start + i] = e.r32(a) & 0xFFFFFF; } }
                     if func == 5 { if let Some(Obj::Bmp(b)) = e.s.gdi.objs.get_mut(&idx(bmp)) { b.pal = p; } }
                     k as u64
                 }

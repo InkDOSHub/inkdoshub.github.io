@@ -27,9 +27,9 @@ impl Engine {
     fn us32(&mut self, at: u64, s: &str) {
         let w: Vec<u16> = s.encode_utf16().collect();
         let b = self.heap_alloc(2 * w.len() as u64 + 2, true);
-        for (k, c) in w.iter().enumerate() { let _ = self.mmu.write16(b + 2 * k as u64, *c); }
-        let _ = self.mmu.write16(at, 2 * w.len() as u16);
-        let _ = self.mmu.write16(at + 2, 2 * w.len() as u16 + 2);
+        for (k, c) in w.iter().enumerate() { self.w16(b + 2 * k as u64, *c); }
+        self.w16(at, 2 * w.len() as u16);
+        self.w16(at + 2, 2 * w.len() as u16 + 2);
         self.w32(at + 4, b as u32);
     }
 
@@ -47,7 +47,7 @@ impl Engine {
         self.w32(t + 0x188, (t + 0x188) as u32); // activation context frame list (empty)
         self.w32(t + 0x18C, (t + 0x188) as u32);
         self.w32(t + 0x1A8, (t + 0x184) as u32);
-        let _ = self.mmu.write16(t + 0xBFA, 522);
+        self.w16(t + 0xBFA, 522);
         self.w32(t + 0xBFC, (t + 0xC00) as u32);
         self.w32(t + 0xE0C, stack_lo as u32);
         self.w32(t + 0xF70, teb as u32);     // GdiBatchCount: the 64-bit TEB
@@ -61,17 +61,17 @@ impl Engine {
     /// RtlUserThreadStart(entry = eax, arg = ebx) on the 32-bit stack.
     pub fn init_cpu_area(&mut self, teb: u64, eip: u64, eax: u64, ebx: u64, esp: u64) {
         let cpu = self.heap_alloc(0x400, true);
-        let _ = self.mmu.write16(cpu + 2, 0x14C); // Machine
+        self.w16(cpu + 2, 0x14C); // Machine
         let c = cpu + 4;                          // I386_CONTEXT
         self.w32(c, 0x1003F);                     // CONTEXT_I386_ALL
-        let _ = self.mmu.write16(c + 0x1C, 0x27F);
+        self.w16(c + 0x1C, 0x27F);
         for (o, v) in [(0x8C, 0x2B), (0x90, 0x53), (0x94, 0x2B), (0x98, 0x2B), (0xBC, 0x23), (0xC8, 0x2B)] { self.w32(c + o, v); }
         self.w32(c + 0xB0, eax as u32);
         self.w32(c + 0xA4, ebx as u32);
         self.w32(c + 0xB8, eip as u32);
         self.w32(c + 0xC0, 0x202);
         self.w32(c + 0xC4, esp as u32);
-        let _ = self.mmu.write16(c + 0xCC, 0x27F);  // ExtendedRegisters (FXSAVE): control word, MXCSR
+        self.w16(c + 0xCC, 0x27F);  // ExtendedRegisters (FXSAVE): control word, MXCSR
         self.w32(c + 0xCC + 24, 0x1F80);
         self.w64(teb + 0x1488, cpu);
     }
@@ -130,8 +130,8 @@ impl Engine {
         self.us32(p + 0x38, &format!("{}\\{}", crate::files::home_win(), name));
         self.us32(p + 0x40, cmd);
         let env = self.s.env_block;
-        let pp = self.mmu.read64(PEB + 0x20).unwrap_or(0);
-        let env_len = self.mmu.read64(pp + 0x3F0).unwrap_or(0);
+        let pp = self.r64(PEB + 0x20);
+        let env_len = self.r64(pp + 0x3F0);
         self.w32(p + 0x48, env as u32);
         self.us32(p + 0x70, "");
         self.us32(p + 0x78, "WinSta0\\Default");

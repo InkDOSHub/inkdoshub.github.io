@@ -11,24 +11,20 @@ const ERROR_FILE_NOT_FOUND: u32 = 2;
 const ERROR_NOT_SUPPORTED: u32 = 50;
 
 impl Engine {
-    fn last_err(&mut self, v: u32) { let _ = self.mmu.write32(self.cpu.gs_base + 0x68, v); }
-    fn wr16(&mut self, a: u64, v: u16) { if a != 0 { let _ = self.mmu.write16(a, v); } }
-    fn wr32(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write32(a, v); } }
-    fn wr64(&mut self, a: u64, v: u64) { if a != 0 { let _ = self.mmu.write64(a, v); } }
 
     /// Writes s (wide, NUL-terminated) into a buffer of n chars; returns the length
     /// without the NUL, or the size needed (with the NUL) when it does not fit.
     fn out_w(&mut self, buf: u64, n: u64, s: &str) -> u64 {
         let w: Vec<u16> = s.encode_utf16().collect();
         if buf == 0 || n <= w.len() as u64 { return w.len() as u64 + 1; }
-        for (i, c) in w.iter().enumerate() { let _ = self.mmu.write16(buf + 2 * i as u64, *c); }
-        let _ = self.mmu.write16(buf + 2 * w.len() as u64, 0);
+        for (i, c) in w.iter().enumerate() { self.w16(buf + 2 * i as u64, *c); }
+        self.w16(buf + 2 * w.len() as u64, 0);
         w.len() as u64
     }
     fn out_a(&mut self, buf: u64, n: u64, s: &str) -> u64 {
         if buf == 0 || n <= s.len() as u64 { return s.len() as u64 + 1; }
         let _ = self.mmu.write_bytes(buf, s.as_bytes());
-        let _ = self.mmu.write8(buf + s.len() as u64, 0);
+        self.w8(buf + s.len() as u64, 0);
         s.len() as u64
     }
     /// Counted wide string (n < 0: NUL-terminated).
@@ -37,7 +33,7 @@ impl Engine {
         let mut i = 0u64;
         loop {
             if n >= 0 && i >= n as u64 { break; }
-            let c = self.mmu.read16(a + 2 * i).unwrap_or(0);
+            let c = self.r16(a + 2 * i);
             if n < 0 && c == 0 { break; }
             v.push(c);
             i += 1;
@@ -50,7 +46,7 @@ impl Engine {
         let mut i = 0u64;
         loop {
             if n >= 0 && i >= n as u64 { break; }
-            let c = self.mmu.read8(a + i).unwrap_or(0);
+            let c = self.r8(a + i);
             if n < 0 && c == 0 { break; }
             v.push(c);
             i += 1;
@@ -60,12 +56,12 @@ impl Engine {
     }
 
     fn system_time(&mut self, a: u64) {
-        let ms = unsafe { crate::host_epoch_ms() } as i64;
+        let ms = crate::epoch_ms() as i64;
         let days = ms.div_euclid(86_400_000);
         let rem = ms.rem_euclid(86_400_000);
         let (y, m, d, dow) = civil_1970(days);
         for (i, v) in [y as u16, m as u16, dow as u16, d as u16, (rem / 3_600_000) as u16, (rem / 60_000 % 60) as u16, (rem / 1000 % 60) as u16, (rem % 1000) as u16].iter().enumerate() {
-            self.wr16(a + 2 * i as u64, *v);
+            self.w16(a + 2 * i as u64, *v);
         }
     }
 
@@ -180,18 +176,18 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "IsValidCodePage" => 1,
         "GetCPInfo" => {
             let p = e.arg(1);
-            e.wr32(p, if a0 as u32 == 65001 { 4 } else { 1 });
-            e.wr16(p + 4, b'?' as u16);
-            for i in 0..12 { let _ = e.mmu.write8(p + 6 + i, 0); }
+            e.w32(p, if a0 as u32 == 65001 { 4 } else { 1 });
+            e.w16(p + 4, b'?' as u16);
+            for i in 0..12 { e.w8(p + 6 + i, 0); }
             1
         }
         "GetCPInfoExW" => {
             let p = e.arg(2);
-            e.wr32(p, if a0 as u32 == 65001 { 4 } else { 1 });
-            e.wr16(p + 4, b'?' as u16);
-            for i in 0..12 { let _ = e.mmu.write8(p + 6 + i, 0); }
-            e.wr16(p + 18, b'?' as u16);
-            e.wr32(p + 20, a0 as u32);
+            e.w32(p, if a0 as u32 == 65001 { 4 } else { 1 });
+            e.w16(p + 4, b'?' as u16);
+            for i in 0..12 { e.w8(p + 6 + i, 0); }
+            e.w16(p + 18, b'?' as u16);
+            e.w32(p + 20, a0 as u32);
             e.out_w(p + 24, 260, "65001 (UTF-8)");
             1
         }
@@ -201,10 +197,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "EnumUILanguagesA" | "EnumUILanguagesW" => {
             // one UI language, en-US: proc(name, param) runs in place of this call, its BOOL is the result
             let (proc, flags, param) = (a0, e.arg(1) as u32, e.arg(2));
-            if proc == 0 { e.set_err(87); return Some(0); }
+            if proc == 0 { e.set_last_error(87); return Some(0); }
             let txt = if flags & 8 != 0 { "en-US" } else { "0409" };
             let Some(p) = e.alloc(0x1000) else { return Some(0) };
-            if name.ends_with('A') { let _ = e.mmu.write_bytes(p, txt.as_bytes()); } else { for (i, c) in txt.encode_utf16().enumerate() { e.wr16(p + 2 * i as u64, c); } }
+            if name.ends_with('A') { let _ = e.mmu.write_bytes(p, txt.as_bytes()); } else { for (i, c) in txt.encode_utf16().enumerate() { e.w16(p + 2 * i as u64, c); } }
             e.cpu.regs[1] = p; e.cpu.regs[2] = param; e.cpu.rip = proc;
             return Some(crate::kernel32::NO_RETURN);
         }
@@ -220,15 +216,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if t & 0x2000_0000 != 0 {
                 // LOCALE_RETURN_NUMBER: a DWORD
                 let v: u32 = match t & 0xFFFF { 0x1004 => 65001, 0x0B => 437, 0x01 => 0x409, 0x11 => 2, 0x12 => 1, _ => 0 };
-                if name == "GetLocaleInfoA" { e.wr32(buf, v); 4 } else { e.wr32(buf, v); 2 }
+                if name == "GetLocaleInfoA" { e.w32(buf, v); 4 } else { e.w32(buf, v); 2 }
             } else {
                 match locale_info(t) {
                     Some(s) => {
                         if n == 0 { if name == "GetLocaleInfoA" { s.len() as u64 + 1 } else { s.encode_utf16().count() as u64 + 1 } }
-                        else if name == "GetLocaleInfoA" { let k = e.out_a(buf, n, &s); if k > s.len() as u64 { e.last_err(122); 0 } else { k + 1 } }
-                        else { let k = e.out_w(buf, n, &s); if k > s.encode_utf16().count() as u64 { e.last_err(122); 0 } else { k + 1 } }
+                        else if name == "GetLocaleInfoA" { let k = e.out_a(buf, n, &s); if k > s.len() as u64 { e.set_last_error(122); 0 } else { k + 1 } }
+                        else { let k = e.out_w(buf, n, &s); if k > s.encode_utf16().count() as u64 { e.set_last_error(122); 0 } else { k + 1 } }
                     }
-                    None => { e.last_err(ERROR_INVALID_PARAMETER); 0 }
+                    None => { e.set_last_error(ERROR_INVALID_PARAMETER); 0 }
                 }
             }
         }
@@ -266,7 +262,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 let v: Vec<u16> = e.astr_n(src, n).iter().map(|&c| c as u16).collect();
                 let out = map_case(&v, f);
                 if dn == 0 { out.len() as u64 } else {
-                    for (i, c) in out.iter().take(dn as usize).enumerate() { let _ = e.mmu.write8(dst + i as u64, *c as u8); }
+                    for (i, c) in out.iter().take(dn as usize).enumerate() { e.w8(dst + i as u64, *c as u8); }
                     out.len().min(dn as usize) as u64
                 }
             } else {
@@ -277,7 +273,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     let bytes: Vec<u8> = out.iter().flat_map(|c| c.to_be_bytes()).chain([0u8]).collect();
                     if dn == 0 { bytes.len() as u64 } else { let k = bytes.len().min(dn as usize); let _ = e.mmu.write_bytes(dst, &bytes[..k]); k as u64 }
                 } else if dn == 0 { out.len() as u64 } else {
-                    for (i, c) in out.iter().take(dn as usize).enumerate() { let _ = e.mmu.write16(dst + 2 * i as u64, *c); }
+                    for (i, c) in out.iter().take(dn as usize).enumerate() { e.w16(dst + 2 * i as u64, *c); }
                     out.len().min(dn as usize) as u64
                 }
             }
@@ -285,21 +281,21 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetStringTypeW" | "GetStringTypeExW" => {
             let (t, src, n, out) = if name == "GetStringTypeW" { (a0 as u32, e.arg(1), e.arg(2) as i32 as i64, e.arg(3)) } else { (e.arg(1) as u32, e.arg(2), e.arg(3) as i32 as i64, e.arg(4)) };
             let v = e.wstr_n(src, n);
-            for (i, c) in v.iter().enumerate() { let x = if t == 1 { ctype1(*c as u32) } else { 0 }; e.wr16(out + 2 * i as u64, x); }
+            for (i, c) in v.iter().enumerate() { let x = if t == 1 { ctype1(*c as u32) } else { 0 }; e.w16(out + 2 * i as u64, x); }
             1
         }
         "GetStringTypeA" | "GetStringTypeExA" => {
             let (t, src, n, out) = (e.arg(1) as u32, e.arg(2), e.arg(3) as i32 as i64, e.arg(4));
             let v = e.astr_n(src, n);
-            for (i, c) in v.iter().enumerate() { let x = if t == 1 { ctype1(*c as u32) } else { 0 }; e.wr16(out + 2 * i as u64, x); }
+            for (i, c) in v.iter().enumerate() { let x = if t == 1 { ctype1(*c as u32) } else { 0 }; e.w16(out + 2 * i as u64, x); }
             1
         }
         "IsBadStringPtrA" | "IsBadStringPtrW" | "IsBadReadPtr" | "IsBadWritePtr" | "IsBadCodePtr" => 0,
-        "GetDateFormatW" | "GetTimeFormatW" | "GetDateFormatEx" | "GetTimeFormatEx" | "GetDateFormatA" | "GetTimeFormatA" => { e.last_err(ERROR_NOT_SUPPORTED); 0 }
+        "GetDateFormatW" | "GetTimeFormatW" | "GetDateFormatEx" | "GetTimeFormatEx" | "GetDateFormatA" | "GetTimeFormatA" => { e.set_last_error(ERROR_NOT_SUPPORTED); 0 }
 
         // ---- system information ----
         "GetErrorMode" | "SetErrorMode" | "GetThreadErrorMode" => 0,
-        "SetThreadErrorMode" => { let p = e.arg(1); e.wr32(p, 0); 1 }
+        "SetThreadErrorMode" => { let p = e.arg(1); e.w32(p, 0); 1 }
         "GetSystemDirectoryA" | "GetSystemWindowsDirectoryA" | "GetWindowsDirectoryA" => {
             let s = if name == "GetSystemDirectoryA" { "C:\\Windows\\System32" } else { "C:\\Windows" };
             let n = e.arg(1); e.out_a(a0, n, s)
@@ -309,67 +305,67 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let n = e.arg(1); e.out_w(a0, n, s)
         }
         "GetVersionExW" | "GetVersionExA" => {
-            e.wr32(a0 + 4, 10); e.wr32(a0 + 8, 0); e.wr32(a0 + 12, 19045); e.wr32(a0 + 16, 2);
+            e.w32(a0 + 4, 10); e.w32(a0 + 8, 0); e.w32(a0 + 12, 19045); e.w32(a0 + 16, 2);
             1
         }
-        "RtlGetVersion" => { e.wr32(a0 + 4, 10); e.wr32(a0 + 8, 0); e.wr32(a0 + 12, 19045); e.wr32(a0 + 16, 2); 0 }
-        "RtlGetNtVersionNumbers" => { let (b, c) = (e.arg(1), e.arg(2)); e.wr32(a0, 10); e.wr32(b, 0); e.wr32(c, 0xF000_0000 | 19045); 0 }
+        "RtlGetVersion" => { e.w32(a0 + 4, 10); e.w32(a0 + 8, 0); e.w32(a0 + 12, 19045); e.w32(a0 + 16, 2); 0 }
+        "RtlGetNtVersionNumbers" => { let (b, c) = (e.arg(1), e.arg(2)); e.w32(a0, 10); e.w32(b, 0); e.w32(c, 0xF000_0000 | 19045); 0 }
         "VerSetConditionMask" => a0,
         "VerifyVersionInfoW" | "VerifyVersionInfoA" => 1,
         "RtlVerifyVersionInfo" => 0, // we are Windows 10: every check passes
         "GetComputerNameW" | "GetComputerNameExW" => {
             let (buf, np) = if name == "GetComputerNameW" { (a0, e.arg(1)) } else { (e.arg(1), e.arg(2)) };
-            let n = e.mmu.read32(np).unwrap_or(0) as u64;
+            let n = e.r32(np) as u64;
             let r = e.out_w(buf, n, "INKSOC");
-            if r > 6 { e.wr32(np, 7); e.last_err(234); 0 } else { e.wr32(np, r as u32); 1 }
+            if r > 6 { e.w32(np, 7); e.set_last_error(234); 0 } else { e.w32(np, r as u32); 1 }
         }
-        "GetComputerNameA" => { let np = e.arg(1); let n = e.mmu.read32(np).unwrap_or(0) as u64; let r = e.out_a(a0, n, "INKSOC"); if r > 6 { e.wr32(np, 7); 0 } else { e.wr32(np, r as u32); 1 } }
-        "GetUserNameW" => { let np = e.arg(1); let n = e.mmu.read32(np).unwrap_or(0) as u64; let r = e.out_w(a0, n, "user"); if r > 4 { e.wr32(np, 5); e.last_err(122); 0 } else { e.wr32(np, r as u32 + 1); 1 } }
+        "GetComputerNameA" => { let np = e.arg(1); let n = e.r32(np) as u64; let r = e.out_a(a0, n, "INKSOC"); if r > 6 { e.w32(np, 7); 0 } else { e.w32(np, r as u32); 1 } }
+        "GetUserNameW" => { let np = e.arg(1); let n = e.r32(np) as u64; let r = e.out_w(a0, n, "user"); if r > 4 { e.w32(np, 5); e.set_last_error(122); 0 } else { e.w32(np, r as u32 + 1); 1 } }
         "LookupAccountNameW" => {
             // the one local user (the token's SID S-1-5-21-1-2-3-1000), as Windows Installer asks for it
             let (nm, sid, sidn, dom, domn, usep) = (e.arg(1), e.arg(2), e.arg(3), e.arg(4), e.arg(5), e.arg(6));
             let who = if nm == 0 { String::new() } else { e.read_wstr(nm, 260).to_lowercase() };
             let who = who.rsplit('\\').next().unwrap_or("").to_string();
-            if who != "user" { e.last_err(1332); return Some(0); } // ERROR_NONE_MAPPED
+            if who != "user" { e.set_last_error(1332); return Some(0); } // ERROR_NONE_MAPPED
             let s: [u8; 28] = [1, 5, 0, 0, 0, 0, 0, 5, 21, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0xE8, 3, 0, 0];
-            let (have_s, have_d) = (e.mmu.read32(sidn).unwrap_or(0), if domn != 0 { e.mmu.read32(domn).unwrap_or(0) } else { 0 });
-            let _ = e.mmu.write32(sidn, 28);
-            if domn != 0 { let _ = e.mmu.write32(domn, if (have_d as usize) < 7 { 7 } else { 6 }); }
-            if have_s < 28 || sid == 0 || (have_d as usize) < 7 || dom == 0 { e.last_err(122); return Some(0); }
+            let (have_s, have_d) = (e.r32(sidn), if domn != 0 { e.r32(domn) } else { 0 });
+            e.w32(sidn, 28);
+            if domn != 0 { e.w32(domn, if (have_d as usize) < 7 { 7 } else { 6 }); }
+            if have_s < 28 || sid == 0 || (have_d as usize) < 7 || dom == 0 { e.set_last_error(122); return Some(0); }
             let _ = e.mmu.write_bytes(sid, &s);
             e.out_w(dom, 7, "INKSOC");
-            if usep != 0 { let _ = e.mmu.write32(usep, 1); } // SidTypeUser
+            if usep != 0 { e.w32(usep, 1); } // SidTypeUser
             1
         }
-        "GetUserNameA" => { let np = e.arg(1); let n = e.mmu.read32(np).unwrap_or(0) as u64; let r = e.out_a(a0, n, "user"); if r > 4 { e.wr32(np, 5); e.last_err(122); 0 } else { e.wr32(np, r as u32 + 1); 1 } }
+        "GetUserNameA" => { let np = e.arg(1); let n = e.r32(np) as u64; let r = e.out_a(a0, n, "user"); if r > 4 { e.w32(np, 5); e.set_last_error(122); 0 } else { e.w32(np, r as u32 + 1); 1 } }
         "GetDriveTypeW" | "GetDriveTypeA" => 3,
         "GetLogicalDrives" => 1 << 2,
         "GetCurrentProcessorNumber" => 0,
-        "GetCurrentProcessorNumberEx" => { e.wr32(a0, 0); 0 }
+        "GetCurrentProcessorNumberEx" => { e.w32(a0, 0); 0 }
         "FlushProcessWriteBuffers" | "MemoryBarrier" => 0,
-        "GetNumaHighestNodeNumber" => { e.wr32(a0, 0); 1 }
-        "GetPhysicallyInstalledSystemMemory" => { e.wr64(a0, 8 << 20); 1 }
-        "QueryUnbiasedInterruptTime" => { let v = unsafe { crate::host_now_ms() * 10_000.0 } as u64; e.wr64(a0, v); 1 }
-        "QueryInterruptTime" | "QueryInterruptTimePrecise" => { let v = unsafe { crate::host_now_ms() * 10_000.0 } as u64; e.wr64(a0, v); 0 }
+        "GetNumaHighestNodeNumber" => { e.w32(a0, 0); 1 }
+        "GetPhysicallyInstalledSystemMemory" => { e.w64(a0, 8 << 20); 1 }
+        "QueryUnbiasedInterruptTime" => { let v = (crate::now_ms() * 10_000.0) as u64; e.w64(a0, v); 1 }
+        "QueryInterruptTime" | "QueryInterruptTimePrecise" => { let v = (crate::now_ms() * 10_000.0) as u64; e.w64(a0, v); 0 }
 
         // ---- time ----
         "GetLocalTime" | "GetSystemTime" => { e.system_time(a0); 0 }
         "GetTimeZoneInformation" | "GetDynamicTimeZoneInformation" => { e.zero(a0, if name == "GetTimeZoneInformation" { 172 } else { 432 }); 0 }
         "SystemTimeToTzSpecificLocalTime" | "TzSpecificLocalTimeToSystemTime" => {
             let (src, dst) = (e.arg(1), e.arg(2));
-            for i in 0..8 { let v = e.mmu.read16(src + 2 * i).unwrap_or(0); e.wr16(dst + 2 * i, v); }
+            for i in 0..8 { let v = e.r16(src + 2 * i); e.w16(dst + 2 * i, v); }
             1
         }
         "NtQuerySystemTime" | "RtlQuerySystemTime" => {
-            let ft = (unsafe { crate::host_epoch_ms() } as u64 + 11_644_473_600_000) * 10_000;
-            e.wr64(a0, ft); 0
+            let ft = (crate::epoch_ms() as u64 + 11_644_473_600_000) * 10_000;
+            e.w64(a0, ft); 0
         }
         "RtlTimeToSecondsSince1970" => {
-            let t = e.mmu.read64(a0).unwrap_or(0);
+            let t = e.r64(a0);
             let s = t / 10_000_000;
-            if s < 11_644_473_600 || s - 11_644_473_600 > u32::MAX as u64 { 0 } else { let o = e.arg(1); e.wr32(o, (s - 11_644_473_600) as u32); 1 }
+            if s < 11_644_473_600 || s - 11_644_473_600 > u32::MAX as u64 { 0 } else { let o = e.arg(1); e.w32(o, (s - 11_644_473_600) as u32); 1 }
         }
-        "RtlSecondsSince1970ToTime" => { let o = e.arg(1); e.wr64(o, (a0 as u32 as u64 + 11_644_473_600) * 10_000_000); 0 }
+        "RtlSecondsSince1970ToTime" => { let o = e.arg(1); e.w64(o, (a0 as u32 as u64 + 11_644_473_600) * 10_000_000); 0 }
 
         // ---- environment ----
         "GetEnvironmentStringsW" => e.s.env_block,
@@ -403,27 +399,27 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 let n = if name.ends_with('W') { e.read_wstr(nm, 260) } else { e.read_cstr(nm, 260) };
                 crate::pe::find_module(e, &n).map(|i| e.s.modules[i].base)
             };
-            match h { Some(h) => { e.wr64(out, h); 1 } None => { e.wr64(out, 0); e.last_err(126); 0 } }
+            match h { Some(h) => { e.w64(out, h); 1 } None => { e.w64(out, 0); e.set_last_error(126); 0 } }
         }
         "DisableThreadLibraryCalls" => 1,
-        "RtlPcToFileHeader" => { let b = e.module_at(a0).unwrap_or(0); let o = e.arg(1); e.wr64(o, b); b }
-        "SetThreadStackGuarantee" => { e.wr32(a0, 0); 1 }
-        "GetCurrentThreadStackLimits" => { let (lo, hi) = (e.mmu.read64(e.cpu.gs_base + 0x10).unwrap_or(0), e.mmu.read64(e.cpu.gs_base + 0x08).unwrap_or(0)); let b = e.arg(1); e.wr64(a0, lo); e.wr64(b, hi); 0 }
+        "RtlPcToFileHeader" => { let b = e.module_at(a0).unwrap_or(0); let o = e.arg(1); e.w64(o, b); b }
+        "SetThreadStackGuarantee" => { e.w32(a0, 0); 1 }
+        "GetCurrentThreadStackLimits" => { let (lo, hi) = (e.r64(e.cpu.gs_base + 0x10), e.r64(e.cpu.gs_base + 0x08)); let b = e.arg(1); e.w64(a0, lo); e.w64(b, hi); 0 }
         "DelayLoadFailureHook" => 0,
         "ResolveDelayLoadedAPI" => {
             // IMAGE_DELAYLOAD_DESCRIPTOR: attributes, dll name, module handle, IAT, INT (RVAs)
             let (base, d, slot) = (a0, e.arg(1), e.arg(4));
-            let rd = |e: &mut Engine, a: u64| e.mmu.read32(a).unwrap_or(0) as u64;
+            let rd = |e: &mut Engine, a: u64| e.r32(a) as u64;
             let (name_rva, hmod_rva, iat_rva, int_rva) = (rd(e, d + 4), rd(e, d + 8), rd(e, d + 12), rd(e, d + 16));
             let dll = e.read_cstr(base + name_rva, 256);
             let k = (slot - (base + iat_rva)) / 8;
-            let ent = e.mmu.read64(base + int_rva + 8 * k).unwrap_or(0);
+            let ent = e.r64(base + int_rva + 8 * k);
             let func = if ent >> 63 == 1 { format!("#{}", ent & 0xFFFF) } else { e.read_cstr(base + (ent & 0x7FFF_FFFF) + 2, 256) };
             let addr = match crate::pe::load_by_name(e, &dll) {
-                Ok(m) => { if hmod_rva != 0 { let h = e.s.modules[m].base; e.wr64(base + hmod_rva, h); } crate::pe::proc_address(e, m, &func).unwrap_or_else(|| e.thunk(&dll, &func)) }
+                Ok(m) => { if hmod_rva != 0 { let h = e.s.modules[m].base; e.w64(base + hmod_rva, h); } crate::pe::proc_address(e, m, &func).unwrap_or_else(|| e.thunk(&dll, &func)) }
                 Err(_) => e.thunk(&dll, &func),
             };
-            e.wr64(slot, addr);
+            e.w64(slot, addr);
             addr
         }
         "AddDllDirectory" => {
@@ -436,14 +432,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetPriorityClass" => 0x20,
         "GetThreadPriority" => 0,
         "SetThreadDescription" => 0,
-        "GetThreadDescription" => { let p = e.arg(1); let a = e.heap_alloc(2, true); e.wr64(p, a); 0 }
+        "GetThreadDescription" => { let p = e.arg(1); let a = e.heap_alloc(2, true); e.w64(p, a); 0 }
         "SetConsoleTitleW" | "SetConsoleTitleA" | "SetConsoleTextAttribute" | "SetConsoleCursorPosition" | "FlushConsoleInputBuffer" => 1,
         "GetConsoleTitleW" | "GetConsoleTitleA" => 0,
         "GetConsoleWindow" => 0,
 
         // ---- handles and processes ----
-        "DuplicateHandle" => { let (h, out) = (e.arg(1), e.arg(3)); let h = e.dup_handle(h); e.wr64(out, h); 1 }
-        "CreatePipe" => { let (pr, pw) = (e.arg(0), e.arg(1)); let (r, w) = e.new_pipe(); e.wr64(pr, r); e.wr64(pw, w); 1 }
+        "DuplicateHandle" => { let (h, out) = (e.arg(1), e.arg(3)); let h = e.dup_handle(h); e.w64(out, h); 1 }
+        "CreatePipe" => { let (pr, pw) = (e.arg(0), e.arg(1)); let (r, w) = e.new_pipe(); e.w64(pr, r); e.w64(pw, w); 1 }
         "CreateProcessW" | "CreateProcessA" | "CreateProcessAsUserW" => {
             // (app, cmdline, process attrs, thread attrs, inherit, flags, env, dir, startup info, process info); AsUser has a token first
             let o = if name == "CreateProcessAsUserW" { 1 } else { 0 };
@@ -456,14 +452,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let first = if !app.is_empty() { app.clone() } else if let Some(r) = cmd.strip_prefix('"') { r.split('"').next().unwrap_or("").to_string() } else { cmd.split_whitespace().next().unwrap_or("").to_string() };
             let mut exe = crate::pe::norm(first.rsplit(['\\', '/']).next().unwrap_or(&first));
             if !e.s.files.contains_key(&exe) && !exe.ends_with(".exe") { exe.push_str(".exe"); }
-            if !e.s.files.contains_key(&exe) { e.last_err(ERROR_FILE_NOT_FOUND); return Some(0); }
+            if !e.s.files.contains_key(&exe) { e.set_last_error(ERROR_FILE_NOT_FOUND); return Some(0); }
             let cmd = if cmd.is_empty() { first.clone() } else { cmd };
             // environment: the one given (Unicode with flag 0x400), else a copy of ours
             let env: Vec<u16> = if envp == 0 { e.env_vec() } else {
                 let mut v = Vec::new();
                 let uni = flags & 0x400 != 0;
                 for k in 0..0x40000u64 {
-                    let c = if uni { e.mmu.read16(envp + 2 * k).unwrap_or(0) } else { e.mmu.read8(envp + k).unwrap_or(0) as u16 };
+                    let c = if uni { e.r16(envp + 2 * k) } else { e.r8(envp + k) as u16 };
                     v.push(c);
                     let n = v.len();
                     if c == 0 && (n >= 2 && v[n - 2] == 0 || n == 1) { break; }
@@ -473,43 +469,43 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             };
             // standard handles: given ones (STARTF_USESTDHANDLES), else ours
             let mut std = e.s.std;
-            if si != 0 && e.mmu.read32(si + 60).unwrap_or(0) & 0x100 != 0 {
-                for k in 0..3 { std[k] = e.mmu.read64(si + 80 + 8 * k as u64).unwrap_or(0); }
+            if si != 0 && e.r32(si + 60) & 0x100 != 0 {
+                for k in 0..3 { std[k] = e.r64(si + 80 + 8 * k as u64); }
             }
             match e.create_process(&exe, &cmd, env, std, flags & 4 != 0) {
                 Ok((pid, tid, th)) => {
                     let ph = e.new_handle(crate::files::Handle::Process { pid });
-                    e.wr64(pi, ph); e.wr64(pi + 8, th); e.wr32(pi + 16, pid); e.wr32(pi + 20, tid);
+                    e.w64(pi, ph); e.w64(pi + 8, th); e.w32(pi + 16, pid); e.w32(pi + 20, tid);
                     1
                 }
-                Err(m) => { crate::console(&format!("[inksoc] CreateProcess {}: {}\n", exe, m)); e.last_err(ERROR_FILE_NOT_FOUND); 0 }
+                Err(m) => { crate::console(&format!("[inksoc] CreateProcess {}: {}\n", exe, m)); e.set_last_error(ERROR_FILE_NOT_FOUND); 0 }
             }
         }
-        "ShellExecuteW" | "ShellExecuteExW" => { e.last_err(ERROR_FILE_NOT_FOUND); 0 }
+        "ShellExecuteW" | "ShellExecuteExW" => { e.set_last_error(ERROR_FILE_NOT_FOUND); 0 }
         "GetExitCodeProcess" => {
             let p = e.arg(1);
             let code = match e.s.fs.handles.get(&a0) {
                 Some(crate::files::Handle::Process { pid }) => e.s.pinfo.get(pid).and_then(|i| i.exit).unwrap_or(259),
                 _ => if a0 == u64::MAX { 259 } else { 0 },
             };
-            e.wr32(p, code); 1
+            e.w32(p, code); 1
         }
         "GetProcessId" => match e.s.fs.handles.get(&a0) { Some(crate::files::Handle::Process { pid }) => *pid as u64, _ => if a0 == u64::MAX { e.s.wpid.max(4) as u64 } else { 0 } },
         "SetStdHandle" => { let k = match a0 as u32 as i32 { -10 => 0, -11 => 1, -12 => 2, _ => return Some(0) }; e.s.std[k] = e.arg(1); 1 }
         "SetHandleInformation" => 1,
-        "GetHandleInformation" => { let p = e.arg(1); e.wr32(p, 0); 1 }
+        "GetHandleInformation" => { let p = e.arg(1); e.w32(p, 0); 1 }
         "LockFile" | "UnlockFile" | "LockFileEx" | "UnlockFileEx" => 1,
         "VerifyConsoleIoHandle" => (a0 <= 3) as u64,
         // only the console input handle has input events (programs tell input from output this way)
-        "GetNumberOfConsoleInputEvents" => { if a0 != 3 { return Some(0); } let p = e.arg(1); e.wr32(p, 0); 1 }
-        "PeekConsoleInputA" | "PeekConsoleInputW" | "ReadConsoleInputA" | "ReadConsoleInputW" => { let p = e.arg(3); e.wr32(p, 0); 1 }
-        "ReadConsoleA" | "ReadConsoleW" => { let p = e.arg(3); e.wr32(p, 0); 1 }
-        "GetConsoleScreenBufferInfoEx" => { e.last_err(6); 0 }
+        "GetNumberOfConsoleInputEvents" => { if a0 != 3 { return Some(0); } let p = e.arg(1); e.w32(p, 0); 1 }
+        "PeekConsoleInputA" | "PeekConsoleInputW" | "ReadConsoleInputA" | "ReadConsoleInputW" => { let p = e.arg(3); e.w32(p, 0); 1 }
+        "ReadConsoleA" | "ReadConsoleW" => { let p = e.arg(3); e.w32(p, 0); 1 }
+        "GetConsoleScreenBufferInfoEx" => { e.set_last_error(6); 0 }
         "Beep" => 1,
         // known folders: the usual Windows layout; the user's own folders are under C:\InkSoC
         "SHGetKnownFolderPath" => {
             let (id, out) = (a0, e.arg(3));
-            let p = match e.mmu.read32(id).unwrap_or(0) {
+            let p = match e.r32(id) {
                 0x905E_63B6 => "C:\\Program Files", 0x7C5A_40EF => "C:\\Program Files (x86)", 0xF1B3_2785 => "C:\\InkSoC\\AppData\\Local",
                 0x3EB6_85DB => "C:\\InkSoC\\AppData\\Roaming", 0x62AB_5D82 => "C:\\ProgramData", 0xFDD3_9AD0 => "C:\\InkSoC\\Documents",
                 0xB4BF_CC3A => "C:\\InkSoC\\Desktop", 0xF38B_F404 => "C:\\Windows", 0x1AC1_4E77 => "C:\\Windows\\System32",
@@ -518,8 +514,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             };
             let w: Vec<u16> = p.encode_utf16().chain([0]).collect();
             let b = e.heap_alloc(2 * w.len() as u64, false);
-            for (k, c) in w.iter().enumerate() { let _ = e.mmu.write16(b + 2 * k as u64, *c); }
-            let _ = e.mmu.write64(out, b);
+            for (k, c) in w.iter().enumerate() { e.w16(b + 2 * k as u64, *c); }
+            e.w64(out, b);
             0
         }
         "SHGetFolderPathW" | "SHGetFolderPathA" | "SHGetSpecialFolderPathW" | "SHGetSpecialFolderPathA" => {
@@ -535,8 +531,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 0x16 => "C:\\ProgramData\\Microsoft\\Windows\\Start Menu",
                 _ => "C:\\InkSoC",
             };
-            if name.ends_with('W') { for (k, c) in p.encode_utf16().chain([0]).enumerate() { let _ = e.mmu.write16(buf + 2 * k as u64, c); } }
-            else { let _ = e.mmu.write_bytes(buf, p.as_bytes()); let _ = e.mmu.write8(buf + p.len() as u64, 0); }
+            if name.ends_with('W') { for (k, c) in p.encode_utf16().chain([0]).enumerate() { e.w16(buf + 2 * k as u64, c); } }
+            else { let _ = e.mmu.write_bytes(buf, p.as_bytes()); e.w8(buf + p.len() as u64, 0); }
             if name.starts_with("SHGetSpecial") { 1 } else { 0 }
         }
         "DebugBreak" => { e.set_error("the program called DebugBreak".into()); return Some(crate::kernel32::NO_RETURN); }
@@ -545,7 +541,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let p = if name.ends_with('W') { e.read_wstr(pre, 3) } else { e.read_cstr(pre, 3) };
             let dir = if name.ends_with('W') { e.read_wstr(a0, 260) } else { e.read_cstr(a0, 260) };
             let dir = if dir.is_empty() { crate::files::home_win() } else { dir.trim_end_matches('\\').to_string() };
-            let mut n = if uniq != 0 { uniq } else { ((unsafe { crate::host_now_ms() } as u32) & 0xFFFF).max(1) };
+            let mut n = if uniq != 0 { uniq } else { ((crate::now_ms() as u32) & 0xFFFF).max(1) };
             let mut s = format!("{}\\{}{:04X}.tmp", dir, p, n);
             // uUnique 0: a new name, and the file is made (empty), as Windows does
             if uniq == 0 {
@@ -561,55 +557,55 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         // ---- heap extras ----
         "HeapValidate" | "HeapSetInformation" | "HeapLock" | "HeapUnlock" => 1,
         "HeapCompact" => 0,
-        "HeapWalk" => { e.last_err(ERROR_NO_MORE_ITEMS); 0 }
-        "HeapQueryInformation" => { e.last_err(ERROR_NOT_SUPPORTED); 0 }
-        "GetProcessHeaps" => { if e.arg(1) != 0 && a0 > 0 { let p = e.arg(1); e.wr64(p, 0xAA_0000); } 1 }
+        "HeapWalk" => { e.set_last_error(ERROR_NO_MORE_ITEMS); 0 }
+        "HeapQueryInformation" => { e.set_last_error(ERROR_NOT_SUPPORTED); 0 }
+        "GetProcessHeaps" => { if e.arg(1) != 0 && a0 > 0 { let p = e.arg(1); e.w64(p, 0xAA_0000); } 1 }
 
         // ---- interlocked singly linked lists (SLIST_HEADER: depth/sequence, next) ----
-        "InitializeSListHead" | "RtlInitializeSListHead" => { e.wr64(a0, 0); e.wr64(a0 + 8, 0); 0 }
+        "InitializeSListHead" | "RtlInitializeSListHead" => { e.w64(a0, 0); e.w64(a0 + 8, 0); 0 }
         "InterlockedPushEntrySList" | "RtlInterlockedPushEntrySList" => {
             let ent = e.arg(1);
-            let (lo, hi) = (e.mmu.read64(a0).unwrap_or(0), e.mmu.read64(a0 + 8).unwrap_or(0));
+            let (lo, hi) = (e.r64(a0), e.r64(a0 + 8));
             let first = hi & !0xF;
-            e.wr64(ent, first);
+            e.w64(ent, first);
             let depth = (lo & 0xFFFF) + 1;
             let seq = ((lo >> 16) + 1) & 0xFFFF_FFFF_FFFF;
-            e.wr64(a0, depth | seq << 16);
-            e.wr64(a0 + 8, (ent & !0xF) | (hi & 0xF));
+            e.w64(a0, depth | seq << 16);
+            e.w64(a0 + 8, (ent & !0xF) | (hi & 0xF));
             first
         }
         "InterlockedPopEntrySList" | "RtlInterlockedPopEntrySList" => {
-            let (lo, hi) = (e.mmu.read64(a0).unwrap_or(0), e.mmu.read64(a0 + 8).unwrap_or(0));
+            let (lo, hi) = (e.r64(a0), e.r64(a0 + 8));
             let first = hi & !0xF;
             if first != 0 {
-                let next = e.mmu.read64(first).unwrap_or(0);
-                e.wr64(a0, (lo & 0xFFFF).saturating_sub(1) | (((lo >> 16) + 1) & 0xFFFF_FFFF_FFFF) << 16);
-                e.wr64(a0 + 8, (next & !0xF) | (hi & 0xF));
+                let next = e.r64(first);
+                e.w64(a0, (lo & 0xFFFF).saturating_sub(1) | (((lo >> 16) + 1) & 0xFFFF_FFFF_FFFF) << 16);
+                e.w64(a0 + 8, (next & !0xF) | (hi & 0xF));
             }
             first
         }
         "InterlockedFlushSList" | "RtlInterlockedFlushSList" => {
-            let hi = e.mmu.read64(a0 + 8).unwrap_or(0);
-            let lo = e.mmu.read64(a0).unwrap_or(0);
-            e.wr64(a0, lo & !0xFFFF);
-            e.wr64(a0 + 8, hi & 0xF);
+            let hi = e.r64(a0 + 8);
+            let lo = e.r64(a0);
+            e.w64(a0, lo & !0xFFFF);
+            e.w64(a0 + 8, hi & 0xF);
             hi & !0xF
         }
-        "QueryDepthSList" | "RtlQueryDepthSList" => e.mmu.read64(a0).unwrap_or(0) & 0xFFFF,
+        "QueryDepthSList" | "RtlQueryDepthSList" => e.r64(a0) & 0xFFFF,
 
         // ---- bitmaps (RTL_BITMAP: size, buffer) ----
-        "RtlInitializeBitMap" => { let (buf, n) = (e.arg(1), e.arg(2)); e.wr32(a0, n as u32); e.wr64(a0 + 8, buf); 0 }
+        "RtlInitializeBitMap" => { let (buf, n) = (e.arg(1), e.arg(2)); e.w32(a0, n as u32); e.w64(a0 + 8, buf); 0 }
         "RtlSetBits" | "RtlClearBits" | "RtlAreBitsSet" | "RtlAreBitsClear" => {
             let (start, n) = (e.arg(1) as u32 as u64, e.arg(2) as u32 as u64);
-            let buf = e.mmu.read64(a0 + 8).unwrap_or(0);
+            let buf = e.r64(a0 + 8);
             let mut all = true;
             for i in start..start + n {
                 let a = buf + i / 8;
-                let b = e.mmu.read8(a).unwrap_or(0);
+                let b = e.r8(a);
                 let bit = 1u8 << (i % 8);
                 match name {
-                    "RtlSetBits" => { let _ = e.mmu.write8(a, b | bit); }
-                    "RtlClearBits" => { let _ = e.mmu.write8(a, b & !bit); }
+                    "RtlSetBits" => { e.w8(a, b | bit); }
+                    "RtlClearBits" => { e.w8(a, b & !bit); }
                     "RtlAreBitsSet" => { if b & bit == 0 { all = false; } }
                     _ => { if b & bit != 0 { all = false; } }
                 }
@@ -625,14 +621,14 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let base = e.heap_alloc((8 * (args.len() + 1) + 2 * total) as u64, true);
             let mut p = base + 8 * (args.len() as u64 + 1);
             for (i, a) in args.iter().enumerate() {
-                e.wr64(base + 8 * i as u64, p);
+                e.w64(base + 8 * i as u64, p);
                 let w: Vec<u16> = a.encode_utf16().collect();
-                for (k, c) in w.iter().enumerate() { e.wr16(p + 2 * k as u64, *c); }
-                e.wr16(p + 2 * w.len() as u64, 0);
+                for (k, c) in w.iter().enumerate() { e.w16(p + 2 * k as u64, *c); }
+                e.w16(p + 2 * w.len() as u64, 0);
                 p += 2 * (w.len() as u64 + 1);
             }
             let np = e.arg(1);
-            e.wr32(np, args.len() as u32);
+            e.w32(np, args.len() as u32);
             base
         }
         "PathFileExistsW" | "PathFileExistsA" => {
@@ -644,65 +640,65 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         // ---- misc ----
         "SystemFunction036" | "RtlGenRandom" | "ProcessPrng" => {
             let (p, n) = (a0, e.arg(1) as u32 as u64);
-            let mut x = (unsafe { crate::host_epoch_ms() } as u64) ^ 0x9E37_79B9_7F4A_7C15 ^ e.cpu.icount;
-            for i in 0..n { x ^= x << 13; x ^= x >> 7; x ^= x << 17; let _ = e.mmu.write8(p + i, x as u8); }
+            let mut x = (crate::epoch_ms() as u64) ^ 0x9E37_79B9_7F4A_7C15 ^ e.cpu.icount;
+            for i in 0..n { x ^= x << 13; x ^= x >> 7; x ^= x << 17; e.w8(p + i, x as u8); }
             1
         }
         // the old CryptoAPI: only its random numbers (Python seeds its hashes with them)
-        "CryptAcquireContextW" | "CryptAcquireContextA" => { e.wr64(a0, 0xC0FFEE); 1 }
+        "CryptAcquireContextW" | "CryptAcquireContextA" => { e.w64(a0, 0xC0FFEE); 1 }
         "CryptReleaseContext" => 1,
         // hashes: the data is kept and hashed when the value is asked for (hash.rs)
         "CryptCreateHash" => {
             let (alg, out) = (e.arg(1) as u32, e.arg(4));
-            if crate::hash::by_algid(alg, &[]).is_none() { e.last_err(0x8009_0008); return Some(0); } // NTE_BAD_ALGID
+            if crate::hash::by_algid(alg, &[]).is_none() { e.set_last_error(0x8009_0008); return Some(0); } // NTE_BAD_ALGID
             e.s.fs.hash_next += 1;
             let h = 0xC0DE_0000 + e.s.fs.hash_next;
             e.s.fs.hashes.insert(h, (alg, Vec::new()));
-            e.wr64(out, h);
+            e.w64(out, h);
             1
         }
         "CryptHashData" => {
             let (h, p, n) = (a0, e.arg(1), e.arg(2) as u32 as usize);
             let mut v = vec![0u8; n];
-            if e.mmu.read_bytes(p, &mut v).is_err() { e.last_err(87); return Some(0); }
-            match e.s.fs.hashes.get_mut(&h) { Some(x) => { x.1.extend_from_slice(&v); 1 } None => { e.last_err(6); 0 } }
+            if e.mmu.read_bytes(p, &mut v).is_err() { e.set_last_error(87); return Some(0); }
+            match e.s.fs.hashes.get_mut(&h) { Some(x) => { x.1.extend_from_slice(&v); 1 } None => { e.set_last_error(6); 0 } }
         }
         "CryptGetHashParam" => {
             let (h, param, buf, lenp) = (a0, e.arg(1) as u32, e.arg(2), e.arg(3));
-            let Some((alg, data)) = e.s.fs.hashes.get(&h).cloned() else { e.last_err(6); return Some(0) };
+            let Some((alg, data)) = e.s.fs.hashes.get(&h).cloned() else { e.set_last_error(6); return Some(0) };
             let v = crate::hash::by_algid(alg, &data).unwrap_or_default();
-            let out: Vec<u8> = match param { 1 => alg.to_le_bytes().to_vec(), 2 => v, 4 => (v.len() as u32).to_le_bytes().to_vec(), _ => { e.last_err(0x8009_0009); return Some(0); } }; // NTE_BAD_TYPE
-            let have = e.mmu.read32(lenp).unwrap_or(0) as usize;
-            e.wr32(lenp, out.len() as u32);
+            let out: Vec<u8> = match param { 1 => alg.to_le_bytes().to_vec(), 2 => v, 4 => (v.len() as u32).to_le_bytes().to_vec(), _ => { e.set_last_error(0x8009_0009); return Some(0); } }; // NTE_BAD_TYPE
+            let have = e.r32(lenp) as usize;
+            e.w32(lenp, out.len() as u32);
             if buf == 0 { return Some(1); }
-            if have < out.len() { e.last_err(234); return Some(0); } // ERROR_MORE_DATA
+            if have < out.len() { e.set_last_error(234); return Some(0); } // ERROR_MORE_DATA
             let _ = e.mmu.write_bytes(buf, &out);
             1
         }
         "CryptDestroyHash" => { e.s.fs.hashes.remove(&a0); 1 }
         "CryptDuplicateHash" => {
             let (h, out) = (a0, e.arg(2));
-            let Some(x) = e.s.fs.hashes.get(&h).cloned() else { e.last_err(6); return Some(0) };
+            let Some(x) = e.s.fs.hashes.get(&h).cloned() else { e.set_last_error(6); return Some(0) };
             e.s.fs.hash_next += 1;
             let n = 0xC0DE_0000 + e.s.fs.hash_next;
             e.s.fs.hashes.insert(n, x);
-            e.wr64(out, n);
+            e.w64(out, n);
             1
         }
         "CryptGenRandom" => {
             let (n, p) = (e.arg(1) as u32 as u64, e.arg(2));
-            let mut x = (unsafe { crate::host_epoch_ms() } as u64) ^ 0x6A09_E667_F3BC_C909 ^ e.cpu.icount;
-            for i in 0..n { x ^= x << 13; x ^= x >> 7; x ^= x << 17; let _ = e.mmu.write8(p + i, x as u8); }
+            let mut x = (crate::epoch_ms() as u64) ^ 0x6A09_E667_F3BC_C909 ^ e.cpu.icount;
+            for i in 0..n { x ^= x << 13; x ^= x >> 7; x ^= x << 17; e.w8(p + i, x as u8); }
             1
         }
         "BCryptGenRandom" => {
             let (p, n) = (e.arg(1), e.arg(2) as u32 as u64);
-            let mut x = (unsafe { crate::host_epoch_ms() } as u64) ^ 0x2545_F491_4F6C_DD1D ^ e.cpu.icount;
-            for i in 0..n { x ^= x << 13; x ^= x >> 7; x ^= x << 17; let _ = e.mmu.write8(p + i, x as u8); }
+            let mut x = (crate::epoch_ms() as u64) ^ 0x2545_F491_4F6C_DD1D ^ e.cpu.icount;
+            for i in 0..n { x ^= x << 13; x ^= x >> 7; x ^= x << 17; e.w8(p + i, x as u8); }
             0
         }
-        "FlsGetValue2" => { e.mmu.read64(e.cpu.gs_base + 0x1480 + 8 * a0.min(63)).unwrap_or(0) }
-        "TlsGetValue2" => { e.mmu.read64(e.cpu.gs_base + 0x1480 + 8 * a0.min(63)).unwrap_or(0) }
+        "FlsGetValue2" => { e.r64(e.cpu.gs_base + 0x1480 + 8 * a0.min(63)) }
+        "TlsGetValue2" => { e.r64(e.cpu.gs_base + 0x1480 + 8 * a0.min(63)) }
         "EventRegister" | "EventUnregister" | "EventSetInformation" | "EventWriteTransfer" | "EventWrite" => 0,
         "OutputDebugStringW" => { let s = e.read_wstr(a0, 4096); console(&format!("[debug] {}", s)); 0 }
         "WerSetFlags" | "WerRegisterRuntimeExceptionModule" => 0,
@@ -711,7 +707,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "CoTaskMemAlloc" => e.heap_alloc(a0.max(1), false),
         "CoTaskMemFree" => 0,
         "timeBeginPeriod" | "timeEndPeriod" => 0,
-        "timeGetTime" => unsafe { crate::host_now_ms() as u64 & 0xFFFF_FFFF },
+        "timeGetTime" => crate::now_ms() as u64 & 0xFFFF_FFFF,
         _ => return None,
     };
     Some(r)

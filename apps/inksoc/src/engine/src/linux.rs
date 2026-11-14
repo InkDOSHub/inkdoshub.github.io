@@ -313,7 +313,7 @@ impl Engine {
         // stack: argc, argv, envp, auxv, then the strings
         self.mmu.add_region(STACK_TOP - STACK_SIZE, STACK_SIZE);
         let mut sp = STACK_TOP - 0x100;
-        let mut put = |e: &mut Engine, s: &[u8]| -> u64 { sp -= s.len() as u64 + 1; let _ = e.mmu.write_bytes(sp, s); let _ = e.mmu.write8(sp + s.len() as u64, 0); sp };
+        let mut put = |e: &mut Engine, s: &[u8]| -> u64 { sp -= s.len() as u64 + 1; let _ = e.mmu.write_bytes(sp, s); e.w8(sp + s.len() as u64, 0); sp };
         let argp: Vec<u64> = args.iter().map(|a| put(self, a.as_bytes())).collect();
         let envp: Vec<u64> = env.iter().map(|a| put(self, a.as_bytes())).collect();
         let plat = put(self, b"x86_64");
@@ -324,7 +324,7 @@ impl Engine {
         let words = 1 + argp.len() + 1 + envp.len() + 1 + 2 * (aux.len() + 2);
         let mut p = (sp - 8 * words as u64) & !15;
         let start = p;
-        let mut w = |e: &mut Engine, v: u64| { let _ = e.mmu.write64(p, v); p += 8; };
+        let mut w = |e: &mut Engine, v: u64| { e.w64(p, v); p += 8; };
         w(self, argp.len() as u64);
         for a in argp { w(self, a); }
         w(self, 0);
@@ -352,7 +352,7 @@ fn stat_buf(e: &mut Engine, a: u64, mode: u32, size: u64, ino: u64) -> i64 {
     b[48..56].copy_from_slice(&size.to_le_bytes());
     b[56..64].copy_from_slice(&4096u64.to_le_bytes());
     b[64..72].copy_from_slice(&((size + 511) / 512).to_le_bytes());
-    let t = (unsafe { crate::host_epoch_ms() } / 1000.0) as u64;
+    let t = (crate::epoch_ms() / 1000.0) as u64;
     for o in [72, 88, 104] { b[o..o + 8].copy_from_slice(&t.to_le_bytes()); }
     if e.mmu.write_bytes(a, &b).is_err() { return -14; }
     0
@@ -425,7 +425,7 @@ fn do_read(e: &mut Engine, fd: i32, buf: u64, n: u64) -> i64 {
         Some(Fd::Dev(k)) => {
             let k = *k; let n = n.min(1 << 20) as usize;
             let mut d = vec![0u8; n];
-            if k == 1 { let mut x = (unsafe { crate::host_now_ms() } * 1000.0) as u64 | 1; for c in d.iter_mut() { x ^= x << 13; x ^= x >> 7; x ^= x << 17; *c = x as u8; } }
+            if k == 1 { let mut x = (crate::now_ms() * 1000.0) as u64 | 1; for c in d.iter_mut() { x ^= x << 13; x ^= x >> 7; x ^= x << 17; *c = x as u8; } }
             if e.mmu.write_bytes(buf, &d).is_err() { return -14; }
             n as i64
         }
@@ -509,7 +509,7 @@ pub fn syscall(e: &mut Engine) {
             let r = l.new_fd(Fd::Pipe { id, w: false });
             let w = l.new_fd(Fd::Pipe { id, w: true });
             if nr == 293 && a1 & 0x80000 != 0 { l.cloexec.insert(r); l.cloexec.insert(w); }
-            let _ = e.mmu.write32(a0, r as u32); let _ = e.mmu.write32(a0 + 4, w as u32);
+            e.w32(a0, r as u32); e.w32(a0 + 4, w as u32);
             0
         }
         56 if a0 & 0x100 != 0 && a0 & 0x4000 == 0 => -ENOSYS, // threads (CLONE_VM): not yet
@@ -517,7 +517,7 @@ pub fn syscall(e: &mut Engine) {
         59 | 322 => {
             let path = if nr == 59 { e.read_cstr(a0, 4096) } else { path_at(e, a0, a1) };
             let (av, ev) = if nr == 59 { (a1, a2) } else { (a2, a3) };
-            let strs = |e: &mut Engine, mut p: u64| { let mut v = Vec::new(); while p != 0 && v.len() < 4096 { let s = e.mmu.read64(p).unwrap_or(0); if s == 0 { break; } v.push(e.read_cstr(s, 1 << 17)); p += 8; } v };
+            let strs = |e: &mut Engine, mut p: u64| { let mut v = Vec::new(); while p != 0 && v.len() < 4096 { let s = e.r64(p); if s == 0 { break; } v.push(e.read_cstr(s, 1 << 17)); p += 8; } v };
             let args = strs(e, av); let env = strs(e, ev);
             execve(e, &path, args, env)
         }
@@ -575,11 +575,11 @@ pub fn syscall(e: &mut Engine) {
             let _ = buf;
             let l = lx(e);
             let (path, pos) = match l.fds.get(&inp) { Some(Fd::File { path, pos, .. }) => (path.clone(), *pos), _ => return ret(e, -EINVAL) };
-            let at = if offp != 0 { e.mmu.read64(offp).unwrap_or(0) } else { pos };
+            let at = if offp != 0 { e.r64(offp) } else { pos };
             let d = match lx(e).fs.get(&path) { Some(Node::File(d)) => { let s = (at as usize).min(d.len()); d[s..(s + n as usize).min(d.len())].to_vec() } _ => return ret(e, -EBADF) };
             let k = write_data(e, out, &d);
             if k > 0 {
-                if offp != 0 { let _ = e.mmu.write64(offp, at + k as u64); } else if let Some(Fd::File { pos, .. }) = lx(e).fds.get_mut(&inp) { *pos += k as u64; }
+                if offp != 0 { e.w64(offp, at + k as u64); } else if let Some(Fd::File { pos, .. }) = lx(e).fds.get_mut(&inp) { *pos += k as u64; }
             }
             k
         }
@@ -587,7 +587,7 @@ pub fn syscall(e: &mut Engine) {
         19 | 20 => { // readv / writev
             let mut tot = 0i64;
             for k in 0..a2.min(1024) {
-                let (b, n) = (e.mmu.read64(a1 + 16 * k).unwrap_or(0), e.mmu.read64(a1 + 16 * k + 8).unwrap_or(0));
+                let (b, n) = (e.r64(a1 + 16 * k), e.r64(a1 + 16 * k + 8));
                 if n == 0 { continue; }
                 let got = if nr == 19 { do_read(e, a0 as i32, b, n) } else { do_write(e, a0 as i32, b, n) };
                 if got < 0 { if tot == 0 { tot = got; } break; }
@@ -604,7 +604,7 @@ pub fn syscall(e: &mut Engine) {
         7 | 271 if poll_socks(e, a0, a1, nr, a2) => NORET,
         41..=55 | 288 => net_call(e, nr, a0, a1, a2, a3, a4, r[9]),
         23 | 7 | 271 => { // select / poll / ppoll: everything is ready
-            if nr == 7 || nr == 271 { for k in 0..a1.min(64) { let ev = e.mmu.read16(a0 + 8 * k + 4).unwrap_or(0); let _ = e.mmu.write16(a0 + 8 * k + 6, ev & 5); } a1 as i64 } else { 1 }
+            if nr == 7 || nr == 271 { for k in 0..a1.min(64) { let ev = e.r16(a0 + 8 * k + 4); e.w16(a0 + 8 * k + 6, ev & 5); } a1 as i64 } else { 1 }
         }
         24 => 0, // sched_yield
         165 | 166 => -1, // mount / umount2: EPERM, as for a program without the right to mount
@@ -619,7 +619,7 @@ pub fn syscall(e: &mut Engine) {
             a1 as i64
         }
         35 => { // nanosleep
-            let ms = e.mmu.read64(a0).unwrap_or(0) as f64 * 1000.0 + e.mmu.read64(a0 + 8).unwrap_or(0) as f64 / 1e6;
+            let ms = e.r64(a0) as f64 * 1000.0 + e.r64(a0 + 8) as f64 / 1e6;
             if ms <= 0.0 { 0 } else { lx(e).want = Some(Cond::Until); e.cpu.rip -= 2; e.block_linux(Cond::Until, Some(ms)); lx(e).want = None; NORET }
         }
         102 => lx(e).ids.0 as i64, // getuid
@@ -628,7 +628,7 @@ pub fn syscall(e: &mut Engine) {
         105 => { let l = lx(e); if l.ids.2 == 0 { l.ids.0 = a0 as u32; } l.ids.2 = a0 as u32; 0 } // setuid
         113 | 117 => { let l = lx(e); if a0 as i32 != -1 { l.ids.0 = a0 as u32; } if a1 as i32 != -1 { l.ids.2 = a1 as u32; } 0 } // setreuid / setresuid
         106 | 114 | 119 => { let l = lx(e); let v = if nr == 106 { a0 } else if a1 as i32 != -1 { a1 } else { a0 }; if v as i32 != -1 { l.ids.1 = v as u32; } 0 } // setgid / setregid / setresgid
-        118 | 120 => { let i = lx(e).ids; let v = if nr == 118 { [i.0, i.2, i.2] } else { [i.1; 3] }; for (p, x) in [a0, a1, a2].into_iter().zip(v) { if p != 0 { let _ = e.mmu.write32(p, x); } } 0 }
+        118 | 120 => { let i = lx(e).ids; let v = if nr == 118 { [i.0, i.2, i.2] } else { [i.1; 3] }; for (p, x) in [a0, a1, a2].into_iter().zip(v) { if p != 0 { e.w32(p, x); } } 0 }
         116 | 115 => 0, // setgroups / getgroups (none)
         122 | 123 => lx(e).ids.0 as i64, // setfsuid / setfsgid
         109 | 112 => 0,
@@ -668,7 +668,7 @@ pub fn syscall(e: &mut Engine) {
         78 | 217 => getdents(e, a0 as i32, a1, a2),
         79 => { // getcwd
             let c = lx(e).cwd.clone();
-            if c.len() + 1 > a1 as usize { -ERANGE } else { let _ = e.mmu.write_bytes(a0, c.as_bytes()); let _ = e.mmu.write8(a0 + c.len() as u64, 0); c.len() as i64 + 1 }
+            if c.len() + 1 > a1 as usize { -ERANGE } else { let _ = e.mmu.write_bytes(a0, c.as_bytes()); e.w8(a0 + c.len() as u64, 0); c.len() as i64 + 1 }
         }
         80 => { let p = e.read_cstr(a0, 4096); let l = lx(e); let q = l.resolve(&p, true); if l.is_dir(&q) { l.cwd = q; 0 } else if l.fs.contains_key(&q) { -ENOTDIR } else { -ENOENT } }
         81 => { let l = lx(e); match l.fds.get(&(a0 as i32)) { Some(Fd::Dir { path, .. }) => { l.cwd = path.clone(); 0 } _ => -ENOTDIR } }
@@ -710,36 +710,36 @@ pub fn syscall(e: &mut Engine) {
         }
         90 | 91 | 92 | 93 | 94 | 95 | 268 | 260 | 280 | 235 | 132 => 0, // chmod, chown, umask, utimes...
         96 => { // gettimeofday
-            let ms = unsafe { crate::host_epoch_ms() };
-            if a0 != 0 { let _ = e.mmu.write64(a0, (ms / 1000.0) as u64); let _ = e.mmu.write64(a0 + 8, ((ms % 1000.0) * 1000.0) as u64); }
+            let ms = crate::epoch_ms();
+            if a0 != 0 { e.w64(a0, (ms / 1000.0) as u64); e.w64(a0 + 8, ((ms % 1000.0) * 1000.0) as u64); }
             0
         }
-        97 | 302 => { if nr == 302 && a3 != 0 { let _ = e.mmu.write64(a3, u64::MAX); let _ = e.mmu.write64(a3 + 8, u64::MAX); } 0 } // getrlimit / prlimit64
+        97 | 302 => { if nr == 302 && a3 != 0 { e.w64(a3, u64::MAX); e.w64(a3 + 8, u64::MAX); } 0 } // getrlimit / prlimit64
         98 => { let _ = e.mmu.write_bytes(a1, &[0u8; 144]); 0 } // getrusage
         99 => { let mut b = [0u8; 112]; b[32..40].copy_from_slice(&(1u64 << 33).to_le_bytes()); b[40..48].copy_from_slice(&(1u64 << 32).to_le_bytes()); b[104..108].copy_from_slice(&1u32.to_le_bytes()); let _ = e.mmu.write_bytes(a0, &b); 0 } // sysinfo
         100 => { let _ = e.mmu.write_bytes(a0, &[0u8; 32]); 0 } // times
         137 | 138 => { let mut b = [0u8; 120]; b[0..8].copy_from_slice(&0xEF53u64.to_le_bytes()); b[8..16].copy_from_slice(&4096u64.to_le_bytes()); b[16..24].copy_from_slice(&(1u64 << 20).to_le_bytes()); b[24..32].copy_from_slice(&(1u64 << 19).to_le_bytes()); b[32..40].copy_from_slice(&(1u64 << 19).to_le_bytes()); b[56..64].copy_from_slice(&255u64.to_le_bytes()); let _ = e.mmu.write_bytes(a1, &b); 0 } // statfs
         158 => { // arch_prctl
-            match a0 { 0x1002 => { e.cpu.fs_base = a1; 0 } 0x1003 => { let _ = e.mmu.write64(a1, e.cpu.fs_base); 0 } 0x1001 => { e.cpu.gs_base = a1; 0 } _ => -EINVAL }
+            match a0 { 0x1002 => { e.cpu.fs_base = a1; 0 } 0x1003 => { e.w64(a1, e.cpu.fs_base); 0 } 0x1001 => { e.cpu.gs_base = a1; 0 } _ => -EINVAL }
         }
-        201 => { let t = (unsafe { crate::host_epoch_ms() } / 1000.0) as i64; if a0 != 0 { let _ = e.mmu.write64(a0, t as u64); } t }
+        201 => { let t = (crate::epoch_ms() / 1000.0) as i64; if a0 != 0 { e.w64(a0, t as u64); } t }
         202 => 0, // futex: one thread, nothing to wait for
-        203 | 204 => { if nr == 204 { let _ = e.mmu.write64(a2, 1); } if nr == 204 { 8 } else { 0 } } // sched_setaffinity / getaffinity
+        203 | 204 => { if nr == 204 { e.w64(a2, 1); } if nr == 204 { 8 } else { 0 } } // sched_setaffinity / getaffinity
         218 => 1, // set_tid_address
         228 => { // clock_gettime
-            let ms = if a0 == 0 || a0 == 5 || a0 == 8 { unsafe { crate::host_epoch_ms() } } else { unsafe { crate::host_now_ms() } };
-            let _ = e.mmu.write64(a1, (ms / 1000.0) as u64); let _ = e.mmu.write64(a1 + 8, ((ms % 1000.0) * 1e6) as u64);
+            let ms = if a0 == 0 || a0 == 5 || a0 == 8 { crate::epoch_ms() } else { crate::now_ms() };
+            e.w64(a1, (ms / 1000.0) as u64); e.w64(a1 + 8, ((ms % 1000.0) * 1e6) as u64);
             0
         }
-        229 => { let _ = e.mmu.write64(a1, 0); let _ = e.mmu.write64(a1 + 8, 1); 0 }
+        229 => { e.w64(a1, 0); e.w64(a1 + 8, 1); 0 }
         230 => { // clock_nanosleep (relative)
-            let ms = e.mmu.read64(a2).unwrap_or(0) as f64 * 1000.0 + e.mmu.read64(a2 + 8).unwrap_or(0) as f64 / 1e6;
+            let ms = e.r64(a2) as f64 * 1000.0 + e.r64(a2 + 8) as f64 / 1e6;
             if ms <= 0.0 || a1 & 1 != 0 { 0 } else { e.cpu.rip -= 2; e.block_linux(Cond::Until, Some(ms)); NORET }
         }
         273 | 334 => 0, // set_robust_list / rseq
         318 => { // getrandom
-            let mut s = (unsafe { crate::host_now_ms() } * 1000.0) as u64 | 1;
-            for k in 0..a1.min(1 << 20) { s ^= s << 13; s ^= s >> 7; s ^= s << 17; let _ = e.mmu.write8(a0 + k, s as u8); }
+            let mut s = (crate::now_ms() * 1000.0) as u64 | 1;
+            for k in 0..a1.min(1 << 20) { s ^= s << 13; s ^= s >> 7; s ^= s << 17; e.w8(a0 + k, s as u8); }
             a1 as i64
         }
         332 => { // statx
@@ -831,7 +831,7 @@ fn ioctl(e: &mut Engine, fd: i32, req: u64, a: u64) -> i64 {
                 t[17..28].copy_from_slice(&[3, 0x1C, 0x7F, 0x15, 4, 0, 1, 0, 0x11, 0x13, 0x1A]); // ^C ^\ DEL ^U ^D, VMIN 1, ^Q ^S ^Z
                 t
             });
-            let lf = lx(e).lflag; let _ = e.mmu.write32(a + 12, lf);
+            let lf = lx(e).lflag; e.w32(a + 12, lf);
             if e.mmu.write_bytes(a, &t[..12]).is_err() { -14 } else { let _ = e.mmu.write_bytes(a + 16, &t[16..]); 0 }
         }
         0x5402..=0x5404 => {
@@ -842,9 +842,9 @@ fn ioctl(e: &mut Engine, fd: i32, req: u64, a: u64) -> i64 {
             l.termios = Some(t);
             0
         }
-        0x5413 => { let (rows, cols) = lx(e).winsize; let w: [u16; 4] = [rows, cols, 0, 0]; for (k, v) in w.iter().enumerate() { let _ = e.mmu.write16(a + 2 * k as u64, *v); } 0 }
+        0x5413 => { let (rows, cols) = lx(e).winsize; let w: [u16; 4] = [rows, cols, 0, 0]; for (k, v) in w.iter().enumerate() { e.w16(a + 2 * k as u64, *v); } 0 }
         0x5414 => 0,
-        0x540F => { let _ = e.mmu.write32(a, 1); 0 }
+        0x540F => { e.w32(a, 1); 0 }
         0x5410 => 0,
         _ => -EINVAL,
     }
@@ -1019,7 +1019,7 @@ fn wait4(e: &mut Engine, pid: i64, status: u64, opts: u64) -> i64 {
     if let Some(&k) = kids.iter().find(|k| l.procs[k].zombie.is_some()) {
         let p = l.procs.remove(&k).unwrap();
         if let Some(s) = p.saved { e.mmu.free_saved(s.space); }
-        if status != 0 { let _ = e.mmu.write32(status, p.zombie.unwrap() as u32); }
+        if status != 0 { e.w32(status, p.zombie.unwrap() as u32); }
         return k as i64;
     }
     if opts & 1 != 0 { return 0; } // WNOHANG
@@ -1192,13 +1192,13 @@ fn dns_answer(names: &mut Vec<String>, q: &[u8]) -> Option<Vec<u8>> {
 
 /// poll/ppoll with real readiness (sockets, the terminal, pipes); it waits when nothing is ready.
 fn poll_socks(e: &mut Engine, fds: u64, n: u64, nr: u64, t: u64) -> bool {
-    let ms = if nr == 7 { t as i32 as i64 } else if t == 0 { -1 } else { (e.mmu.read64(t).unwrap_or(0) * 1000 + e.mmu.read64(t + 8).unwrap_or(0) / 1_000_000) as i64 };
+    let ms = if nr == 7 { t as i32 as i64 } else if t == 0 { -1 } else { (e.r64(t) * 1000 + e.r64(t + 8) / 1_000_000) as i64 };
     if n > 256 { return false; }
     let (mut socks, mut stdin, mut pipes, mut nready) = (Vec::new(), false, Vec::new(), 0i64);
     for k in 0..n {
         let at = fds + 8 * k;
-        let fd = e.mmu.read32(at).unwrap_or(0) as i32;
-        let ev = e.mmu.read16(at + 4).unwrap_or(0);
+        let fd = e.r32(at) as i32;
+        let ev = e.r16(at + 4);
         let l = lx(e);
         let (rd, wr, hup) = if fd < 0 { (false, false, false) } else { match l.fds.get(&fd) {
             Some(Fd::Sock { id }) => {
@@ -1214,10 +1214,10 @@ fn poll_socks(e: &mut Engine, fds: u64, n: u64, nr: u64, t: u64) -> bool {
                 }
             }
             Some(_) => (true, true, false),
-            None => { let _ = e.mmu.write16(at + 6, 0x20); nready += 1; continue; } // POLLNVAL
+            None => { e.w16(at + 6, 0x20); nready += 1; continue; } // POLLNVAL
         } };
         let re = ((if rd { 1 } else { 0 }) | (if wr { 4 } else { 0 })) & ev | if hup { 0x10 } else { 0 };
-        let _ = e.mmu.write16(at + 6, re);
+        e.w16(at + 6, re);
         if re != 0 { nready += 1; }
     }
     if nready > 0 || ms == 0 { ret(e, nready); return true; }
@@ -1245,7 +1245,7 @@ fn read_addr(e: &mut Engine, a: u64, len: u64) -> Option<[u8; 16]> {
 fn write_addr(e: &mut Engine, a: u64, lenp: u64, ad: &[u8; 16]) {
     if a == 0 { return; }
     let _ = e.mmu.write_bytes(a, ad);
-    if lenp != 0 { let _ = e.mmu.write32(lenp, 16); }
+    if lenp != 0 { e.w32(lenp, 16); }
 }
 
 fn net_call(e: &mut Engine, nr: u64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64, a5: u64) -> i64 {
@@ -1292,10 +1292,10 @@ fn net_call(e: &mut Engine, nr: u64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64
                 let _ = e.mmu.read_bytes(a1, &mut d);
                 (d, read_addr(e, a4, a5))
             } else {
-                let (name, nlen, iov, iovn) = (e.mmu.read64(a1).unwrap_or(0), e.mmu.read32(a1 + 8).unwrap_or(0) as u64, e.mmu.read64(a1 + 16).unwrap_or(0), e.mmu.read64(a1 + 24).unwrap_or(0));
+                let (name, nlen, iov, iovn) = (e.r64(a1), e.r32(a1 + 8) as u64, e.r64(a1 + 16), e.r64(a1 + 24));
                 let mut d = Vec::new();
                 for k in 0..iovn.min(64) {
-                    let (b, n) = (e.mmu.read64(iov + 16 * k).unwrap_or(0), e.mmu.read64(iov + 16 * k + 8).unwrap_or(0).min(1 << 20));
+                    let (b, n) = (e.r64(iov + 16 * k), e.r64(iov + 16 * k + 8).min(1 << 20));
                     let mut c = vec![0u8; n as usize]; let _ = e.mmu.read_bytes(b, &mut c); d.extend_from_slice(&c);
                 }
                 (d, read_addr(e, name, nlen))
@@ -1310,11 +1310,11 @@ fn net_call(e: &mut Engine, nr: u64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64
                 if let Some(f) = from { write_addr(e, a4, a5, &f); }
                 v
             } else {
-                let (name, iov, iovn) = (e.mmu.read64(a1).unwrap_or(0), e.mmu.read64(a1 + 16).unwrap_or(0), e.mmu.read64(a1 + 24).unwrap_or(0));
-                let (b, n) = (e.mmu.read64(iov).unwrap_or(0), if iovn > 0 { e.mmu.read64(iov + 8).unwrap_or(0) } else { 0 });
+                let (name, iov, iovn) = (e.r64(a1), e.r64(a1 + 16), e.r64(a1 + 24));
+                let (b, n) = (e.r64(iov), if iovn > 0 { e.r64(iov + 8) } else { 0 });
                 let (v, from) = sock_recv(e, id, b, n, a2 & 0x40 != 0);
-                if let Some(f) = from { if name != 0 { let _ = e.mmu.write_bytes(name, &f); let _ = e.mmu.write32(a1 + 8, 16); } }
-                if v >= 0 { let _ = e.mmu.write64(a1 + 40, 0); let _ = e.mmu.write32(a1 + 48, 0); }
+                if let Some(f) = from { if name != 0 { let _ = e.mmu.write_bytes(name, &f); e.w32(a1 + 8, 16); } }
+                if v >= 0 { e.w64(a1 + 40, 0); e.w32(a1 + 48, 0); }
                 v
             }
         }
@@ -1331,8 +1331,8 @@ fn net_call(e: &mut Engine, nr: u64, a0: u64, a1: u64, a2: u64, a3: u64, a4: u64
         55 => { // getsockopt: SO_ERROR and the rest read as 0
             let id = sid.unwrap();
             let err = if lx(e).socks.get(&id).map_or(false, |s| s.failed) { ECONNREFUSED } else { 0 };
-            if a3 != 0 { let _ = e.mmu.write32(a3, err as u32); }
-            if a4 != 0 { let _ = e.mmu.write32(a4, 4); }
+            if a3 != 0 { e.w32(a3, err as u32); }
+            if a4 != 0 { e.w32(a4, 4); }
             0
         }
         _ => -ENOSYS,

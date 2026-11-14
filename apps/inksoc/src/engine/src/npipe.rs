@@ -161,13 +161,13 @@ impl Engine {
 
     /// ReadFile / WriteFile (kernel32) on a pipe end: OVERLAPPED = { Internal, InternalHigh, offset, hEvent }.
     pub fn np_win32(&mut self, read: bool, h: u64, buf: u64, n: u64, done: u64, ov: u64) -> u64 {
-        let event = if ov != 0 { self.mmu.read64(ov + 16).unwrap_or(0) } else { 0 };
+        let event = if ov != 0 { self.r64(ov + 16) } else { 0 };
         let st = if read { self.np_read(h, event, ov, buf, n) } else { self.np_write(h, event, ov, buf, n) };
         if st == crate::sched::BLOCK || st == crate::sched::RETRY { return st; }
         let got = self.s.fs.np_last;
-        if done != 0 { let _ = self.mmu.write32(done, if st == OK || st == BUFFER_OVERFLOW { got as u32 } else { 0 }); }
+        if done != 0 { self.w32(done, if st == OK || st == BUFFER_OVERFLOW { got as u32 } else { 0 }); }
         let err = match st { OK => return 1, PENDING => 997, BUFFER_OVERFLOW => 234, PIPE_LISTENING => 536, PIPE_DISCONNECTED => 233, _ => 109 };
-        self.set_err(err);
+        self.set_last_error(err);
         0
     }
 
@@ -175,11 +175,11 @@ impl Engine {
     pub fn np_fsctl(&mut self, h: u64, event: u64, iosb: u64, code: u32, inp: u64, inl: u64, out: u64, outl: u64) -> Option<u64> {
         if code == 0x11_0018 && !self.is_npipe(h) {
             // FSCTL_PIPE_WAIT: until an instance is free (or the timeout)
-            let timeout = self.mmu.read64(inp).unwrap_or(0) as i64;
-            let nlen = self.mmu.read32(inp + 8).unwrap_or(0) as u64;
-            let given = self.mmu.read8(inp + 12).unwrap_or(0) != 0;
+            let timeout = self.r64(inp) as i64;
+            let nlen = self.r32(inp + 8) as u64;
+            let given = self.r8(inp + 12) != 0;
             let mut w = vec![0u16; (nlen / 2) as usize];
-            for (i, c) in w.iter_mut().enumerate() { *c = self.mmu.read16(inp + 14 + 2 * i as u64).unwrap_or(0); }
+            for (i, c) in w.iter_mut().enumerate() { *c = self.r16(inp + 14 + 2 * i as u64); }
             let name = String::from_utf16_lossy(&w).to_ascii_lowercase();
             if self.np_free(&name).is_some() { self.iosb(iosb, OK, 0); return Some(OK); }
             if !self.np_exists(&name) && !given { return Some(NAME_NOT_FOUND); }
@@ -218,10 +218,10 @@ impl Engine {
                 let room = outl.saturating_sub(16) as usize;
                 let data: Vec<u8> = p.buf[me].iter().take(room.min(avail)).copied().collect();
                 if outl < 16 { return Some(0xC000_0023); }
-                let _ = self.mmu.write32(out, state);
-                let _ = self.mmu.write32(out + 4, avail as u32);
-                let _ = self.mmu.write32(out + 8, nmsg as u32);
-                let _ = self.mmu.write32(out + 12, mlen as u32);
+                self.w32(out, state);
+                self.w32(out + 4, avail as u32);
+                self.w32(out + 8, nmsg as u32);
+                self.w32(out + 12, mlen as u32);
                 let _ = self.mmu.write_bytes(out + 16, &data);
                 self.iosb(iosb, OK, 16 + data.len() as u64);
                 if state == 4 && avail == 0 { PIPE_BROKEN } else { OK }
@@ -308,7 +308,7 @@ impl Engine {
         let (id, me, sync) = self.np_of(h)?;
         if set {
             if class == 23 { // FilePipeInformation { read mode, completion mode }
-                let mode = self.mmu.read32(buf).unwrap_or(0);
+                let mode = self.r32(buf);
                 if let Some(p) = self.s.fs.npipes.get_mut(&id) { p.msg_read[me] = mode == 1; }
             }
             return Some((OK, 0));
@@ -319,15 +319,15 @@ impl Engine {
         if len < need { return Some((0xC000_0004, 0)); }
         self.zero_n(buf, need);
         match class {
-            16 => { let _ = self.mmu.write32(buf, if sync { 0x20 } else { 0 }); }
-            23 => { let _ = self.mmu.write32(buf, mr as u32); }
+            16 => { self.w32(buf, if sync { 0x20 } else { 0 }); }
+            23 => { self.w32(buf, mr as u32); }
             24 => { // FilePipeLocalInformation
-                let w = |e: &mut Engine, o: u64, v: u32| { let _ = e.mmu.write32(buf + o, v); };
+                let w = |e: &mut Engine, o: u64, v: u32| { e.w32(buf + o, v); };
                 w(self, 0, mt as u32); w(self, 4, 0); w(self, 8, 255); w(self, 12, 1); w(self, 16, 0x10000); w(self, 20, avail as u32);
                 w(self, 24, 0x10000); w(self, 28, 0); w(self, 32, if st == 1 { 3 } else if st == 0 { 2 } else { 4 }); w(self, 36, me as u32);
             }
-            5 => { let _ = self.mmu.write32(buf + 16, 1); }
-            8 => { let _ = self.mmu.write32(buf, 0x12019F); }
+            5 => { self.w32(buf + 16, 1); }
+            8 => { self.w32(buf, 0x12019F); }
             _ => {}
         }
         Some((OK, need))
