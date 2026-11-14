@@ -1,0 +1,21 @@
+name: InkSoC real apps
+# Long installer runs on the engine (Node), off the developer's machine. Edit
+# apps/inksoc/tests/apps/request.json on the InkSoC branch to start one.
+on:
+  push:
+    branches: [claude/project-thread-4zx2qh]
+    paths: [apps/inksoc/tests/apps/request.json]
+  workflow_dispatch:
+jobs:
+  apps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Run
+        run: python3 apps/inksoc/tests/apps/run.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: apps-out, path: apps/inksoc/tests/apps/out }
