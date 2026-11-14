@@ -13,9 +13,25 @@ Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SU
 <p><img src=".github/prints/abrir-arquivo.gif" width="49%" alt="Opening a Word document from the home screen"> <img src=".github/prints/quadro.gif" width="49%" alt="Drawing on the whiteboard"></p>
 <p><img src=".github/prints/planilhas.png" width="49%" alt="A spreadsheet open in Spreadsheets"> <img src=".github/prints/pdf.png" width="49%" alt="A PDF open in the PDF app"></p>
 
+## Repositories
+
+The Hub is the home screen and the editing apps. Larger standalone apps live in their own repositories, published on the same site (so they share the top bar, theme and language) and opened from the Hub:
+
+| | Repository | What | Open |
+|---|---|---|---|
+| <img src="assets/inkdoshub-icone.svg" width="28"> | **[inkdoshub.github.io](https://github.com/InkDOSHub/inkdoshub.github.io)** (this one) | Home screen, documents, PDF, spreadsheets, presentations, photos, video, music, recorder, whiteboard, code, transfer, Wine | [hub.inkdos.workers.dev](https://hub.inkdos.workers.dev/) |
+| <img src="assets/icones-inkdos/wine.svg" width="28"> | **[InkSoC](https://github.com/InkDOSHub/InkSoC)** | Our engine to run Windows programs in the browser (x86-64 JIT + Wine) | [/InkSoC/](https://hub.inkdos.workers.dev/InkSoC/) |
+| <img src="assets/icones-inkdos/terminal.svg" width="28"> | **[InkShell](https://github.com/InkDOSHub/InkShell)** | Linux terminal: Alpine on v86, and Alpine on InkSoC | [/InkShell/](https://hub.inkdos.workers.dev/InkShell/) |
+| <img src="assets/icones-inkdos/webcam.svg" width="28"> | **[InkCam](https://github.com/InkDOSHub/InkCam)** | iPhone camera as a PC webcam, plus the Windows virtual camera | [/InkCam/](https://hub.inkdos.workers.dev/InkCam/) |
+| <img src="assets/icones-inkdos/ia.svg" width="28"> | **[InkMind](https://github.com/InkDOSHub/InkMind)** | AI chat with small models running on the device | [/InkMind/](https://hub.inkdos.workers.dev/InkMind/) |
+| <img src="assets/icones-inkdos/jogos.svg" width="28"> | **[InkArcade](https://github.com/InkDOSHub/InkArcade)** | Retro games (PS1, SNES, N64, NES, GBA) with EmulatorJS | [/InkArcade/](https://hub.inkdos.workers.dev/InkArcade/) |
+| <img src="assets/inkdoshub-icone.svg" width="28"> | **[InkBench](https://github.com/InkDOSHub/InkBench)** | Browser benchmark and browser tests | [/InkBench/](https://hub.inkdos.workers.dev/InkBench/?bench) |
+
+The old addresses (`apps/webcam/`, `apps/ia/`, `apps/jogos/`, `terminal/`, `apps/alpine/`, `apps/inksoc/`, `apps/xeos-tests/`) redirect to the new ones.
+
 ## Apps
 
-| App | Tool (open source) | Folder |
+| App | Tool (open source) | Folder or repository |
 |---|---|---|
 | PDF, Documents, Spreadsheets, Presentations, Plain text, EPUB reader | InkDOS apps (2.9.0), copied here and maintained in this repo: New, Open and Save in the ☰ menu; in Documents, Spreadsheets and Presentations the editing ribbon sits behind the brush button | `inkdos/` |
 | WordCraft, GridCraft, DeckCraft | [ArtCraft](https://github.com/storytold) editors (MIT/Apache-2.0) for text, spreadsheets and presentations, downloaded from their web releases by the `artcraft.yml` action | `artcraft/` and `apps/*craft/` |
@@ -25,11 +41,13 @@ Docs: [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SU
 | Video | Player and simple editor (trim, sound, export at original/1080p/720p/480p) with single-thread ffmpeg.wasm 0.12.5 | `apps/video/` |
 | Music | Player with playlist, 10-band equalizer, volume boost, balance and speed | `apps/musica/` |
 | Recorder | Records computer audio, microphone or screen sound; each recording downloads automatically and shows up in Music | `apps/gravador/` |
-| Webcam | Turns the iPhone camera into a PC webcam over WebRTC (up to 4K 60 fps), paired by QR code with [PeerJS](https://github.com/peers/peerjs) (its free public server is used only for pairing). On Windows, OBS Studio or the native receiver turns it into a virtual camera | `apps/webcam/` |
+| Webcam | Turns the iPhone camera into a PC webcam over WebRTC (up to 4K 60 fps), paired by QR code with [PeerJS](https://github.com/peers/peerjs) (its free public server is used only for pairing). On Windows, OBS Studio or the native receiver turns it into a virtual camera | [InkCam](https://github.com/InkDOSHub/InkCam) |
 | Transfer | Sends files between the phone and a Windows PC over the local network (WebRTC), no internet needed, with connection diagnostics | `apps/transferir/` |
 | Whiteboard | [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT), saved in IndexedDB | `apps/quadro/` |
 | Code | [VS Code for the web](https://github.com/Felx-B/vscode-web) (MIT), with a folder stored in the browser | `apps/codigo/` |
-| Linux terminal | Alpine Linux 3.22 on [v86](https://github.com/copy/v86) | `terminal/` |
+| Linux terminal | Alpine Linux on [v86](https://github.com/copy/v86), and Alpine on InkSoC (faster, experimental) | [InkShell](https://github.com/InkDOSHub/InkShell) |
+| AI Chat | Small models (Qwen, Llama) on the device with wllama | [InkMind](https://github.com/InkDOSHub/InkMind) |
+| Games | PS1, SNES, N64, NES, GBA with EmulatorJS | [InkArcade](https://github.com/InkDOSHub/InkArcade) |
 
 The home screen is an app drawer (icon and name, like Launchpad) with search, a folder button that opens any file in the right app, and the ☰ menu with theme, language, Offline mode, Customize (hide apps, drag to reorder) and the default Office app (InkDOS, fast, or ArtCraft, full). Each tool opens only when asked and manages its own memory. All pages share the same top bar and light/dark theme (`assets/barra.css`, `assets/tema.js`).
 
