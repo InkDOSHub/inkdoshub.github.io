@@ -16,12 +16,9 @@ import hashlib, json, os, re, sys
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GRUPOS = [
     ("inicio", "Home screen", ["inicio", "assets", "idiomas", "index.html", "manifest.webmanifest", "sw-portal.js", "desktop/index.html"]),
-    ("terminal", "Linux terminal", ["terminal"]),
     ("wine", "Wine", ["apps/wine"]),
     ("zip", "Zip", ["apps/zip"]),
     ("seguranca", "Security", ["apps/seguranca"]),
-    ("jogos", "Games (PS1, SNES, N64, NES, GBA)", ["apps/jogos"]),
-    ("ia", "AI Chat (experimental)", ["apps/ia"]),
     ("wasm", "Wasm Build", ["apps/wasm"]),
     ("foto", "Photos", ["apps/foto"]),
     ("video", "Video", ["apps/video"]),
@@ -30,7 +27,6 @@ GRUPOS = [
     ("musica", "Music", ["apps/musica"]),
     ("gravador", "Recorder", ["apps/gravador"]),
     ("transferir", "Transfer", ["apps/transferir"]),
-    ("webcam", "Webcam", ["apps/webcam"]),
     ("inkdos", "Documents (InkDOS)", ["inkdos"]),
     ("artcraft", "ArtCraft editors", ["artcraft", "apps/wordcraft", "apps/gridcraft", "apps/deckcraft"]),
     ("visualizadores", "Edit PDF (BentoPDF) and viewers", ["apps/editar-pdf", "visualizadores"]),

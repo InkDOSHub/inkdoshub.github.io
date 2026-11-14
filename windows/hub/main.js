@@ -188,8 +188,8 @@ function semInternet(rel, e) {
 // ---------- Webcam: on Windows opens the native app (virtual camera), not the iPhone page ----------
 // Downloads InkDOSHub-Webcam-Windows.zip from the webcam-windows release, checks the published SHA-256, extracts to
 // %LOCALAPPDATA%\InkDOS Hub\webcam and opens it. Next times it only opens (and updates if the release changed).
-const WEBCAM = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip';
-const ehWebcam = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/webcam/'); } catch (_) { return false; } };
+const WEBCAM = 'https://github.com/InkDOSHub/InkCam/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip';
+const ehWebcam = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/InkCam/'); } catch (_) { return false; } };
 let webcamOcupada = false;
 // Downloads from GitHub releases: Electron's fetch first; if it fails (proxy, antivirus, redirect), Windows' own curl.exe.
 async function baixarBuf(url) {
@@ -261,7 +261,7 @@ async function abrirWebcam() {
 // ---------- Terminal: on Windows uses Windows' own Linux (WSL), with near-native power ----------
 // With WSL installed, opens Linux in Windows Terminal. Without it, explains and installs (wsl --install: asks for
 // administrator once, downloads the official Ubuntu from Microsoft and may ask to restart). The site terminal remains an option.
-const ehTerminal = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/terminal/'); } catch (_) { return false; } };
+const ehTerminal = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/InkShell/'); } catch (_) { return false; } };
 const cp = require('child_process');
 function distrosWsl() {
   return new Promise(ok => {
@@ -287,7 +287,7 @@ function terminalDoSite() {
   const w = new BrowserWindow(opcoes(1100, 760));
   w.versaoDoSite = true;
   cuidar(w);
-  w.loadURL(SITE + 'terminal/');
+  w.loadURL(SITE + 'InkShell/');
 }
 let janelaTerminal = null;
 async function abrirTerminal() {
@@ -454,7 +454,7 @@ async function abrirTransferir() {
 // package manager, which checks the publisher's hash). If winget fails, opens the official download page.
 // Games, ROMs, BIOS and system images are not included: the person uses their own.
 const ehWine = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/wine/'); } catch (_) { return false; } };
-const ehJogos = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/jogos/'); } catch (_) { return false; } };
+const ehJogos = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/InkArcade/'); } catch (_) { return false; } };
 const EMULADORES = [
   { g: 'jogo', nome: 'Games (InkDOS Hub)', web: true, pt: 'Emulador do próprio Hub, sem instalar: PS1, SNES, N64, NES e GBA.', en: 'The Hub\'s own emulator, nothing to install: PS1, SNES, N64, NES and GBA.' },
   { g: 'vm', nome: 'VirtualBox', id: 'Oracle.VirtualBox', pub: /^Oracle\./i, menu: 'VirtualBox', site: 'https://www.virtualbox.org/wiki/Downloads', pt: 'Máquina virtual fácil: Linux, Windows e outros sistemas, com várias configurações.', en: 'Easy virtual machine: Linux, Windows and other systems, with many settings.' },
@@ -538,9 +538,9 @@ async function abrirQemu(pasta) {
 }
 // Wine card: virtual machines and macOS (PC emulation); Games card: consoles
 const janelasEmuladores = {};
-function abrirJogosWeb() { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); w.loadURL(SITE + 'apps/jogos/'); }
+function abrirJogosWeb() { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); w.loadURL(SITE + 'InkArcade/'); }
 async function abrirEmuladores(jogos) {
-  if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + (jogos ? 'apps/jogos/' : 'apps/wine/')); }
+  if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + (jogos ? 'InkArcade/' : 'apps/wine/')); }
   const k = jogos ? 'jogo' : 'pc';
   if (janelasEmuladores[k] && !janelasEmuladores[k].isDestroyed()) return janelasEmuladores[k].focus();
   const pt = /^pt/i.test(app.getLocale());

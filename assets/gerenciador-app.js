@@ -8,11 +8,11 @@
   var RAIZ = new URL("../", script ? script.src : location.href).href;
 
   var APPS = [
-    { id: "terminal", nome: "Linux terminal", url: "terminal/" },
+    { id: "terminal", nome: "Linux terminal", url: "InkShell/" },
     { id: "wine", nome: "Wine", url: "apps/wine/" },
     { id: "zip", nome: "Zip", url: "apps/zip/" },
-    { id: "jogos", nome: "Games", url: "apps/jogos/" },
-    { id: "ia", nome: "AI Chat", url: "apps/ia/" },
+    { id: "jogos", nome: "Games", url: "InkArcade/" },
+    { id: "ia", nome: "AI Chat", url: "InkMind/" },
     { id: "wasm", nome: "Wasm Build", url: "apps/wasm/" },
     { id: "foto", nome: "Photos", url: "apps/foto/" },
     { id: "videoeditor", nome: "Edit video", url: "apps/video/cortar/" },
@@ -21,7 +21,7 @@
     { id: "quadro", nome: "Whiteboard", url: "apps/quadro/" },
     { id: "musica", nome: "Music", url: "apps/musica/" },
     { id: "gravador", nome: "Recorder", url: "apps/gravador/" },
-    { id: "webcam", nome: "Webcam", url: "apps/webcam/" },
+    { id: "webcam", nome: "Webcam", url: "InkCam/" },
     { id: "transferir", nome: "Transfer", url: "apps/transferir/" },
     // copy of the InkDOS apps (inkdos/); suite=1 shows the Home button, which goes back to the home screen
     { id: "documentos", nome: "Documents", url: "inkdos/apps/documents/index.html?suite=1" },

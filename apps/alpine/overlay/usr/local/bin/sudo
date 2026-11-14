@@ -1,6 +1,0 @@
-#!/bin/sh
-# sudo for this terminal: asks your password (root's password is the same) and runs the command as root
-[ "$(id -u)" -eq 0 ] && exec "$@"
-[ $# -eq 0 ] && { echo "usage: sudo COMMAND"; exit 1; }
-q=""; for a in "$@"; do q="$q '$(printf %s "$a" | sed "s/'/'\\\\''/g")'"; done
-exec su root -c "$q"
