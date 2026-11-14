@@ -26,3 +26,15 @@ jobs:
           git commit -m "Update offline copy list"
           for i in 1 2 3; do git pull --rebase -q origin main && git push && exit 0; sleep 5; done
           exit 1
+      # The Cloudflare site serves the "cloudflare" branch: copy main there too, or its offline list
+      # keeps old hashes and "Update" fails with "Failed, try again".
+      - name: Copy main to the cloudflare branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3; do
+            git fetch -q origin main cloudflare && git checkout -q -B cf origin/cloudflare \
+              && git merge -q --no-edit origin/main && git push -q origin cf:cloudflare && exit 0
+            sleep 5
+          done
+          exit 1
