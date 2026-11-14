@@ -343,8 +343,8 @@ pub extern "C" fn run(budget: u32) -> i32 {
             let _ = done_other;
             if !ok {
                 idle = e.s.error.is_none();
-                // the page's core goes back to JavaScript when there are windows (screen updates, input)
-                if lock::MT && idle && !(e.core == 0 && { let _g = lock::lock(); !e.s.win.tops.is_empty() }) { let g = lock::gen(); lock::idle(g, e.idle_ms); idle = false; left = left.saturating_sub(1000); continue; }
+                // the page's core goes back to JavaScript when there are windows (screen updates, input) or sockets
+                if lock::MT && idle && !(e.core == 0 && { let _g = lock::lock(); !e.s.win.tops.is_empty() || e.s.net.busy() }) { let g = lock::gen(); lock::idle(g, e.idle_ms); idle = false; left = left.saturating_sub(1000); continue; }
                 break;
             }
         }

@@ -167,6 +167,14 @@ pub extern "C" fn win_net_in(id: u32, kind: u32) {
     }
 }
 
+impl Net {
+    /// Sockets are open: the page has to look at the network often (core 0 goes back to it
+    /// instead of sleeping in the engine).
+    pub fn busy(&self) -> bool {
+        !self.socks.is_empty()
+    }
+}
+
 impl Engine {
     fn sock_of(&self, h: u64) -> Option<u32> {
         match self.s.fs.handles.get(&h) {
