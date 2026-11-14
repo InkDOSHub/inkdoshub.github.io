@@ -19,7 +19,6 @@ GRUPOS = [
     ("wine", "Wine", ["apps/wine"]),
     ("zip", "Zip", ["apps/zip"]),
     ("seguranca", "Security", ["apps/seguranca"]),
-    ("jogos", "Games (PS1, SNES, N64, NES, GBA)", ["apps/jogos"]),
     ("wasm", "Wasm Build", ["apps/wasm"]),
     ("foto", "Photos", ["apps/foto"]),
     ("video", "Video", ["apps/video"]),

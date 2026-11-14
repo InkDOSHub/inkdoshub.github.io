@@ -11,7 +11,7 @@
     { id: "terminal", nome: "Linux terminal", url: "InkShell/" },
     { id: "wine", nome: "Wine", url: "apps/wine/" },
     { id: "zip", nome: "Zip", url: "apps/zip/" },
-    { id: "jogos", nome: "Games", url: "apps/jogos/" },
+    { id: "jogos", nome: "Games", url: "InkArcade/" },
     { id: "ia", nome: "AI Chat", url: "InkMind/" },
     { id: "wasm", nome: "Wasm Build", url: "apps/wasm/" },
     { id: "foto", nome: "Photos", url: "apps/foto/" },

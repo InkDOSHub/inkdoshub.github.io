@@ -454,7 +454,7 @@ async function abrirTransferir() {
 // package manager, which checks the publisher's hash). If winget fails, opens the official download page.
 // Games, ROMs, BIOS and system images are not included: the person uses their own.
 const ehWine = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/wine/'); } catch (_) { return false; } };
-const ehJogos = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/jogos/'); } catch (_) { return false; } };
+const ehJogos = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/InkArcade/'); } catch (_) { return false; } };
 const EMULADORES = [
   { g: 'jogo', nome: 'Games (InkDOS Hub)', web: true, pt: 'Emulador do próprio Hub, sem instalar: PS1, SNES, N64, NES e GBA.', en: 'The Hub\'s own emulator, nothing to install: PS1, SNES, N64, NES and GBA.' },
   { g: 'vm', nome: 'VirtualBox', id: 'Oracle.VirtualBox', pub: /^Oracle\./i, menu: 'VirtualBox', site: 'https://www.virtualbox.org/wiki/Downloads', pt: 'Máquina virtual fácil: Linux, Windows e outros sistemas, com várias configurações.', en: 'Easy virtual machine: Linux, Windows and other systems, with many settings.' },
@@ -538,7 +538,7 @@ async function abrirQemu(pasta) {
 }
 // Wine card: virtual machines and macOS (PC emulation); Games card: consoles
 const janelasEmuladores = {};
-function abrirJogosWeb() { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); w.loadURL(SITE + 'apps/jogos/'); }
+function abrirJogosWeb() { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); w.loadURL(SITE + 'InkArcade/'); }
 async function abrirEmuladores(jogos) {
   if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + (jogos ? 'apps/jogos/' : 'apps/wine/')); }
   const k = jogos ? 'jogo' : 'pc';
