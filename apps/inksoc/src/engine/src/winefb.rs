@@ -252,7 +252,7 @@ impl Engine {
         const K: u64 = 0x7FFE_0000;
         let ms = crate::now_ms();
         let it = (ms * 10_000.0) as u64;
-        let st = (crate::epoch_ms() as u64 + 11_644_473_600_000) * 10_000;
+        let st = crate::filetime_now();
         let tick = (ms * 64.0 / 1000.0) as u64;
         for (o, v) in [(0x08u64, it), (0x14, st), (0x320, tick)] {
             self.w32(K + o + 8, (v >> 32) as u32);

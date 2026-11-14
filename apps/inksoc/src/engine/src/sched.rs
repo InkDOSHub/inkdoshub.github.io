@@ -473,7 +473,7 @@ fn nt_timeout(e: &mut Engine, p: u64) -> u64 {
     if p == 0 { return 0xFFFF_FFFF; }
     let v = e.r64(p) as i64;
     if v < 0 { ((-v) as u64 / 10_000).min(0xFFFF_FFFE) } else {
-        let now_ft = (crate::epoch_ms() as i64 + 11_644_473_600_000) * 10_000;
+        let now_ft = crate::filetime_now() as i64;
         ((v - now_ft).max(0) as u64 / 10_000).min(0xFFFF_FFFE)
     }
 }
@@ -481,7 +481,7 @@ fn nt_timeout(e: &mut Engine, p: u64) -> u64 {
 /// Due time (host ms) of an NT/Win32 timer setting (LARGE_INTEGER value).
 fn timer_due(v: i64) -> f64 {
     if v < 0 { crate::now_ms() + (-v) as f64 / 10_000.0 } else {
-        let now_ft = (crate::epoch_ms() as i64 + 11_644_473_600_000) * 10_000;
+        let now_ft = crate::filetime_now() as i64;
         crate::now_ms() + (v - now_ft).max(0) as f64 / 10_000.0
     }
 }

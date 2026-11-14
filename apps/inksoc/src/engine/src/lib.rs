@@ -48,6 +48,12 @@ extern "C" {
 pub(crate) fn now_ms() -> f64 { unsafe { host_now_ms() } }
 pub(crate) fn epoch_ms() -> f64 { unsafe { host_epoch_ms() } }
 
+/// Seconds between 1601-01-01 (the FILETIME origin) and 1970-01-01.
+pub(crate) const UNIX_TO_FILETIME_SECS: u64 = 11_644_473_600;
+
+/// The current time as a Windows FILETIME (100 ns ticks since 1601).
+pub(crate) fn filetime_now() -> u64 { (epoch_ms() as u64 + UNIX_TO_FILETIME_SECS * 1000) * 10_000 }
+
 extern "C" {
     fn wine_RtlComputeCrc32(init: u32, data: u64, len: i32) -> u32;
     fn wine_lstrlenA(s: u64) -> i32;

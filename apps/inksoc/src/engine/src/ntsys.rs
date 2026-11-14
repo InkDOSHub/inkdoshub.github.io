@@ -7,7 +7,14 @@ use crate::files::Handle;
 use crate::Engine;
 
 
-fn now_ft() -> u64 { (crate::epoch_ms() as u64 + 11_644_473_600_000) * 10_000 }
+/// The byte offset an NtReadFile/NtWriteFile call names, or None for "the current position"
+/// (no offset, or FILE_USE_FILE_POINTER_POSITION / FILE_WRITE_TO_END_OF_FILE style negatives).
+fn file_offset(e: &mut Engine, offp: u64) -> Option<u64> {
+    if offp == 0 { return None; }
+    let o = e.mmu.read64(offp).unwrap_or(u64::MAX);
+    if o as i64 >= 0 { Some(o) } else { None }
+}
+
 
 impl Engine {
     pub(crate) fn iosb(&mut self, p: u64, status: u64, info: u64) {
@@ -221,13 +228,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     Err(false) => e.wait_on(crate::sched::W::Pipe(id), u64::MAX),
                 });
             }
-            let (k, pos) = match e.s.fs.handles.get(&a0) { Some(Handle::File { name, pos }) => (name.clone(), *pos), _ => return Some(INVALID_HANDLE) };
-            let pos = if offp != 0 { let o = e.mmu.read64(offp).unwrap_or(u64::MAX); if o as i64 >= 0 { o } else { pos } } else { pos };
-            let data = e.s.files.read_at(&k, pos, n as u64).unwrap_or_default();
-            if data.is_empty() && n > 0 { e.iosb(iosb, END_OF_FILE, 0); return Some(END_OF_FILE); }
-            if e.mmu.write_bytes(buf, &data).is_err() { e.fault(buf); }
-            if let Some(Handle::File { pos: p, .. }) = e.s.fs.handles.get_mut(&a0) { *p = pos + data.len() as u64; }
-            e.iosb(iosb, OK, data.len() as u64);
+            let at = file_offset(e, offp);
+            let Some(got) = e.file_read(a0, at, buf, n) else { return Some(INVALID_HANDLE) };
+            if got == 0 && n > 0 { e.iosb(iosb, END_OF_FILE, 0); return Some(END_OF_FILE); }
+            e.iosb(iosb, OK, got as u64);
             OK
         }
         "NtWriteFile" => {
@@ -238,14 +242,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if a0 == 1 || a0 == 2 { crate::console(&String::from_utf8_lossy(&v)); e.iosb(iosb, OK, n); return Some(OK); }
             if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { e.iosb(iosb, OK, n); return Some(OK); }
             if e.pipe_write(a0, buf, n) { e.iosb(iosb, OK, n); return Some(OK); }
-            let (k, pos) = match e.s.fs.handles.get(&a0) { Some(Handle::File { name, pos }) => (name.clone(), *pos), _ => return Some(INVALID_HANDLE) };
-            let pos = if offp != 0 { let o = e.mmu.read64(offp).unwrap_or(u64::MAX); if o as i64 >= 0 { o } else { pos } } else { pos };
-            let d = e.s.files.entry_or_default(k.clone());
-            let end = pos as usize + v.len();
-            if d.len() < end { d.resize(end, 0); }
-            d[pos as usize..end].copy_from_slice(&v);
-            e.s.fs.written.insert(k);
-            if let Some(Handle::File { pos: p, .. }) = e.s.fs.handles.get_mut(&a0) { *p = end as u64; }
+            let at = file_offset(e, offp);
+            if !e.file_write(a0, at, &v) { return Some(INVALID_HANDLE); }
             e.iosb(iosb, OK, n);
             OK
         }
@@ -270,7 +268,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if need == 0 { return Some(INVALID_INFO_CLASS); }
             if len < need { return Some(INFO_LENGTH_MISMATCH); }
             e.zero_n(buf, need);
-            let ft = now_ft();
+            let ft = crate::filetime_now();
             let basic = |e: &mut Engine, b: u64| { for o in [0, 8, 16, 24] { e.w64(b + o, ft); } e.w32(b + 32, attr); };
             let std_ = |e: &mut Engine, b: u64| { e.w64(b, (size + 4095) & !4095); e.w64(b + 8, size); e.w32(b + 16, 1); e.w8(b + 21, dir as u8); };
             match class {
@@ -350,7 +348,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let found = match crate::files::key_of(&nm) { None => Some((0x10u32, 0u64)), Some(k) => if e.is_dir(&k) { Some((0x10u32, 0u64)) } else { e.s.files.size(&k).map(|d| (0x80u32, d)) } };
             match found {
                 Some((attr, size)) => {
-                    let ft = now_ft();
+                    let ft = crate::filetime_now();
                     for o in [0, 8, 16, 24] { e.w64(out + o, ft); }
                     if name == "NtQueryAttributesFile" { e.w32(out + 32, attr); }
                     else { e.w64(out + 32, (size + 4095) & !4095); e.w64(out + 40, size); e.w32(out + 48, attr); }
@@ -612,12 +610,11 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     e.w8(buf + 0x38, e.s.cores as u8);
                 }
                 1 | 0x3F => { e.w16(buf, if class == 0x3F { 0 } else { 9 }); e.w16(buf + 2, 6); e.w16(buf + 4, 0x9E00); e.w16(buf + 6, e.s.cores as u16); e.w32(buf + 8, 0x0000_3FFF); }
-                3 => { e.w64(buf, now_ft()); e.w64(buf + 8, now_ft()); }
+                3 => { e.w64(buf, crate::filetime_now()); e.w64(buf + 8, crate::filetime_now()); }
                 _ => {}
             }
             OK
         }
-        "NtQuerySystemTime" => { e.w64(a0, now_ft()); OK }
         "NtGetTickCount" => crate::now_ms() as u64 & 0xFFFF_FFFF,
         "NtQueryPerformanceCounter" => { let v = (crate::now_ms() * 10_000.0) as u64; e.w64(a0, v); let f = e.arg(1); if f != 0 { e.w64(f, 10_000_000); } OK }
         "NtQueryTimerResolution" => { let (b, c) = (e.arg(1), e.arg(2)); e.w32(a0, 156_250); e.w32(b, 5000); e.w32(c, 156_250); OK }

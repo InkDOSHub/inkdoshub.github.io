@@ -41,7 +41,7 @@ impl Engine {
         }
     }
 
-    fn write_out(&mut self, h: u64, p: u64, n: u64) -> bool {
+    pub(crate) fn write_out(&mut self, h: u64, p: u64, n: u64) -> bool {
         if h != 1 && h != 2 { return false; }
         let mut v = vec![0u8; n.min(1 << 20) as usize];
         if self.mmu.read_bytes(p, &mut v).is_err() { return false; }
@@ -68,7 +68,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
     let r = match name {
         // ---- console & process ----
         "GetStdHandle" => match a0 as u32 as i32 { -10 => e.s.std[0], -11 => e.s.std[1], -12 => e.s.std[2], _ => u64::MAX },
-        "WriteFile" | "WriteConsoleA" => {
+        "WriteConsoleA" => {
             let (p, n, w) = (e.arg(1), e.arg(2) as u32 as u64, e.arg(3));
             if e.write_out(a0, p, n) { e.w32(w, n as u32); 1 } else { e.set_last_error(6); 0 }
         }
@@ -83,8 +83,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "GetConsoleMode" => { if a0 == 0 || a0 > 3 { return Some(0); } let a = e.arg(1); e.w32(a, if a0 == 3 { 0x1F7 } else { 7 }); 1 }
         "SetConsoleMode" | "SetConsoleCtrlHandler" | "SetConsoleOutputCP" | "SetConsoleCP" => 1,
         "GetConsoleCP" | "GetConsoleOutputCP" => 65001,
-        "GetFileType" => if a0 <= 3 { 2 } else { 0 },
-        "FlushFileBuffers" => 1,
         "OutputDebugStringA" => { let s = e.read_cstr(a0, 4096); console(&format!("[debug] {}", s)); 0 }
         "ExitProcess" => { e.exit_process(a0 as u32); return Some(NO_RETURN); }
         "TerminateProcess" => {
@@ -95,7 +93,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
         }
         "GetCurrentProcessId" => 4,
-        "GetCurrentThreadId" => 8,
         "GetCurrentProcess" => u64::MAX,
         "GetCurrentThread" => u64::MAX - 1,
         "GetCommandLineA" => e.s.cmdline.0,
@@ -193,11 +190,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "QueryPerformanceFrequency" => { e.w64(a0, 10_000_000); 1 }
         "QueryPerformanceCounter" => { let v = (crate::now_ms() * 10_000.0) as u64; e.w64(a0, v); 1 }
         "GetSystemTimeAsFileTime" | "GetSystemTimePreciseAsFileTime" => {
-            let ft = (crate::epoch_ms() as u64 + 11_644_473_600_000) * 10_000;
+            let ft = crate::filetime_now();
             e.w64(a0, ft); 0
         }
-        "Sleep" | "SleepEx" => 0,
-        "SwitchToThread" => 0,
 
         // ---- system ----
         "GetSystemInfo" | "GetNativeSystemInfo" => { e.get_system_info(a0); 0 }
@@ -228,10 +223,6 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "TlsSetValue" | "FlsSetValue" => { let v = e.arg(1); if a0 < 64 { e.w64(e.cpu.gs_base + 0x1480 + 8 * a0, v); 1 } else { 0 } }
 
         // ---- locks: one thread for now, so they only need to exist ----
-        "InitializeCriticalSection" | "InitializeCriticalSectionAndSpinCount" | "InitializeCriticalSectionEx" => { e.zero(a0, 40); 1 }
-        "EnterCriticalSection" | "LeaveCriticalSection" | "DeleteCriticalSection" => 0,
-        "TryEnterCriticalSection" => 1,
-        "InitializeSRWLock" | "AcquireSRWLockExclusive" | "ReleaseSRWLockExclusive" | "AcquireSRWLockShared" | "ReleaseSRWLockShared" => 0,
 
         // ---- heap ----
         "GetProcessHeap" | "HeapCreate" => PROCESS_HEAP,

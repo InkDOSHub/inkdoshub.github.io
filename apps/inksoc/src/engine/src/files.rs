@@ -257,7 +257,7 @@ impl Engine {
         for i in 0..592 / 8 { self.w64(a + 8 * i, 0); }
         let (attr, size) = match self.s.files.size(name) { Some(d) => (ATTR_NORMAL, d), None => (ATTR_DIR, 0) };
         let name = &self.shown(name);
-        let ft = file_time_now();
+        let ft = crate::filetime_now();
         self.w32(a, attr);
         for o in [4, 12, 20] { self.w64(a + o, ft); }
         self.w32(a + 28, (size >> 32) as u32);
@@ -271,9 +271,33 @@ impl Engine {
     fn set_pos(&mut self, h: u64, p: u64) {
         if let Some(Handle::File { pos, .. }) = self.s.fs.handles.get_mut(&h) { *pos = p; }
     }
+
+    /// Reads up to `n` bytes of an open disk file into guest memory, at `at` or at the
+    /// handle's position, and moves the position past them. None: `h` is not a disk file.
+    pub(crate) fn file_read(&mut self, h: u64, at: Option<u64>, buf: u64, n: u64) -> Option<usize> {
+        let (k, pos) = self.file_mut(h)?;
+        let pos = at.unwrap_or(pos);
+        let data = self.s.files.read_at(&k, pos, n).unwrap_or_default();
+        if self.mmu.write_bytes(buf, &data).is_err() { self.fault(buf); }
+        self.set_pos(h, pos + data.len() as u64);
+        Some(data.len())
+    }
+
+    /// Writes `v` to an open disk file, at `at` or at the handle's position, growing the
+    /// file as needed. False: `h` is not a disk file.
+    pub(crate) fn file_write(&mut self, h: u64, at: Option<u64>, v: &[u8]) -> bool {
+        let Some((k, pos)) = self.file_mut(h) else { return false };
+        let pos = at.unwrap_or(pos) as usize;
+        if !k.starts_with('|') { self.s.fs.written.insert(k.clone()); }
+        let d = self.s.files.entry_or_default(k);
+        let end = pos + v.len();
+        if d.len() < end { d.resize(end, 0); }
+        d[pos..end].copy_from_slice(v);
+        self.set_pos(h, end as u64);
+        true
+    }
 }
 
-fn file_time_now() -> u64 { (crate::epoch_ms() as u64 + 11_644_473_600_000) * 10_000 }
 
 /// Days since 1601-01-01 -> (year, month, day, weekday).
 fn civil(days: i64) -> (i64, u32, u32, u32) {
@@ -352,7 +376,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             };
             match found {
                 Some((attr, size)) => {
-                    let ft = file_time_now();
+                    let ft = crate::filetime_now();
                     e.w32(out, attr);
                     for o in [4, 12, 20] { e.w64(out + o, ft); }
                     e.w32(out + 28, (size >> 32) as u32);
@@ -436,11 +460,8 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     Err(false) => e.wait_on(crate::sched::W::Pipe(id), u64::MAX),
                 });
             }
-            let Some((k, pos)) = e.file_mut(a0) else { return None };
-            let data = e.s.files.read_at(&k, pos, n).unwrap_or_default();
-            if e.mmu.write_bytes(buf, &data).is_err() { e.fault(buf); }
-            e.set_pos(a0, pos + data.len() as u64);
-            if done != 0 { e.w32(done, data.len() as u32); }
+            let got = e.file_read(a0, None, buf, n)?;
+            if done != 0 { e.w32(done, got as u32); }
             1
         }
         "WriteFile" => {
@@ -448,19 +469,18 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if e.is_npipe(a0) { let ov = e.arg(4); return Some(e.np_win32(false, a0, buf, n, done, ov)); }
             if matches!(e.s.fs.handles.get(&a0), Some(Handle::Null)) { if done != 0 { e.w32(done, n as u32); } return Some(1); }
             if e.pipe_write(a0, buf, n) { if done != 0 { e.w32(done, n as u32); } return Some(1); }
-            let Some((k, pos)) = e.file_mut(a0) else { return None }; // console: kernel32
-            let mut v = vec![0u8; n as usize];
-            if e.mmu.read_bytes(buf, &mut v).is_err() { e.fault(buf); }
-            if !k.starts_with('|') { e.s.fs.written.insert(k.clone()); }
-            let d = e.s.files.entry_or_default(k);
-            let end = pos as usize + v.len();
-            if d.len() < end { d.resize(end, 0); }
-            d[pos as usize..end].copy_from_slice(&v);
-            e.set_pos(a0, end as u64);
+            if e.file_mut(a0).is_some() {
+                let mut v = vec![0u8; n as usize];
+                if e.mmu.read_bytes(buf, &mut v).is_err() { e.fault(buf); }
+                e.file_write(a0, None, &v);
+            } else if !e.write_out(a0, buf, n) {
+                e.set_last_error(6); // the console, or nothing
+                return Some(0);
+            }
             if done != 0 { e.w32(done, n as u32); }
             1
         }
-        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(Handle::Pipe { .. } | Handle::Afd | Handle::NPipe { .. }) => 3, Some(_) => 1, None => return None },
+        "GetFileType" => match e.s.fs.handles.get(&a0) { Some(Handle::Null) => 2, Some(Handle::Pipe { .. } | Handle::Afd | Handle::NPipe { .. }) => 3, Some(_) => 1, None => if a0 <= 3 { 2 } else { 0 } },
         "PeekNamedPipe" => {
             if e.is_npipe(a0) { return None; } // named pipes: Wine's, over FSCTL_PIPE_PEEK
             let Some(id) = e.pipe_id(a0) else { e.set_last_error(6); return Some(0) };
@@ -509,7 +529,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 Some((k, _)) => (ATTR_NORMAL, e.s.files.size(&k).unwrap_or(0)),
                 None => (ATTR_DIR, 0),
             };
-            let ft = file_time_now();
+            let ft = crate::filetime_now();
             e.w32(out, attr);
             for o in [4, 12, 20] { e.w64(out + o, ft); }
             e.w32(out + 28, 0x1A2B3C4D);

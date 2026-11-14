@@ -357,15 +357,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             1
         }
         "NtQuerySystemTime" | "RtlQuerySystemTime" => {
-            let ft = (crate::epoch_ms() as u64 + 11_644_473_600_000) * 10_000;
+            let ft = crate::filetime_now();
             e.w64(a0, ft); 0
         }
         "RtlTimeToSecondsSince1970" => {
             let t = e.r64(a0);
             let s = t / 10_000_000;
-            if s < 11_644_473_600 || s - 11_644_473_600 > u32::MAX as u64 { 0 } else { let o = e.arg(1); e.w32(o, (s - 11_644_473_600) as u32); 1 }
+            if s < crate::UNIX_TO_FILETIME_SECS || s - crate::UNIX_TO_FILETIME_SECS > u32::MAX as u64 { 0 } else { let o = e.arg(1); e.w32(o, (s - crate::UNIX_TO_FILETIME_SECS) as u32); 1 }
         }
-        "RtlSecondsSince1970ToTime" => { let o = e.arg(1); e.w64(o, (a0 as u32 as u64 + 11_644_473_600) * 10_000_000); 0 }
+        "RtlSecondsSince1970ToTime" => { let o = e.arg(1); e.w64(o, (a0 as u32 as u64 + crate::UNIX_TO_FILETIME_SECS) * 10_000_000); 0 }
 
         // ---- environment ----
         "GetEnvironmentStringsW" => e.s.env_block,
