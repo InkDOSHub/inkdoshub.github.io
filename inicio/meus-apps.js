@@ -16,13 +16,13 @@
   var grade = document.querySelector(".workspace-grid");
   var escondidos = ler(K_ESC);
   /* Device default (once, v2 of 2026-11-09). Later the person changes it in Customize.
-     iPhone: InkDOS editors; ArtCraft, Whiteboard, Linux terminal, Webcam, Code, AI Chat, Wine and Games hidden.
+     iPhone: InkDOS editors; ArtCraft, Whiteboard, Webcam, Code, AI Chat and Games hidden.
      iPad, computer browser and XeOS: the same, but ArtCraft instead of the InkDOS editors and Whiteboard shown.
      Windows/Linux app: everything shown (native apps, fast). The main order comes back too. */
   try {
     if (!localStorage.getItem("inkdoshub-padrao-v2")) {
       var celular = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent);
-      var base = ["terminal", "webcam", "codigo", "ia", "wine", "jogos", "wasm"];
+      var base = ["webcam", "codigo", "ia", "jogos", "wasm"];
       escondidos = window.inkHubNativo ? [] : celular ? base.concat(["wordcraft", "gridcraft", "deckcraft", "quadro"])
         : base.concat(["documentos", "planilhas", "apresentacoes"]);
       salvar(K_ESC, escondidos);
@@ -34,6 +34,12 @@
     if (!localStorage.getItem("inkdoshub-padrao-v3")) {
       if (!window.inkHubNativo && escondidos.indexOf("wasm") < 0) { escondidos.push("wasm"); salvar(K_ESC, escondidos); }
       localStorage.setItem("inkdoshub-padrao-v3", "1");
+    }
+    // v4 (2026-11-14): Wine (InkSoC) and the Linux terminal are shown in every browser; the person can still hide it in Customize.
+    if (!localStorage.getItem("inkdoshub-padrao-v4")) {
+      escondidos = escondidos.filter(function (id) { return id !== "wine" && id !== "terminal"; });
+      salvar(K_ESC, escondidos);
+      localStorage.setItem("inkdoshub-padrao-v4", "1");
     }
   } catch (_) {}
   var meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });
