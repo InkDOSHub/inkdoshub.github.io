@@ -297,7 +297,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "LoadLibraryA" | "LoadLibraryExA" => { let n = e.read_cstr(a0, 260); return Some(e.load_library(&n)); }
         "LoadLibraryW" | "LoadLibraryExW" => { let n = e.read_wstr(a0, 260); return Some(e.load_library(&n)); }
         "FreeLibrary" => 1,
-        _ => return None,
+        _ => return e.not_mine(),
     };
     let _ = PEB;
     Some(r)

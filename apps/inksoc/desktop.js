@@ -92,7 +92,7 @@ function run(files, exe, args, label, home) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=51');
+  const w = p.w = new Worker('worker.js?v=52');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
@@ -195,11 +195,7 @@ $('info').onclick = (e) => { e.stopPropagation(); const h = $('infop').hidden; c
 document.addEventListener('click', (e) => { if (!e.target.closest('.pop')) closePops(); });
 
 const builtins = {
-  mine: { url: 'bin/winemine.exe?v=1', name: 'winemine.exe', label: '💣 WineMine' },
-  mine32: { url: 'bin/wine32/winemine32.exe?v=1', name: 'winemine32.exe', label: '💣 WineMine 32' },
   '7z': { url: 'bin/7za.exe?v=1', name: '7za.exe', label: '🗜 7-Zip', args: () => 'b -md18 -mmt' + $('cores').value },
-  // 64 MB dictionary: about 1.5 GB of program memory, more than the real RAM, so pages go to swap
-  '7zswap': { url: 'bin/7za.exe?v=1', name: '7za.exe', label: '💾 7-Zip swap', args: () => 'b 1 -md26 -mmt' + $('cores').value },
 };
 for (const b of document.querySelectorAll('[data-run]')) {
   b.onclick = async () => {

@@ -777,7 +777,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "TryAcquireSRWLockShared" => e.try_wait(&W::SrwSh(a0), me).is_some() as u64,
         "ReleaseSRWLockExclusive" => { e.w64(a0, 0); 0 }
         "ReleaseSRWLockShared" => { let v = e.mmu.read64(a0).unwrap_or(1); e.w64(a0, v.saturating_sub(1)); 0 }
-        _ => return None,
+        _ => return e.not_mine(),
     })
 }
 

@@ -848,7 +848,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Event { set: false, manual: false }); e.w64(a0, h); OK }
         "NtSetIoCompletion" | "NtRemoveIoCompletion" | "NtRemoveIoCompletionEx" => NOT_IMPLEMENTED,
         "NtCreateKeyedEvent" | "NtOpenKeyedEvent" => { e.w64(a0, 0x7FF4); OK }
-        _ => return None,
+        _ => return e.not_mine(),
     };
     Some(r)
 }

@@ -664,7 +664,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             if wide { e.put_wstr(dst, &text, n + 1); } else { let _ = e.mmu.write_bytes(dst, text.as_bytes()); e.w8(dst + n, 0); }
             n
         }
-        _ => return None,
+        _ => return e.not_mine(),
     })
 }
 

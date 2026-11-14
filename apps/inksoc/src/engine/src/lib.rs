@@ -87,6 +87,7 @@ pub struct Engine {
     pub want_switch: bool, // pick another thread at the next chance
     pub slice: u64,        // instructions left in this thread's turn
     pub idle_ms: f64,
+    not_mine: bool,      // set by a native module that has no case for the called name
     pub s: &'static mut Shared,
 }
 
@@ -107,6 +108,8 @@ pub struct Shared {
     pub tls_used: u64,
     pub no_init: bool,
     pub thunk_fb: HashMap<usize, u64>,
+    /// For each thunk, which of the native modules know its name (see `native_chain`).
+    routes: Vec<u8>,
     pub wine_fb: HashMap<String, u64>,
     pub env_block: u64,
     pub tls_tmpl: Vec<(u64, u64, u64)>, // static TLS of the images: (template, size, zero fill)
@@ -192,7 +195,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             bridge_calls: 0,
             files: Default::default(), modules: Vec::new(),
             thunks: Vec::new(), thunk_ids: HashMap::new(),
-            heap: heap::Heap::default(), tls_used: 0, no_init: false, thunk_fb: HashMap::new(), wine_fb: HashMap::new(), env_block: 0, tls_tmpl: Vec::new(),
+            heap: heap::Heap::default(), tls_used: 0, no_init: false, thunk_fb: HashMap::new(), routes: Vec::new(), wine_fb: HashMap::new(), env_block: 0, tls_tmpl: Vec::new(),
             init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), win_ki: 0, recent: [(0, 0); 16], recent_n: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
@@ -201,7 +204,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
         ENGINE = Some(Engine {
             mmu: Mmu::new(pool_mb as usize, target_mb as u64),
             cpu: Cpu::new(), eh: Default::default(), jit: Default::default(),
-            core: 0, cur: 0, want_switch: false, slice: 0, idle_ms: 0.0,
+            core: 0, cur: 0, want_switch: false, slice: 0, idle_ms: 0.0, not_mine: false,
             s: SHARED.as_mut().unwrap(),
         });
     }
@@ -248,7 +251,7 @@ pub extern "C" fn core_init(id: u32) {
         ENGINE = Some(Engine {
             mmu: mmu0.new_core(id),
             cpu: Cpu::new(), eh: Default::default(), jit,
-            core: id, cur: usize::MAX, want_switch: true, slice: 0, idle_ms: 0.0,
+            core: id, cur: usize::MAX, want_switch: true, slice: 0, idle_ms: 0.0, not_mine: false,
             s: SHARED.as_mut().unwrap(),
         });
     }
@@ -583,6 +586,7 @@ impl Engine {
         if let Some(&a) = self.s.thunk_ids.get(&key) { return a; }
         let a = THUNK_BASE + 16 * self.s.thunks.len() as u64;
         self.s.thunks.push((Rc::from(dll), Rc::from(func)));
+        self.s.routes.push(0);
         self.s.thunk_ids.insert(key, a);
         a
     }
@@ -720,6 +724,36 @@ impl Engine {
         }
     }
 
+    /// A native module's answer for a name it has no case for.
+    pub(crate) fn not_mine(&mut self) -> Option<u64> { self.not_mine = true; None }
+
+    /// Asks the engine's own Windows modules in order: scheduler, files, kernel32, the rest
+    /// of the Win32 API, ntdll. A module may also pass on a name it knows (a handle that is
+    /// not its kind), so the next one gets the call. The first call of each thunk learns
+    /// which modules have no case for its name at all; later calls skip those.
+    fn native_chain(&mut self, idx: usize, name: &str) -> Option<u64> {
+        const MODULES: [fn(&mut Engine, &str) -> Option<u64>; 5] = [sched::call, files::call, kernel32::call, winapi::call, ntsys::call];
+        const LEARNED: u8 = 0x80;
+        let route = self.s.routes.get(idx).copied().unwrap_or(0);
+        if route & LEARNED != 0 {
+            for (i, module) in MODULES.iter().enumerate() {
+                if route & (1 << i) != 0 { if let Some(v) = module(self, name) { return Some(v); } }
+            }
+            return None;
+        }
+        // first call: every module counts as knowing the name until it says otherwise
+        let mut route = LEARNED | 0x1F;
+        let mut answer = None;
+        for (i, module) in MODULES.iter().enumerate() {
+            self.not_mine = false;
+            answer = module(self, name);
+            if self.not_mine { route &= !(1 << i); }
+            if answer.is_some() { break; }
+        }
+        if let Some(r) = self.s.routes.get_mut(idx) { *r = route; }
+        answer
+    }
+
     fn call_native(&mut self) {
         match self.cpu.rip {
             RET_EXIT => { let c = self.cpu.regs[0] as u32; self.exit_process(c); return; }
@@ -770,7 +804,7 @@ impl Engine {
             _ if dll.starts_with("vcruntime140") => msvcrt::call(self, name),
             // the window system's kernel side: console programs get "nothing there"
             _ if dll == "win32u.dll" => winsys::call(self, name),
-            _ => sched::call(self, name).or_else(|| files::call(self, name)).or_else(|| kernel32::call(self, name)).or_else(|| winapi::call(self, name)).or_else(|| ntsys::call(self, name)),
+            _ => self.native_chain(idx, name),
         };
         if self.s.error.is_some() || self.s.exited { return; }
         match r {

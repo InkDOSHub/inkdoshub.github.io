@@ -708,7 +708,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "CoTaskMemFree" => 0,
         "timeBeginPeriod" | "timeEndPeriod" => 0,
         "timeGetTime" => crate::now_ms() as u64 & 0xFFFF_FFFF,
-        _ => return None,
+        _ => return e.not_mine(),
     };
     Some(r)
 }
