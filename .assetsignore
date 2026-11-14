@@ -4,7 +4,6 @@
 .github
 windows/
 auditoria/
-xeos-tests/
 worker.js
 wrangler.jsonc
 apps/video/cortar/ffmpeg-core/ffmpeg-core.wasm
