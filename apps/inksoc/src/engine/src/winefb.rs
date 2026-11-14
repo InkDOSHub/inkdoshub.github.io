@@ -9,28 +9,86 @@ use crate::{pe, Engine};
 
 /// Native function that takes the place of a Wine ntdll export, if any.
 pub fn redirect(name: &str) -> Option<String> {
-    if let Some(r) = name.strip_prefix("Zw") { return Some(format!("Nt{}", r)); }
-    if name.starts_with("Nt") && name.len() > 2 && name.as_bytes()[2].is_ascii_uppercase() { return Some(name.to_string()); }
+    if let Some(r) = name.strip_prefix("Zw") {
+        return Some(format!("Nt{}", r));
+    }
+    if name.starts_with("Nt") && name.len() > 2 && name.as_bytes()[2].is_ascii_uppercase() {
+        return Some(name.to_string());
+    }
     const KEEP: &[&str] = &[
-        "RtlAllocateHeap", "RtlFreeHeap", "RtlReAllocateHeap", "RtlSizeHeap", "RtlCreateHeap", "RtlDestroyHeap", "RtlGetProcessHeaps",
-        "RtlValidateHeap", "RtlCompactHeap", "RtlGetUserInfoHeap", "RtlSetUserValueHeap", "RtlSetUserFlagsHeap", "RtlLockHeap", "RtlUnlockHeap", "RtlWalkHeap", "RtlSetHeapInformation", "RtlQueryHeapInformation",
-        "RtlEnterCriticalSection", "RtlLeaveCriticalSection", "RtlTryEnterCriticalSection", "RtlInitializeCriticalSection",
-        "RtlInitializeCriticalSectionEx", "RtlInitializeCriticalSectionAndSpinCount", "RtlDeleteCriticalSection",
-        "RtlIsCriticalSectionLocked", "RtlIsCriticalSectionLockedByThread",
-        "RtlInitializeSRWLock", "RtlAcquireSRWLockExclusive", "RtlAcquireSRWLockShared", "RtlReleaseSRWLockExclusive",
-        "RtlReleaseSRWLockShared", "RtlTryAcquireSRWLockExclusive", "RtlTryAcquireSRWLockShared",
-        "RtlGetLastWin32Error", "RtlSetLastWin32Error", "RtlRestoreLastWin32Error",
+        "RtlAllocateHeap",
+        "RtlFreeHeap",
+        "RtlReAllocateHeap",
+        "RtlSizeHeap",
+        "RtlCreateHeap",
+        "RtlDestroyHeap",
+        "RtlGetProcessHeaps",
+        "RtlValidateHeap",
+        "RtlCompactHeap",
+        "RtlGetUserInfoHeap",
+        "RtlSetUserValueHeap",
+        "RtlSetUserFlagsHeap",
+        "RtlLockHeap",
+        "RtlUnlockHeap",
+        "RtlWalkHeap",
+        "RtlSetHeapInformation",
+        "RtlQueryHeapInformation",
+        "RtlEnterCriticalSection",
+        "RtlLeaveCriticalSection",
+        "RtlTryEnterCriticalSection",
+        "RtlInitializeCriticalSection",
+        "RtlInitializeCriticalSectionEx",
+        "RtlInitializeCriticalSectionAndSpinCount",
+        "RtlDeleteCriticalSection",
+        "RtlIsCriticalSectionLocked",
+        "RtlIsCriticalSectionLockedByThread",
+        "RtlInitializeSRWLock",
+        "RtlAcquireSRWLockExclusive",
+        "RtlAcquireSRWLockShared",
+        "RtlReleaseSRWLockExclusive",
+        "RtlReleaseSRWLockShared",
+        "RtlTryAcquireSRWLockExclusive",
+        "RtlTryAcquireSRWLockShared",
+        "RtlGetLastWin32Error",
+        "RtlSetLastWin32Error",
+        "RtlRestoreLastWin32Error",
         "RtlPcToFileHeader",
-        "LdrGetProcedureAddress", "LdrLoadDll", "LdrGetDllHandle", "LdrGetDllHandleEx", "LdrUnloadDll", "LdrAddRefDll",
-        "LdrFindEntryForAddress", "LdrLockLoaderLock", "LdrUnlockLoaderLock", "LdrDisableThreadCalloutsForDll",
-        "RtlExitUserThread", "RtlExitUserProcess", "RtlQueryPerformanceCounter", "RtlQueryPerformanceFrequency",
-        "RtlGetCurrentPeb", "RtlGetCurrentProcessorNumber", "RtlGetCurrentProcessorNumberEx",
-        "RtlWaitOnAddress", "RtlWakeAddressAll", "RtlWakeAddressSingle",
-        "RtlFlsAlloc", "RtlFlsFree", "RtlFlsGetValue", "RtlFlsSetValue",
-        "DbgPrint", "DbgPrintEx", "DbgBreakPoint", "DbgUserBreakPoint",
-        "__wine_dbg_header", "__wine_dbg_output", "__wine_dbg_strdup", "__wine_dbg_get_channel_flags",
+        "LdrGetProcedureAddress",
+        "LdrLoadDll",
+        "LdrGetDllHandle",
+        "LdrGetDllHandleEx",
+        "LdrUnloadDll",
+        "LdrAddRefDll",
+        "LdrFindEntryForAddress",
+        "LdrLockLoaderLock",
+        "LdrUnlockLoaderLock",
+        "LdrDisableThreadCalloutsForDll",
+        "RtlExitUserThread",
+        "RtlExitUserProcess",
+        "RtlQueryPerformanceCounter",
+        "RtlQueryPerformanceFrequency",
+        "RtlGetCurrentPeb",
+        "RtlGetCurrentProcessorNumber",
+        "RtlGetCurrentProcessorNumberEx",
+        "RtlWaitOnAddress",
+        "RtlWakeAddressAll",
+        "RtlWakeAddressSingle",
+        "RtlFlsAlloc",
+        "RtlFlsFree",
+        "RtlFlsGetValue",
+        "RtlFlsSetValue",
+        "DbgPrint",
+        "DbgPrintEx",
+        "DbgBreakPoint",
+        "DbgUserBreakPoint",
+        "__wine_dbg_header",
+        "__wine_dbg_output",
+        "__wine_dbg_strdup",
+        "__wine_dbg_get_channel_flags",
     ];
-    if KEEP.contains(&name) { return Some(name.to_string()); }
+    if KEEP.contains(&name) {
+        return Some(name.to_string());
+    }
     None
 }
 
@@ -94,7 +152,11 @@ fn export_names(b: &[u8]) -> std::collections::HashSet<String> {
         (0..nsec).find_map(|i| {
             let s = secs + 40 * i;
             let (va, size, raw) = (r32(s + 12)?, r32(s + 8)?.max(r32(s + 16)?), r32(s + 20)?);
-            if rva >= va && rva < va + size { Some(rva - va + raw) } else { None }
+            if rva >= va && rva < va + size {
+                Some(rva - va + raw)
+            } else {
+                None
+            }
         })
     };
     let Some(dir) = r32(pe + 24 + 112).and_then(off) else { return out };
@@ -116,13 +178,21 @@ fn candidates(dll: &str) -> Vec<String> {
     match dll {
         "ntdll.dll" => vec!["wine-ntdll.dll".into()],
         "kernel32.dll" | "kernelbase.dll" => vec!["wine-kernelbase.dll".into(), "wine-kernel32.dll".into(), "wine-ntdll.dll".into()],
-        d if d.starts_with("api-ms-win-") || d.starts_with("ext-ms-win-") => vec!["wine-kernelbase.dll".into(), "wine-kernel32.dll".into(), "wine-ntdll.dll".into()],
+        d if d.starts_with("api-ms-win-") || d.starts_with("ext-ms-win-") => {
+            vec!["wine-kernelbase.dll".into(), "wine-kernel32.dll".into(), "wine-ntdll.dll".into()]
+        }
         d => vec![format!("wine-{}", d)],
     }
 }
 
 /// Where to go once the DllMains of DLLs loaded in the middle of a call have run.
-pub struct Resume { pub target: u64, pub regs: [u64; 4], pub rsp: u64, pub ret: Option<u64>, pub pending: Vec<(u64, u64)> }
+pub struct Resume {
+    pub target: u64,
+    pub regs: [u64; 4],
+    pub rsp: u64,
+    pub ret: Option<u64>,
+    pub pending: Vec<(u64, u64)>,
+}
 
 impl Engine {
     /// Runs `pending` DllMains (in order), then either jumps to `target` with the
@@ -148,17 +218,23 @@ impl Engine {
         match r.ret {
             Some(v) => self.do_ret(v),
             None => {
-                self.cpu.regs[1] = r.regs[0]; self.cpu.regs[2] = r.regs[1];
-                self.cpu.regs[8] = r.regs[2]; self.cpu.regs[9] = r.regs[3];
+                self.cpu.regs[1] = r.regs[0];
+                self.cpu.regs[2] = r.regs[1];
+                self.cpu.regs[8] = r.regs[2];
+                self.cpu.regs[9] = r.regs[3];
                 self.cpu.rip = r.target;
             }
         }
     }
 
-    pub(crate) fn wine_module_pub(&mut self, file: &str) -> Option<usize> { self.wine_module(file) }
+    pub(crate) fn wine_module_pub(&mut self, file: &str) -> Option<usize> {
+        self.wine_module(file)
+    }
     /// Loads one of the shipped Wine DLLs (without running its DllMain).
     fn wine_module(&mut self, file: &str) -> Option<usize> {
-        if let Some(i) = pe::find_module(self, file) { return Some(i); }
+        if let Some(i) = pe::find_module(self, file) {
+            return Some(i);
+        }
         let bytes = self.s.files.get(file).cloned()?;
         let i = pe::load_image(self, file, &bytes, false).ok()?;
         // the core modules share the engine's state: their own DllMain must not run
@@ -166,7 +242,10 @@ impl Engine {
             let b = self.s.modules[i].base;
             self.s.init_queue.retain(|&(_, base)| base != b);
         }
-        if file == "wine-ntdll.dll" { self.patch_wine_ntdll(i); self.wine_nls(i); }
+        if file == "wine-ntdll.dll" {
+            self.patch_wine_ntdll(i);
+            self.wine_nls(i);
+        }
         Some(i)
     }
 
@@ -174,7 +253,9 @@ impl Engine {
     fn patch_wine_ntdll(&mut self, i: usize) {
         let names: Vec<(String, u64)> = self.s.modules[i].exports.iter().filter(|(_, &a)| a != 0).map(|(n, &a)| (n.clone(), a)).collect();
         for (n, a) in names {
-            if n.starts_with('#') { continue; }
+            if n.starts_with('#') {
+                continue;
+            }
             if let Some(native) = redirect(&n) {
                 let t = self.thunk("ntdll.dll", &native);
                 let mut code = vec![0x48, 0xB8];
@@ -214,7 +295,9 @@ impl Engine {
             self.w64(nls + 0x80, a + 4);
             self.w64(nls + 0x88, a + 4 + 2 * n);
         }
-        if let Some(a) = acp { self.w16(a, 65001); } // NlsAnsiCodePage
+        if let Some(a) = acp {
+            self.w16(a, 65001);
+        } // NlsAnsiCodePage
     }
 
     /// Per-thread blocks Wine's ntdll expects in the TEB (activation context stack).
@@ -233,14 +316,18 @@ impl Engine {
         self.w32(K + 0x4, 0x0FA0_0000); // TickCountMultiplier
         self.w32(K + 0x2C, 0x8664_8664);
         let root: Vec<u16> = "C:\\Windows".encode_utf16().collect();
-        for (k, c) in root.iter().enumerate() { self.w16(K + 0x30 + 2 * k as u64, *c); }
+        for (k, c) in root.iter().enumerate() {
+            self.w16(K + 0x30 + 2 * k as u64, *c);
+        }
         self.w32(K + 0x260, 19045); // NtBuildNumber
         self.w32(K + 0x264, 1); // NtProductType: workstation
         self.w8(K + 0x268, 1); // ProductTypeIsValid
         self.w32(K + 0x26C, 10);
         self.w32(K + 0x270, 0);
         // PF_: RDTSC 8, XMMI 6, XMMI64 10, SSE3 13, NX 12, CMPXCHG16B 14, FASTFAIL 23, SSSE3 36, SSE4_1 37, SSE4_2 38
-        for f in [6u64, 8, 10, 12, 13, 14, 23, 36, 37, 38] { self.w8(K + 0x274 + f, 1); }
+        for f in [6u64, 8, 10, 12, 13, 14, 23, 36, 37, 38] {
+            self.w8(K + 0x274 + f, 1);
+        }
         self.w32(K + 0x2E8, 0x20_0000); // NumberOfPhysicalPages (8 GB)
         self.w32(K + 0x3C0, self.s.cores.max(1)); // ActiveProcessorCount
         self.w64(K + 0x3C8, 10_000_000); // QpcFrequency
@@ -265,32 +352,48 @@ impl Engine {
     /// Whether GetProcAddress should find `name` in the native `dll`: Wine has it
     /// (or no Wine DLL covers that DLL, as before).
     pub fn wine_has(&mut self, dll: &str, name: &str) -> bool {
-        if HIDDEN.contains(&name) { return false; }
-        if name.starts_with('#') { return true; }
+        if HIDDEN.contains(&name) {
+            return false;
+        }
+        if name.starts_with('#') {
+            return true;
+        }
         let mut any = false;
         for c in candidates(dll) {
-            if !self.s.files.contains_key(&c) { continue; }
+            if !self.s.files.contains_key(&c) {
+                continue;
+            }
             any = true;
             if !self.s.wine_exports.contains_key(&c) {
                 let set = export_names(&self.s.files[&c]);
                 self.s.wine_exports.insert(c.clone(), set);
             }
-            if self.s.wine_exports[&c].contains(name) { return true; }
+            if self.s.wine_exports[&c].contains(name) {
+                return true;
+            }
         }
         !any
     }
 
     /// Guest address of Wine's version of dll!name, if Wine has it.
     pub fn wine_fallback(&mut self, dll: &str, name: &str, from: u64) -> Option<u64> {
-        if name.ends_with("(missing export)") { return None; }
+        if name.ends_with("(missing export)") {
+            return None;
+        }
         let key = format!("{}!{}", dll, name);
-        if let Some(&a) = self.s.wine_fb.get(&key) { return Some(a); }
+        if let Some(&a) = self.s.wine_fb.get(&key) {
+            return Some(a);
+        }
         // functions patched to the engine have no Wine version to fall back to
-        if dll == "ntdll.dll" && redirect(name).is_some() { return None; }
+        if dll == "ntdll.dll" && redirect(name).is_some() {
+            return None;
+        }
         for c in candidates(dll) {
             let Some(m) = self.wine_module(&c) else { continue };
             if let Some(a) = pe::proc_address(self, m, name) {
-                if a == from { continue; }
+                if a == from {
+                    continue;
+                }
                 self.s.wine_fb.insert(key, a);
                 return Some(a);
             }
@@ -304,7 +407,9 @@ impl Engine {
         let us = |e: &mut Engine, at: u64, s: &str| {
             let w: Vec<u16> = s.encode_utf16().collect();
             let b = e.heap_alloc(2 * w.len() as u64 + 2, true);
-            for (k, c) in w.iter().enumerate() { e.w16(b + 2 * k as u64, *c); }
+            for (k, c) in w.iter().enumerate() {
+                e.w16(b + 2 * k as u64, *c);
+            }
             e.w16(at, 2 * w.len() as u16);
             e.w16(at + 2, 2 * w.len() as u16 + 2);
             e.w64(at + 8, b);
@@ -323,18 +428,40 @@ impl Engine {
         us(self, p + 0x70, &cmd);
         // the usual Windows variables (installers read ProgramFiles / ProgramW6432 for their default folder)
         let vars = [
-            "ALLUSERSPROFILE=C:\\ProgramData", "APPDATA=C:\\InkSoC\\AppData\\Roaming", "CommonProgramFiles=C:\\Program Files\\Common Files",
-            "CommonProgramFiles(x86)=C:\\Program Files (x86)\\Common Files", "CommonProgramW6432=C:\\Program Files\\Common Files",
-            "COMPUTERNAME=INKSOC", "ComSpec=C:\\Windows\\System32\\cmd.exe", "HOMEDRIVE=C:", "HOMEPATH=\\InkSoC",
-            "LOCALAPPDATA=C:\\InkSoC\\AppData\\Local", "NUMBER_OF_PROCESSORS=4", "OS=Windows_NT",
-            "PATH=C:\\InkSoC;C:\\Windows\\System32;C:\\Windows", "PATHEXT=.COM;.EXE;.BAT;.CMD", "PROCESSOR_ARCHITECTURE=AMD64",
-            "ProgramData=C:\\ProgramData", "ProgramFiles=C:\\Program Files", "ProgramFiles(x86)=C:\\Program Files (x86)",
-            "ProgramW6432=C:\\Program Files", "PUBLIC=C:\\Users\\Public", "SystemDrive=C:", "SystemRoot=C:\\Windows",
-            "TEMP=C:\\InkSoC", "TMP=C:\\InkSoC", "USERDOMAIN=INKSOC", "USERNAME=user", "USERPROFILE=C:\\InkSoC", "windir=C:\\Windows",
+            "ALLUSERSPROFILE=C:\\ProgramData",
+            "APPDATA=C:\\InkSoC\\AppData\\Roaming",
+            "CommonProgramFiles=C:\\Program Files\\Common Files",
+            "CommonProgramFiles(x86)=C:\\Program Files (x86)\\Common Files",
+            "CommonProgramW6432=C:\\Program Files\\Common Files",
+            "COMPUTERNAME=INKSOC",
+            "ComSpec=C:\\Windows\\System32\\cmd.exe",
+            "HOMEDRIVE=C:",
+            "HOMEPATH=\\InkSoC",
+            "LOCALAPPDATA=C:\\InkSoC\\AppData\\Local",
+            "NUMBER_OF_PROCESSORS=4",
+            "OS=Windows_NT",
+            "PATH=C:\\InkSoC;C:\\Windows\\System32;C:\\Windows",
+            "PATHEXT=.COM;.EXE;.BAT;.CMD",
+            "PROCESSOR_ARCHITECTURE=AMD64",
+            "ProgramData=C:\\ProgramData",
+            "ProgramFiles=C:\\Program Files",
+            "ProgramFiles(x86)=C:\\Program Files (x86)",
+            "ProgramW6432=C:\\Program Files",
+            "PUBLIC=C:\\Users\\Public",
+            "SystemDrive=C:",
+            "SystemRoot=C:\\Windows",
+            "TEMP=C:\\InkSoC",
+            "TMP=C:\\InkSoC",
+            "USERDOMAIN=INKSOC",
+            "USERNAME=user",
+            "USERPROFILE=C:\\InkSoC",
+            "windir=C:\\Windows",
         ];
         let env: Vec<u16> = (vars.join("\0") + "\0\0").encode_utf16().collect();
         let eb = self.heap_alloc(2 * env.len() as u64, true);
-        for (k, c) in env.iter().enumerate() { self.w16(eb + 2 * k as u64, *c); }
+        for (k, c) in env.iter().enumerate() {
+            self.w16(eb + 2 * k as u64, *c);
+        }
         self.w64(p + 0x80, eb);
         self.w64(p + 0x3F0, 2 * env.len() as u64);
         us(self, p + 0xB0, "WinSta0\\Default"); // DesktopInfo

@@ -68,20 +68,43 @@ const WS_EX_STATICEDGE: u32 = 0x20000;
 const CW_USEDEFAULT: i32 = i32::MIN;
 
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
-pub struct Rect { pub l: i32, pub t: i32, pub r: i32, pub b: i32 }
+pub struct Rect {
+    pub l: i32,
+    pub t: i32,
+    pub r: i32,
+    pub b: i32,
+}
 impl Rect {
-    pub fn new(l: i32, t: i32, r: i32, b: i32) -> Rect { Rect { l, t, r, b } }
-    pub fn w(&self) -> i32 { self.r - self.l }
-    pub fn h(&self) -> i32 { self.b - self.t }
-    pub fn empty(&self) -> bool { self.r <= self.l || self.b <= self.t }
-    pub fn inter(&self, o: &Rect) -> Rect { Rect::new(self.l.max(o.l), self.t.max(o.t), self.r.min(o.r), self.b.min(o.b)) }
+    pub fn new(l: i32, t: i32, r: i32, b: i32) -> Rect {
+        Rect { l, t, r, b }
+    }
+    pub fn w(&self) -> i32 {
+        self.r - self.l
+    }
+    pub fn h(&self) -> i32 {
+        self.b - self.t
+    }
+    pub fn empty(&self) -> bool {
+        self.r <= self.l || self.b <= self.t
+    }
+    pub fn inter(&self, o: &Rect) -> Rect {
+        Rect::new(self.l.max(o.l), self.t.max(o.t), self.r.min(o.r), self.b.min(o.b))
+    }
     pub fn union(&self, o: &Rect) -> Rect {
-        if self.empty() { return *o; }
-        if o.empty() { return *self; }
+        if self.empty() {
+            return *o;
+        }
+        if o.empty() {
+            return *self;
+        }
         Rect::new(self.l.min(o.l), self.t.min(o.t), self.r.max(o.r), self.b.max(o.b))
     }
-    pub fn has(&self, x: i32, y: i32) -> bool { x >= self.l && x < self.r && y >= self.t && y < self.b }
-    pub fn off(&self, dx: i32, dy: i32) -> Rect { Rect::new(self.l + dx, self.t + dy, self.r + dx, self.b + dy) }
+    pub fn has(&self, x: i32, y: i32) -> bool {
+        x >= self.l && x < self.r && y >= self.t && y < self.b
+    }
+    pub fn off(&self, dx: i32, dy: i32) -> Rect {
+        Rect::new(self.l + dx, self.t + dy, self.r + dx, self.b + dy)
+    }
 }
 
 pub struct Class {
@@ -131,7 +154,15 @@ pub struct Wnd {
 }
 
 #[derive(Clone, Copy)]
-pub struct Msg { pub hwnd: u64, pub msg: u32, pub wp: u64, pub lp: u64, pub time: u32, pub x: i32, pub y: i32 }
+pub struct Msg {
+    pub hwnd: u64,
+    pub msg: u32,
+    pub wp: u64,
+    pub lp: u64,
+    pub time: u32,
+    pub x: i32,
+    pub y: i32,
+}
 
 #[derive(Default)]
 pub struct Queue {
@@ -140,24 +171,77 @@ pub struct Queue {
     pub quit: Option<i32>,
 }
 
-pub struct Timer { pub hwnd: u64, pub id: u64, pub period: f64, pub next: f64, pub proc_: u64, pub tid: u32 }
+pub struct Timer {
+    pub hwnd: u64,
+    pub id: u64,
+    pub period: f64,
+    pub next: f64,
+    pub proc_: u64,
+    pub tid: u32,
+}
 
-pub struct MenuItem { pub id: u64, pub text: String, pub flags: u32, pub state: u32, pub sub: u64, pub data: u64, pub bmp: u64 }
+pub struct MenuItem {
+    pub id: u64,
+    pub text: String,
+    pub flags: u32,
+    pub state: u32,
+    pub sub: u64,
+    pub data: u64,
+    pub bmp: u64,
+}
 #[derive(Default)]
-pub struct Menu { pub items: Vec<MenuItem>, pub style: u32, pub data: u64, pub max_h: u32, pub help: u32, pub brush: u64 }
+pub struct Menu {
+    pub items: Vec<MenuItem>,
+    pub style: u32,
+    pub data: u64,
+    pub max_h: u32,
+    pub help: u32,
+    pub brush: u64,
+}
 
 /// A popup menu shown over the screen (drawn by the compositor).
-pub struct Popup { pub menu: u64, pub hwnd: u64, pub x: i32, pub y: i32, pub w: i32, pub h: i32, pub hot: i32 }
+pub struct Popup {
+    pub menu: u64,
+    pub hwnd: u64,
+    pub x: i32,
+    pub y: i32,
+    pub w: i32,
+    pub h: i32,
+    pub hot: i32,
+}
 
-pub enum Step { Ret(u64), Send { hwnd: u64, msg: u32, wp: u64, lp: u64, then: Cont } }
+pub enum Step {
+    Ret(u64),
+    Send { hwnd: u64, msg: u32, wp: u64, lp: u64, then: Cont },
+}
 pub type Cont = Box<dyn FnOnce(&mut Engine, u64) -> Step>;
 
-struct Frame { tid: u32, rsp: u64, regs: [u64; 8], xmm: [u128; 10], cont: Cont, back: (u64, usize) }
+struct Frame {
+    tid: u32,
+    rsp: u64,
+    regs: [u64; 8],
+    xmm: [u128; 10],
+    cont: Cont,
+    back: (u64, usize),
+}
 
 pub struct Keys(pub [u8; 256]);
-impl Default for Keys { fn default() -> Self { Keys([0; 256]) } }
-impl std::ops::Index<usize> for Keys { type Output = u8; fn index(&self, i: usize) -> &u8 { &self.0[i] } }
-impl std::ops::IndexMut<usize> for Keys { fn index_mut(&mut self, i: usize) -> &mut u8 { &mut self.0[i] } }
+impl Default for Keys {
+    fn default() -> Self {
+        Keys([0; 256])
+    }
+}
+impl std::ops::Index<usize> for Keys {
+    type Output = u8;
+    fn index(&self, i: usize) -> &u8 {
+        &self.0[i]
+    }
+}
+impl std::ops::IndexMut<usize> for Keys {
+    fn index_mut(&mut self, i: usize) -> &mut u8 {
+        &mut self.0[i]
+    }
+}
 
 #[derive(Default)]
 pub struct Win {
@@ -207,6 +291,7 @@ mod window;
 
 pub use calls::call;
 
-
 /// Window handles are used with and without the upper 16 bits.
-pub fn full(h: u64) -> u64 { h & 0xFFFF_FFFF }
+pub fn full(h: u64) -> u64 {
+    h & 0xFFFF_FFFF
+}

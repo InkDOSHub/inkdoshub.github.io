@@ -38,7 +38,10 @@ pub struct ProcSave {
 }
 
 /// What other processes see of a process.
-pub struct ProcInfo { pub exit: Option<u32>, pub name: String }
+pub struct ProcInfo {
+    pub exit: Option<u32>,
+    pub name: String,
+}
 
 impl Engine {
     fn swap_state(&mut self, p: &mut ProcSave) {
@@ -84,12 +87,16 @@ impl Engine {
 
     /// Makes process `id` the running one (called with the engine lock held).
     pub fn enter_proc(&mut self, id: u32) {
-        if id == self.s.wpid || !self.s.procs.contains_key(&id) { return; }
+        if id == self.s.wpid || !self.s.procs.contains_key(&id) {
+            return;
+        }
         let on = self.jit.on;
         self.park();
         let Some(mut p) = self.s.procs.remove(&id) else { return };
         self.swap_state(&mut p);
-        if let Some(sp) = p.space.take() { self.mmu.put_space(sp); }
+        if let Some(sp) = p.space.take() {
+            self.mmu.put_space(sp);
+        }
         self.jit = p.jit.take().unwrap_or_default();
         self.jit.on = on;
         self.s.wpid = id;
@@ -99,14 +106,28 @@ impl Engine {
     /// Ends the running process: the main one stops the engine, a child only its threads.
     pub fn exit_process(&mut self, code: u32) {
         let id = self.s.wpid;
-        if id == 0 { self.s.exited = true; self.s.exit_code = code; return; }
-        if let Some(i) = self.s.pinfo.get_mut(&id) { if i.exit.is_none() { i.exit = Some(code); } }
-        for t in self.s.sched.th.iter_mut() { if t.wpid == id { t.st = crate::sched::St::Done; } }
+        if id == 0 {
+            self.s.exited = true;
+            self.s.exit_code = code;
+            return;
+        }
+        if let Some(i) = self.s.pinfo.get_mut(&id) {
+            if i.exit.is_none() {
+                i.exit = Some(code);
+            }
+        }
+        for t in self.s.sched.th.iter_mut() {
+            if t.wpid == id {
+                t.st = crate::sched::St::Done;
+            }
+        }
         self.want_switch = true;
         crate::lock::kick();
     }
 
-    pub fn children_alive(&self) -> bool { self.s.pinfo.values().any(|i| i.exit.is_none()) }
+    pub fn children_alive(&self) -> bool {
+        self.s.pinfo.values().any(|i| i.exit.is_none())
+    }
 
     /// CreateProcess: loads `exe` in a new address space with its own PEB and
     /// main thread. Returns (process id, thread id, thread handle).
@@ -129,7 +150,13 @@ impl Engine {
             self.s.pinfo.get_mut(&id).unwrap().exit = Some(1);
             self.park();
             let p = self.s.procs.remove(&parent);
-            if let Some(mut p) = p { self.swap_state(&mut p); if let Some(sp) = p.space.take() { self.mmu.put_space(sp); } self.jit = p.jit.take().unwrap_or_default(); }
+            if let Some(mut p) = p {
+                self.swap_state(&mut p);
+                if let Some(sp) = p.space.take() {
+                    self.mmu.put_space(sp);
+                }
+                self.jit = p.jit.take().unwrap_or_default();
+            }
             self.s.wpid = parent;
             self.mmu.set_asid(parent);
             return Err(m);
@@ -139,7 +166,9 @@ impl Engine {
         self.park();
         let mut p = self.s.procs.remove(&parent).unwrap();
         self.swap_state(&mut p);
-        if let Some(sp) = p.space.take() { self.mmu.put_space(sp); }
+        if let Some(sp) = p.space.take() {
+            self.mmu.put_space(sp);
+        }
         self.jit = p.jit.take().unwrap_or_default();
         self.jit.on = on;
         self.s.wpid = parent;
@@ -154,7 +183,9 @@ impl Engine {
         self.mmu.add_region(PEB, 0x1000);
         let stack = self.alloc(crate::STACK_SIZE).ok_or("out of memory")?;
         self.s.stack_top = stack + crate::STACK_SIZE - 0x100;
-        let w = |e: &mut Engine, a: u64, v: u64| { e.w64(a, v); };
+        let w = |e: &mut Engine, a: u64, v: u64| {
+            e.w64(a, v);
+        };
         w(self, TEB + 0x08, stack + crate::STACK_SIZE);
         w(self, TEB + 0x10, stack);
         w(self, TEB + 0x30, TEB);
@@ -163,11 +194,14 @@ impl Engine {
         w(self, TEB + 0x58, TEB + 0x1800);
         w(self, TEB + 0x60, PEB);
         // StaticUnicodeString (ANSI functions convert names into it): 522 bytes at +0x1268
-        self.w16(TEB + 0x125A, 522); w(self, TEB + 0x1260, TEB + 0x1268);
+        self.w16(TEB + 0x125A, 522);
+        w(self, TEB + 0x1260, TEB + 0x1268);
         self.cpu.gs_base = TEB;
         self.s.cmdline = (self.put_str(cmd, false), self.put_str(cmd, true));
         self.process_parameters(name);
-        if !env.is_empty() { self.set_env_block(env); }
+        if !env.is_empty() {
+            self.set_env_block(env);
+        }
         self.teb_extras(TEB);
         self.shared_data();
         let idx = pe::load_image(self, name, bytes, true)?;
@@ -186,19 +220,28 @@ impl Engine {
         let p = self.r64(PEB + 0x20);
         let b = self.r64(p + 0x80);
         let mut v = Vec::new();
-        if b == 0 { return vec![0, 0]; }
+        if b == 0 {
+            return vec![0, 0];
+        }
         for i in 0..0x40000u64 {
             let c = self.r16(b + 2 * i);
             v.push(c);
-            if c == 0 && v.len() >= 2 && v[v.len() - 2] == 0 { break; }
-            if c == 0 && v.len() == 1 { v.push(0); break; }
+            if c == 0 && v.len() >= 2 && v[v.len() - 2] == 0 {
+                break;
+            }
+            if c == 0 && v.len() == 1 {
+                v.push(0);
+                break;
+            }
         }
         v
     }
     pub fn set_env_block(&mut self, env: &[u16]) {
         let p = self.r64(PEB + 0x20);
         let eb = self.heap_alloc(2 * env.len() as u64 + 4, true);
-        for (k, c) in env.iter().enumerate() { self.w16(eb + 2 * k as u64, *c); }
+        for (k, c) in env.iter().enumerate() {
+            self.w16(eb + 2 * k as u64, *c);
+        }
         self.w64(p + 0x80, eb);
         self.w64(p + 0x3F0, 2 * env.len() as u64);
         self.s.env_block = eb;
@@ -209,16 +252,31 @@ impl Engine {
     }
     pub fn env_get(&mut self, name: &str) -> Option<String> {
         let n = name.to_ascii_lowercase();
-        self.env_vars().into_iter().find_map(|s| { let (k, v) = s.split_once('=')?; if k.to_ascii_lowercase() == n && !k.is_empty() { Some(v.to_string()) } else { None } })
+        self.env_vars().into_iter().find_map(|s| {
+            let (k, v) = s.split_once('=')?;
+            if k.to_ascii_lowercase() == n && !k.is_empty() {
+                Some(v.to_string())
+            } else {
+                None
+            }
+        })
     }
     pub fn env_set(&mut self, name: &str, val: Option<&str>) {
         let n = name.to_ascii_lowercase();
-        let mut vars: Vec<String> = self.env_vars().into_iter().filter(|s| s.split_once('=').map_or(true, |(k, _)| k.to_ascii_lowercase() != n || k.is_empty())).collect();
-        if let Some(v) = val { vars.push(format!("{}={}", name, v)); }
+        let mut vars: Vec<String> =
+            self.env_vars().into_iter().filter(|s| s.split_once('=').map_or(true, |(k, _)| k.to_ascii_lowercase() != n || k.is_empty())).collect();
+        if let Some(v) = val {
+            vars.push(format!("{}={}", name, v));
+        }
         let mut w: Vec<u16> = Vec::new();
-        for s in vars { w.extend(s.encode_utf16()); w.push(0); }
+        for s in vars {
+            w.extend(s.encode_utf16());
+            w.push(0);
+        }
         w.push(0);
-        if w.len() == 1 { w.push(0); }
+        if w.len() == 1 {
+            w.push(0);
+        }
         self.set_env_block(&w);
     }
 }

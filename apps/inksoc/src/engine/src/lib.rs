@@ -87,7 +87,7 @@ pub struct Engine {
     pub want_switch: bool, // pick another thread at the next chance
     pub slice: u64,        // instructions left in this thread's turn
     pub idle_ms: f64,
-    not_mine: bool,      // set by a native module that has no case for the called name
+    pub(crate) not_mine: bool,      // set by a native module that has no case for the called name
     pub s: &'static mut Shared,
 }
 
