@@ -243,6 +243,8 @@ for (const k of document.querySelectorAll('#pad .k')) {
 // the 🎮 button shows on touch screens; the controls stay hidden until it is tapped
 if (matchMedia('(pointer: coarse)').matches) $('padbtn').hidden = false;
 $('padbtn').onclick = () => { const on = $('pad').hidden; $('pad').hidden = !on; $('padbtn').classList.toggle('on', on); };
+// a real keyboard got connected and used: the on-screen controls step aside (🎮 brings them back)
+addEventListener('keydown', () => { if (!$('pad').hidden) { $('pad').hidden = true; $('padbtn').classList.remove('on'); } }, true);
 addEventListener('keydown', key(4));
 addEventListener('keyup', key(5));
 
