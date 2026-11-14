@@ -142,6 +142,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
       if (swapCtl) return spillOk ? driveCall(swapCtl, id, off, p, n, 4) : 0;
       return spill ? spill.write(new Uint8Array(mem.buffer, p >>> 0, n).slice(), { at: off }) : 0;
     },
+    // OpenGL (src/engine/src/opengl): WebGL 2 in this worker, gl.js
+    host_gl: (code, p, n) => { if (!self.glCall) importScripts('gl-funcs.js?v=1', 'gl.js?v=1'); return self.glCall(x, mem, code, p, n); },
     host_drive_read: (id, off, p, n) => {
       if (swapCtl) return driveCall(swapCtl, id, off, p, n);
       const h = id === SPILL ? spill : open[id];
@@ -169,7 +171,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=36' : 'inksoc.wasm?v=49', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=36' : 'inksoc.wasm?v=50', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -384,7 +386,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=49').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=50').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -468,8 +470,8 @@ async function runExec(d) {
   }
   if (!fetched) {
     // the rest of Windows: Wine 11's DLLs (cached by the browser after the first run)
-    post('log', { text: '[engine] loading the Wine DLLs (34 MB the first time)\n' });
-    const list = await fetch('bin/wine/list.json?v=7').then((r) => r.json());
+    post('log', { text: '[engine] loading the Wine DLLs (40 MB the first time)\n' });
+    const list = await fetch('bin/wine/list.json?v=8').then((r) => r.json());
     const have = new Set(files.map((f) => f.name.toLowerCase()));
     const wine = await Promise.all(list.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch('bin/wine/' + name + '?v=3').then((r) => r.arrayBuffer()) })));
     files = files.concat(wine);

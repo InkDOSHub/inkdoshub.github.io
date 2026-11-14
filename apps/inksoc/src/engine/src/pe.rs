@@ -109,6 +109,7 @@ pub fn proc_address(e: &mut Engine, idx: usize, func: &str) -> Option<u64> {
     if e.s.modules[idx].native {
         let dll = e.s.modules[idx].name.clone();
         if let Some(a) = crate::msvcrt::data_export(e, &dll, func) { return Some(a); }
+        if let Some(a) = crate::unixlib::data_export(e, &dll, func) { return Some(a); }
         return Some(e.thunk(&dll, func));
     }
     let a = *e.s.modules[idx].exports.get(func)?;

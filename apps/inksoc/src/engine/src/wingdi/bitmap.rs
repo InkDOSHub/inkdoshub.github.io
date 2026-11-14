@@ -428,3 +428,35 @@ impl Engine {
         )
     }
 }
+
+// ---------- for OpenGL (opengl/) ----------
+
+impl Engine {
+    /// The window a DC draws into (0 for a memory DC).
+    pub(crate) fn dc_hwnd(&self, hdc: u64) -> u64 {
+        self.dc(hdc).map_or(0, |d| if d.mem { 0 } else { d.hwnd })
+    }
+
+    /// The size of what a DC draws into: the window's client area (or whole window for a
+    /// window DC), or the selected bitmap of a memory DC.
+    pub(crate) fn dc_size(&mut self, hdc: u64) -> (i32, i32) {
+        let Some(v) = self.view(hdc) else { return (0, 0) };
+        let (hwnd, whole) = self.dc(hdc).map_or((0, false), |d| (d.hwnd, d.whole));
+        if let Tgt::Bmp(_) = v.tgt {
+            return (v.clip.r - v.clip.l, v.clip.b - v.clip.t);
+        }
+        match self.wnd(full(hwnd)) {
+            Some(w) => {
+                let r = if whole { w.wrect } else { w.crect };
+                (r.r - r.l, r.b - r.t)
+            }
+            None => (0, 0),
+        }
+    }
+
+    /// Draws a top-down picture of 0xAARRGGBB words at the DC's origin (a GL buffer swap).
+    pub(crate) fn present_pixels(&mut self, hdc: u64, w: i32, h: i32, px: &[u32]) {
+        let r = Rect::new(0, 0, w, h);
+        self.blit_px(hdc, r, (false, false), Some((px, w, h, false, 0)), r, 0xCC0020, 0, 0, None);
+    }
+}

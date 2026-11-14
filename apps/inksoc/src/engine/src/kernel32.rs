@@ -572,6 +572,20 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             }
             k
         }
+        // ntdll's lookup by name (winecrt0 finds __wine_unix_call_dispatcher with it)
+        "RtlFindExportedRoutineByName" => {
+            let name_at = e.arg(1);
+            let f = e.read_cstr(name_at, 256);
+            let dll = e.module_by_handle(a0).map(|i| e.s.modules[i].name.clone()).unwrap_or_default();
+            if let Some(v) = crate::unixlib::data_export(e, &dll, &f) {
+                return Some(v);
+            }
+            match e.module_by_handle(a0) {
+                Some(i) if e.s.modules[i].native && !e.wine_has(&dll, &f) => 0,
+                Some(i) => pe::proc_address(e, i, &f).unwrap_or(0),
+                None => 0,
+            }
+        }
         "GetProcAddress" => {
             let f = if e.arg(1) >> 16 == 0 {
                 format!("#{}", e.arg(1))
@@ -579,6 +593,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 let p = e.arg(1);
                 e.read_cstr(p, 256)
             };
+            let dll = e.module_by_handle(a0).map(|i| e.s.modules[i].name.clone()).unwrap_or_default();
+            if let Some(v) = crate::unixlib::data_export(e, &dll, &f) {
+                return Some(v);
+            }
             match e.module_by_handle(a0) {
                 Some(i)
                     if e.s.modules[i].native

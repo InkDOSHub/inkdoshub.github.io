@@ -54,6 +54,11 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtFlushInstructionCache" | "NtLockVirtualMemory" | "NtUnlockVirtualMemory" => OK,
         "NtQueryVirtualMemory" => {
             let (addr, class, buf, len, ret) = (e.arg(1), e.arg(2) as u32, e.arg(3), e.arg(4), e.arg(5));
+            if class == crate::unixlib::MEMORY_WINE_UNIX_FUNCS {
+                let Some(h) = crate::unixlib::handle_of(e, addr) else { return Some(INVALID_INFO_CLASS) };
+                e.w64(buf, h);
+                return Some(OK);
+            }
             if class != 0 {
                 return Some(INVALID_INFO_CLASS);
             }
