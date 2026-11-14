@@ -216,14 +216,14 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   const coreWorkers = [];
   if (mt) {
     const sab = new SharedArrayBuffer(32);
-    swapW = new Worker('swapio.js?v=2');
+    swapW = new Worker('swapio.js?v=3');
     await new Promise((res) => { swapW.onmessage = (ev) => { swapOpfs = ev.data.opfs; spillOk = !!ev.data.spill; (ev.data.drive || []).forEach((ok, i) => { open[i] = ok; }); res(); }; swapW.postMessage({ memory: mem, ctl: sab, name: 'inksoc-swap.bin', drive: lazy.map((f) => f.handle), spill: spillName }); });
     swapCtl = new Int32Array(sab);
     if (!swapOpfs) post('log', { text: '[swap] OPFS sync access unavailable, using RAM instead\n' });
     const ready = [];
     for (let id = 1; id < cores; id++) {
       const stack = 1 << 20, base = x.core_alloc(stack), tls = x.core_alloc(x.__tls_size.value + x.__tls_align.value);
-      const w = new Worker('core.js?v=4');
+      const w = new Worker('core.js?v=5');
       ready.push(new Promise((res, rej) => {
         w.onmessage = (ev) => {
           const m = ev.data;
@@ -277,9 +277,28 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
     const b = new Uint8ClampedArray(new Uint8Array(mem.buffer, p, 1024 * 768 * 4));
     postMessage({ type: 'frame', w: 1024, h: 768, data: b.buffer }, [b.buffer]);
   };
-  while (!tooMuch && !stopAsked) {
+  // Swap brake: swapping wears the device's flash storage. Warn when a program has been
+  // swapping hard for a while, and stop it once one run has written SWAP_CAP_GB.
+  const SWAP_CAP_GB = 8, SWAP_WARN_MBS = 20;
+  let swapCut = false, thrashSince = 0, thrashWarned = false, swapSeen = { t: t0, pages: 0 };
+  const swapBrake = () => {
+    const outs = x.stat(3);
+    if (outs * PAGE >= SWAP_CAP_GB * 2 ** 30) { swapCut = true; return; }
+    const t = performance.now();
+    if (t - swapSeen.t < 1000) return;
+    const pages = x.stat(2) + outs, mbs = (pages - swapSeen.pages) * PAGE / 2 ** 20 / ((t - swapSeen.t) / 1000);
+    swapSeen = { t, pages };
+    if (mbs < SWAP_WARN_MBS) { thrashSince = 0; return; }
+    if (!thrashSince) thrashSince = t;
+    else if (!thrashWarned && t - thrashSince > 30000) {
+      thrashWarned = true;
+      post('log', { text: `[engine] warning: the program needs more memory than it has and is swapping ${mbs | 0} MB/s to storage (slow, and it wears the flash). It stops after ${SWAP_CAP_GB} GB of swap writes.\n` });
+    }
+  };
+  while (!tooMuch && !stopAsked && !swapCut) {
     st = x.run(2000000);
     frame();
+    swapBrake();
     if (st === 3) { await new Promise((r) => setTimeout(r, Math.min(30, Math.max(0, x.stat(17))))); continue; }
     if (st !== 0) break;
     post('stats', stats());
@@ -331,8 +350,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   }
   if (spill) { spill.close(); spill = null; }
   if (opfsRoot) await opfsRoot.removeEntry(spillName).catch(() => {});
-  const error = tooMuch ? 'the program printed more than 1 MB (stuck in a loop? if it asks a question, answer it with a switch such as -y)' : st === 2 ? msg() : '';
-  post('done', { ok: !tooMuch && st === 1 && x.stat(6) === 0, error, exitCode: x.stat(6), out });
+  const error = swapCut ? `stopped by the swap brake: this run wrote ${SWAP_CAP_GB} GB to swap (the program needs more memory than this device gives it)` : tooMuch ? 'the program printed more than 1 MB (stuck in a loop? if it asks a question, answer it with a switch such as -y)' : st === 2 ? msg() : '';
+  post('done', { ok: !tooMuch && !swapCut && st === 1 && x.stat(6) === 0, error, exitCode: x.stat(6), out });
 }
 
 // the desktop's ✕: stop at the next pause and still keep the program's files on drive C:
