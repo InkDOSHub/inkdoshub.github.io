@@ -42,6 +42,7 @@ pub fn safe_point(core: u32) {
 fn unsafe_tlb_unused(c: usize) -> bool { TLBS[c].load(Acquire) == 0 }
 /// The core leaves program code (waits for the lock, sleeps, returns to JavaScript).
 #[inline(always)]
+#[allow(dead_code)] // used by the multi-core lock (lock.rs) only
 pub fn is_away(core: u32) -> bool { crate::lock::MT && SEEN[core as usize].0.load(Relaxed) == AWAY }
 #[inline(always)]
 pub fn away(core: u32) { if crate::lock::MT { SEEN[core as usize].0.store(AWAY, Release); } }

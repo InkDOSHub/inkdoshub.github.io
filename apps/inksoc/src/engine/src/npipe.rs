@@ -17,7 +17,7 @@ const PIPE_DISCONNECTED: u64 = 0xC000_00B0;
 const PIPE_NOT_AVAILABLE: u64 = 0xC000_00AC;
 const NAME_NOT_FOUND: u64 = 0xC000_0034;
 const BUFFER_OVERFLOW: u64 = 0x8000_0005;
-const CANCELLED: u64 = 0xC000_0120;
+pub(crate) const CANCELLED: u64 = 0xC000_0120;
 const IO_TIMEOUT: u64 = 0xC000_00B5;
 
 /// One pipe instance. Side 0 = server, 1 = client; `buf[i]` holds what side i reads.

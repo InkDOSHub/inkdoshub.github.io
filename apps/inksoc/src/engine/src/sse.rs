@@ -81,7 +81,7 @@ macro_rules! g { ($e:expr, $x:expr) => { match $x { Ok(v) => v, Err(_) => return
 /// Returns true when the opcode was handled here.
 pub fn sse(e: &mut Engine, d: &mut Dec, buf: &[u8; 16], rip: u64, rex: u8, p66: bool, rep: u8, op: u8) -> bool {
     let w = rex & 8 != 0;
-    let is_sse = matches!(op, 0x10..=0x17 | 0x28..=0x2F | 0x50..=0x7F | 0xC2 | 0xC4 | 0xC5 | 0xC6 | 0xD0..=0xFE | 0x2B);
+    let is_sse = matches!(op, 0x10..=0x17 | 0x28..=0x2F | 0x50..=0x7F | 0xC2 | 0xC4 | 0xC5 | 0xC6 | 0xD0..=0xFE);
     if !is_sse { return false; }
     // 0x60..0x7F and 0xD1..0xFE without 66/F3/F2 are MMX: not supported
     if (matches!(op, 0x60..=0x7F) || op >= 0xD0) && !p66 && rep == 0 { e.unsupported(buf); return true; }

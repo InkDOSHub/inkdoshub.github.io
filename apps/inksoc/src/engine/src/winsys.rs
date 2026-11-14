@@ -51,7 +51,6 @@ const WM_LBUTTONDBLCLK: u32 = 0x203;
 const WM_PARENTNOTIFY: u32 = 0x210;
 
 // styles
-const WS_POPUP: u32 = 0x8000_0000;
 const WS_CHILD: u32 = 0x4000_0000;
 const WS_VISIBLE: u32 = 0x1000_0000;
 const WS_DISABLED: u32 = 0x0800_0000;
@@ -1456,7 +1455,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtUserTranslateMessage" => {
             let m = a0;
-            let (h, msg, wp, time) = (e.ur64(m), e.ur32(m + 8), e.ur64(m + 16), e.ur32(m + 32));
+            let (h, msg, _wp, time) = (e.ur64(m), e.ur32(m + 8), e.ur64(m + 16), e.ur32(m + 32));
             if msg != WM_KEYDOWN && msg != WM_SYSKEYDOWN { return Some(0); }
             match e.s.win.chars.remove(&time) {
                 Some(c) => { e.post(h, if msg == WM_KEYDOWN { WM_CHAR } else { 0x106 }, c as u64, 1); 1 }

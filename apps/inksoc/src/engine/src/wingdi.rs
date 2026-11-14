@@ -355,7 +355,6 @@ fn idx(h: u64) -> u32 { (h & 0xFFFF) as u32 }
 impl Engine {
     fn g16(&mut self, a: u64) -> u32 { self.mmu.read16(a).unwrap_or(0) as u32 }
     fn g32(&mut self, a: u64) -> u32 { self.mmu.read32(a).unwrap_or(0) }
-    fn g64(&mut self, a: u64) -> u64 { self.mmu.read64(a).unwrap_or(0) }
     fn s16(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write16(a, v as u16); } }
     fn s32(&mut self, a: u64, v: u32) { if a != 0 { let _ = self.mmu.write32(a, v); } }
     fn s64(&mut self, a: u64, v: u64) { if a != 0 { let _ = self.mmu.write64(a, v); } }
@@ -730,7 +729,7 @@ impl Engine {
         let clip = v.clip.inter(&Rect::new(0, 0, sw, sh));
         let pw = pen.map_or(0, |p| p.1);
         let inner = Rect::new(r.l + pw, r.t + pw, r.r - pw, r.b - pw);
-        let mut put = |x: i32, y: i32, c: u32, px: &mut Vec<u32>| { if clip.has(x, y) { let i = (y * sw + x) as usize; px[i] = rop2(r2, c, px[i]); } };
+        let put = |x: i32, y: i32, c: u32, px: &mut Vec<u32>| { if clip.has(x, y) { let i = (y * sw + x) as usize; px[i] = rop2(r2, c, px[i]); } };
         let fill = if pen.is_none() { r } else { inner };
         for y in fill.t.max(clip.t)..fill.b.min(clip.b) {
             for x in fill.l.max(clip.l)..fill.r.min(clip.r) { if let Some(c) = be_at(&be, x, y) { put(x, y, c, &mut px); } }
@@ -1605,9 +1604,9 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             1
         }
         "NtGdiPolyPolyDraw" => { let (p, c, n, f) = (ar[1], ar[2], ar[3] as u32, ar[4] as u32); e.poly_poly_draw(a0, p, c, n, f) }
-        "NtGdiRectangle" => { let r = Rect::new((ar[1] as i32), (ar[2] as i32), (ar[3] as i32), (ar[4] as i32)); e.shape_rect(a0, r, false) as u64 }
-        "NtGdiRoundRect" => { let r = Rect::new((ar[1] as i32), (ar[2] as i32), (ar[3] as i32), (ar[4] as i32)); e.shape_rect(a0, r, true) as u64 }
-        "NtGdiEllipse" => { let r = Rect::new((ar[1] as i32), (ar[2] as i32), (ar[3] as i32), (ar[4] as i32)); e.ellipse(a0, r) as u64 }
+        "NtGdiRectangle" => { let r = Rect::new(ar[1] as i32, ar[2] as i32, ar[3] as i32, ar[4] as i32); e.shape_rect(a0, r, false) as u64 }
+        "NtGdiRoundRect" => { let r = Rect::new(ar[1] as i32, ar[2] as i32, ar[3] as i32, ar[4] as i32); e.shape_rect(a0, r, true) as u64 }
+        "NtGdiEllipse" => { let r = Rect::new(ar[1] as i32, ar[2] as i32, ar[3] as i32, ar[4] as i32); e.ellipse(a0, r) as u64 }
         "NtGdiArcInternal" | "NtGdiAngleArc" | "NtGdiPolyDraw" | "NtGdiExtFloodFill" => 1,
         "NtGdiPatBlt" => {
             let (l, t, w, h, rop) = ((ar[1] as i32), (ar[2] as i32), (ar[3] as i32), (ar[4] as i32), ar[5] as u32);
@@ -1863,7 +1862,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             n as u64
         }
         "NtGdiRestoreDC" => {
-            let lvl = (ar[1] as i32);
+            let lvl = ar[1] as i32;
             let Some(d) = e.dc_mut(a0) else { return Some(0) };
             let n = d.saved.len() as i32;
             let target = if lvl < 0 { n + lvl } else { lvl - 1 };
@@ -1907,7 +1906,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtGdiExtSelectClipRgn" => { let (rg, mode) = (ar[1], ar[2] as u32); let r = if rg == 0 { None } else { e.rgn(rg) }; e.clip_op(a0, r, mode) }
         "NtGdiIntersectClipRect" | "NtGdiExcludeClipRect" => {
             let Some(attr) = e.dc(a0).map(|d| d.attr) else { return Some(0) };
-            let r = Rect::new((ar[1] as i32), (ar[2] as i32), (ar[3] as i32), (ar[4] as i32));
+            let r = Rect::new(ar[1] as i32, ar[2] as i32, ar[3] as i32, ar[4] as i32);
             let r = e.lpr(attr, r);
             e.clip_op(a0, Some(r), if name == "NtGdiIntersectClipRect" { 1 } else { 4 })
         }
@@ -1958,15 +1957,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 _ => 0,
             }
         }
-        "NtGdiCreateRectRgn" => { let r = Rect::new((ar[0] as i32), (ar[1] as i32), (ar[2] as i32), (ar[3] as i32)); let r = Rect::new(r.l.min(r.r), r.t.min(r.b), r.l.max(r.r), r.t.max(r.b)); e.gdi_new(E_RGN, Obj::Rgn(if r.empty() { Rect::default() } else { r })) }
-        "NtGdiCreateEllipticRgn" | "NtGdiCreateRoundRectRgn" => { let r = Rect::new((ar[0] as i32), (ar[1] as i32), (ar[2] as i32), (ar[3] as i32)); e.gdi_new(E_RGN, Obj::Rgn(r)) }
+        "NtGdiCreateRectRgn" => { let r = Rect::new(ar[0] as i32, ar[1] as i32, ar[2] as i32, ar[3] as i32); let r = Rect::new(r.l.min(r.r), r.t.min(r.b), r.l.max(r.r), r.t.max(r.b)); e.gdi_new(E_RGN, Obj::Rgn(if r.empty() { Rect::default() } else { r })) }
+        "NtGdiCreateEllipticRgn" | "NtGdiCreateRoundRectRgn" => { let r = Rect::new(ar[0] as i32, ar[1] as i32, ar[2] as i32, ar[3] as i32); e.gdi_new(E_RGN, Obj::Rgn(r)) }
         "NtGdiExtCreateRegion" => {
             let data = ar[2];
             let n = e.g32(data + 8);
             let r = if n == 0 { Rect::default() } else { e.rd_rect(data + 16) };
             e.gdi_new(E_RGN, Obj::Rgn(r))
         }
-        "NtGdiSetRectRgn" => { let r = Rect::new((ar[1] as i32), (ar[2] as i32), (ar[3] as i32), (ar[4] as i32)); e.set_rgn(a0, r); 1 }
+        "NtGdiSetRectRgn" => { let r = Rect::new(ar[1] as i32, ar[2] as i32, ar[3] as i32, ar[4] as i32); e.set_rgn(a0, r); 1 }
         "NtGdiCombineRgn" => {
             let (s1, s2, mode) = (ar[1], ar[2], ar[3] as u32);
             let (Some(r1), r2) = (e.rgn(s1), e.rgn(s2)) else { return Some(0) };

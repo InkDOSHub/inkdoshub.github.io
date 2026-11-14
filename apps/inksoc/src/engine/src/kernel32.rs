@@ -1,7 +1,7 @@
 // Our own kernel32: the functions a normal program needs to start and run,
 // implemented natively (wasm) against the engine. Single thread for now.
 
-use crate::{console, pe, Engine, PEB, RET_LOADLIB};
+use crate::{console, pe, Engine, PEB};
 
 /// Returned by functions that already set rip themselves (no `ret`).
 pub const NO_RETURN: u64 = u64::MAX - 0x5A5A;

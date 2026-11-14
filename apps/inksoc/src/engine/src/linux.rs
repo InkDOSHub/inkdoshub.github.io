@@ -631,7 +631,7 @@ pub fn syscall(e: &mut Engine) {
         118 | 120 => { let i = lx(e).ids; let v = if nr == 118 { [i.0, i.2, i.2] } else { [i.1; 3] }; for (p, x) in [a0, a1, a2].into_iter().zip(v) { if p != 0 { let _ = e.mmu.write32(p, x); } } 0 }
         116 | 115 => 0, // setgroups / getgroups (none)
         122 | 123 => lx(e).ids.0 as i64, // setfsuid / setfsgid
-        105 | 106 | 109 | 112 => 0,
+        109 | 112 => 0,
         121 => if a0 == 0 { lx(e).pid as i64 } else { a0 as i64 }, // getpgid
         111 => lx(e).pid as i64, // getpgrp
         124 => 1, // getsid
@@ -765,9 +765,6 @@ pub fn syscall(e: &mut Engine) {
 }
 
 impl Lx {
-    fn clone_fd(&self, fd: i32) -> Fd {
-        match self.fds.get(&fd) { Some(Fd::File { path, pos, append }) => Fd::File { path: path.clone(), pos: *pos, append: *append }, Some(Fd::Dir { path, .. }) => Fd::Dir { path: path.clone(), pos: 0 }, _ => Fd::Tty }
-    }
     fn new_fd_from(&mut self, min: i32, f: Fd) -> i32 {
         let mut n = min.max(0);
         while self.fds.contains_key(&n) { n += 1; }
