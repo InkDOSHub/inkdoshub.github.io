@@ -156,10 +156,31 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 a0
             }
         }
+        "CharUpperBuffW" | "CharLowerBuffW" | "CharUpperBuffA" | "CharLowerBuffA" => {
+            // (text, length): changed in place, returns the length (Wine's needs NLS tables the 64-bit side lacks)
+            let (up, wide, n) = (name.starts_with("CharUpper"), name.ends_with('W'), e.arg(1) as u32 as u64);
+            for i in 0..n {
+                if wide {
+                    let c = e.mmu.read16(a0 + 2 * i).unwrap_or(0);
+                    let ch = char::from_u32(c as u32).unwrap_or('?');
+                    let s: String = if up { ch.to_uppercase().collect() } else { ch.to_lowercase().collect() };
+                    let _ = e.mmu.write16(a0 + 2 * i, s.encode_utf16().next().filter(|_| s.chars().count() == 1).unwrap_or(c));
+                } else {
+                    let c = e.mmu.read8(a0 + i).unwrap_or(0);
+                    let _ = e.mmu.write8(a0 + i, if up { c.to_ascii_uppercase() } else { c.to_ascii_lowercase() });
+                }
+            }
+            n
+        }
+        "IsCharAlphaW" | "IsCharAlphaNumericW" | "IsCharUpperW" | "IsCharLowerW" | "IsCharSpaceW" | "IsCharAlphaA" | "IsCharAlphaNumericA" | "IsCharUpperA" | "IsCharLowerA" => {
+            let ch = char::from_u32(if name.ends_with('A') { a0 as u8 as u32 } else { a0 as u16 as u32 }).unwrap_or('\0');
+            (match &name[6..name.len() - 1] { "Alpha" => ch.is_alphabetic(), "AlphaNumeric" => ch.is_alphanumeric(), "Upper" => ch.is_uppercase(), "Lower" => ch.is_lowercase(), _ => ch.is_whitespace() }) as u64
+        }
         "GetActiveProcessorGroupCount" | "GetMaximumProcessorGroupCount" => 1,
         "GetActiveProcessorCount" | "GetMaximumProcessorCount" => e.s.cores as u64,
-        // advapi32: no security tokens yet (the registry is Wine's advapi32 over registry.rs)
-        "OpenProcessToken" | "OpenThreadToken" | "LookupPrivilegeValueW" | "LookupPrivilegeValueA" | "AdjustTokenPrivileges" => { e.set_last_error(5); 0 }
+        // advapi32: the process token is ntsys.rs's one user (Windows Installer reads its SID);
+        // no privileges to turn on
+        "LookupPrivilegeValueW" | "LookupPrivilegeValueA" | "AdjustTokenPrivileges" => { e.set_last_error(5); 0 }
         "GetProcessTimes" | "GetThreadTimes" => {
             let h = e.arg(0);
             let Some((c, u)) = e.cpu_times(h, name == "GetProcessTimes") else { e.set_last_error(6); return Some(0) };

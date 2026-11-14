@@ -134,7 +134,7 @@ impl Engine {
     }
 
     /// Is handle h signaled for thread `me`?
-    fn signaled(&self, h: u64, me: u32) -> bool {
+    pub(crate) fn signaled(&self, h: u64, me: u32) -> bool {
         match self.s.fs.handles.get(&h) {
             Some(Handle::Event { set, .. }) => *set,
             Some(Handle::Mutex { owner, .. }) => *owner == 0 || *owner == me,
@@ -146,7 +146,7 @@ impl Engine {
             _ => true,
         }
     }
-    fn acquire(&mut self, h: u64, me: u32) {
+    pub(crate) fn acquire(&mut self, h: u64, me: u32) {
         match self.s.fs.handles.get_mut(&h) {
             Some(Handle::Event { set, manual }) => { if !*manual { *set = false; } }
             Some(Handle::Mutex { owner, count }) => { *owner = me; *count += 1; }
@@ -363,11 +363,12 @@ impl Engine {
                 if t.st == St::Wait { soonest = soonest.min(t.deadline); }
                 continue;
             }
-            if self.core != 0 && t.pid != 0 { continue; } // Linux processes run on core 0 (one address space at a time)
+            // threads this core leaves to core 0 are not stuck: core 0 runs them
+            if self.core != 0 && t.pid != 0 { if t.st != St::Done { held = true; } continue; } // Linux processes run on core 0 (one address space at a time)
             // several Windows processes: one address space at a time, so only core 0 runs, and it
             // changes process only when no other core still holds a thread
             if t.wpid != self.s.wpid || (self.core != 0 && self.children_alive()) {
-                if self.core != 0 { continue; }
+                if self.core != 0 { if t.st != St::Done { held = true; } continue; }
                 if self.s.sched.th.iter().any(|x| x.on_core != NO_CORE && x.on_core != self.core && x.st != St::Done) { held = true; continue; }
             }
             match t.st {

@@ -4,6 +4,7 @@
 // Each program runs in its own process with a time limit.
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
@@ -45,13 +46,15 @@ for (const p of list) {
 }
 
 async function runOne({ files, exe, args }) {
-  const PAGE = 4096, pool = 256; const ram = new Map(); let mem, wine, x, out = '', traceFd = null;
+  const PAGE = 4096, pool = 256; const ram = new Map(); let mem, wine, x, out = '', traceFd = null, spillFd = null;
   const view = (p) => new Uint8Array(mem.buffer, p, PAGE);
   const env = {
     // with TRACE the call log goes straight to its file (it can pass node's string limit)
     host_console: (p, n) => { const t = new TextDecoder().decode(new Uint8Array(mem.buffer, p, n).slice()); if (traceFd !== null && t.startsWith('[call]')) fs.writeSync(traceFd, t); else out += t; },
     host_now_ms: () => performance.now(), host_epoch_ms: () => Date.now(),
-    host_swap_write: (s, p) => ram.set(s, view(p).slice()), host_swap_read: (s, p) => view(p).set(ram.get(s)), host_drive_read: () => 0,
+    host_swap_write: (s, p) => ram.set(s, view(p).slice()), host_swap_read: (s, p) => view(p).set(ram.get(s)), // the spill file (closed big files) in a temporary file, as OPFS holds it in the browser
+    host_drive_write: (id, off, p, n) => { spillFd ??= fs.openSync(path.join(os.tmpdir(), 'inksoc-spill-' + process.pid), 'w+'); return fs.writeSync(spillFd, new Uint8Array(mem.buffer, p >>> 0, n), 0, n, off); },
+    host_drive_read: (id, off, p, n) => spillFd === null ? 0 : fs.readSync(spillFd, new Uint8Array(mem.buffer, p >>> 0, n), 0, n, off),
     wine_call: (id, a, b, c, d) => wine.ink_call(id, a, b, c, d),
     host_jit: (p, n) => {
       try {
@@ -68,28 +71,33 @@ async function runOne({ files, exe, args }) {
   wine = (await WebAssembly.instantiate(fs.readFileSync(path.join(ENGINE, 'wine.wasm')), { env: { memory: mem, load_ptr: x.wine_load_ptr, store_ptr: x.wine_store_ptr, malloc: x.wine_malloc, free: x.wine_free, sse2_memmove: x.wine_memmove, __inksoc_teb: x.wine_teb, ink_output: x.wine_output } })).instance.exports;
   const enc = (t) => new TextEncoder().encode(t);
   for (const f of files) { const nm = enc(path.basename(f)), d = fs.readFileSync(f), b = new Uint8Array(nm.length + 1 + d.length); b.set(nm); b.set(d, nm.length + 1); put(b); x.add_file(); }
-  if (process.env.TRACE) { traceFd = fs.openSync(process.env.TRACE, 'w'); x.set_trace(1); }
+  if (process.env.TRACE) { traceFd = fs.openSync(process.env.TRACE, 'w'); if (!process.env.TRACE_AT) x.set_trace(1); } // TRACE_AT=s: start the log only then
   if (process.env.NOJIT) x.set_jit(0);
   put(enc(exe + '\0' + exe + (args ? ' ' + args : '')));
-  const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()));
+  const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, (x.msg_ptr() >>> 0), x.msg_len()));
   const t0 = performance.now();
   let st = x.start() !== 0 ? 2 : 0, status = 'exit';
   // window tests: SHOT=file.ppm saves the last screen, INPUT=[[ms, kind, x, y, data], ...] plays input
   let frame = null; const input = JSON.parse(process.env.INPUT || '[]');
+  let lastShot = 0;
+  const saveShot = () => { if (!frame) return; const rgb = Buffer.alloc(1024 * 768 * 3); for (let i = 0; i < 1024 * 768; i++) { rgb[3 * i] = frame[4 * i]; rgb[3 * i + 1] = frame[4 * i + 1]; rgb[3 * i + 2] = frame[4 * i + 2]; } fs.writeFileSync(process.env.SHOT, Buffer.concat([Buffer.from('P6 1024 768 255\n'), rgb])); };
   const grab = () => { const p = x.win_frame ? x.win_frame() : 0; if (p) frame = new Uint8Array(mem.buffer, p, 1024 * 768 * 4).slice(); };
   while (st === 0 || st === 3) {
     if (performance.now() - t0 > LIMIT_S * 1000) { status = 'timeout'; break; }
     if (process.env.SHOT) grab();
+    if (process.env.SHOT && frame && performance.now() - lastShot > 30000) { lastShot = performance.now(); saveShot(); }
     while (input.length && performance.now() - t0 >= input[0][0]) { const [, k, ix, iy, d] = input.shift(); x.win_input(k, ix, iy, d); }
+    if (process.env.TRACE_AT && traceFd !== null && performance.now() - t0 >= +process.env.TRACE_AT * 1000) { x.set_trace(1); delete process.env.TRACE_AT; }
     st = x.run(2000000);
     if (st === 3) await new Promise((r) => setTimeout(r, Math.min(50, Math.max(0, x.stat(17)))));
   }
   if (st === 2) status = "stopped";
   if (process.env.DBG) console.log("insns", x.stat(0), "rip", x.stat(11).toString(16), "threads", x.stat(18), "wins", x.win_count ? x.win_count() : -1);
-  if (process.env.SHOT) { grab(); if (frame) { const rgb = Buffer.alloc(1024 * 768 * 3); for (let i = 0; i < 1024 * 768; i++) { rgb[3 * i] = frame[4 * i]; rgb[3 * i + 1] = frame[4 * i + 1]; rgb[3 * i + 2] = frame[4 * i + 2]; } fs.writeFileSync(process.env.SHOT, Buffer.concat([Buffer.from('P6 1024 768 255\n'), rgb])); } }
+  if (process.env.SHOT) { grab(); saveShot(); }
   if (traceFd !== null) { fs.writeSync(traceFd, out); fs.closeSync(traceFd); }
   const outFiles = [];
-  for (let i = 0, n; (n = x.out_file(i)); i++) { const b = new Uint8Array(mem.buffer, x.out_ptr(), n); const nm = new TextDecoder().decode(b.subarray(0, b.indexOf(0))); outFiles.push(nm); if (process.env.OUTDIR) fs.writeFileSync(path.join(process.env.OUTDIR, path.basename(nm.replace(/\\/g, '/'))), b.slice(b.indexOf(0) + 1)); }
+  for (let i = 0, n; (n = x.out_file(i)); i++) { const b = new Uint8Array(mem.buffer, (x.out_ptr() >>> 0), n); const nm = new TextDecoder().decode(b.subarray(0, b.indexOf(0))); outFiles.push(nm); let data = b.slice(b.indexOf(0) + 1); if (x.out_disk && x.out_disk(i) === 0x7FFFFFF0) { data = new Uint8Array(x.out_disk_size(i)); fs.readSync(spillFd, data, 0, data.length, x.out_disk_at(i)); } if (process.env.OUTDIR) fs.writeFileSync(path.join(process.env.OUTDIR, path.basename(nm.replace(/\\/g, '/'))), data); }
+  if (spillFd !== null) { fs.closeSync(spillFd); fs.rmSync(path.join(os.tmpdir(), 'inksoc-spill-' + process.pid), { force: true }); spillFd = null; }
   const missing = [...new Set((out.match(/\[inksoc\] \S+ is not available yet/g) || []).map((s) => s.split(' ')[1]))];
   const ms = performance.now() - t0;
   if (process.env.PROF && x.prof_dump) { x.prof_dump(); console.error('PROF\n' + msg()); }

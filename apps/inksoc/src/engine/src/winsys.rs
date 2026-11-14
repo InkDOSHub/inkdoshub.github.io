@@ -727,7 +727,12 @@ impl Engine {
     /// Whether the thread has anything for GetMessage (posted, input, quit, paint, due timer).
     pub(crate) fn has_msgs(&mut self, tid: u32) -> bool {
         self.s.win.queues.get(&tid).map_or(false, |q| !q.posted.is_empty() || !q.input.is_empty() || q.quit.is_some())
-            || self.s.win.wins.values().any(|w| w.tid == tid && !w.update.empty()) || self.next_timer(tid) <= now_ms()
+            || self.paint_due(tid) || self.next_timer(tid) <= now_ms()
+    }
+    /// A shown window of this thread waits for WM_PAINT (a hidden one gets it once shown,
+    /// as peek_tid does: counting it would make a message wait return with nothing to read).
+    pub(crate) fn paint_due(&self, tid: u32) -> bool {
+        self.s.win.wins.iter().any(|(&h, w)| w.tid == tid && !w.update.empty() && self.is_visible(h))
     }
 
     pub(crate) fn peek_tid(&mut self, tid: u32, out: u64, hwnd: u64, first: u32, last: u32, remove: bool) -> Option<bool> {
@@ -1421,10 +1426,10 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             // (count, handles, timeout, mask, flags): wake on input as well
             let (n, hs, ms) = (a0 as u32, ar[1], ar[2] as u32 as u64);
             let tid = e.cur_tid();
-            let has = e.s.win.queues.get(&tid).map_or(false, |q| !q.posted.is_empty() || !q.input.is_empty() || q.quit.is_some())
-                || e.s.win.wins.values().any(|w| w.tid == tid && !w.update.empty()) || e.next_timer(tid) <= now_ms();
-            if has { return Some(n as u64); }
             let handles: Vec<u64> = (0..n as u64).map(|i| e.ur64(hs + 8 * i)).collect();
+            // the objects first (WAIT_OBJECT_0 + i), then input (WAIT_OBJECT_0 + n)
+            if let Some(i) = handles.iter().position(|&h| e.signaled(h, tid)) { e.acquire(handles[i], tid); return Some(i as u64); }
+            if e.has_msgs(tid) { return Some(n as u64); }
             return Some(e.wait_on(crate::sched::W::MsgOrObjs { hs: handles }, ms));
         }
         "NtUserWaitMessage" => return Some(e.wait_on(crate::sched::W::MsgOrObjs { hs: vec![] }, u64::MAX)),
@@ -1434,7 +1439,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let mut s = 0u64;
             if !q.posted.is_empty() { s |= 8; }
             if !q.input.is_empty() { s |= 7; }
-            if e.s.win.wins.values().any(|w| w.tid == tid && !w.update.empty()) { s |= 0x20; }
+            if e.paint_due(tid) { s |= 0x20; }
             if e.next_timer(tid) <= now_ms() { s |= 0x10; }
             (s << 16) | s
         }

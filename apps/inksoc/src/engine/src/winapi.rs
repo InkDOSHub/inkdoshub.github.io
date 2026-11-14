@@ -325,6 +325,22 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "GetComputerNameA" => { let np = e.arg(1); let n = e.mmu.read32(np).unwrap_or(0) as u64; let r = e.out_a(a0, n, "INKSOC"); if r > 6 { e.wr32(np, 7); 0 } else { e.wr32(np, r as u32); 1 } }
         "GetUserNameW" => { let np = e.arg(1); let n = e.mmu.read32(np).unwrap_or(0) as u64; let r = e.out_w(a0, n, "user"); if r > 4 { e.wr32(np, 5); e.last_err(122); 0 } else { e.wr32(np, r as u32 + 1); 1 } }
+        "LookupAccountNameW" => {
+            // the one local user (the token's SID S-1-5-21-1-2-3-1000), as Windows Installer asks for it
+            let (nm, sid, sidn, dom, domn, usep) = (e.arg(1), e.arg(2), e.arg(3), e.arg(4), e.arg(5), e.arg(6));
+            let who = if nm == 0 { String::new() } else { e.read_wstr(nm, 260).to_lowercase() };
+            let who = who.rsplit('\\').next().unwrap_or("").to_string();
+            if who != "user" { e.last_err(1332); return Some(0); } // ERROR_NONE_MAPPED
+            let s: [u8; 28] = [1, 5, 0, 0, 0, 0, 0, 5, 21, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0xE8, 3, 0, 0];
+            let (have_s, have_d) = (e.mmu.read32(sidn).unwrap_or(0), if domn != 0 { e.mmu.read32(domn).unwrap_or(0) } else { 0 });
+            let _ = e.mmu.write32(sidn, 28);
+            if domn != 0 { let _ = e.mmu.write32(domn, if (have_d as usize) < 7 { 7 } else { 6 }); }
+            if have_s < 28 || sid == 0 || (have_d as usize) < 7 || dom == 0 { e.last_err(122); return Some(0); }
+            let _ = e.mmu.write_bytes(sid, &s);
+            e.out_w(dom, 7, "INKSOC");
+            if usep != 0 { let _ = e.mmu.write32(usep, 1); } // SidTypeUser
+            1
+        }
         "GetUserNameA" => { let np = e.arg(1); let n = e.mmu.read32(np).unwrap_or(0) as u64; let r = e.out_a(a0, n, "user"); if r > 4 { e.wr32(np, 5); e.last_err(122); 0 } else { e.wr32(np, r as u32 + 1); 1 } }
         "GetDriveTypeW" | "GetDriveTypeA" => 3,
         "GetLogicalDrives" => 1 << 2,
@@ -635,6 +651,44 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         // the old CryptoAPI: only its random numbers (Python seeds its hashes with them)
         "CryptAcquireContextW" | "CryptAcquireContextA" => { e.wr64(a0, 0xC0FFEE); 1 }
         "CryptReleaseContext" => 1,
+        // hashes: the data is kept and hashed when the value is asked for (hash.rs)
+        "CryptCreateHash" => {
+            let (alg, out) = (e.arg(1) as u32, e.arg(4));
+            if crate::hash::by_algid(alg, &[]).is_none() { e.last_err(0x8009_0008); return Some(0); } // NTE_BAD_ALGID
+            e.s.fs.hash_next += 1;
+            let h = 0xC0DE_0000 + e.s.fs.hash_next;
+            e.s.fs.hashes.insert(h, (alg, Vec::new()));
+            e.wr64(out, h);
+            1
+        }
+        "CryptHashData" => {
+            let (h, p, n) = (a0, e.arg(1), e.arg(2) as u32 as usize);
+            let mut v = vec![0u8; n];
+            if e.mmu.read_bytes(p, &mut v).is_err() { e.last_err(87); return Some(0); }
+            match e.s.fs.hashes.get_mut(&h) { Some(x) => { x.1.extend_from_slice(&v); 1 } None => { e.last_err(6); 0 } }
+        }
+        "CryptGetHashParam" => {
+            let (h, param, buf, lenp) = (a0, e.arg(1) as u32, e.arg(2), e.arg(3));
+            let Some((alg, data)) = e.s.fs.hashes.get(&h).cloned() else { e.last_err(6); return Some(0) };
+            let v = crate::hash::by_algid(alg, &data).unwrap_or_default();
+            let out: Vec<u8> = match param { 1 => alg.to_le_bytes().to_vec(), 2 => v, 4 => (v.len() as u32).to_le_bytes().to_vec(), _ => { e.last_err(0x8009_0009); return Some(0); } }; // NTE_BAD_TYPE
+            let have = e.mmu.read32(lenp).unwrap_or(0) as usize;
+            e.wr32(lenp, out.len() as u32);
+            if buf == 0 { return Some(1); }
+            if have < out.len() { e.last_err(234); return Some(0); } // ERROR_MORE_DATA
+            let _ = e.mmu.write_bytes(buf, &out);
+            1
+        }
+        "CryptDestroyHash" => { e.s.fs.hashes.remove(&a0); 1 }
+        "CryptDuplicateHash" => {
+            let (h, out) = (a0, e.arg(2));
+            let Some(x) = e.s.fs.hashes.get(&h).cloned() else { e.last_err(6); return Some(0) };
+            e.s.fs.hash_next += 1;
+            let n = 0xC0DE_0000 + e.s.fs.hash_next;
+            e.s.fs.hashes.insert(n, x);
+            e.wr64(out, n);
+            1
+        }
         "CryptGenRandom" => {
             let (n, p) = (e.arg(1) as u32 as u64, e.arg(2));
             let mut x = (unsafe { crate::host_epoch_ms() } as u64) ^ 0x6A09_E667_F3BC_C909 ^ e.cpu.icount;

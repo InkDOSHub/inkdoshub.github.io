@@ -1,7 +1,7 @@
 /* InkSoC proof worker: runs the engine (inksoc.wasm) with swap in OPFS,
    and the OPFS / memory measurements. Everything heavy stays off the page. */
 'use strict';
-const PAGE = 4096;
+const SPILL = 0x7FFFFFF0, PAGE = 4096;
 const post = (type, data) => postMessage(Object.assign({ type }, data));
 
 async function openSwap(name) {
@@ -30,9 +30,9 @@ function swapCall(ctl, op, slot, p) {
 }
 
 /* A piece of a drive C: file from the swap worker, which holds the open files. */
-function driveCall(ctl, id, off, p, n) {
+function driveCall(ctl, id, off, p, n, op = 3) {
   while (Atomics.compareExchange(ctl, 4, 0, 1) !== 0) Atomics.wait(ctl, 4, 1, 1);
-  ctl[1] = 3; ctl[2] = id; ctl[3] = p; ctl[5] = n; ctl[6] = off % 4294967296 | 0; ctl[7] = Math.floor(off / 4294967296);
+  ctl[1] = op; ctl[2] = id; ctl[3] = p; ctl[5] = n; ctl[6] = off % 4294967296 | 0; ctl[7] = Math.floor(off / 4294967296);
   Atomics.store(ctl, 0, 1);
   Atomics.notify(ctl, 0);
   while (Atomics.load(ctl, 0) !== 2) Atomics.wait(ctl, 0, 1);
@@ -65,7 +65,7 @@ async function readDrive() {
   await walk(root, '');
   return { files, reg };
 }
-async function saveDrive(changes, reg) {
+async function saveDrive(changes, reg, spill) {
   const root = await driveRoot();
   // a Windows path -> its folder handle (made if needed) and file name
   const at = async (path, make) => {
@@ -78,6 +78,12 @@ async function saveDrive(changes, reg) {
     if (!c.path) continue;
     if (c.path.startsWith('-')) { try { const [d, n] = await at(c.path.slice(1), false); await d.removeEntry(n); } catch (e) { /* already gone */ } }
     else if (c.path.endsWith('\\')) await at(c.path + 'x', true);
+    else if (c.spill) {
+      const [d, n] = await at(c.path, true), w = await (await d.getFileHandle(n, { create: true })).createWritable();
+      const [base, size] = c.spill, b = new Uint8Array(Math.min(size, 4 << 20));
+      for (let o = 0; o < size; o += b.length) { const k = Math.min(b.length, size - o), got = spill ? spill.read(b.subarray(0, k), { at: base + o }) : 0; await w.write(b.slice(0, got)); if (got < k) break; }
+      await w.close();
+    }
     else if (c.from) { const [d, n] = await at(c.path, true); const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await (await c.from.getFile()).stream().pipeTo(w); }
     else if (c.data) { const [d, n] = await at(c.path, true); const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(c.data); await w.close(); }
   }
@@ -92,6 +98,13 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   const mt = cores > 1;
   // one core: this worker holds the swap file; several: a swap worker does, for every core
   const swap = mt ? null : await openSwap('inksoc-swap.bin');
+  // spill file: closed program files too big to keep in memory (an installer's output), read
+  // back on demand and copied to drive C: at the end; one per run, so runs side by side don't mix
+  const opfsRoot = await navigator.storage.getDirectory().catch(() => null);
+  if (opfsRoot) for await (const [n, h] of opfsRoot.entries()) if (n.startsWith('inksoc-sp-')) await opfsRoot.removeEntry(n).catch(() => {}); // a running one is held open
+  const spillName = 'inksoc-sp-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  let spill = null, spillOk = false;
+  if (!mt && opfsRoot) try { spill = await (await opfsRoot.getFileHandle(spillName, { create: true })).createSyncAccessHandle(); spillOk = true; } catch (e) { spill = null; }
   let swapCtl = null, swapW = null, swapOpfs = false;
   // drive C: files read on demand: [{ name, handle, size }], opened here (1 core) or by the swap worker
   const lazy = files.filter((f) => f.handle), open = [];
@@ -125,9 +138,13 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
       else if (swap) { if (shared) { const b = new Uint8Array(PAGE); swap.read(b, { at: slot * PAGE }); view(p).set(b); } else swap.read(view(p), { at: slot * PAGE }); } else view(p).set(ram.get(slot));
       swapMs += performance.now() - t;
     },
+    host_drive_write: (id, off, p, n) => {
+      if (swapCtl) return spillOk ? driveCall(swapCtl, id, off, p, n, 4) : 0;
+      return spill ? spill.write(new Uint8Array(mem.buffer, p >>> 0, n).slice(), { at: off }) : 0;
+    },
     host_drive_read: (id, off, p, n) => {
       if (swapCtl) return driveCall(swapCtl, id, off, p, n);
-      const h = open[id];
+      const h = id === SPILL ? spill : open[id];
       if (!h) return 0;
       if (!shared) return h.read(new Uint8Array(mem.buffer, p, n), { at: off });
       const b = new Uint8Array(n), got = h.read(b, { at: off });
@@ -174,7 +191,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   if (mt) x.__wasm_init_tls(x.core_alloc(x.__tls_size.value + x.__tls_align.value));
   const put = (bytes) => { const p = x.buffer(bytes.length); new Uint8Array(mem.buffer, p, bytes.length).set(bytes); };
   const enc = (t) => new TextEncoder().encode(t);
-  const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice());
+  const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, (x.msg_ptr() >>> 0), x.msg_len()).slice());
   x.init(poolMb, targetMb);
   if (shared && !mt) x.set_shared_mem(1);
   if (jit === false) x.set_jit(0);
@@ -200,7 +217,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   if (mt) {
     const sab = new SharedArrayBuffer(32);
     swapW = new Worker('swapio.js?v=2');
-    await new Promise((res) => { swapW.onmessage = (ev) => { swapOpfs = ev.data.opfs; (ev.data.drive || []).forEach((ok, i) => { open[i] = ok; }); res(); }; swapW.postMessage({ memory: mem, ctl: sab, name: 'inksoc-swap.bin', drive: lazy.map((f) => f.handle) }); });
+    await new Promise((res) => { swapW.onmessage = (ev) => { swapOpfs = ev.data.opfs; spillOk = !!ev.data.spill; (ev.data.drive || []).forEach((ok, i) => { open[i] = ok; }); res(); }; swapW.postMessage({ memory: mem, ctl: sab, name: 'inksoc-swap.bin', drive: lazy.map((f) => f.handle), spill: spillName }); });
     swapCtl = new Int32Array(sab);
     if (!swapOpfs) post('log', { text: '[swap] OPFS sync access unavailable, using RAM instead\n' });
     const ready = [];
@@ -285,13 +302,21 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   // program's own folder (C:\InkSoC) are offered for download too
   const out = [];
   const changes = [];
+  if (!spill && spillOk && opfsRoot) spill = await (await opfsRoot.getFileHandle(spillName)).createSyncAccessHandle().catch(() => null); // the swap worker let it go
   for (let i = 0, n; (n = x.out_file(i)); i++) {
-    const b = new Uint8Array(mem.buffer, x.out_ptr(), n).slice();
+    const b = new Uint8Array(mem.buffer, (x.out_ptr() >>> 0), n).slice();
     const nl = b.indexOf(0);
     const name = new TextDecoder().decode(b.subarray(0, nl));
     let path = null;
-    if (drive && x.drive_entry) { const k = x.drive_entry(i); path = new TextDecoder().decode(new Uint8Array(mem.buffer, x.out_ptr(), k).slice()); }
+    if (drive && x.drive_entry) { const k = x.drive_entry(i); path = new TextDecoder().decode(new Uint8Array(mem.buffer, (x.out_ptr() >>> 0), k).slice()); }
     const disk = x.out_disk ? x.out_disk(i) : -1;
+    if (disk === SPILL) {
+      // kept in the spill file: copied to drive C: there, read back only for a download
+      const at = x.out_disk_at(i), size = x.out_disk_size(i);
+      changes.push({ path, spill: [at, size] });
+      if (!/^c:\\/i.test(name) && !/\.tmp(\\|$)/i.test(name) && spill) { const d = new Uint8Array(size); spill.read(d, { at }); out.push({ name: name.split('\\').pop(), data: d }); }
+      continue;
+    }
     if (disk >= 0) { changes.push({ path, from: lazy[disk].handle }); continue; } // a copy of a file on disk: copied there
     changes.push({ path, data: b.subarray(nl + 1) });
     if (!/^c:\\/i.test(name) && !/\.tmp(\\|$)/i.test(name)) out.push({ name: name.split('\\').pop(), data: b.subarray(nl + 1) });
@@ -299,11 +324,13 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   if (lazy.length) { const all = lazy.reduce((t, f) => t + f.size, 0); post('log', { text: `[engine] drive C: ${lazy.length} files, ${(all / 1048576).toFixed(1)} MB; read ${(x.stat(24) / 1048576).toFixed(1)} MB of them\n` }); }
   if (!mt) for (const h of open) if (h) h.close(); // before saving: a file open for reading cannot be written
   if (drive && x.drive_entry) {
-    for (let i = changes.length, k; (k = x.drive_entry(i)); i++) changes.push({ path: new TextDecoder().decode(new Uint8Array(mem.buffer, x.out_ptr(), k).slice()) });
+    for (let i = changes.length, k; (k = x.drive_entry(i)); i++) changes.push({ path: new TextDecoder().decode(new Uint8Array(mem.buffer, (x.out_ptr() >>> 0), k).slice()) });
     const n = x.reg_save();
-    const regOut = new Uint8Array(mem.buffer, x.out_ptr(), n).slice();
-    try { await saveDrive(changes, regOut); } catch (e) { post('log', { text: `[engine] drive C: not saved: ${e && e.message || e}\n` }); }
+    const regOut = new Uint8Array(mem.buffer, (x.out_ptr() >>> 0), n).slice();
+    try { await saveDrive(changes, regOut, spill); } catch (e) { post('log', { text: `[engine] drive C: not saved: ${e && e.message || e}\n` }); }
   }
+  if (spill) { spill.close(); spill = null; }
+  if (opfsRoot) await opfsRoot.removeEntry(spillName).catch(() => {});
   const error = tooMuch ? 'the program printed more than 1 MB (stuck in a loop? if it asks a question, answer it with a switch such as -y)' : st === 2 ? msg() : '';
   post('done', { ok: !tooMuch && st === 1 && x.stat(6) === 0, error, exitCode: x.stat(6), out });
 }
@@ -352,7 +379,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
   if (jit === false) x.set_jit(0);
   for (const f of files) putFile(f.name, f.data, true);
   put(enc.encode(files[0].name + '\0' + cmd));
-  if (x.start() !== 0) { post('done', { ok: false, error: new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice()) }); return; }
+  if (x.start() !== 0) { post('done', { ok: false, error: new TextDecoder().decode(new Uint8Array(mem.buffer, (x.msg_ptr() >>> 0), x.msg_len()).slice()) }); return; }
   x.linux_winsize(rows || 30, cols || 100);
   let line = '';
   const keys = [];
@@ -364,7 +391,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
     get(path) {
       put(enc.encode(path));
       const n = x.linux_get_file();
-      return n < 0 ? null : new Uint8Array(mem.buffer, x.out_ptr(), n).slice();
+      return n < 0 ? null : new Uint8Array(mem.buffer, (x.out_ptr() >>> 0), n).slice();
     },
   };
   const feed = () => {
@@ -393,7 +420,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
     if (t - last > 1000) { last = t; post('stats', { insns: x.stat(0), ms: t, jitBlocks: x.stat(13) }); }
   }
   lxs = null;
-  const error = st === 2 ? new TextDecoder().decode(new Uint8Array(mem.buffer, x.msg_ptr(), x.msg_len()).slice()) : '';
+  const error = st === 2 ? new TextDecoder().decode(new Uint8Array(mem.buffer, (x.msg_ptr() >>> 0), x.msg_len()).slice()) : '';
   post('done', { ok: st === 1, error, exitCode: x.stat(6) });
 }
 

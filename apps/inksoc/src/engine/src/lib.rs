@@ -28,6 +28,7 @@ mod wingdi;
 mod proc;
 mod registry;
 mod npipe;
+mod hash;
 mod store;
 mod wow64;
 
@@ -386,6 +387,11 @@ pub extern "C" fn out_file(i: u32) -> u32 {
     };
     unsafe { OUT = name.into_bytes(); OUT.push(0); OUT.extend_from_slice(&data); OUT.len() as u32 }
 }
+/// Offset and size of the i-th written file in the file out_disk names.
+#[no_mangle]
+pub extern "C" fn out_disk_at(i: u32) -> f64 { let e = eng(); e.s.fs.written.iter().nth(i as usize).and_then(|k| e.s.files.disk_of(k)).map_or(0.0, |v| v.1 as f64) }
+#[no_mangle]
+pub extern "C" fn out_disk_size(i: u32) -> f64 { let e = eng(); e.s.fs.written.iter().nth(i as usize).and_then(|k| e.s.files.disk_of(k)).map_or(0.0, |v| v.2 as f64) }
 /// The disk id the i-th written file is a copy of (a renamed or copied drive file), or -1.
 #[no_mangle]
 pub extern "C" fn out_disk(i: u32) -> i32 {

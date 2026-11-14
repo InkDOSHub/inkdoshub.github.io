@@ -61,6 +61,9 @@ pub struct Files {
     pub np_last: u64,
     /// handles whose transceive already wrote its request (the read is re-run)
     pub np_tx: std::collections::HashSet<u64>,
+    /// CryptoAPI hashes: algorithm and the data hashed so far
+    pub hashes: HashMap<u64, (u32, Vec<u8>)>,
+    pub hash_next: u64,
     /// extra references made by DuplicateHandle (closed only when this reaches 0)
     pub refs: HashMap<u64, u32>,
     /// mapped views of files: base -> (file, offset, length); written back when unmapped
@@ -161,6 +164,14 @@ impl Engine {
             Some(Handle::Pipe { id, write }) => {
                 if let Some(p) = self.s.fs.pipes.get_mut(&id) { if write { p.writers -= 1; } }
                 if !write || self.s.fs.pipes.get(&id).map_or(false, |p| p.writers == 0) && !self.s.fs.handles.values().any(|x| matches!(x, Handle::Pipe { id: i, .. } if *i == id)) { self.s.fs.pipes.remove(&id); }
+                true
+            }
+            Some(Handle::File { name, .. }) => {
+                // the last handle of a file: its bytes may leave memory (see Store::release)
+                let held = self.s.fs.handles.values().any(|x| matches!(x, Handle::File { name: n, .. } if *n == name))
+                    || self.s.fs.views.values().any(|v| v.0 == name)
+                    || self.s.fs.handles.values().any(|x| matches!(x, Handle::Section { file: Some(f), .. } if *f == name));
+                if !held { self.s.files.release(&name); }
                 true
             }
             Some(Handle::NPipe { id, server, .. }) => { self.s.fs.np_tx.remove(&h); self.np_cancel(Some(h), None, 0xC000_0120); self.np_close(id, server); true }
