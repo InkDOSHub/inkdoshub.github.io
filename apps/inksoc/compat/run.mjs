@@ -93,7 +93,22 @@ async function runOne({ files, exe, args }) {
   let lastShot = 0;
   const saveShot = () => { if (!frame) return; const rgb = Buffer.alloc(1024 * 768 * 3); for (let i = 0; i < 1024 * 768; i++) { rgb[3 * i] = frame[4 * i]; rgb[3 * i + 1] = frame[4 * i + 1]; rgb[3 * i + 2] = frame[4 * i + 2]; } fs.writeFileSync(process.env.SHOT, Buffer.concat([Buffer.from('P6 1024 768 255\n'), rgb])); };
   const grab = () => { const p = x.win_frame ? x.win_frame() : 0; if (p) frame = new Uint8Array(mem.buffer, p, 1024 * 768 * 4).slice(); };
+  // sockets: plain TCP from Node stands in for the page's wisp tunnel (see worker.js)
+  const socks = new Map();
+  const netIn = (id, kind, d) => { put(d || new Uint8Array(0)); x.win_net_in(id, kind); };
+  const pumpNet = async () => {
+    const n = x.win_net_poll ? x.win_net_poll() : 0; if (!n) return;
+    const net = await import('net');
+    const b = new Uint8Array(mem.buffer, (x.out_ptr() >>> 0), n).slice(), v = new DataView(b.buffer);
+    for (let o = 0; o < n;) {
+      const op = b[o], id = v.getUint32(o + 1, true), len = v.getUint32(o + 5, true), d = b.slice(o + 9, o + 9 + len); o += 9 + len;
+      if (op === 1) { const s = new TextDecoder().decode(d), k = s.lastIndexOf(':'); const c = net.connect(+s.slice(k + 1), s.slice(0, k)); let any = false; socks.set(id, c); c.on('data', (q) => { any = true; netIn(id, 1, q); }); c.on('close', () => { if (socks.delete(id)) netIn(id, any ? 2 : 2); }); c.on('error', () => { if (socks.delete(id)) netIn(id, 3); }); }
+      else if (op === 2) socks.get(id)?.write(d);
+      else if (op === 3) { const c = socks.get(id); socks.delete(id); c?.end(); }
+    }
+  };
   while (st === 0 || st === 3) {
+    await pumpNet();
     if (performance.now() - t0 > LIMIT_S * 1000) { status = 'timeout'; break; }
     if (process.env.SHOT) grab();
     if (process.env.SHOT && frame && performance.now() - lastShot > 30000) { lastShot = performance.now(); saveShot(); }

@@ -35,6 +35,7 @@ mod wow64;
 mod audio;
 mod opengl;
 mod unixlib;
+mod net;
 
 use cpu::Cpu;
 use mmu::Mmu;
@@ -123,6 +124,7 @@ pub struct Shared {
     pub gdi: wingdi::Gdi,
     pub gl: opengl::Gl,
     pub audio: audio::Audio,
+    pub net: net::Net,
     /// ntdll's __wine_unix_call_dispatcher variable (see unixlib.rs).
     pub unix_dispatcher: u64,
     pub next_luid: u64,
@@ -204,7 +206,7 @@ pub extern "C" fn init(pool_mb: u32, target_mb: u32) {
             files: Default::default(), modules: Vec::new(),
             thunks: Vec::new(), thunk_ids: HashMap::new(),
             heap: heap::Heap::default(), tls_used: 0, no_init: false, thunk_fb: HashMap::new(), routes: Vec::new(), wine_fb: HashMap::new(), env_block: 0, tls_tmpl: Vec::new(),
-            init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), gl: Default::default(), audio: Default::default(), unix_dispatcher: 0, next_luid: 0, win_ki: 0, recent: [(0, 0); 16], recent_n: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
+            init_queue: Vec::new(), resume: Vec::new(), user_shared: false, win: Default::default(), gdi: Default::default(), gl: Default::default(), audio: Default::default(), net: Default::default(), unix_dispatcher: 0, next_luid: 0, win_ki: 0, recent: [(0, 0); 16], recent_n: 0, wine_exports: HashMap::new(), ldr_entries: HashMap::new(), loadlib: Vec::new(),
             stack_top: 0, exe_entry: 0, exe_base: 0, cmdline: (0, 0), unknown_calls: 0, crt: Default::default(), fs: Default::default(),
             sched: Default::default(), cores: 1, insns: 0, jit_on: true, lx: None, names: HashMap::new(),
             wpid: 0, procs: HashMap::new(), pinfo: HashMap::new(), std: [3, 1, 2], dll_dirs: Vec::new(), wow64: false, wow64_ntdll: 0, wow64_ctx: 0, images: HashMap::new(), atoms: Vec::new(),

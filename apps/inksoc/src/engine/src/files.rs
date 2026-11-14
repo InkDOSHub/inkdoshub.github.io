@@ -66,8 +66,8 @@ pub enum Handle {
     Process {
         pid: u32,
     },
-    /// a socket (\\Device\\Afd): it can be made, not used yet (no network)
-    Afd,
+    /// a socket (\\Device\\Afd), see net.rs
+    Afd { id: u32 },
     /// a registry key (`registry.rs`), by its full lowercase path
     Key {
         path: String,
@@ -281,6 +281,10 @@ impl Engine {
                 if !held {
                     self.s.files.release(&name);
                 }
+                true
+            }
+            Some(Handle::Afd { id }) => {
+                self.afd_close(id);
                 true
             }
             Some(Handle::NPipe { id, server, .. }) => {
@@ -810,7 +814,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "GetFileType" => match e.s.fs.handles.get(&a0) {
             Some(Handle::Null) => 2,
-            Some(Handle::Pipe { .. } | Handle::Afd | Handle::NPipe { .. }) => 3,
+            Some(Handle::Pipe { .. } | Handle::Afd { .. } | Handle::NPipe { .. }) => 3,
             Some(_) => 1,
             None => {
                 if a0 <= 3 {

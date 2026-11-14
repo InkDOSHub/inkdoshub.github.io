@@ -249,6 +249,7 @@ impl Engine {
     fn try_wait(&mut self, w: &W, me: u32) -> Option<u64> {
         // overlapped pipe I/O of this process that can finish now (its events get set)
         self.np_poll();
+        self.sock_poll();
         match w {
             W::Sleep | W::Again => None,
             W::Objs { hs, all } => {
@@ -697,7 +698,9 @@ impl Engine {
             self.cur = usize::MAX;
         }
         self.want_switch = true;
-        let busy = held || self.s.sched.th.iter().any(|t| t.st == St::Running || (t.on_core != NO_CORE && t.st != St::Done));
+        // socket I/O waiting for the network: what arrives comes from the page, so look again soon
+        let busy = held || !self.s.net.pend.is_empty() || self.s.sched.th.iter().any(|t| t.st == St::Running || (t.on_core != NO_CORE && t.st != St::Done));
+        soonest = soonest.min(self.sock_deadline());
         if soonest.is_finite() || busy {
             self.idle_ms = if soonest.is_finite() { (soonest - t_now).max(0.0).min(50.0) } else { 50.0 };
         } else if !self.s.exited {

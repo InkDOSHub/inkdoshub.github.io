@@ -37,6 +37,7 @@ export default {
       const par = new WebSocketPair();
       const ws = par[1];
       ws.accept();
+      ws.binaryType = "arraybuffer"; // (with this compatibility date binary messages come as Blob otherwise)
       if (url.pathname === "/net/wisp/") wisp(ws); else boxedwine(ws);
       return new Response(null, { status: 101, webSocket: par[0] });
     }

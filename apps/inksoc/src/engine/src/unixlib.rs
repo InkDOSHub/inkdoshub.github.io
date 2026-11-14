@@ -14,6 +14,7 @@ pub const MEMORY_WINE_UNIX_FUNCS: u32 = 1000;
 
 const OPENGL: u64 = 1;
 const AUDIO: u64 = 2;
+const WS2: u64 = 3;
 
 /// The variable ntdll exports for the dispatcher: a pointer to the native thunk.
 pub fn data_export(e: &mut Engine, dll: &str, name: &str) -> Option<u64> {
@@ -35,6 +36,7 @@ pub fn handle_of(e: &Engine, base: u64) -> Option<u64> {
     match m.name.trim_start_matches("wine-") {
         "opengl32.dll" => Some(OPENGL),
         "winepulse.drv" => Some(AUDIO),
+        "ws2_32.dll" => Some(WS2),
         _ => None,
     }
 }
@@ -53,6 +55,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
     Some(match handle {
         OPENGL => e.opengl_call(code, params),
         AUDIO => e.audio_call(code, params),
+        WS2 => e.ws2_call(code, params),
         _ => NOT_IMPLEMENTED,
     })
 }

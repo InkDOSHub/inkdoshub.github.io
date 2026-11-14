@@ -177,7 +177,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=42' : 'inksoc.wasm?v=65', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=43' : 'inksoc.wasm?v=66', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -200,6 +200,51 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   const put = (bytes) => { const p = x.buffer(bytes.length); new Uint8Array(mem.buffer, p, bytes.length).set(bytes); };
   const enc = (t) => new TextEncoder().encode(t);
   const msg = () => new TextDecoder().decode(new Uint8Array(mem.buffer, (x.msg_ptr() >>> 0), x.msg_len()).slice());
+  // Network: the program's sockets go through a wisp v1 tunnel on our Cloudflare worker
+  // ([type][stream u32 LE][payload]; 1 CONNECT, 2 DATA, 3 CONTINUE, 4 CLOSE). The engine queues
+  // [op][id u32][len u32][data] records (1 connect "host:port", 2 data, 3 close); see net.rs.
+  const WISP = /\.workers\.dev$/.test(self.location.hostname) ? `wss://${self.location.host}/net/wisp/` : 'wss://hub.inkdos.workers.dev/net/wisp/';
+  let ws = null, wsq = [];
+  const got = new Set(), live = new Set();
+  const wsSend = (b) => { if (ws && ws.readyState === 1) ws.send(b); else wsq.push(b); };
+  const packet = (t, id, body) => { const b = new Uint8Array(5 + body.length); b[0] = t; new DataView(b.buffer).setUint32(1, id, true); b.set(body, 5); return b; };
+  const netIn = (id, kind, d) => { put(d || new Uint8Array(0)); x.win_net_in(id, kind); };
+  const openWs = () => {
+    ws = new WebSocket(WISP);
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => { for (const b of wsq) ws.send(b); wsq = []; };
+    ws.onmessage = (ev) => {
+      if (typeof ev.data === 'string') return;
+      const b = new Uint8Array(ev.data);
+      if (b.length < 5) return;
+      const id = new DataView(b.buffer).getUint32(1, true);
+      if (b[0] === 2) { got.add(id); netIn(id, 1, b.subarray(5)); }
+      else if (b[0] === 4 && live.delete(id)) { netIn(id, got.has(id) || b[5] === 2 ? 2 : 3); got.delete(id); }
+    };
+    const lost = () => { ws = null; for (const id of live) netIn(id, got.has(id) ? 2 : 3); live.clear(); got.clear(); wsq = []; };
+    ws.onclose = lost;
+    ws.onerror = lost;
+  };
+  const pumpNet = () => {
+    if (!x.win_net_poll) return;
+    const n = x.win_net_poll();
+    if (!n) return;
+    const b = new Uint8Array(mem.buffer, (x.out_ptr() >>> 0), n).slice(), v = new DataView(b.buffer);
+    for (let o = 0; o < n;) {
+      const op = b[o], id = v.getUint32(o + 1, true), len = v.getUint32(o + 5, true), d = b.subarray(o + 9, o + 9 + len);
+      o += 9 + len;
+      if (op === 1) {
+        if (!ws) openWs();
+        live.add(id);
+        const s = new TextDecoder().decode(d), k = s.lastIndexOf(':'), host = enc(s.slice(0, k)), body = new Uint8Array(3 + host.length);
+        body[0] = 1;
+        new DataView(body.buffer).setUint16(1, +s.slice(k + 1), true);
+        body.set(host, 3);
+        wsSend(packet(1, id, body));
+      } else if (op === 2) wsSend(packet(2, id, d));
+      else if (op === 3) { got.delete(id); live.delete(id); wsSend(packet(4, id, new Uint8Array([2]))); }
+    }
+  };
   x.init(poolMb, targetMb);
   if (shared && !mt) x.set_shared_mem(1);
   if (jit === false) x.set_jit(0);
@@ -308,6 +353,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   while (!tooMuch && !stopAsked && !swapCut) {
     st = x.run(2000000);
     frame();
+    pumpNet();
     swapBrake();
     if (st === 3) { await new Promise((r) => setTimeout(r, Math.min(30, Math.max(0, x.stat(17))))); continue; }
     if (st !== 0) break;
@@ -396,7 +442,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=65').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=66').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();

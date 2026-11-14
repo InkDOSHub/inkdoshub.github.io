@@ -370,7 +370,7 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let iosb = e.arg(3);
             let disp = if name == "NtCreateFile" { e.arg(7) as u32 } else { 1 }; // FILE_OPEN
             if nm.len() >= 11 && nm[..11].eq_ignore_ascii_case("\\Device\\Afd") {
-                let h = e.new_handle(Handle::Afd);
+                let h = e.afd_open();
                 e.w64(a0, h);
                 e.iosb(iosb, OK, 1);
                 return Some(OK);
@@ -472,36 +472,11 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     return Some(r);
                 }
             }
-            // sockets: Wine's ws2_32 creates them with IOCTL_AFD_WINE_CREATE; nothing else works yet
-            if name == "NtDeviceIoControlFile" && matches!(e.s.fs.handles.get(&a0), Some(Handle::Afd)) {
-                let (iosb, code) = (e.arg(4), e.arg(5) as u32);
-                let (inp, inl, out, outl) = (e.arg(6), e.arg(7) as u32 as u64, e.arg(8), e.arg(9) as u32 as u64);
-                match code {
-                    0x12_0320 => {
-                        e.iosb(iosb, OK, 0);
-                        return Some(OK);
-                    } // create
-                    // bind: the address asked for is the address got
-                    0x1_2003 => {
-                        let n = inl.saturating_sub(4).min(outl);
-                        let mut v = vec![0u8; n as usize];
-                        let _ = e.mmu.read_bytes(inp + 4, &mut v);
-                        let _ = e.mmu.write_bytes(out, &v);
-                        e.iosb(iosb, OK, n);
-                        return Some(OK);
-                    }
-                    // complete an async call that user mode already finished: the status is the input
-                    0x12_0348 => {
-                        let st = e.r32(inp) as u64;
-                        e.iosb(iosb, st, 0);
-                        return Some(st);
-                    }
-                    _ => {}
+            // sockets (see net.rs)
+            if name == "NtDeviceIoControlFile" {
+                if let Some(r) = e.afd_ioctl(a0) {
+                    return Some(r);
                 }
-                if unsafe { crate::TRACE } {
-                    crate::console(&format!("[afd] ioctl {:x}\n", code));
-                }
-                return Some(NOT_SUPPORTED); // STATUS_NOT_SUPPORTED
             }
             INVALID_DEVICE_REQUEST // STATUS_INVALID_DEVICE_REQUEST
         }
