@@ -31,6 +31,7 @@ found, what changed and the commit. The git history proves each change.
 | — | Polish review: offline worker and Recorder | [025-polish-offline-recorder.md](025-polish-offline-recorder.md) |
 | — | Polish review: loading size and update notice | [026-polish-loading-update.md](026-polish-loading-update.md) |
 | — | Polish review: top bar look | [027-polish-top-bar.md](027-polish-top-bar.md) |
+| — | Cleanup after the repository split | [028-cleanup-after-split.md](028-cleanup-after-split.md) |
 
 ## Summary (2026-10-29)
 
