@@ -16,7 +16,6 @@ import hashlib, json, os, re, sys
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GRUPOS = [
     ("inicio", "Home screen", ["inicio", "assets", "idiomas", "index.html", "manifest.webmanifest", "sw-portal.js", "desktop/index.html"]),
-    ("terminal", "Linux terminal", ["terminal"]),
     ("wine", "Wine", ["apps/wine"]),
     ("zip", "Zip", ["apps/zip"]),
     ("seguranca", "Security", ["apps/seguranca"]),

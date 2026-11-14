@@ -261,7 +261,7 @@ async function abrirWebcam() {
 // ---------- Terminal: on Windows uses Windows' own Linux (WSL), with near-native power ----------
 // With WSL installed, opens Linux in Windows Terminal. Without it, explains and installs (wsl --install: asks for
 // administrator once, downloads the official Ubuntu from Microsoft and may ask to restart). The site terminal remains an option.
-const ehTerminal = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/terminal/'); } catch (_) { return false; } };
+const ehTerminal = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/InkShell/'); } catch (_) { return false; } };
 const cp = require('child_process');
 function distrosWsl() {
   return new Promise(ok => {
@@ -287,7 +287,7 @@ function terminalDoSite() {
   const w = new BrowserWindow(opcoes(1100, 760));
   w.versaoDoSite = true;
   cuidar(w);
-  w.loadURL(SITE + 'terminal/');
+  w.loadURL(SITE + 'InkShell/');
 }
 let janelaTerminal = null;
 async function abrirTerminal() {

@@ -8,7 +8,7 @@
   var RAIZ = new URL("../", script ? script.src : location.href).href;
 
   var APPS = [
-    { id: "terminal", nome: "Linux terminal", url: "terminal/" },
+    { id: "terminal", nome: "Linux terminal", url: "InkShell/" },
     { id: "wine", nome: "Wine", url: "apps/wine/" },
     { id: "zip", nome: "Zip", url: "apps/zip/" },
     { id: "jogos", nome: "Games", url: "apps/jogos/" },
