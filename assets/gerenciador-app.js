@@ -21,7 +21,7 @@
     { id: "quadro", nome: "Whiteboard", url: "apps/quadro/" },
     { id: "musica", nome: "Music", url: "apps/musica/" },
     { id: "gravador", nome: "Recorder", url: "apps/gravador/" },
-    { id: "webcam", nome: "Webcam", url: "apps/webcam/" },
+    { id: "webcam", nome: "Webcam", url: "InkCam/" },
     { id: "transferir", nome: "Transfer", url: "apps/transferir/" },
     // copy of the InkDOS apps (inkdos/); suite=1 shows the Home button, which goes back to the home screen
     { id: "documentos", nome: "Documents", url: "inkdos/apps/documents/index.html?suite=1" },

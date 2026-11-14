@@ -188,8 +188,8 @@ function semInternet(rel, e) {
 // ---------- Webcam: on Windows opens the native app (virtual camera), not the iPhone page ----------
 // Downloads InkDOSHub-Webcam-Windows.zip from the webcam-windows release, checks the published SHA-256, extracts to
 // %LOCALAPPDATA%\InkDOS Hub\webcam and opens it. Next times it only opens (and updates if the release changed).
-const WEBCAM = 'https://github.com/InkDOSHub/inkdoshub.github.io/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip';
-const ehWebcam = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/webcam/'); } catch (_) { return false; } };
+const WEBCAM = 'https://github.com/InkDOSHub/InkCam/releases/download/webcam-windows/InkDOSHub-Webcam-Windows.zip';
+const ehWebcam = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/InkCam/'); } catch (_) { return false; } };
 let webcamOcupada = false;
 // Downloads from GitHub releases: Electron's fetch first; if it fails (proxy, antivirus, redirect), Windows' own curl.exe.
 async function baixarBuf(url) {

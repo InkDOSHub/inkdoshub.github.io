@@ -30,7 +30,6 @@ GRUPOS = [
     ("musica", "Music", ["apps/musica"]),
     ("gravador", "Recorder", ["apps/gravador"]),
     ("transferir", "Transfer", ["apps/transferir"]),
-    ("webcam", "Webcam", ["apps/webcam"]),
     ("inkdos", "Documents (InkDOS)", ["inkdos"]),
     ("artcraft", "ArtCraft editors", ["artcraft", "apps/wordcraft", "apps/gridcraft", "apps/deckcraft"]),
     ("visualizadores", "Edit PDF (BentoPDF) and viewers", ["apps/editar-pdf", "visualizadores"]),
