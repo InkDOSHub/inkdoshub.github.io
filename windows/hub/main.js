@@ -540,7 +540,7 @@ async function abrirQemu(pasta) {
 const janelasEmuladores = {};
 function abrirJogosWeb() { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); w.loadURL(SITE + 'InkArcade/'); }
 async function abrirEmuladores(jogos) {
-  if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + (jogos ? 'apps/jogos/' : 'apps/wine/')); }
+  if (process.platform !== 'win32') { const w = new BrowserWindow(opcoes(1200, 820)); w.versaoDoSite = true; cuidar(w); return void w.loadURL(SITE + (jogos ? 'InkArcade/' : 'apps/wine/')); }
   const k = jogos ? 'jogo' : 'pc';
   if (janelasEmuladores[k] && !janelasEmuladores[k].isDestroyed()) return janelasEmuladores[k].focus();
   const pt = /^pt/i.test(app.getLocale());
