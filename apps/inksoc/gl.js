@@ -335,7 +335,11 @@
   // ---------- buffers ----------
   const sizes = new Map(); // buffer id -> size
   F.glGenBuffers = (a) => { gen('buf', a[0], a[1], () => gl.createBuffer()); return 0; };
-  F.glDeleteBuffers = (a) => { del('buf', a[0], a[1], (o) => gl.deleteBuffer(o)); return 0; };
+  F.glDeleteBuffers = (a) => {
+    for (const id of rdI32(a[1], a[0])) { const m = maps.get(id); if (m) { x.gl_guest_free(m.ptr); maps.delete(id); } }
+    del('buf', a[0], a[1], (o) => gl.deleteBuffer(o));
+    return 0;
+  };
   F.glBindBuffer = (a) => { gl.bindBuffer(a[0], buf(a[1])); return 0; };
   F.glBindBufferBase = (a) => { gl.bindBufferBase(a[0], a[1], buf(a[2])); return 0; };
   F.glBindBufferRange = (a) => { gl.bindBufferRange(a[0], a[1], buf(a[2]), a[3], a[4]); return 0; };
@@ -353,8 +357,37 @@
   };
   F.glBufferSubData = (a) => { gl.bufferSubData(a[0], a[1], rd(a[3], a[2])); return 0; };
   F.glGetBufferSubData = (a) => { const b = new Uint8Array(a[2]); gl.getBufferSubData(a[0], a[1], b); wr(a[3], b); return 0; };
-  // buffer size for the engine's mapping (glMapBuffer*)
-  F.inksocBufferSize = (a) => sizes.get(boundBuffer(a[0])) || 0;
+  // mapping: WebGL has none, so a mapped range is a piece of guest memory, read from the
+  // buffer when the program wants to read it and written back on flush or unmap
+  const maps = new Map(); // buffer id -> { ptr, cap, offset, length, access }
+  const mapRange = (target, offset, length, access) => {
+    const id = boundBuffer(target);
+    if (!id || length <= 0) return 0;
+    let m = maps.get(id);
+    if (!m || m.cap < length) {
+      if (m) x.gl_guest_free(m.ptr);
+      m = { ptr: x.gl_guest_alloc(length), cap: length };
+      if (!m.ptr) return 0;
+      maps.set(id, m);
+    }
+    Object.assign(m, { offset, length, access, mapped: true });
+    if (access & 1) { const b = new Uint8Array(length); gl.getBufferSubData(target, offset, b); wr(m.ptr, b); } // MAP_READ_BIT
+    return m.ptr;
+  };
+  F.glMapBufferRange = (a) => mapRange(a[0], a[1], a[2], a[3]);
+  F.glMapBuffer = (a) => mapRange(a[0], 0, sizes.get(boundBuffer(a[0])) || 0, { 0x88B8: 1, 0x88B9: 2, 0x88BA: 3 }[a[1]] || 3);
+  F.glFlushMappedBufferRange = (a) => {
+    const m = maps.get(boundBuffer(a[0]));
+    if (m && m.mapped && a[2] > 0) gl.bufferSubData(a[0], m.offset + a[1], rd(m.ptr + a[1], a[2]));
+    return 0;
+  };
+  F.glUnmapBuffer = (a) => {
+    const m = maps.get(boundBuffer(a[0]));
+    if (!m || !m.mapped) return 0;
+    m.mapped = false;
+    if ((m.access & 2) && !(m.access & 0x10)) gl.bufferSubData(a[0], m.offset, rd(m.ptr, m.length)); // WRITE, not FLUSH_EXPLICIT
+    return 1;
+  };
 
   // ---------- vertex arrays and drawing ----------
   F.glGenVertexArrays = (a) => { gen('vao', a[0], a[1], () => gl.createVertexArray()); return 0; };
@@ -379,8 +412,10 @@
   F.glDrawElementsBaseVertex = (a) => { if (a[4]) return NaN; gl.drawElements(a[0], a[1], a[2], a[3]); return 0; };
 
   // ---------- shaders and programs ----------
-  F.glCreateShader = (a) => newId('shader', { s: gl.createShader(a[0]), type: a[0] });
-  F.glDeleteShader = (a) => { const o = shader(a[0]); if (o) gl.deleteShader(o.s); table('shader').map.delete(a[0]); return 0; };
+  F.glCreateShader = (a) => newId('shader', { s: gl.createShader(a[0]), type: a[0], progs: new Set() });
+  // a shader deleted while attached lives on until it is detached (GL keeps it; WebGL would not)
+  const dropShader = (id) => { const o = shader(id); if (o && o.gone && !o.progs.size) { gl.deleteShader(o.s); table('shader').map.delete(id); } };
+  F.glDeleteShader = (a) => { const o = shader(a[0]); if (o) { o.gone = true; dropShader(a[0]); } return 0; };
   F.glShaderSource = (a) => {
     const [id, count, strings, lengths] = a;
     const ptrs = rdPtr(strings, count), lens = lengths ? rdI32(lengths, count) : null;
@@ -414,9 +449,22 @@
   };
   F.glGetShaderInfoLog = (a) => putLog(gl.getShaderInfoLog(shader(a[0]).s), a[1], a[2], a[3]);
   F.glCreateProgram = () => newId('prog', gl.createProgram());
-  F.glDeleteProgram = (a) => { const o = prog(a[0]); if (o) gl.deleteProgram(o); table('prog').map.delete(a[0]); uniforms.delete(a[0]); return 0; };
-  F.glAttachShader = (a) => { gl.attachShader(prog(a[0]), shader(a[1]).s); return 0; };
-  F.glDetachShader = (a) => { gl.detachShader(prog(a[0]), shader(a[1]).s); return 0; };
+  F.glDeleteProgram = (a) => {
+    const o = prog(a[0]);
+    if (o) gl.deleteProgram(o);
+    table('prog').map.delete(a[0]); uniforms.delete(a[0]);
+    for (const [id, sh] of [...table('shader').map]) if (sh.progs.delete(a[0])) dropShader(id);
+    return 0;
+  };
+  F.glAttachShader = (a) => { const o = shader(a[1]); gl.attachShader(prog(a[0]), o.s); o.progs.add(a[0]); return 0; };
+  F.glDetachShader = (a) => { const o = shader(a[1]); gl.detachShader(prog(a[0]), o.s); o.progs.delete(a[0]); dropShader(a[1]); return 0; };
+  F.glGetAttachedShaders = (a) => {
+    const ids = [...table('shader').map].filter(([, o]) => o.progs.has(a[0])).map(([id]) => id).slice(0, Math.max(0, a[1]));
+    if (a[2]) wrI32(a[2], [ids.length]);
+    if (a[3] && ids.length) wrI32(a[3], ids);
+    return 0;
+  };
+  F.glGetShaderSource = (a) => putLog(shader(a[0]).src, a[1], a[2], a[3]);
   F.glBindAttribLocation = (a) => { gl.bindAttribLocation(prog(a[0]), a[1], str(a[2])); return 0; };
   F.glBindFragDataLocation = () => 0; // GLSL ES: outputs take their layout locations
   F.glLinkProgram = (a) => {

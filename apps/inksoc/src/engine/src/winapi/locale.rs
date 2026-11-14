@@ -8,12 +8,14 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
         // ---- Wine's debug channels (always off) ----
         // header(class, channel, function): -1 = do not print. Classes: 0 FIXME, 1 ERR, 2 WARN, 3 TRACE
         "__wine_dbg_header" => {
-            if !unsafe { crate::WINE_DEBUG } || a0 > 1 {
+            let level = unsafe { crate::WINE_DEBUG }.min(3) as u64;
+            let (ch, func) = (e.arg(1), e.arg(2));
+            let channel = e.read_cstr(ch + 1, 15);
+            if level == 0 || a0 > level || (a0 == 3 && !traced(&channel)) {
                 return Some(u64::MAX);
             }
-            let (ch, func) = (e.arg(1), e.arg(2));
-            let (channel, function) = (e.read_cstr(ch + 1, 15), e.read_cstr(func, 128));
-            crate::console(&format!("{}:{}:{} ", if a0 == 0 { "fixme" } else { "err" }, channel, function));
+            let function = e.read_cstr(func, 128);
+            crate::console(&format!("{}:{}:{} ", ["fixme", "err", "warn", "trace"][a0 as usize], channel, function));
             0
         }
         "__wine_dbg_output" => {
@@ -22,7 +24,14 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
             s.len() as u64
         }
         // FIXME and ERR on when asked for
-        "__wine_dbg_get_channel_flags" => if unsafe { crate::WINE_DEBUG } { 3 } else { 0 },
+        // level 1: fixme and err, 2: also warn, 3: also trace
+        "__wine_dbg_get_channel_flags" => match unsafe { crate::WINE_DEBUG }.min(3) {
+            0 => 0,
+            3 => {
+                if traced(&e.read_cstr(a0 + 1, 15)) { 15 } else { 7 }
+            }
+            l => (2u64 << l) - 1,
+        },
         "__wine_dbg_strdup" => a0,
 
         // ---- code pages and locale ----
@@ -263,4 +272,11 @@ pub(super) fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         _ => return e.not_mine(),
     })
+}
+
+/// Whether TRACE lines of a channel are printed (?winetrace=d3d9,d3d; none listed = all).
+#[allow(static_mut_refs)]
+fn traced(channel: &str) -> bool {
+    let only = unsafe { &crate::WINE_TRACE };
+    only.is_empty() || only.iter().any(|c| c == channel)
 }

@@ -143,7 +143,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
       return spill ? spill.write(new Uint8Array(mem.buffer, p >>> 0, n).slice(), { at: off }) : 0;
     },
     // OpenGL (src/engine/src/opengl): WebGL 2 in this worker, gl.js
-    host_gl: (code, p, n) => { if (!self.glCall) importScripts('gl-funcs.js?v=1', 'gl.js?v=1'); return self.glCall(x, mem, code, p, n); },
+    host_gl: (code, p, n) => { if (!self.glCall) importScripts('gl-funcs.js?v=2', 'gl.js?v=2'); return self.glCall(x, mem, code, p, n); },
     host_drive_read: (id, off, p, n) => {
       if (swapCtl) return driveCall(swapCtl, id, off, p, n);
       const h = id === SPILL ? spill : open[id];
@@ -171,7 +171,7 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   };
   let jitErr = 0;
   let wine;
-  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=36' : 'inksoc.wasm?v=53', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
+  let [wasm, wineWasm] = await Promise.all([mt ? 'inksoc-mt.wasm?v=37' : 'inksoc.wasm?v=59', 'wine.wasm?v=2'].map((u) => fetch(u).then((r) => r.arrayBuffer())));
   // test: the same engine on a shared memory (what several cores need), to compare speed
   if (mt) {
     importScripts('sharedmem.js?v=1');
@@ -197,7 +197,8 @@ async function runEngine({ files, exe, cmd, poolMb, targetMb, poke, jit, shared,
   x.init(poolMb, targetMb);
   if (shared && !mt) x.set_shared_mem(1);
   if (jit === false) x.set_jit(0);
-  if (self.wineDebug && x.set_wine_debug) x.set_wine_debug(1); // page address with ?winedebug=1
+  if (self.wineTrace && x.set_wine_trace) { put(enc(self.wineTrace)); x.set_wine_trace(); } // ?winetrace=d3d9,d3d
+  if (self.wineDebug && x.set_wine_debug) x.set_wine_debug(self.wineDebug); // page address with ?winedebug=1 (2: warnings too, 3: traces)
   if (mt) x.set_cores(cores);
   // ?strong=0: plain loads/stores between cores (faster, without x86 store order) to measure its cost
   if (opt === false && x.set_jit_opt) { x.set_jit_opt(0); post('log', { text: '[engine] newer JIT improvements OFF (opt=0)\n' }); }
@@ -387,7 +388,7 @@ async function runLinux({ files, cmd, poolMb, jit, rows, cols }) {
       } catch (e) { return -1; }
     },
   };
-  const wasm = await fetch('inksoc.wasm?v=53').then((r) => r.arrayBuffer());
+  const wasm = await fetch('inksoc.wasm?v=59').then((r) => r.arrayBuffer());
   x = (await WebAssembly.instantiate(wasm, { env })).instance.exports;
   mem = x.memory;
   const enc = new TextEncoder();
@@ -495,7 +496,7 @@ async function runExec(d) {
   if (!fetched) {
     // the rest of Windows: Wine 11's DLLs (cached by the browser after the first run)
     post('log', { text: '[engine] loading the Wine DLLs (40 MB the first time)\n' });
-    const list = await fetch('bin/wine/list.json?v=8').then((r) => r.json());
+    const list = await fetch('bin/wine/list.json?v=9').then((r) => r.json());
     const have = new Set(files.map((f) => f.name.toLowerCase()));
     const wine = await Promise.all(list.filter((n) => !have.has(n)).map(async (name) => ({ name, data: await fetch('bin/wine/' + name + '?v=3').then((r) => r.arrayBuffer()) })));
     files = files.concat(wine);
@@ -604,7 +605,8 @@ let winX = null;
 onmessage = (ev) => {
   const d = ev.data;
   if (d.type === 'stop') { stopAsked = true; return; }
-  if (d.winedebug) self.wineDebug = true;
+  if (d.winedebug) self.wineDebug = d.winedebug;
+  if (d.winetrace) self.wineTrace = d.winetrace;
   if (d.type === 'win') { if (winX) winX.win_input(d.k, d.x, d.y, d.d); return; }
   if (d.type === 'key') { if (lxs) lxs.key(d.data); return; }
   if (d.type === 'resize') { if (lxs) lxs.resize(d.rows, d.cols); return; }

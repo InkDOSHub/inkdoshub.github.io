@@ -387,9 +387,16 @@ static mut TRACE: bool = false;
 pub extern "C" fn set_trace(on: u32) { unsafe { TRACE = on != 0; } }
 
 /// Wine's own messages (FIXME and ERR lines of its DLLs) on the console: on or off.
-pub(crate) static mut WINE_DEBUG: bool = false;
+pub(crate) static mut WINE_DEBUG: u32 = 0;
 #[no_mangle]
-pub extern "C" fn set_wine_debug(on: u32) { unsafe { WINE_DEBUG = on != 0; } }
+pub extern "C" fn set_wine_debug(level: u32) { unsafe { WINE_DEBUG = level; } }
+/// The channels whose TRACE lines are printed (comma-separated, from the buffer; empty = all).
+pub(crate) static mut WINE_TRACE: Vec<String> = Vec::new();
+#[no_mangle]
+#[allow(static_mut_refs)]
+pub extern "C" fn set_wine_trace() {
+    unsafe { WINE_TRACE = String::from_utf8_lossy(&BUF).split(',').filter(|c| !c.is_empty()).map(String::from).collect(); }
+}
 
 /// Turns the JIT on or off (call before start).
 #[no_mangle]

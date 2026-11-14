@@ -1120,11 +1120,15 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             e.w32(ar[2], 1);
             0
         }
+        // (device name or NULL, index, DISPLAY_DEVICEW*, flags): one display, with one monitor
         "NtUserEnumDisplayDevices" => {
-            if ar[1] == 0 {
-                e.put_w(ar[3] + 4, "\\\\.\\DISPLAY1", 32);
-                e.put_w(ar[3] + 68, "InkSoC display", 128);
-                e.w32(ar[3] + 324, 5);
+            let info = ar[2];
+            if ar[1] == 0 && info != 0 {
+                let (name, text, state) =
+                    if a0 == 0 { ("\\\\.\\DISPLAY1", "InkSoC display", 5) } else { ("\\\\.\\DISPLAY1\\Monitor0", "Generic monitor", 3) };
+                e.put_w(info + 4, name, 32);
+                e.put_w(info + 68, text, 128);
+                e.w32(info + 324, state); // attached to the desktop | primary (a monitor: active | attached)
                 0
             } else {
                 crate::status::UNSUCCESSFUL

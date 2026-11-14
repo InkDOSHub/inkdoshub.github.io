@@ -15,7 +15,7 @@ use crate::status::*;
 use crate::Engine;
 use std::collections::HashMap;
 
-pub use funcs::FUNCS;
+pub use funcs::{EXT_PROCS, FUNCS};
 
 #[link(wasm_import_module = "env")]
 extern "C" {
@@ -76,6 +76,18 @@ pub extern "C" fn gl_read(addr: f64, len: u32) -> u32 {
 pub extern "C" fn gl_write(addr: f64, src: u32, len: u32) {
     let data = unsafe { std::slice::from_raw_parts(src as *const u8, len as usize) };
     let _ = crate::eng().mmu.write_bytes(addr as u64, data);
+}
+
+/// Guest memory for a mapped buffer (glMapBufferRange): `len` bytes, or 0.
+#[no_mangle]
+pub extern "C" fn gl_guest_alloc(len: f64) -> f64 {
+    crate::eng().heap_alloc(len as u64, false) as f64
+}
+
+/// Frees memory from gl_guest_alloc.
+#[no_mangle]
+pub extern "C" fn gl_guest_free(addr: f64) {
+    crate::eng().heap_free(addr as u64);
 }
 
 /// One argument of a params struct, read by its kind letter; returns (value, size).
@@ -147,6 +159,7 @@ impl Engine {
             "wglCreateContext" => Some(self.gl_create_context(args[0])),
             "wglCreateContextAttribsARB" => Some(self.gl_create_context(args[0])),
             "wglDeleteContext" => Some(1.0),
+            "wglGetProcAddress" => Some(self.gl_proc_index(args[0])),
             "wglMakeCurrent" | "wglMakeContextCurrentARB" => Some(self.gl_make_current(args[0], args[args.len() - 1])),
             "wglSwapBuffers" => Some(self.gl_swap(args[0])),
             "wglChoosePixelFormatARB" => Some(self.gl_choose_format(&args)),
@@ -159,7 +172,7 @@ impl Engine {
             _ => self.gl_host(code, &args),
         };
         let Some(v) = r else {
-            if self.s.gl.missing.insert(code) {
+            if self.s.gl.missing.insert(code) && unsafe { crate::WINE_DEBUG } > 0 {
                 crate::console(&format!("[gl] {} is not available yet\n", name));
             }
             return NOT_IMPLEMENTED;
@@ -234,6 +247,12 @@ impl Engine {
         }
         self.w32(count, max.min(1));
         1.0
+    }
+
+    /// wglGetProcAddress: the index of the function in opengl32's extension_procs[], or -1.
+    fn gl_proc_index(&mut self, name: f64) -> f64 {
+        let name = self.read_cstr(name as u64, 256);
+        EXT_PROCS.iter().position(|&n| n == name).map_or(-1.0, |i| i as f64)
     }
 
     fn gl_create_context(&mut self, _hdc: f64) -> f64 {
