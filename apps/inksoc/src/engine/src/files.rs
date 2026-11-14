@@ -173,7 +173,7 @@ impl Engine {
                 if !held { self.s.files.release(&name); }
                 true
             }
-            Some(Handle::NPipe { id, server, .. }) => { self.s.fs.np_tx.remove(&h); self.np_cancel(Some(h), None, crate::npipe::CANCELLED); self.np_close(id, server); true }
+            Some(Handle::NPipe { id, server, .. }) => { self.s.fs.np_tx.remove(&h); self.np_cancel(Some(h), None, crate::status::CANCELLED); self.np_close(id, server); true }
             Some(_) => true,
             None => false,
         }

@@ -29,6 +29,7 @@ mod proc;
 mod registry;
 mod npipe;
 mod hash;
+mod status;
 mod store;
 mod wow64;
 

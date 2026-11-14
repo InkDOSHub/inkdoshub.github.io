@@ -2057,7 +2057,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtGdiGetFontResourceInfoInternalW" => 0,
         "NtGdiMakeFontDir" => 0,
         _ => {
-            if name.starts_with("NtGdiDdDDI") { return Some(0xC000_00BB); }
+            if name.starts_with("NtGdiDdDDI") { return Some(crate::status::NOT_SUPPORTED); }
             if !e.s.gdi.unknown.contains(name) { e.s.gdi.unknown.insert(name.to_string()); crate::console(&format!("[win32u] {} (not yet)\n", name)); }
             0
         }

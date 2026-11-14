@@ -4,6 +4,7 @@
 // the native function's address; when the wait is satisfied the scheduler
 // finishes the call (the return value goes in rax) and the thread runs on.
 
+use crate::status::*;
 use crate::cpu::Cpu;
 use crate::files::Handle;
 use crate::{eh, kernel32::NO_RETURN, Engine, PEB, RET_THREAD, TEB};
@@ -392,7 +393,7 @@ impl Engine {
                     // a thread of another process: its wait reads that process's memory
                     let other = t.wpid != self.s.wpid;
                     if other { let wp = t.wpid; self.enter_proc(wp); }
-                    let r = self.try_wait(&w, id).or_else(|| if t_now >= dl { Some(if matches!(w, W::Sleep | W::Addr { win: true, .. }) { 0 } else if matches!(w, W::NpWait(_)) { 0xC000_00B5 } else { WAIT_TIMEOUT }) } else { None });
+                    let r = self.try_wait(&w, id).or_else(|| if t_now >= dl { Some(if matches!(w, W::Sleep | W::Addr { win: true, .. }) { 0 } else if matches!(w, W::NpWait(_)) { IO_TIMEOUT } else { WAIT_TIMEOUT }) } else { None });
                     if let Some(v) = r {
                         let t = &mut self.s.sched.th[i];
                         t.st = St::Ready;
@@ -502,7 +503,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtCreateIoCompletion" => { let h = e.new_handle(Handle::Port { q: Default::default() }); e.w64(a0, h); 0 }
         "NtSetIoCompletion" => {
             let p = [e.arg(1), e.arg(2), e.arg(3), e.arg(4)];
-            match e.s.fs.handles.get_mut(&a0) { Some(Handle::Port { q }) => { q.push_back(p); 0 } _ => 0xC000_0008 }
+            match e.s.fs.handles.get_mut(&a0) { Some(Handle::Port { q }) => { q.push_back(p); 0 } _ => INVALID_HANDLE }
         }
         "NtRemoveIoCompletion" => {
             let (key, apc, iosb, t) = (e.arg(1), e.arg(2), e.arg(3), e.arg(4));
@@ -557,7 +558,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let n = obj_name(e);
             match e.s.fs.named.get(&n).copied().filter(|h| e.s.fs.handles.contains_key(h)) {
                 Some(h) => { let h = e.dup_handle(h); e.w64(a0, h); 0 }
-                None => 0xC000_0034,
+                None => OBJECT_NAME_NOT_FOUND,
             }
         }
         "NtCreateMutant" | "NtCreateEvent" | "NtCreateSemaphore" if existing(e).is_some() => {
@@ -572,7 +573,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtSetEvent" | "NtResetEvent" | "NtPulseEvent" => {
             let set = name == "NtSetEvent";
-            match e.s.fs.handles.get_mut(&a0) { Some(Handle::Event { set: s, .. }) => { *s = set; 0 } _ => 0xC000_0008 }
+            match e.s.fs.handles.get_mut(&a0) { Some(Handle::Event { set: s, .. }) => { *s = set; 0 } _ => INVALID_HANDLE }
         }
         "NtCreateMutant" => {
             let owned = e.arg(3) as u8 != 0;
@@ -582,7 +583,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         }
         "NtReleaseMutant" => match e.s.fs.handles.get_mut(&a0) {
             Some(Handle::Mutex { owner, count }) if *owner == me => { *count -= 1; if *count == 0 { *owner = 0; } 0 }
-            _ => 0xC000_0046, // STATUS_MUTANT_NOT_OWNED
+            _ => MUTANT_NOT_OWNED, // STATUS_MUTANT_NOT_OWNED
         },
         "NtCreateSemaphore" => {
             let (c, m) = (e.arg(3) as i32, e.arg(4) as i32);
@@ -594,7 +595,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let (n, p) = (e.arg(1) as i32, e.arg(2));
             match e.s.fs.handles.get_mut(&a0) {
                 Some(Handle::Semaphore { count, max }) if *count + n <= *max => { let prev = *count; *count += n; if p != 0 { e.w32(p, prev as u32); } 0 }
-                _ => 0xC000_0047, // STATUS_SEMAPHORE_LIMIT_EXCEEDED
+                _ => SEMAPHORE_LIMIT_EXCEEDED, // STATUS_SEMAPHORE_LIMIT_EXCEEDED
             }
         }
         "NtCreateTimer" => {
@@ -608,7 +609,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let vp = e.arg(1); let v = e.r64(vp) as i64;
             let period = if name == "NtSetTimer" { e.arg(5) as u32 } else { e.arg(2) as u32 } as f64;
             let ok = match e.s.fs.handles.get_mut(&a0) { Some(Handle::Timer { due, period: p, .. }) => { *due = timer_due(v); *p = period; true } _ => false };
-            if name == "NtSetTimer" { if ok { 0 } else { 0xC000_0008 } } else { ok as u64 }
+            if name == "NtSetTimer" { if ok { 0 } else { INVALID_HANDLE } } else { ok as u64 }
         }
         "NtCancelTimer" | "CancelWaitableTimer" => {
             if let Some(Handle::Timer { due, .. }) = e.s.fs.handles.get_mut(&a0) { *due = f64::INFINITY; }
@@ -633,7 +634,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                     }
                     0
                 }
-                None => 0xC000_009A, // STATUS_INSUFFICIENT_RESOURCES
+                None => INSUFFICIENT_RESOURCES, // STATUS_INSUFFICIENT_RESOURCES
             }
         }
         "CreateThread" | "_beginthreadex" | "_beginthread" => {
@@ -651,7 +652,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             // (handle, status): the calling thread (WoW64 threads end this way)
             let mine = a0 == 0 || a0 == u64::MAX - 1 || e.thread_of(a0).map_or(false, |i| e.s.sched.th[i].id == me);
             let code = e.arg(1) as u32;
-            if mine { e.exit_thread(code); NO_RETURN } else { 0xC000_0002 } // others: STATUS_NOT_IMPLEMENTED
+            if mine { e.exit_thread(code); NO_RETURN } else { NOT_IMPLEMENTED } // others: STATUS_NOT_IMPLEMENTED
         }
         "GetCurrentThreadId" => me as u64,
         "GetThreadId" => e.thread_of(a0).map_or(0, |i| e.s.sched.th[i].id as u64),
@@ -665,7 +666,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             None => u32::MAX as u64,
         },
         "NtSuspendThread" | "NtResumeThread" => {
-            let Some(i) = e.thread_of(a0) else { return Some(0xC000_0008) };
+            let Some(i) = e.thread_of(a0) else { return Some(INVALID_HANDLE) };
             let t = &mut e.s.sched.th[i];
             let prev = t.suspend;
             if name == "NtSuspendThread" { if i != e.cur { t.suspend += 1; if t.st == St::Ready { t.st = St::Suspended; } } }
@@ -675,7 +676,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             0
         }
         "NtGetContextThread" | "NtSetContextThread" => {
-            let Some(i) = e.thread_of(a0) else { return Some(0xC000_0008) };
+            let Some(i) = e.thread_of(a0) else { return Some(INVALID_HANDLE) };
             let c = e.arg(1);
             if i == e.cur { e.materialize(); }
             let get = name == "NtGetContextThread";

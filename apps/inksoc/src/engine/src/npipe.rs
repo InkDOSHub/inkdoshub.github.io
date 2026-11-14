@@ -4,21 +4,11 @@
 // finish later (iosb + event), in the process that asked. Windows Installer and
 // RPC (rpcrt4's ncalrpc) talk this way between processes.
 
+use crate::status::*;
 use crate::files::Handle;
 use crate::Engine;
 use std::collections::VecDeque;
 
-const OK: u64 = 0;
-const PENDING: u64 = 0x103;
-const PIPE_BROKEN: u64 = 0xC000_014B;
-const PIPE_CONNECTED: u64 = 0xC000_00B2;
-const PIPE_LISTENING: u64 = 0xC000_00B3;
-const PIPE_DISCONNECTED: u64 = 0xC000_00B0;
-const PIPE_NOT_AVAILABLE: u64 = 0xC000_00AC;
-const NAME_NOT_FOUND: u64 = 0xC000_0034;
-const BUFFER_OVERFLOW: u64 = 0x8000_0005;
-pub(crate) const CANCELLED: u64 = 0xC000_0120;
-const IO_TIMEOUT: u64 = 0xC000_00B5;
 
 /// One pipe instance. Side 0 = server, 1 = client; `buf[i]` holds what side i reads.
 #[derive(Default)]
@@ -80,7 +70,7 @@ impl Engine {
 
     /// NtCreateFile on a pipe name: the client end of a free instance.
     pub fn np_connect(&mut self, name: &str, sync: bool) -> Result<u64, u64> {
-        let Some(id) = self.np_free(name) else { return Err(if self.np_exists(name) { PIPE_NOT_AVAILABLE } else { NAME_NOT_FOUND }) };
+        let Some(id) = self.np_free(name) else { return Err(if self.np_exists(name) { PIPE_NOT_AVAILABLE } else { OBJECT_NAME_NOT_FOUND }) };
         let pid = self.s.wpid;
         if let Some(p) = self.s.fs.npipes.get_mut(&id) { p.state = 1; p.open[1] = true; p.client_pid = pid; p.listening = false; }
         let h = self.new_handle(Handle::NPipe { id, server: false, sync });
@@ -115,7 +105,7 @@ impl Engine {
 
     /// NtReadFile on a pipe end.
     pub fn np_read(&mut self, h: u64, event: u64, iosb: u64, buf: u64, len: u64) -> u64 {
-        let Some((id, me, sync)) = self.np_of(h) else { return 0xC000_0008 };
+        let Some((id, me, sync)) = self.np_of(h) else { return INVALID_HANDLE };
         if event != 0 { self.event_set(event, false); }
         match self.np_take(id, me, len) {
             Ok((v, st)) => {
@@ -138,7 +128,7 @@ impl Engine {
 
     /// NtWriteFile on a pipe end: the bytes go to the other side (one message).
     pub fn np_write(&mut self, h: u64, event: u64, iosb: u64, buf: u64, len: u64) -> u64 {
-        let Some((id, me, _)) = self.np_of(h) else { return 0xC000_0008 };
+        let Some((id, me, _)) = self.np_of(h) else { return INVALID_HANDLE };
         let mut v = vec![0u8; len as usize];
         if self.mmu.read_bytes(buf, &mut v).is_err() { self.fault(buf); }
         let st = match self.s.fs.npipes.get_mut(&id) {
@@ -182,7 +172,7 @@ impl Engine {
             for (i, c) in w.iter_mut().enumerate() { *c = self.r16(inp + 14 + 2 * i as u64); }
             let name = String::from_utf16_lossy(&w).to_ascii_lowercase();
             if self.np_free(&name).is_some() { self.iosb(iosb, OK, 0); return Some(OK); }
-            if !self.np_exists(&name) && !given { return Some(NAME_NOT_FOUND); }
+            if !self.np_exists(&name) && !given { return Some(OBJECT_NAME_NOT_FOUND); }
             let ms = if !given { 5000 } else if timeout < 0 { ((-timeout) / 10_000) as u64 } else { 0xFFFF_FFFF };
             let r = self.wait_on(crate::sched::W::NpWait(name), ms.max(1));
             return Some(if r == crate::sched::WAIT_TIMEOUT { IO_TIMEOUT } else { r });
@@ -217,7 +207,7 @@ impl Engine {
                 let state = if p.state == 1 { 3 } else { 4 }; // FILE_PIPE_CONNECTED_STATE / CLOSING
                 let room = outl.saturating_sub(16) as usize;
                 let data: Vec<u8> = p.buf[me].iter().take(room.min(avail)).copied().collect();
-                if outl < 16 { return Some(0xC000_0023); }
+                if outl < 16 { return Some(BUFFER_TOO_SMALL); }
                 self.w32(out, state);
                 self.w32(out + 4, avail as u32);
                 self.w32(out + 8, nmsg as u32);
@@ -236,8 +226,8 @@ impl Engine {
                 if st != crate::sched::BLOCK && st != crate::sched::RETRY { self.s.fs.np_tx.remove(&h); }
                 st
             }
-            0x11_0038 | 0x11_0034 => { self.iosb(iosb, OK, 0); 0xC000_0010 } // attributes: not kept
-            _ => 0xC000_0010,
+            0x11_0038 | 0x11_0034 => { self.iosb(iosb, OK, 0); INVALID_DEVICE_REQUEST } // attributes: not kept
+            _ => INVALID_DEVICE_REQUEST,
         })
     }
 
@@ -315,8 +305,8 @@ impl Engine {
         }
         let p = self.s.fs.npipes.get(&id)?;
         let (mt, mr, st, avail) = (p.msg_type, p.msg_read[me], p.state, p.buf[me].len());
-        let need = match class { 16 => 4, 23 => 8, 24 => 40, 5 => 24, 4 => 40, 8 => 4, 25 => 8, _ => return Some((0xC000_0003, 0)) };
-        if len < need { return Some((0xC000_0004, 0)); }
+        let need = match class { 16 => 4, 23 => 8, 24 => 40, 5 => 24, 4 => 40, 8 => 4, 25 => 8, _ => return Some((INVALID_INFO_CLASS, 0)) };
+        if len < need { return Some((INFO_LENGTH_MISMATCH, 0)); }
         self.zero_n(buf, need);
         match class {
             16 => { self.w32(buf, if sync { 0x20 } else { 0 }); }

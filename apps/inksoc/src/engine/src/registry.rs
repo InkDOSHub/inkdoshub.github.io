@@ -2,18 +2,11 @@
 // for Wine's advapi32/kernelbase. It lives in memory, starting with the root keys only:
 // keys and values exist once a program (or a Wine DLL) creates them.
 
+use crate::status::*;
 use crate::files::Handle;
 use crate::Engine;
 use std::collections::BTreeMap;
 
-const OK: u64 = 0;
-const INVALID_HANDLE: u64 = 0xC000_0008;
-const INVALID_INFO_CLASS: u64 = 0xC000_0003;
-const NAME_NOT_FOUND: u64 = 0xC000_0034;
-const BUFFER_TOO_SMALL: u64 = 0xC000_0023;
-const BUFFER_OVERFLOW: u64 = 0x8000_0005;
-const NO_MORE_ENTRIES: u64 = 0x8000_001A;
-const CANNOT_DELETE: u64 = 0xC000_0121;
 
 /// The current user's key (the SID that NtQueryInformationToken(TokenUser) reports).
 pub const USER_SID: &str = "S-1-5-21-1-2-3-1000";
@@ -207,7 +200,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
                 let new = e.s.fs.reg.create(&p);
                 let disp = e.arg(6);
                 if disp != 0 { e.w32(disp, if new { 1 } else { 2 }); } // REG_CREATED_NEW_KEY / REG_OPENED_EXISTING_KEY
-            } else if !e.s.fs.reg.keys.contains_key(&p) { return Some(NAME_NOT_FOUND); }
+            } else if !e.s.fs.reg.keys.contains_key(&p) { return Some(OBJECT_NAME_NOT_FOUND); }
             let h = e.new_handle(Handle::Key { path: p });
             e.w64(a0, h);
             OK
@@ -228,7 +221,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let Some(p) = e.key_of_handle(a0) else { return Some(INVALID_HANDLE) };
             let us = e.arg(1); let vn = e.us_read(us);
             let (class, buf, len, ret) = (e.arg(2) as u32, e.arg(3), e.arg(4) as u32 as u64, e.arg(5));
-            let Some(v) = e.s.fs.reg.keys.get(&p).and_then(|k| k.values.iter().find(|x| x.0.eq_ignore_ascii_case(&vn)).cloned()) else { return Some(NAME_NOT_FOUND) };
+            let Some(v) = e.s.fs.reg.keys.get(&p).and_then(|k| k.values.iter().find(|x| x.0.eq_ignore_ascii_case(&vn)).cloned()) else { return Some(OBJECT_NAME_NOT_FOUND) };
             e.value_info(class, &v, buf, len, ret)
         }
         "NtEnumerateValueKey" => {
@@ -255,7 +248,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
             let k = e.s.fs.reg.keys.get_mut(&p)?;
             let n = k.values.len();
             k.values.retain(|x| !x.0.eq_ignore_ascii_case(&vn));
-            if k.values.len() == n { NAME_NOT_FOUND } else { OK }
+            if k.values.len() == n { OBJECT_NAME_NOT_FOUND } else { OK }
         }
         "NtDeleteKey" => {
             let Some(p) = e.key_of_handle(a0) else { return Some(INVALID_HANDLE) };

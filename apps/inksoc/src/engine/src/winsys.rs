@@ -1692,7 +1692,7 @@ pub fn call(e: &mut Engine, name: &str) -> Option<u64> {
         "NtUserGetProcessDpiAwarenessContext" | "NtUserGetDpiForWindow" => 0x12,
         "NtUserSetProcessDpiAwarenessContext" => 1,
         "NtUserGetDisplayConfigBufferSizes" => { e.w32(ar[1], 1); e.w32(ar[2], 1); 0 }
-        "NtUserEnumDisplayDevices" => if ar[1] == 0 { e.put_w(ar[3] + 4, "\\\\.\\DISPLAY1", 32); e.put_w(ar[3] + 68, "InkSoC display", 128); e.w32(ar[3] + 324, 5); 0 } else { 0xC000_0001 },
+        "NtUserEnumDisplayDevices" => if ar[1] == 0 { e.put_w(ar[3] + 4, "\\\\.\\DISPLAY1", 32); e.put_w(ar[3] + 68, "InkSoC display", 128); e.w32(ar[3] + 324, 5); 0 } else { crate::status::UNSUCCESSFUL },
         "NtUserEnumDisplaySettings" => {
             let dm = ar[2];
             e.w32(dm + 168, 32); e.w32(dm + 172, SCREEN_W as u32); e.w32(dm + 176, SCREEN_H as u32); e.w32(dm + 184, 60);
