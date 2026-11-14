@@ -120,6 +120,8 @@ function close(p) {
 }
 
 function run(files, exe, args, label, home) {
+  // Files and Console step aside: the program gets the screen (they use no CPU while hidden)
+  for (const q of progs) if (q.tool && !q.hidden) setHidden(q, true);
   const p = { id: nextId++, z: 0, hidden: false, conAway: false };
   progs.push(p);
   p.btn = document.createElement('button');
@@ -244,7 +246,7 @@ for (const k of document.querySelectorAll('#pad .k')) {
 if (matchMedia('(pointer: coarse)').matches) $('padbtn').hidden = false;
 $('padbtn').onclick = () => { const on = $('pad').hidden; $('pad').hidden = !on; $('padbtn').classList.toggle('on', on); };
 // a real keyboard got connected and used: the on-screen controls step aside (🎮 brings them back)
-addEventListener('keydown', () => { if (!$('pad').hidden) { $('pad').hidden = true; $('padbtn').classList.remove('on'); } }, true);
+addEventListener('keydown', (e) => { if (e.target.tagName !== 'INPUT' && !$('pad').hidden) { $('pad').hidden = true; $('padbtn').classList.remove('on'); } }, true);
 addEventListener('keydown', key(4));
 addEventListener('keyup', key(5));
 
@@ -257,6 +259,16 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.pop')) close
 const builtins = {
   '7z': { url: 'bin/7za.exe?v=1', name: '7za.exe', label: '🗜 7-Zip', args: () => 'b -md18 -mmt' + $('cores').value },
 };
+// Files and Console: tools.js loads the first time one is opened
+let toolsReady = null;
+for (const b of document.querySelectorAll('[data-tool]')) {
+  b.onclick = async () => {
+    closePops();
+    toolsReady = toolsReady || new Promise((ok, fail) => { const s = document.createElement('script'); s.src = 'tools.js?v=1'; s.onload = ok; s.onerror = fail; document.head.append(s); });
+    await toolsReady;
+    (b.dataset.tool === 'files' ? openFiles : openConsole)();
+  };
+}
 for (const b of document.querySelectorAll('[data-run]')) {
   b.onclick = async () => {
     closePops();
@@ -320,6 +332,7 @@ function unzipToDrive(file) {
 const skip = /^(unins|uninst|setup|install|update|crash)/i;
 const system = /^(windows|programdata|users|inksoc|program files( \(x86\))?)$/i;
 async function listDrive() {
+  for (const q of progs) if (q.refresh && !q.hidden) q.refresh();
   let root;
   try { root = await (await navigator.storage.getDirectory()).getDirectoryHandle('inksoc-c'); } catch (e) { $('csize').textContent = 'empty'; $('installed').replaceChildren(); return []; }
   let bytes = 0;

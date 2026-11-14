@@ -52,6 +52,19 @@
   #pad .s{width:46px;height:30px;border-radius:8px;font-size:12px;font-weight:500}
   #padbtn{background:none;border:1px solid var(--border);flex:none}
   #padbtn.on{border-color:var(--accent)}
+  /* Files and Console (tools.js) */
+  .con .fbar{display:flex;gap:8px;align-items:center;padding:6px 10px;background:#1b1b1b;font:12px system-ui;color:#bbb}
+  .con .fbar span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:Menlo,ui-monospace,monospace}
+  .con .fbar button,.con .fbar label{background:#2b2b2b;border:0;color:#ddd;border-radius:6px;padding:3px 10px;cursor:pointer;font:13px system-ui}
+  .con .fbar button:disabled{opacity:.4}
+  .con .flist{flex:1;overflow:auto;padding:4px 0}
+  .con .frow{display:flex;align-items:center;gap:6px;padding:5px 10px;font:13px system-ui}
+  .con .frow:hover{background:#1f1f1f}
+  .con .frow .n{flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .con .frow .z{color:#888;font-size:11px}
+  .con .frow button{background:none;border:0;color:#bbb;cursor:pointer;font:12px system-ui;padding:2px 4px}
+  .con .empty{color:#777;padding:12px;font:13px system-ui}
+  .con .cline{border:0;border-top:1px solid #2b2b2b;background:#161616;color:#eee;font:13px Menlo,ui-monospace,monospace;padding:8px 10px;outline:none}
   @media (max-width:520px){#speed{display:none}}
 </style>
 </head>
@@ -60,6 +73,8 @@
 <div id="desk"></div>
 <div class="pop" id="menu" hidden>
   <label class="it">📂 Open .exe, .msi or .zip…<input type="file" id="pick" multiple hidden></label>
+  <button class="it" data-tool="files">📁 Files</button>
+  <button class="it" data-tool="console">⌨️ Console</button>
   <div class="set"><input type="text" id="args" placeholder="Arguments (optional)"></div>
   <div id="installed"></div>
   <hr>
@@ -89,6 +104,6 @@
   <div class="k s" data-vk="83" style="right:170px;bottom:190px">S</div>
 </div>
 <div class="bar"><button id="start">☰ Programs</button><div id="tasks"></div><span id="speed"></span><button id="padbtn" title="Game controls" hidden>🎮</button><button id="info" title="About">i</button></div>
-<script src="desktop.js?v=30"></script>
+<script src="desktop.js?v=31"></script>
 </body>
 </html>
