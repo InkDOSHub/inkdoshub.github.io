@@ -92,7 +92,7 @@ function run(files, exe, args, label, home) {
   p.con = consoleWindow(p, label);
   const out = p.con.querySelector('pre');
   raise(p);
-  const w = p.w = new Worker('worker.js?v=54');
+  const w = p.w = new Worker('worker.js?v=55');
   w.onmessage = (ev) => {
     const d = ev.data;
     if (d.type === 'log') { out.textContent += d.text; out.scrollTop = out.scrollHeight; }
@@ -125,7 +125,7 @@ function run(files, exe, args, label, home) {
   };
   w.postMessage({ type: 'exec', files, exe, cmd: (/\s/.test(exe) ? '"' + exe + '"' : exe) + (args ? ' ' + args : ''), drive: true, home, poolMb: poolMb(), targetMb: 8192,
     jit: $('jit').checked, cores: +$('cores').value, strong: new URLSearchParams(location.search).get('strong') !== '0', opt: new URLSearchParams(location.search).get('opt') !== '0' },
-  files ? files.map((f) => f.data) : []);
+  files ? files.map((f) => f.data).filter(Boolean) : []);
 }
 
 // a program's screen: shown the first time it draws a window; its console steps aside
@@ -209,10 +209,13 @@ for (const b of document.querySelectorAll('[data-run]')) {
 // Picked files add up: a DLL or data file picked later joins the .exe picked before
 // (some browsers hand over only one file per pick). Names like "7z (1).dll" are fixed.
 const picked = new Map();
+const copy = (f) => (f.blob ? { name: f.name, blob: f.blob } : { name: f.name, data: f.data.slice(0) });
 $('pick').onchange = async (ev) => {
   for (const f of ev.target.files) {
     const name = f.name.replace(/ \(\d+\)(?=\.[^.]+$)/, '');
-    picked.set(name.toLowerCase(), { name, data: await f.arrayBuffer() });
+    // a big file (a 400 MB .msi) stays a File: the engine copies it to disk in pieces, so
+    // the phone never holds it whole in memory
+    picked.set(name.toLowerCase(), f.size > (32 << 20) ? { name, blob: f } : { name, data: await f.arrayBuffer() });
   }
   ev.target.value = '';
   closePops();
@@ -223,12 +226,12 @@ $('pick').onchange = async (ev) => {
   if (msi && !exes.length) {
     picked.clear();
     const data = await fetch('bin/wine/wine-msiexec.exe?v=1').then((r) => r.arrayBuffer());
-    run([{ name: 'msiexec.exe', data }, ...all.map((f) => ({ name: f.name, data: f.data.slice(0) }))], 'msiexec.exe', '/i "' + msi.name + '"' + ($('args').value.trim() ? ' ' + $('args').value.trim() : ''), '📦 ' + msi.name.replace(/\.msi$/i, ''));
+    run([{ name: 'msiexec.exe', data }, ...all.map(copy)], 'msiexec.exe', '/i "' + msi.name + '"' + ($('args').value.trim() ? ' ' + $('args').value.trim() : ''), '📦 ' + msi.name.replace(/\.msi$/i, ''));
     return;
   }
   if (!exes.length) { $('speed').textContent = 'Picked ' + all.length + ' file(s): now pick the .exe or .msi'; return; }
   const exe = exes[exes.length - 1];
-  run(all.map((f) => ({ name: f.name, data: f.data.slice(0) })), exe.name, $('args').value.trim(), '🪟 ' + exe.name.replace(/\.exe$/i, ''));
+  run(all.map(copy), exe.name, $('args').value.trim(), '🪟 ' + exe.name.replace(/\.exe$/i, ''));
 };
 
 /* ---------- drive C: (OPFS folder "inksoc-c", kept apart from the swap file) ---------- */
