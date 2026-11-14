@@ -76,7 +76,7 @@ self.addEventListener("fetch", function (e) {
   if (u.pathname === RAIZ + "inicio/offline.js" || u.pathname === RAIZ + "assets/home.css") { e.respondWith(daRedeOuCopia(req)); return; }
   if (u.searchParams.has("inkoff")) return; // offline copy download: always from the site
   // the test/benchmark page always comes from the site when online, so results are never from an old version
-  if (u.pathname.indexOf(RAIZ + "apps/xeos-tests/") === 0) { e.respondWith(daRedeOuCopia(req).then(isolar)); return; }
+  if (u.pathname.indexOf(RAIZ + "InkBench/") === 0) { e.respondWith(daRedeOuCopia(req).then(isolar)); return; }
 
   // ArtCraft engine files (name carries a content hash): kept in their own cache after the first load,
   // so the editors open without downloading ~30 MB again; a new version has new names

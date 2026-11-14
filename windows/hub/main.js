@@ -850,7 +850,7 @@ app.whenReady().then(async () => {
     if (bench) return { erro: 'already running' };
     const saida = await fsp.mkdtemp(path.join(app.getPath('temp'), 'inkbench-'));
     const env = Object.assign({}, process.env, { INKBENCH_OUT: saida, OUT_DIR: saida, STRESS: opcoes && opcoes.stress ? '1' : '0' });
-    const url = SITE + 'apps/xeos-tests/native/' + (WIN ? 'inkbench.ps1' : 'inkbench.sh') + '?v=' + Date.now();
+    const url = SITE + 'InkBench/native/' + (WIN ? 'inkbench.ps1' : 'inkbench.sh') + '?v=' + Date.now();
     bench = WIN
       ? cp.spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', "irm '" + url + "' | iex"], { env, windowsHide: true })
       : cp.spawn('bash', ['-c', "curl -fsSL '" + url + "' | bash"], { env });
