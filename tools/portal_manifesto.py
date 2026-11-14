@@ -21,7 +21,6 @@ GRUPOS = [
     ("zip", "Zip", ["apps/zip"]),
     ("seguranca", "Security", ["apps/seguranca"]),
     ("jogos", "Games (PS1, SNES, N64, NES, GBA)", ["apps/jogos"]),
-    ("ia", "AI Chat (experimental)", ["apps/ia"]),
     ("wasm", "Wasm Build", ["apps/wasm"]),
     ("foto", "Photos", ["apps/foto"]),
     ("video", "Video", ["apps/video"]),

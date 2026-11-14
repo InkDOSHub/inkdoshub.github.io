@@ -12,7 +12,7 @@ const stub = {
 const carregar = Module._load;
 Module._load = function (req, ...r) { return req === 'electron' ? stub : carregar.call(this, req, ...r); };
 require('../../windows/hub/ia.js').registrar(() => true);
-const e = { sender: { id: 1, isDestroyed: () => false, send: (c, t) => { if (c === 'hub:ia-estado') console.log('estado:', t); } }, senderFrame: { url: 'https://inkdoshub.github.io/apps/ia/' } };
+const e = { sender: { id: 1, isDestroyed: () => false, send: (c, t) => { if (c === 'hub:ia-estado') console.log('estado:', t); } }, senderFrame: { url: 'https://inkdoshub.github.io/InkMind/' } };
 (async () => {
   console.log(await handlers['hub:ia-modelos']());
   const t0 = Date.now();
