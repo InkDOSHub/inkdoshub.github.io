@@ -1,7 +1,7 @@
 # Runs the installers of request.json on the engine (Node), side by side, and leaves for each
 # <name>.json (the result) and <name>.png (the last screen) in out/. A .msi runs through
 # Windows Installer (msiexec /i). clicks: [seconds, x, y] on the 1024x768 screen.
-import json, os, subprocess, sys, urllib.request
+import shutil, json, os, subprocess, sys, urllib.request
 here = os.path.dirname(os.path.abspath(__file__))
 inksoc = os.path.dirname(os.path.dirname(here))
 out = os.path.join(here, 'out'); os.makedirs(out, exist_ok=True)
@@ -26,4 +26,6 @@ for name, p, log in jobs:
     try: j = json.loads(res); print('RESULT', name, j['status'], j['error'][:300].replace('\n', ' | '), len(j['files']), 'files')
     except Exception: print('RESULT', name, 'crashed', ' | '.join(text[-5:])[:300])
     ppm = os.path.join(out, name + '.ppm')
-    if os.path.exists(ppm): subprocess.run(['convert', ppm, os.path.join(out, name + '.png')]); os.remove(ppm)
+    # the last screen: PNG when ImageMagick is there, else the raw PPM
+    if os.path.exists(ppm) and shutil.which('convert'): subprocess.run(['convert', ppm, os.path.join(out, name + '.png')]); os.remove(ppm)
+    elif os.path.exists(ppm): shutil.move(ppm, os.path.join(out, name + '.ppm'))
