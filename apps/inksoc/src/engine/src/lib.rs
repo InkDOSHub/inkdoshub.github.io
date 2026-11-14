@@ -36,6 +36,7 @@ mod wow64;
 use cpu::Cpu;
 use mmu::Mmu;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[link(wasm_import_module = "env")]
 extern "C" {
@@ -99,7 +100,8 @@ pub struct Shared {
     pub bridge_calls: u64,
     pub files: store::Store,
     pub modules: Vec<pe::Module>,
-    pub thunks: Vec<(String, String)>,
+    /// (dll, function) of each thunk, by index; shared strings so a call costs no copies.
+    pub thunks: Vec<(Rc<str>, Rc<str>)>,
     thunk_ids: HashMap<String, u64>,
     pub heap: heap::Heap,
     pub tls_used: u64,
@@ -580,7 +582,7 @@ impl Engine {
         let key = format!("{}!{}", dll, func);
         if let Some(&a) = self.s.thunk_ids.get(&key) { return a; }
         let a = THUNK_BASE + 16 * self.s.thunks.len() as u64;
-        self.s.thunks.push((dll.to_string(), func.to_string()));
+        self.s.thunks.push((Rc::from(dll), Rc::from(func)));
         self.s.thunk_ids.insert(key, a);
         a
     }
@@ -747,12 +749,14 @@ impl Engine {
             else if n.ends_with('A') { for i in 0..80 { match self.mmu.read8(p + i) { Ok(c) if c >= 32 && c < 0x7F => txt.push(c as char), _ => break } } }
             console(&format!("[call] t{} {}!{} rcx={:x} rdx={:x} r8={:x} ra={:x} {}\n", t, d, n, p, self.cpu.regs[2], self.cpu.regs[8], ra, txt));
         } }
-        let Some((dll, name)) = self.s.thunks.get(idx).cloned() else {
+        let Some((dll, func)) = self.s.thunks.get(idx).cloned() else {
             self.set_error(format!("jump into the native area at 0x{:x}", self.cpu.rip));
             return;
         };
-        let name = match winefb::alias(&name) { Some(n) if dll == "ntdll.dll" => n.to_string(), _ => name };
-        let r = match name.as_str() {
+        let dll: &str = &dll;
+        // ntdll's Rtl heap functions are answered by their kernel32 twins
+        let name: &str = match winefb::alias(&func) { Some(n) if dll == "ntdll.dll" => n, _ => &func };
+        let r = match name {
             // Wine-side functions compiled from C to wasm
             "lstrlenA" => { self.s.bridge_calls += 1; Some(unsafe { wine_lstrlenA(self.arg(0)) } as u32 as u64) }
             "RtlComputeCrc32" => {
@@ -760,13 +764,13 @@ impl Engine {
                 let (a, b, c) = (self.arg(0) as u32, self.arg(1), self.arg(2) as i32);
                 Some(unsafe { wine_RtlComputeCrc32(a, b, c) } as u64)
             }
-            _ if name.starts_with("_beginthread") || name.starts_with("_endthread") => sched::call(self, &name),
-            _ if dll == "msvcrt.dll" => msvcrt::call(self, &name),
-            _ if dll == "oleaut32.dll" => oleaut::call(self, &name),
-            _ if dll.starts_with("vcruntime140") => msvcrt::call(self, &name),
+            _ if name.starts_with("_beginthread") || name.starts_with("_endthread") => sched::call(self, name),
+            _ if dll == "msvcrt.dll" => msvcrt::call(self, name),
+            _ if dll == "oleaut32.dll" => oleaut::call(self, name),
+            _ if dll.starts_with("vcruntime140") => msvcrt::call(self, name),
             // the window system's kernel side: console programs get "nothing there"
-            _ if dll == "win32u.dll" => winsys::call(self, &name),
-            _ => sched::call(self, &name).or_else(|| files::call(self, &name)).or_else(|| kernel32::call(self, &name)).or_else(|| winapi::call(self, &name)).or_else(|| ntsys::call(self, &name)),
+            _ if dll == "win32u.dll" => winsys::call(self, name),
+            _ => sched::call(self, name).or_else(|| files::call(self, name)).or_else(|| kernel32::call(self, name)).or_else(|| winapi::call(self, name)).or_else(|| ntsys::call(self, name)),
         };
         if self.s.error.is_some() || self.s.exited { return; }
         match r {
@@ -775,7 +779,7 @@ impl Engine {
             None => {
                 // not native: Wine's own version, run as program code
                 let before = self.s.init_queue.len();
-                match self.wine_fallback(&dll, &name, self.cpu.rip) {
+                match self.wine_fallback(dll, name, self.cpu.rip) {
                     Some(a) => {
                         self.s.thunk_fb.insert(idx, a);
                         // DLLs that came in for it start first
