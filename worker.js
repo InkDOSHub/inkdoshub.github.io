@@ -26,6 +26,25 @@ const ISOLAR = {
 const ORIGENS_OK = /^https:\/\/(hub\.inkdos\.workers\.dev|inkdoshub\.github\.io|inkdoshub-github-io\.vfydr2m9wk\.workers\.dev)$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const DOH = "https://cloudflare-dns.com/dns-query";
 const PORTAS_BLOQUEADAS = new Set([25, 465, 587]); // no e-mail sending
+const TEXTO = /\.(html|js|mjs|css|json|svg|webmanifest|txt|map)$/i;
+
+function paginaDe(path) { return /(\/|\.html)$/.test(path); }
+function textoDoSite(path) {
+  if (path.startsWith("/net/")) return false;
+  return path === "/" || path.endsWith("/") || TEXTO.test(path);
+}
+async function daOrigem(url) {
+  const pagina = paginaDe(url.pathname);
+  return fetch(ORIGEM + url.pathname + url.search, {
+    cf: { cacheTtlByStatus: { "200-299": pagina ? 60 : 300, "404": 0, "500-599": 0 }, cacheEverything: true },
+  });
+}
+function comIsolamento(up, pagina) {
+  const h = new Headers(up.headers);
+  if (pagina) h.set("Cache-Control", "no-cache");
+  for (const [k, v] of Object.entries(ISOLAR)) h.set(k, v);
+  return new Response(up.body, { status: up.status, statusText: up.statusText, headers: h });
+}
 
 export default {
   async fetch(req, env) {
@@ -40,6 +59,15 @@ export default {
       return new Response(null, { status: 101, webSocket: par[0] });
     }
     if (url.pathname.startsWith("/net/github/")) return github(req, url);
+    // Home screen, scripts and styles come from GitHub Pages so a push shows up
+    // here without a new asset upload. Wasm and other binaries stay on ASSETS.
+    // Isolation headers are added the same way as a Pages fallback.
+    if (req.method === "GET" && textoDoSite(url.pathname)) {
+      try {
+        const up = await daOrigem(url);
+        if (up.ok) return comIsolamento(up, paginaDe(url.pathname));
+      } catch (e) {}
+    }
     const res = await env.ASSETS.fetch(req);
     if (res.status !== 404 || req.method !== "GET") return res;
     // (a 404 is not kept: a folder just published on GitHub Pages works at once)
