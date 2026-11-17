@@ -1,14 +1,14 @@
 {
  "deckcraft": {
-  "wasm": "deckcraft-web-a2bd294f193b235a_bg.wasm",
-  "bytes": 32955240
+  "wasm": "deckcraft-web-f863e8c546b80fd1_bg.wasm",
+  "bytes": 33159566
  },
  "gridcraft": {
-  "wasm": "gridcraft-web-a93f726323c691e1_bg.wasm",
-  "bytes": 26039193
+  "wasm": "gridcraft-web-fdc723373f2aa0d8_bg.wasm",
+  "bytes": 26298748
  },
  "wordcraft": {
-  "wasm": "wordcraft-web-d5f8e062bd3e686e_bg.wasm",
-  "bytes": 60340672
+  "wasm": "wordcraft-web-bc9cdbc0b42827ee_bg.wasm",
+  "bytes": 60994261
  }
 }
