@@ -1,0 +1,3 @@
+/* Catppuccin (MIT) para o InkDOS Hub: Latte = claro, Mocha = escuro OLED. */
+html:root[data-theme="light"]{--bg:#eff1f5;--card:#e6e9ef;--text:#4c4f69;--muted:#6c6f85;--border:rgba(76,79,105,.18);--hover:rgba(76,79,105,.08);--accent:#1e66f5;--accent-down:#1a57d6;--accent-soft:rgba(30,102,245,.12);--footer:#7c7f93;--warn:#df8e1d;--danger:#d20f39}
+html:root[data-theme="dark"]{--bg:#000;--card:#181825;--text:#cdd6f4;--muted:#a6adc8;--border:rgba(205,214,244,.14);--hover:rgba(205,214,244,.08);--accent:#89b4fa;--accent-down:#b4befe;--accent-soft:rgba(137,180,250,.18);--footer:#7f849c;--warn:#f9e2af;--danger:#f38ba8}
