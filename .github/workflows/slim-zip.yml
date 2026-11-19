@@ -8,12 +8,6 @@ jobs:
       - name: Listar maiores arquivos
         run: find . -path ./.git -prune -o -type f -size +1M -printf '%s %p\n' | sort -rn | head -40 | tee big.txt
       - name: -      - name: Zip so de codigo (<1MB, sem binarios)
--        run: |
--          find . -path ./.git -prune -o -path ./node_modules -prune -o -type f -size -1024k \
--            ! -name '*.wasm' ! -name '*.img' ! -name '*.iso' ! -name '*.exe' ! -name '*.AppImage' \
--            ! -name '*.zip' ! -name '*.mp4' ! -name '*.mp3' -print | zip -q slim.zip -@
--          cp big.txt big-files.txt
--          ls -lh slim.zip
 +      - name: Zip so de codigo-fonte
 +        run: |
 +          find . -path ./.git -prune -o -path ./node_modules -prune -o -type f -size -300k \
