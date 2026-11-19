@@ -18,6 +18,11 @@
   if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   document.documentElement.dataset.theme = t;
   document.documentElement.style.colorScheme = t;
+    // Catppuccin: carrega catppuccin.css ao lado deste script
+  try {
+    var s = document.currentScript && document.currentScript.src;
+    if (s) { var l = document.createElement("link"); l.rel = "stylesheet"; l.href = s.replace(/tema\.js.*$/, "catppuccin.css"); document.head.appendChild(l); }
+  } catch (_) {}
   window.inkTema = {
     atual: function () { return document.documentElement.dataset.theme; },
     trocar: function () {
