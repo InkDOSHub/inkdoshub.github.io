@@ -41,6 +41,12 @@
       salvar(K_ESC, escondidos);
       localStorage.setItem("inkdoshub-padrao-v4", "1");
     }
+    // v5 (2026-11-20): InkSoC (Windows programs) hidden by default except on Windows; Customize shows it again.
+    if (!localStorage.getItem("inkdoshub-padrao-v5")) {
+      var uad = navigator.userAgentData, windows = /Windows/i.test((uad && uad.platform) || "") || /Windows NT/.test(navigator.userAgent);
+      if (!windows && escondidos.indexOf("wine") < 0) { escondidos.push("wine"); salvar(K_ESC, escondidos); }
+      localStorage.setItem("inkdoshub-padrao-v5", "1");
+    }
   } catch (_) {}
   var meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });
 
