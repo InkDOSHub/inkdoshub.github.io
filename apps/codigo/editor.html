@@ -10,6 +10,11 @@
 <link rel="icon" href="vscode/favicon.ico" type="image/x-icon">
 <script src="../../assets/tema.js?v=1"></script>
 <link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="vscode/out/vs/workbench/workbench.web.main.css">
+<style>
+  /* Offline only: no accounts. Signing in (Microsoft/GitHub, Cloud Changes, Settings Sync) only works
+     on vscode.dev, so the Accounts menu did nothing here. Hidden. */
+  .monaco-workbench .action-item:has(.codicon-accounts-view-bar-icon){display:none!important}
+</style>
 </head>
 <body aria-label=""></body>
 <script>
@@ -37,6 +42,8 @@
     configurationDefaults: {
       "workbench.colorTheme": inkTema.atual() === "dark" ? "Default Dark Modern" : "Default Light Modern",
       "window.commandCenter": false,
+      "workbench.cloudChanges.autoResume": "off",
+      "workbench.cloudChanges.continueOn": "off",
     },
   };
 </script>

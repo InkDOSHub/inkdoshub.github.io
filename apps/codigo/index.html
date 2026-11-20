@@ -10,15 +10,20 @@
 <script src="../../assets/idioma.js?v=1"></script>
 <script src="../../assets/gerenciador-app.js?v=10"></script>
 <script src="../../assets/icones.js?v=2" defer></script>
+<link rel="stylesheet" href="../../assets/info.css?v=2">
 <link rel="stylesheet" href="../../assets/barra.css?v=5">
 <script src="../../assets/barra.js?v=5" defer></script>
 </head>
 <body class="ink-app" data-idioma>
 <header class="ink-bar">
   <a class="ink-home" href="../../" data-icone="voltar">InkDOS Hub</a>
-  <span class="ink-title">Code</span>
+  <span class="ink-title">Code · VS Code</span>
   <span class="ink-spacer"></span>
   <span class="ink-status">Files are kept in this browser. Upload and Download: right-click in the Explorer</span>
+  <details class="i solto"><summary title="About" aria-label="About">i</summary><div class="pop">
+    <p>This is VS Code for the web (Microsoft's official build, MIT license), running inside this browser.</p>
+    <p>Works offline and without an account: your files stay in this browser. To bring files in or out, right-click in the Explorer (Upload, Download). Extensions come from Open VSX, the open catalog, with no account.</p>
+  </div></details>
 </header>
 <main class="ink-main"><iframe src="editor.html" title="Code editor" allow="clipboard-read; clipboard-write"></iframe></main>
 </body>
