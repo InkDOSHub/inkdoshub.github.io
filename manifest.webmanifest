@@ -218,6 +218,25 @@
         ],
         "text/x-env": [
           ".env"
+        ],
+        "application/octet-stream": [
+          ".ipa",
+          ".mobileprovision"
+        ],
+        "application/x-plist": [
+          ".plist"
+        ],
+        "application/vnd.android.package-archive": [
+          ".apk"
+        ],
+        "application/x-apple-diskimage": [
+          ".dmg"
+        ],
+        "application/vnd.microsoft.portable-executable": [
+          ".exe"
+        ],
+        "application/x-msi": [
+          ".msi"
         ]
       }
     }
