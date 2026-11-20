@@ -152,7 +152,16 @@
           ".xml",
           ".yaml",
           ".yml",
-          ".zsh"
+          ".zsh",
+          ".cmd",
+          ".m",
+          ".mm",
+          ".md5",
+          ".sha1",
+          ".sha256",
+          ".sum",
+          ".xcconfig",
+          ".pbxproj"
         ],
         "image/*": [
           ".avif",
@@ -218,6 +227,46 @@
         ],
         "text/x-env": [
           ".env"
+        ],
+        "application/octet-stream": [
+          ".ipa",
+          ".mobileprovision",
+          ".arj",
+          ".cab",
+          ".car",
+          ".cpio",
+          ".deb",
+          ".iso",
+          ".jar",
+          ".lz",
+          ".lzh",
+          ".lzma",
+          ".tbz2",
+          ".txz",
+          ".wim",
+          ".zst",
+          ".provisionprofile"
+        ],
+        "application/x-plist": [
+          ".plist"
+        ],
+        "application/vnd.android.package-archive": [
+          ".apk"
+        ],
+        "application/x-apple-diskimage": [
+          ".dmg"
+        ],
+        "application/vnd.microsoft.portable-executable": [
+          ".exe"
+        ],
+        "application/x-msi": [
+          ".msi"
+        ],
+        "application/xml": [
+          ".storyboard",
+          ".xib",
+          ".entitlements",
+          ".stringsdict"
         ]
       }
     }

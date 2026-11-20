@@ -10,7 +10,9 @@
    - Photos, Video and Music: IndexedDB "inkdoshub-entrada" and #ink-arquivos=<id>; the app receives it through
      its open button (assets/gerenciador-app.js);
    - Code: the file is written to the editor folder (IndexedDB "inkdoshub-codigo", in /Received)
-     and the editor opens it (apps/codigo/ext/inkfs). */
+     and the editor opens it (apps/codigo/ext/inkfs);
+   - InkSoC (.exe, .msi): IndexedDB "inkdoshub-entrada" and apps/inksoc/abrir.html#ink-arquivos=<id>,
+     which opens InkSoC in a frame and gives it the file as InkOS does ("inkos:file"). */
 (function () {
   "use strict";
   var P = window.InkPaginas;
@@ -22,14 +24,18 @@
     { app: "apresentacoes", ext: ["deckcraft", "pptx", "ppt", "odp", "key"] },
     { app: "pdf", ext: ["pdf"] },
     { app: "epub", ext: ["epub"] },
-    { app: "texto", ext: ["txt", "md", "markdown", "log", "ini", "cfg", "conf", "toml", "properties", "xml", "json", "jsonl", "ndjson", "yaml", "yml", "srt", "vtt"] },
+    { app: "texto", ext: ["txt", "md", "markdown", "log", "ini", "cfg", "conf", "toml", "properties", "xml", "json", "jsonl", "ndjson", "yaml", "yml", "srt", "vtt", "sha256", "sha1", "md5", "sum"] },
     { app: "foto", ext: ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "avif", "bmp", "svg", "tif", "tiff", "ico"], tipo: "image/", varios: true },
     { app: "video", ext: ["mp4", "mov", "m4v", "webm", "mkv"], tipo: "video/", varios: true },
     { app: "musica", ext: ["mp3", "m4a", "aac", "wav", "ogg", "oga", "flac", "opus", "aiff", "aif"], tipo: "audio/", varios: true },
-    { app: "zip", ext: ["zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "tbz2", "xz", "txz", "lz", "lzma", "zst", "cab", "iso", "arj", "lzh", "wim", "cpio"] },
+    { app: "zip", ext: ["zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "tbz2", "xz", "txz", "lz", "lzma", "zst", "cab", "iso", "arj", "lzh", "wim", "cpio",
+      "ipa", "apk", "jar", "deb", "dmg", "plist", "mobileprovision", "provisionprofile", "entitlements", "stringsdict", "car"] },
+    // Windows programs: InkSoC runs them (apps/inksoc/abrir.html hands the file over)
+    { app: "wine", ext: ["exe", "msi"] },
     { app: "codigo", ext: ["js", "mjs", "cjs", "ts", "tsx", "jsx", "py", "html", "htm", "xhtml", "css", "scss", "less", "c", "h", "cpp", "hpp", "cc", "cs", "java",
       "kt", "rs", "go", "rb", "php", "sh", "bash", "zsh", "fish", "lua", "sql", "swift", "r", "pl", "vue", "svelte", "dart", "bat", "ps1", "gradle",
-      "dockerfile", "make", "mk", "cmake", "ipynb", "tex", "diff", "patch", "env", "gitignore"], varios: true },
+      "dockerfile", "make", "mk", "cmake", "ipynb", "tex", "diff", "patch", "env", "gitignore",
+      "cmd", "m", "mm", "xcconfig", "pbxproj", "storyboard", "xib"], varios: true },
   ];
   var OFFICE = { documentos: 1, planilhas: 1, apresentacoes: 1 }, K_PREF = "inkdoshub-abrir-office";
   var CRAFT = { documentos: "wordcraft", planilhas: "gridcraft", apresentacoes: "deckcraft" };
@@ -110,6 +116,11 @@
         return gravar("inkdos-launch-handoff", "files", v, id, 1);
       }).then(function () { return RAIZ + "inkdos/apps/" + INKDOS[rota.app] + "/index.html?suite=1#inkdos-launch=" + id; });
     }
+    if (rota.app === "wine") {
+      return bytes(files.slice(0, 1)).then(function (l) {
+        return gravar("inkdoshub-entrada", "arquivos", { arquivos: l, at: Date.now() }, id, 1);
+      }).then(function () { return RAIZ + "apps/inksoc/abrir.html#ink-arquivos=" + id; });
+    }
     if (rota.app === "codigo") {
       var agora = Date.now(), caminhos = [];
       return bytes(files).then(function (l) {
@@ -150,7 +161,7 @@
   var t = window.InkIdioma ? InkIdioma.t : function (s, p) { return s.replace(/\{(\w+)\}/g, function (m, k) { return p && k in p ? p[k] : m; }); };
   function nomeApp(id) {
     var n = { documentos: t("Documents"), planilhas: t("Spreadsheets"), apresentacoes: t("Presentations"), pdf: t("PDF"), texto: t("Plain text"),
-      epub: t("EPUB reader"), foto: t("Photos"), video: t("Video"), musica: t("Music"), codigo: t("Code"), zip: "Zip" }[id];
+      epub: t("EPUB reader"), foto: t("Photos"), video: t("Video"), musica: t("Music"), codigo: t("Code"), zip: "Zip", wine: "InkSoC" }[id];
     return n || id;
   }
 
