@@ -2,7 +2,7 @@
 
 A free, open-source home screen of power tools for iPad and iPhone (Safari and XeOS), also available as a Windows app. Everything runs in the browser: a real Alpine Linux terminal, photo, video and music apps, VS Code for the web, a whiteboard, document, spreadsheet, presentation and PDF apps, a recorder, phone-to-PC file transfer and an iPhone-as-PC-webcam app. No account, no tracking: your files stay on your device. Everything lives in this repository; nothing is loaded from CDNs or other sites.
 
-The website needs no install. The Windows programs (`.exe`) are **optional** extras for PC users. The Wine app is **experimental**: light 32-bit programs work best.
+The website needs no install. The Windows programs (`.exe`) are **optional** extras for PC users. **InkSoC** (Windows programs in the browser) is **experimental**: light programs work best. **InkOS** is a desktop for all of it: Hub apps, the Linux terminal and Windows programs open in its windows.
 
 **Open:** https://hub.inkdos.workers.dev/ (old links to inkdoshub.github.io redirect there) · License: MIT (third-party licenses in [LICENCAS.md](LICENCAS.md))
 
@@ -19,8 +19,9 @@ The Hub is the home screen and the editing apps. Larger standalone apps live in 
 
 | | Repository | What | Open |
 |---|---|---|---|
-| <img src="assets/inkdoshub-icone.svg" width="28"> | **[inkdoshub.github.io](https://github.com/InkDOSHub/inkdoshub.github.io)** (this one) | Home screen, documents, PDF, spreadsheets, presentations, photos, video, music, recorder, whiteboard, code, transfer, Wine | [hub.inkdos.workers.dev](https://hub.inkdos.workers.dev/) |
-| <img src="assets/icones-inkdos/wine.svg" width="28"> | **[InkSoC](https://github.com/InkDOSHub/InkSoC)** | Our engine to run Windows programs in the browser (x86-64 JIT + Wine) | [/InkSoC/](https://hub.inkdos.workers.dev/InkSoC/) |
+| <img src="assets/inkdoshub-icone.svg" width="28"> | **[inkdoshub.github.io](https://github.com/InkDOSHub/inkdoshub.github.io)** (this one) | Home screen, documents, PDF, spreadsheets, presentations, photos, video, music, recorder, whiteboard, code, transfer | [hub.inkdos.workers.dev](https://hub.inkdos.workers.dev/) |
+| <img src="assets/icones-inkdos/wine.svg" width="28"> | **[InkSoC](https://github.com/InkDOSHub/InkSoC)** | Our engine to run Windows programs in the browser (x86-64 JIT + Wine); opens straight into Command Prompt | [/InkSoC/](https://hub.inkdos.workers.dev/InkSoC/) |
+| <img src="assets/icones-inkdos/inkos.png" width="28"> | **[InkOS](https://github.com/InkDOSHub/InkOS)** | Web desktop (Rust/WebAssembly): windows, dock, Finder; opens the Hub apps, InkShell and InkSoC in its windows | [inkos-5k7.pages.dev](https://inkos-5k7.pages.dev/) |
 | <img src="assets/icones-inkdos/terminal.svg" width="28"> | **[InkShell](https://github.com/InkDOSHub/InkShell)** | Linux terminal: Alpine Linux on InkSoC | [/InkShell/](https://hub.inkdos.workers.dev/InkShell/) |
 | <img src="assets/icones-inkdos/webcam.svg" width="28"> | **[InkCam](https://github.com/InkDOSHub/InkCam)** | iPhone camera as a PC webcam, plus the Windows virtual camera | [/InkCam/](https://hub.inkdos.workers.dev/InkCam/) |
 | <img src="assets/icones-inkdos/ia.svg" width="28"> | **[InkMind](https://github.com/InkDOSHub/InkMind)** | AI chat with small models running on the device | [/InkMind/](https://hub.inkdos.workers.dev/InkMind/) |
@@ -90,10 +91,10 @@ The Linux terminal (Alpine Linux on the InkSoC engine) lives in its own reposito
 ## Limits
 
 - **Your files live in this browser.** Safari can erase a site's data (clearing website data, low storage, or weeks without use outside the Home Screen). Add the Hub to the Home Screen and use Save/Export in each app to keep copies in Files.
-- **Heavy apps use battery and heat the device:** Terminal (Linux in an emulator), Wine and video editing.
+- **Heavy apps use battery and heat the device:** Terminal (Linux in an emulator), InkSoC and video editing.
 - **Webcam** uses the public PeerJS server only to pair the two devices; the video goes directly between them.
 - **XeOS is optional.** The Hub works in Safari and any modern browser; XeOS only adds windows.
-- **Wine and the Linux app are experimental.**
+- **InkSoC and the Linux app are experimental.**
 
 ## How it was made
 
