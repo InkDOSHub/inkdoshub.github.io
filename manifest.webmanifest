@@ -152,7 +152,16 @@
           ".xml",
           ".yaml",
           ".yml",
-          ".zsh"
+          ".zsh",
+          ".cmd",
+          ".m",
+          ".mm",
+          ".md5",
+          ".sha1",
+          ".sha256",
+          ".sum",
+          ".xcconfig",
+          ".pbxproj"
         ],
         "image/*": [
           ".avif",
@@ -221,7 +230,22 @@
         ],
         "application/octet-stream": [
           ".ipa",
-          ".mobileprovision"
+          ".mobileprovision",
+          ".arj",
+          ".cab",
+          ".car",
+          ".cpio",
+          ".deb",
+          ".iso",
+          ".jar",
+          ".lz",
+          ".lzh",
+          ".lzma",
+          ".tbz2",
+          ".txz",
+          ".wim",
+          ".zst",
+          ".provisionprofile"
         ],
         "application/x-plist": [
           ".plist"
@@ -237,6 +261,12 @@
         ],
         "application/x-msi": [
           ".msi"
+        ],
+        "application/xml": [
+          ".storyboard",
+          ".xib",
+          ".entitlements",
+          ".stringsdict"
         ]
       }
     }
