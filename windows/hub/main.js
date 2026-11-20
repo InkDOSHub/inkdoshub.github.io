@@ -453,7 +453,8 @@ async function abrirTransferir() {
 // Well-known open source virtual machines and emulators, installed from the official source by winget (Windows' own
 // package manager, which checks the publisher's hash). If winget fails, opens the official download page.
 // Games, ROMs, BIOS and system images are not included: the person uses their own.
-const ehWine = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/apps/wine/'); } catch (_) { return false; } };
+// the Wine/InkSoC card (apps/inksoc/ since InkSoC replaced Wine) opens this window, not InkSoC
+const ehWine = url => { try { const u = new URL(url); return u.hostname === HOST && /^\/(apps\/wine\/|apps\/inksoc\/|InkSoC\/)/.test(u.pathname); } catch (_) { return false; } };
 const ehJogos = url => { try { const u = new URL(url); return u.hostname === HOST && u.pathname.startsWith('/InkArcade/'); } catch (_) { return false; } };
 const EMULADORES = [
   { g: 'jogo', nome: 'Games (InkDOS Hub)', web: true, pt: 'Emulador do próprio Hub, sem instalar: PS1, SNES, N64, NES e GBA.', en: 'The Hub\'s own emulator, nothing to install: PS1, SNES, N64, NES and GBA.' },

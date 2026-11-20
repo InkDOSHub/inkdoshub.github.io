@@ -55,7 +55,7 @@
     var ext = ponto >= 0 ? nome.slice(ponto + 1) : nome; // "Dockerfile", "Makefile"
     if (nome === "makefile") ext = "make";
     var tipo = String(file && file.type || "").toLowerCase();
-    return ROTAS.filter(function (r) { return r.ext.indexOf(ext) >= 0; })[0] ||
+    return ROTAS.filter(function (r) { return r.ext.indexOf(ext) >= 0 && !(r.app === "wine" && window.inkHubNativo); })[0] ||
       ROTAS.filter(function (r) { return r.tipo && tipo.indexOf(r.tipo) === 0; })[0] ||
       (tipo === "text/plain" ? ROTAS.filter(function (r) { return r.app === "texto"; })[0] : null);
   }

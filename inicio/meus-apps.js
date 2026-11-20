@@ -47,6 +47,12 @@
       if (!windows && escondidos.indexOf("wine") < 0) { escondidos.push("wine"); salvar(K_ESC, escondidos); }
       localStorage.setItem("inkdoshub-padrao-v5", "1");
     }
+    // v6: the Windows/Linux app has no InkOS card (the PC already has its own desktop); Windows programs open
+    // the official emulators and virtual machines (windows/hub/main.js), not InkSoC.
+    if (!localStorage.getItem("inkdoshub-padrao-v6")) {
+      if (window.inkHubNativo && escondidos.indexOf("inkos") < 0) { escondidos.push("inkos"); salvar(K_ESC, escondidos); }
+      localStorage.setItem("inkdoshub-padrao-v6", "1");
+    }
   } catch (_) {}
   var meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });
 
