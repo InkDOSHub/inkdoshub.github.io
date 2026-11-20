@@ -2,7 +2,8 @@
 // that run inside an InkOS window. Does nothing outside an iframe.
 // - ink-tema: light/dark (cosmetic only, nothing is stored)
 // - inkos-vfs-file: a file from the InkOS Finder. Dispatched as window event
-//   "inkos:file" (detail = File). If no handler calls preventDefault(), the
+//   "inkos:file" (detail = File). data is an ArrayBuffer or a Blob (big files
+//   come as a Blob, by reference, so they are not copied into memory). If no handler calls preventDefault(), the
 //   file opens the way the Hub home screen opens it: InkDOSFileLaunch
 //   (InkDOS suite apps), else the page's first matching <input type="file">.
 // - inkos-ready: sent to the InkOS parent once the listener is in place.
@@ -76,7 +77,7 @@
     if (d.type === "ink-tema") {
       if (d.theme === "light" || d.theme === "dark") applyTheme(d.theme);
     } else if (d.type === "inkos-vfs-file" && d.v === 1) {
-      if (typeof d.name !== "string" || !d.name || d.name.length > 255 || /[\/\\]/.test(d.name) || !(d.data instanceof ArrayBuffer)) return;
+      if (typeof d.name !== "string" || !d.name || d.name.length > 255 || /[\/\\]/.test(d.name) || !(d.data instanceof ArrayBuffer || d.data instanceof Blob)) return;
       var f = new File([d.data], d.name, { type: typeof d.mime === "string" ? d.mime : "" });
       // Apps wire their handlers while loading; open once the page is ready.
       pending.push(f);

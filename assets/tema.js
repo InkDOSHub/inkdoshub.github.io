@@ -28,7 +28,7 @@
   if (window.parent !== window) {
     try {
       var b = document.currentScript && document.currentScript.src;
-      if (b) { var sc = document.createElement("script"); sc.src = b.replace(/tema\.js.*$/, "inkos-bridge.js?v=1"); document.head.appendChild(sc); }
+      if (b) { var sc = document.createElement("script"); sc.src = b.replace(/tema\.js.*$/, "inkos-bridge.js?v=2"); document.head.appendChild(sc); }
     } catch (_) {}
   }
   window.inkTema = {
