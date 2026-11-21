@@ -1,0 +1,9 @@
+/* Page-by-page reading: every kept page sits in the same grid cell, only the current one (and the pages of a turn) shows. */
+.pdf-stack.single-page{position:relative;display:grid;place-items:center;width:max-content;min-width:100%;min-height:100%;gap:0;padding:0}
+.pdf-stack.single-page>.pdf-page-host{grid-area:1/1;width:auto;visibility:hidden}
+.pdf-stack.single-page>.pdf-page-host.is-current{visibility:visible;z-index:1}
+.pdf-stack.single-page>.pdf-page-host.turn-base{visibility:visible;z-index:2}
+.pdf-stack.single-page>.pdf-page-host.turn-sheet{visibility:visible;z-index:3;pointer-events:none}
+.pdf-turn-fold{position:absolute;z-index:5;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0))}
+.pdf-turn-flap{position:absolute;z-index:6;pointer-events:none;background:linear-gradient(90deg,#e0e0dc 0%,#fbfaf6 70%,#d6d6d2 100%);box-shadow:-6px 0 18px rgba(0,0,0,.22);border-radius:0 2px 2px 0}
+:root[data-appearance-resolved="dark"] .pdf-turn-flap{background:linear-gradient(90deg,#3a3d44 0%,#50545c 70%,#33363c 100%)}
