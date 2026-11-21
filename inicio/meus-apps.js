@@ -53,6 +53,16 @@
       if (window.inkHubNativo && escondidos.indexOf("inkos") < 0) { escondidos.push("inkos"); salvar(K_ESC, escondidos); }
       localStorage.setItem("inkdoshub-padrao-v6", "1");
     }
+    // v7 (2026-11-21): iPad and iPhone Safari use the InkDOS editors by default (ArtCraft hidden, Customize shows it again).
+    if (!localStorage.getItem("inkdoshub-padrao-v7")) {
+      if (!window.inkHubNativo && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1))) {
+        escondidos = escondidos.filter(function (id) { return id !== "documentos" && id !== "planilhas" && id !== "apresentacoes"; });
+        ["wordcraft", "gridcraft", "deckcraft"].forEach(function (id) { if (escondidos.indexOf(id) < 0) escondidos.push(id); });
+        salvar(K_ESC, escondidos);
+        localStorage.removeItem("inkdoshub-abrir-office");
+      }
+      localStorage.setItem("inkdoshub-padrao-v7", "1");
+    }
   } catch (_) {}
   var meus = ler(K_APPS).filter(function (a) { return a && /^https?:\/\//.test(a.url); });
 
