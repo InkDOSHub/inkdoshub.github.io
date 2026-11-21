@@ -39,8 +39,8 @@
   ];
   var OFFICE = { documentos: 1, planilhas: 1, apresentacoes: 1 }, K_PREF = "inkdoshub-abrir-office";
   var CRAFT = { documentos: "wordcraft", planilhas: "gridcraft", apresentacoes: "deckcraft" };
-  // default: InkDOS on iPhone (ArtCraft has no phone layout), ArtCraft elsewhere
-  var PADRAO = /iPhone|iPod|Android.+Mobile/.test(navigator.userAgent) ? "inkdos" : "artcraft";
+  // default: InkDOS on iPhone, iPad (iPadOS Safari says "Macintosh" but has touch) and Android phones; ArtCraft elsewhere
+  var PADRAO = /iPhone|iPod|iPad|Android.+Mobile/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1) ? "inkdos" : "artcraft";
   function preferencia() { var v; try { v = localStorage.getItem(K_PREF) || PADRAO; } catch (_) { v = PADRAO; } return v === "inkdos" ? v : "artcraft"; }
   // ☰ menu: two rows (ArtCraft desktop / InkDOS mobile), with ✓ on the chosen one
   var opcoes = [].slice.call(document.querySelectorAll(".pref-office"));
