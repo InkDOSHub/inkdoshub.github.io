@@ -9,8 +9,8 @@
   "theme_color": "#f7f8fa",
   "icons": [
     {
-      "src": "assets/presentations.png",
-      "type": "image/png",
+      "src": "assets/presentations.svg",
+      "type": "image/svg+xml",
       "purpose": "any"
     }
   ],
