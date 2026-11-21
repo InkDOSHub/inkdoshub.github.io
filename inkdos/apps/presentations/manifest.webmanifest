@@ -9,7 +9,7 @@
   "theme_color": "#f7f8fa",
   "icons": [
     {
-      "src": "assets/presentations.svg",
+      "src": "../../../assets/icones-inkdos/presentations.svg?v=3",
       "type": "image/svg+xml",
       "purpose": "any"
     }
