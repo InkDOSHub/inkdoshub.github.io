@@ -75,7 +75,7 @@ function create({session,getDocument,editor,chrome}={}){
  }
  // Header Save menu (shared frame): overwrite the original PDF (with annotations) or save a copy.
  let overwriteHash=null;
- global.InkDOSSaveProvider=Object.freeze({fileName:()=>session.fileName,canOverwrite:()=>!!session.active&&!!getDocument?.(),
+ global.InkDOSSaveProvider=Object.freeze({fileName:()=>session.fileName,canOverwrite:()=>!!session.active&&!!getDocument?.(),isDirty:()=>!!session.dirty,snapshot:async()=>{const doc=getDocument?.();if(!doc)return null;editor.commit();return (await NS.PdfjsSaveAdapter.createCopy({pdfDocument:doc,sourceBytes:await originalBytes(),fileName:session.fileName})).blob},
   buildOverwrite:async()=>{const doc=getDocument();editor.commit();overwriteHash=doc.annotationStorage.serializable.hash;chrome.status('Saving over the original PDF…');const result=await NS.PdfjsSaveAdapter.createCopy({pdfDocument:doc,sourceBytes:await originalBytes(),fileName:session.fileName});return result.blob},
   afterOverwrite:()=>{const doc=getDocument();if(doc&&doc.annotationStorage.serializable.hash===overwriteHash){doc.annotationStorage.resetModified?.();session.markSaved()}chrome.dirty();chrome.status('Original PDF overwritten')},
   saveCopy:()=>save(),onError:e=>{console.error(e);chrome.status('Overwrite failed: '+(e?.message||e))},exports:[]});
