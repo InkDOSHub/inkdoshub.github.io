@@ -7,8 +7,8 @@
  * directly: a copy of the file, whatever its size (plus, where the browser gives one, a link to the original so
  * Save can still overwrite it). Unsaved changes are kept too: while a file has unsaved
  * changes, its entry holds the edited version (refreshed every 45 s and when the tab goes to the background), so a
- * dropped tab loses nothing. The list shows on the app's start screen with the space it uses, a × per entry and
- * "Clear recents"; clearing warns that unsaved work goes with it and offers to save it first. After a reload the
+ * dropped tab loses nothing. The list shows on the app's start screen with the space it uses (this app / all apps), a × per entry
+ * and "Clear recents"; clearing warns that unsaved work goes with it and offers to save it first. After a reload the
  * file the tab had open is first and marked "Continue". Opening a file over an open one offers a new tab.
  *
  * Apps report unsaved work through InkDOSSaveProvider.isDirty() and InkDOSSaveProvider.snapshot() (→ Blob).
@@ -156,6 +156,9 @@
       const keepHandle = handle || (v && v.handle) || null;
       // The copy holds the bytes themselves: a stored File can stay a pointer to the file on disk, and once that
       // file changes the browser refuses to read it, so a reopened PDF showed only the pages already read.
+      // A large file is copied a few seconds later, so its copy does not add to the memory the app needs to open it
+      // (iPhone Safari closes a tab that takes too much).
+      if (file.size > 32 * 1048576) await new Promise(r => setTimeout(r, 6000));
       let copy = null;
       try { copy = new Blob([await file.arrayBuffer()], { type: file.type || '' }); } catch (_) {}
       remember(id.name, id.size, copy ? { file: copy, handle: keepHandle, lastModified: file.lastModified || 0, edited: false } : { handle: keepHandle });
@@ -221,7 +224,7 @@
       row.append(b);
     }
     const foot = doc.createElement('div'); foot.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap';
-    const used = doc.createElement('span'); used.style.cssText = 'font-size:11px;color:#8a8f98'; const ul = doc.createElement('span'), uv = doc.createElement('span'); ul.textContent = 'Space used'; uv.textContent = ': ' + mb(await usage()); uv.setAttribute('data-idioma-nao', ''); used.append(ul, uv);
+    const used = doc.createElement('span'); used.style.cssText = 'font-size:11px;color:#8a8f98'; const ul = doc.createElement('span'), uv = doc.createElement('span'); ul.textContent = 'Space used'; const u = await usage(); uv.textContent = ': ' + size(u.app) + ' / ' + size(u.all) + ' '; uv.setAttribute('data-idioma-nao', ''); const ut = doc.createElement('span'); ut.textContent = 'total'; used.title = APP; used.append(ul, uv, ut);
     const clear = doc.createElement('button'); clear.type = 'button'; clear.textContent = 'Clear recents';
     clear.style.cssText = 'font:12px/1.2 system-ui,-apple-system,sans-serif;padding:5px 10px;border-radius:8px;border:1px solid rgba(127,127,127,.45);background:transparent;color:inherit;cursor:pointer';
     clear.onclick = () => clearRecents(items);
@@ -229,9 +232,15 @@
     box.replaceChildren(h, row, foot);
   }
 
-  // Space the Recent lists of every app take on this device (copies and pictures).
-  function usage() { return tx(['recent'], 'readonly', async st => (await entries(st)).reduce((n, [, v]) => n + (v.file ? v.file.size : 0) + (v.picture ? v.picture.size : 0), 0)).catch(() => 0); }
-  const mb = n => (n < 1048576 ? Math.max(0.1, n / 1048576).toFixed(1) : (n / 1048576).toFixed(n < 104857600 ? 1 : 0)) + ' MB';
+  // Space the Recent list takes on this device: this app's entries and every app's (copies and pictures).
+  function usage() {
+    return tx(['recent'], 'readonly', async st => (await entries(st)).reduce((n, [, v]) => {
+      const b = (v.file ? v.file.size : 0) + (v.picture ? v.picture.size : 0);
+      n.all += b; if (v.app === APP) n.app += b; return n;
+    }, { app: 0, all: 0 })).catch(() => ({ app: 0, all: 0 }));
+  }
+  // MB below 1 GB, GB from there; one decimal while the number is small.
+  const size = n => n >= 1073741824 ? (n / 1073741824).toFixed(n < 10737418240 ? 1 : 0) + ' GB' : (n < 1048576 ? (n ? Math.max(0.1, n / 1048576) : 0).toFixed(1) : (n / 1048576).toFixed(n < 104857600 ? 1 : 0)) + ' MB';
 
   // Clearing entries also drops unsaved changes kept in them (Safari offers no other place for them): warn first and
   // offer to save them.
