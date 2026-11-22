@@ -4,8 +4,8 @@
  * iOS Safari drops a background tab and reloads it when the user comes back, which used to send every InkDOS app
  * back to its start screen and lose the work. Each app keeps, on this device and only for itself, its last 10 files:
  * where each was left, for the PDF reader a small picture of that page, and what is needed to open it again
- * directly. On a computer whose browser can (File System Access) that is a link to the file itself; elsewhere
- * (iPhone Safari) a copy of the file, whatever its size. Unsaved changes are kept too: while a file has unsaved
+ * directly: a copy of the file, whatever its size (plus, where the browser gives one, a link to the original so
+ * Save can still overwrite it). Unsaved changes are kept too: while a file has unsaved
  * changes, its entry holds the edited version (refreshed every 45 s and when the tab goes to the background), so a
  * dropped tab loses nothing. The list shows on the app's start screen with the space it uses, a × per entry and
  * "Clear recents"; clearing warns that unsaved work goes with it and offers to save it first. After a reload the
@@ -152,7 +152,8 @@
     const handle = g.InkDOSFileHandles && g.InkDOSFileHandles.get([file.name, file.size, file.lastModified].join('|'));
     recentOf(id.name, id.size).then(v => {
       if (v && v.scroll) restoreScroll(v.scroll);
-      const patch = from ? {} : handle ? { handle, file: null, edited: false } : (v && v.file && !v.edited && v.file.size === file.size) ? {} : { file, lastModified: file.lastModified || 0, edited: false };
+      const keepHandle = handle || (v && v.handle) || null;
+      const patch = from ? {} : (v && v.file && !v.edited && v.file.size === file.size) ? { handle: keepHandle } : { file, handle: keepHandle, lastModified: file.lastModified || 0, edited: false };
       remember(id.name, id.size, patch);
     });
   }
@@ -162,8 +163,11 @@
   async function openRecent(it) {
     let file = null;
     try {
-      if (it.edited && it.file) file = new File([it.file], it.name, { type: it.file.type || '', lastModified: it.editedAt || Date.now() });
-      else if (it.handle && it.handle.getFile) {
+      if (it.file) {
+        file = new File([it.file], it.name, { type: it.file.type || '', lastModified: (it.edited ? it.editedAt : it.lastModified) || Date.now() });
+        // The copy opens without asking; a link to the original, when there is one, still lets Save overwrite it.
+        if (it.handle && !it.edited) try { (g.InkDOSFileHandles || (g.InkDOSFileHandles = new Map())).set([file.name, file.size, file.lastModified].join('|'), it.handle); } catch (_) {}
+      } else if (it.handle && it.handle.getFile) {
         let ok = it.handle.queryPermission ? await it.handle.queryPermission({ mode: 'read' }) : 'granted';
         if (ok !== 'granted' && it.handle.requestPermission) ok = await it.handle.requestPermission({ mode: 'read' });
         if (ok === 'granted') { file = await it.handle.getFile(); try { (g.InkDOSFileHandles || (g.InkDOSFileHandles = new Map())).set([file.name, file.size, file.lastModified].join('|'), it.handle); } catch (_) {} } // saving still writes over the original
