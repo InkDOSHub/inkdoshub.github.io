@@ -109,20 +109,40 @@ def pypdf():
         import pypdf as P; return P
     except ImportError: pass
     print("First time only: installing the PDF library (pypdf, about 1 MB)...", flush=True)
+    import importlib, importlib.util, site
     if ASH: os.system("pip install --quiet pypdf")
-    else:
+    elif importlib.util.find_spec("pip"):
         import subprocess
         cmd = [sys.executable, "-m", "pip", "install", "--quiet", "--user", "pypdf"]
         if subprocess.call(cmd) != 0:  # Alpine/Debian block pip on the system Python (PEP 668)
             subprocess.call(cmd + ["--break-system-packages"])
-    import importlib, site
     try: sys.path.append(site.getusersitepackages())
     except Exception: pass
     importlib.invalidate_caches()
     try:
         import pypdf as P; return P
-    except ImportError:
-        print("Could not install pypdf. Check the internet connection and try again."); sys.exit(1)
+    except ImportError: pass
+    # No pip (Alpine's python3, some Windows installs): pypdf is pure Python, so its wheel
+    # from PyPI is unpacked into a folder of ours and imported from there.
+    try:
+        P = wheel("pypdf"); return P
+    except Exception as e:
+        print("Could not install pypdf (%s). Check the internet connection and try again." % e); sys.exit(1)
+
+def wheel(name):
+    import json, urllib.request, importlib
+    home = os.path.expanduser("~")
+    lib = os.path.join(home, ".inkdos", "pylib")
+    if lib not in sys.path: sys.path.insert(0, lib)
+    try: return importlib.import_module(name)
+    except ImportError: pass
+    get = lambda u: urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "curl/8"})).read()
+    info = json.loads(get("https://pypi.org/pypi/%s/json" % name))
+    url = next(u["url"] for u in info["urls"] if u["packagetype"] == "bdist_wheel" and u["filename"].endswith("-py3-none-any.whl"))
+    os.makedirs(lib, exist_ok=True)
+    zipfile.ZipFile(io.BytesIO(get(url))).extractall(lib)
+    importlib.invalidate_caches()
+    return importlib.import_module(name)
 
 PDF = [".pdf"]
 IMG = [".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif", ".tif", ".tiff", ".bmp"]
@@ -418,7 +438,7 @@ def pil():
     try:
         from PIL import Image, ImageOps; return Image, ImageOps
     except ImportError:
-        print("Pillow is not available here. On a computer: pip install pillow"); sys.exit(1)
+        print("Pillow is not available here. " + ("Install it with:  sudo apk add py3-pillow" if os.path.exists("/sbin/apk") else "On a computer: pip install pillow")); sys.exit(1)
 
 def open_img(f, Image, ImageOps):
     try: return ImageOps.exif_transpose(Image.open(f))
