@@ -150,11 +150,15 @@
     ss.set(STATE_KEY, id);
     // What lets the Recent list open it directly: on a computer a link to the file itself, else a copy.
     const handle = g.InkDOSFileHandles && g.InkDOSFileHandles.get([file.name, file.size, file.lastModified].join('|'));
-    recentOf(id.name, id.size).then(v => {
+    recentOf(id.name, id.size).then(async v => {
       if (v && v.scroll) restoreScroll(v.scroll);
+      if (from) return remember(id.name, id.size, {});
       const keepHandle = handle || (v && v.handle) || null;
-      const patch = from ? {} : (v && v.file && !v.edited && v.file.size === file.size) ? { handle: keepHandle } : { file, handle: keepHandle, lastModified: file.lastModified || 0, edited: false };
-      remember(id.name, id.size, patch);
+      // The copy holds the bytes themselves: a stored File can stay a pointer to the file on disk, and once that
+      // file changes the browser refuses to read it, so a reopened PDF showed only the pages already read.
+      let copy = null;
+      try { copy = new Blob([await file.arrayBuffer()], { type: file.type || '' }); } catch (_) {}
+      remember(id.name, id.size, copy ? { file: copy, handle: keepHandle, lastModified: file.lastModified || 0, edited: false } : { handle: keepHandle });
     });
   }
 
@@ -163,15 +167,18 @@
   async function openRecent(it) {
     let file = null;
     try {
-      if (it.file) {
-        file = new File([it.file], it.name, { type: it.file.type || '', lastModified: (it.edited ? it.editedAt : it.lastModified) || Date.now() });
+      // Read the copy fully first, so a copy that can no longer be read falls back to the link (or the picker).
+      let bytes = null;
+      if (it.file) try { bytes = await it.file.arrayBuffer(); if (it.size && !it.edited && bytes.byteLength !== it.size) bytes = null; } catch (_) { bytes = null; }
+      if (bytes) {
+        file = new File([bytes], it.name, { type: it.file.type || '', lastModified: (it.edited ? it.editedAt : it.lastModified) || Date.now() });
         // The copy opens without asking; a link to the original, when there is one, still lets Save overwrite it.
         if (it.handle && !it.edited) try { (g.InkDOSFileHandles || (g.InkDOSFileHandles = new Map())).set([file.name, file.size, file.lastModified].join('|'), it.handle); } catch (_) {}
       } else if (it.handle && it.handle.getFile) {
         let ok = it.handle.queryPermission ? await it.handle.queryPermission({ mode: 'read' }) : 'granted';
         if (ok !== 'granted' && it.handle.requestPermission) ok = await it.handle.requestPermission({ mode: 'read' });
         if (ok === 'granted') { file = await it.handle.getFile(); try { (g.InkDOSFileHandles || (g.InkDOSFileHandles = new Map())).set([file.name, file.size, file.lastModified].join('|'), it.handle); } catch (_) {} } // saving still writes over the original
-      } else if (it.file) file = new File([it.file], it.name, { type: it.file.type || '', lastModified: it.lastModified || Date.now() });
+      }
     } catch (_) { file = null; }
     const input = mainInput();
     if (!file || !input) return pick();
