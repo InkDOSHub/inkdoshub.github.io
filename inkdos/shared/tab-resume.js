@@ -333,5 +333,13 @@
     render();
   }, 0), { once: true });
 
-  g.InkDOSTabResume = Object.freeze({ opened, remember, recentOf, render, reloaded, get fileOpen() { return fileOpen; } });
+  // ---- the house button: back to this app's start screen. Unsaved changes are kept in the Recent entry first.
+  async function home() {
+    if (!fileOpen) return;
+    for (let i = 0; keeping && i < 50; i++) await new Promise(r => setTimeout(r, 100));
+    try { await keepWork(); } catch (_) {}
+    try { saveScroll(true); } catch (_) {}
+    g.location.assign(g.location.pathname + g.location.search);
+  }
+  g.InkDOSTabResume = Object.freeze({ opened, remember, recentOf, render, reloaded, home, get fileOpen() { return fileOpen; } });
 })(globalThis);
