@@ -1,115 +1,107 @@
-/* InkDOS tab resume: the open file survives a browser reload of its tab.
+/* InkDOS tab resume: a tab reloaded by the browser comes back to its file.
  *
  * iOS Safari drops a background tab and reloads it when the user comes back, which used to send every InkDOS app
- * back to its start screen. The browser no longer gives access to the file after that reload, so each tab keeps a
- * copy of the file it opened (IndexedDB) and where it was scrolled, under a tab id held in sessionStorage.
- * sessionStorage survives that reload but not closing the tab or the app: a reloaded tab reopens its file, a newly
- * opened app starts empty. Opening a file over an open one offers to keep both, the new one in a new tab.
+ * back to its start screen with nothing to show what was open. The file itself is not kept (no growing cache): each
+ * tab keeps only which file it had open, where it was, and (for the PDF reader) a small picture of the page in view.
+ * After such a reload the app shows that page and a "Reopen" button; picking the file again opens it at the same
+ * place. All of it lives in sessionStorage plus a few small pictures in IndexedDB, so closing the tab or the app
+ * starts fresh. Opening a file over an open one offers to keep both, the new one in a new tab.
  *
- * The copies never grow without bound: one copy per distinct file (tabs with the same file share it), files over
- * 100 MB are not copied, all copies together stay within 150 MB (least recently used dropped first), and the copy
- * of a tab not seen for a day is dropped.
- *
- * Load it before runtime/platform/file-launch.js (it reads the launch hash before that script clears it). Files are
- * reopened through the app's own file input, so each app opens them exactly as if the user picked them. Image inputs
- * (pictures inserted into a document) are left alone. On the script tag, `data-scroll="off"` skips the scroll
- * restore for apps that keep their own reading position (ePub), and `data-mode="store"` only provides the copy
- * store (InkDOSTabResume.store) to an app that resumes on its own (PDF).
+ * Load it before runtime/platform/file-launch.js (it reads the launch hash before that script clears it). Image
+ * inputs (pictures inserted into a document) are left alone. On the script tag, `data-scroll="off"` skips the scroll
+ * restore for apps that keep their own reading position (ePub), and `data-mode="store"` only provides the helpers
+ * (InkDOSTabResume.store / showReopen) to an app that resumes on its own (PDF).
  */
 (function (g) {
   'use strict';
   if (g.InkDOSTabResume || !g.document) return;
   const doc = g.document, script = doc.currentScript;
-  const DB = 'inkdos-tab-resume', MAX_BYTES = 100 * 1024 * 1024, BUDGET = 150 * 1024 * 1024, KEEP_MS = 864e5;
+  const DB = 'inkdos-tab-resume2', MAX_PICTURE = 2 * 1024 * 1024, BUDGET = 16 * 1024 * 1024, KEEP_MS = 864e5, HANDOFF_MS = 6e4;
   const STORE_ONLY = !!(script && script.dataset.mode === 'store'), SCROLL = !(script && script.dataset.scroll === 'off');
   const APP = (g.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '') || '/') + (g.name ? '#' + g.name : '');
+  try { g.indexedDB && g.indexedDB.deleteDatabase('inkdos-tab-resume'); } catch (_) {} // an unreleased version kept whole files
+  // A tab the browser reloaded (Safari restoring a dropped tab, or a refresh) or went back to, not one opened anew.
+  const reloaded = (() => { try { const n = g.performance.getEntriesByType('navigation')[0]; if (n) return n.type === 'reload' || n.type === 'back_forward'; return g.performance.navigation && g.performance.navigation.type !== 0; } catch (_) { return false; } })();
 
-  // ---- the copies: "files" content key → {blob, size, type, at}; "tabs" tab id → {app, file, name, lastModified, at}
+  // ---- small pictures ("pictures": tab id → {blob, size, at}) and one-minute hand-offs to a new tab ("handoff")
   function openDb() {
     return new Promise((resolve, reject) => {
       if (!g.indexedDB) return reject(new Error('IndexedDB unavailable'));
       const r = g.indexedDB.open(DB, 1);
-      r.onupgradeneeded = () => { r.result.createObjectStore('files'); r.result.createObjectStore('tabs'); };
+      r.onupgradeneeded = () => { r.result.createObjectStore('pictures'); r.result.createObjectStore('handoff'); };
       r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
     });
   }
   const req = r => new Promise(resolve => { r.onsuccess = () => resolve(r.result); r.onerror = () => resolve(undefined); });
   const entries = st => new Promise(resolve => { const out = [], c = st.openCursor(); c.onsuccess = () => { const cur = c.result; if (!cur) return resolve(out); out.push([cur.key, cur.value]); cur.continue(); }; c.onerror = () => resolve(out); });
-  // Runs fn(files, tabs) in one transaction (fn may only await requests of that transaction).
-  async function tx(mode, fn) {
+  async function tx(names, mode, fn) {
     const d = await openDb();
     try {
       return await new Promise((resolve, reject) => {
-        const t = d.transaction(['files', 'tabs'], mode); let out;
-        fn(t.objectStore('files'), t.objectStore('tabs')).then(v => { out = v; }, e => { try { t.abort(); } catch (_) {} reject(e); });
+        const t = d.transaction(names, mode); let out;
+        fn(...names.map(n => t.objectStore(n))).then(v => { out = v; }, e => { try { t.abort(); } catch (_) {} reject(e); });
         t.oncomplete = () => resolve(out); t.onerror = t.onabort = () => reject(t.error);
       });
     } finally { d.close(); }
   }
-  const contentKey = f => [f.name, f.size, f.lastModified || 0].join('|');
-  // Tabs not seen for a day are dropped, then files no tab uses, then the least recently used files until the
-  // copies fit the budget. The file of tab `keepTab` is never dropped.
-  function prune(keepTab) {
-    return tx('readwrite', async (files, tabs) => {
-      const now = Date.now(), live = new Map();
-      for (const [id, t] of await entries(tabs)) {
-        if (id !== keepTab && now - (Number(t && t.at) || 0) > KEEP_MS) { tabs.delete(id); continue; }
-        live.set(t.file, Math.max(live.get(t.file) || 0, id === keepTab ? Infinity : Number(t.at) || 0));
-      }
-      const list = (await entries(files)).map(([k, f]) => ({ k, size: Number(f && f.size) || 0, at: live.has(k) ? live.get(k) : -1 }));
+  // Pictures of tabs not seen for a day go, then the oldest until all fit in the budget; stale hand-offs go too.
+  function prune(keep) {
+    return tx(['pictures', 'handoff'], 'readwrite', async (pics, hand) => {
+      const now = Date.now(), list = (await entries(pics)).map(([k, v]) => ({ k, size: Number(v && v.size) || 0, at: k === keep ? Infinity : Number(v && v.at) || 0 }));
       list.sort((a, b) => b.at - a.at);
       let used = 0;
-      for (const f of list) { if (f.at < 0 || (f.at !== Infinity && used + f.size > BUDGET)) files.delete(f.k); else used += f.size; }
+      for (const p of list) { if (p.at !== Infinity && (now - p.at > KEEP_MS || used + p.size > BUDGET)) pics.delete(p.k); else used += p.size; }
+      for (const [k, v] of await entries(hand)) if (now - (Number(v && v.at) || 0) > HANDOFF_MS) hand.delete(k);
     }).catch(() => {});
   }
-  // Keeps `file` as the file of tab `id`; false when it is too big to keep.
-  async function put(id, file, app = APP) {
-    if (!id || !file || file.size > MAX_BYTES) return false;
-    const k = contentKey(file), now = Date.now();
-    try {
-      await tx('readwrite', async (files, tabs) => {
-        files.put({ blob: file, size: file.size, type: file.type || '', at: now }, k);
-        tabs.put({ app, file: k, name: file.name, lastModified: file.lastModified || 0, at: now }, id);
-      });
-    } catch (e) { console.warn('InkDOS: tab copy not kept', e); return false; }
-    await prune(id);
-    return true;
+  async function putPicture(id, blob) {
+    if (!id || !blob || blob.size > MAX_PICTURE) return false;
+    try { await tx(['pictures'], 'readwrite', async s => { s.put({ blob, size: blob.size, at: Date.now() }, id); }); } catch (_) { return false; }
+    prune(id); return true;
   }
-  // Marks tab `id` as still in use; returns its record.
-  function touch(id) {
-    return tx('readwrite', async (files, tabs) => {
-      const t = await req(tabs.get(id)); if (!t) return null;
-      t.at = Date.now(); tabs.put(t, id);
-      const f = await req(files.get(t.file)); if (f) { f.at = t.at; files.put(f, t.file); }
-      return f ? { tab: t, file: f } : null;
-    }).catch(() => null);
+  function getPicture(id) { return tx(['pictures'], 'readonly', async s => { const v = await req(s.get(id)); return v && v.blob || null; }).catch(() => null); }
+  function dropPicture(id) { return tx(['pictures'], 'readwrite', async s => { s.delete(id); }).catch(() => {}); }
+  const uid = () => (g.crypto && g.crypto.randomUUID ? g.crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  // A file passed to a new tab is held for at most a minute and deleted as soon as that tab takes it.
+  async function handOff(file) { const id = uid(); await tx(['handoff'], 'readwrite', async s => { s.put({ file, at: Date.now() }, id); }); prune(); return id; }
+  function takeHandOff(id) { return tx(['handoff'], 'readwrite', async s => { const v = await req(s.get(id)); s.delete(id); return v && v.file || null; }).catch(() => null); }
+  const store = Object.freeze({ putPicture, getPicture, dropPicture, handOff, takeHandOff });
+
+  // ---- the "Reopen" card shown after a reload
+  function showReopen({ host = doc.body, name = '', picture = null, onReopen, onDismiss } = {}) {
+    const card = doc.createElement('div'), inner = doc.createElement('div'), title = doc.createElement('div'), row = doc.createElement('div');
+    card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Reopen file'); card.className = 'inkdos-reopen';
+    card.style.cssText = (host === doc.body ? 'position:fixed;' : 'position:absolute;') + 'inset:0;z-index:2147482000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.35);overflow:auto';
+    inner.style.cssText = 'background:var(--surface,#fff);color:var(--text,#111);border-radius:14px;padding:14px;max-width:min(560px,100%);display:grid;gap:12px;justify-items:center;font:15px/1.4 system-ui,-apple-system,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.3)';
+    let url = null;
+    if (picture) {
+      const img = doc.createElement('img'); url = URL.createObjectURL(picture); img.src = url; img.alt = '';
+      img.style.cssText = 'display:block;max-width:100%;max-height:60vh;border-radius:6px;box-shadow:0 0 0 1px rgba(0,0,0,.1)';
+      inner.append(img);
+    }
+    title.textContent = name; title.style.cssText = 'font-weight:600;text-align:center;word-break:break-word';
+    row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
+    const close = () => { card.remove(); if (url) URL.revokeObjectURL(url); };
+    const button = (label, main, fn) => { const b = doc.createElement('button'); b.type = 'button'; b.textContent = label; b.style.cssText = 'font:inherit;padding:8px 16px;border-radius:9px;border:1px solid #9aa4b2;' + (main ? 'background:#3c5cdb;color:#fff;border-color:#3c5cdb' : 'background:transparent;color:inherit'); b.onclick = fn; row.append(b); return b; };
+    button('Not now', false, () => { close(); onDismiss && onDismiss(); });
+    const main = button('Reopen', true, () => { onReopen && onReopen(); });
+    inner.append(title, row); card.append(inner); host.append(card); main.focus();
+    return close;
   }
-  // The file kept for tab `id`, or null.
-  async function get(id, app = APP) {
-    const v = await touch(id);
-    if (!v || v.tab.app !== app || !v.file.blob) return null;
-    return new File([v.file.blob], v.tab.name || 'document', { type: v.file.type || '', lastModified: v.tab.lastModified || Date.now() });
-  }
-  const store = Object.freeze({ put, get, touch, prune });
-  if (STORE_ONLY) { g.InkDOSTabResume = Object.freeze({ store }); return; }
+  if (STORE_ONLY) { g.InkDOSTabResume = Object.freeze({ store, showReopen, reloaded }); return; }
 
   // ---- this tab
   const TAB_KEY = 'inkdos-tab:' + APP, STATE_KEY = 'inkdos-tab-state:' + APP;
   const hash = String(g.location.hash || '');
   const launching = /(?:^#|&)inkdos-launch=/.test(hash);
-  const adopted = (/(?:^#|&)inkdos-tab=([A-Za-z0-9-]+)/.exec(hash) || [])[1] || null;
-  let fileOpen = false, bypass = null, restoring = false, reopened = null;
-  const uid = () => (g.crypto && g.crypto.randomUUID ? g.crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const handed = (/(?:^#|&)inkdos-tab=([A-Za-z0-9-]+)/.exec(hash) || [])[1] || null;
+  let fileOpen = false, bypass = null, restoring = false, closeCard = null;
   const ss = {
     get(k) { try { return JSON.parse(g.sessionStorage.getItem(k) || 'null'); } catch (_) { return null; } },
     set(k, v) { try { g.sessionStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
     del(k) { try { g.sessionStorage.removeItem(k); } catch (_) {} }
   };
-  function tabId() { let id = ss.get(TAB_KEY); if (!id) { id = uid(); ss.set(TAB_KEY, id); } return id; }
-  if (adopted) {
-    ss.set(TAB_KEY, adopted); ss.del(STATE_KEY);
-    try { g.history.replaceState(g.history.state, '', g.location.pathname + g.location.search); } catch (_) {}
-  }
+  if (handed) { ss.del(STATE_KEY); try { g.history.replaceState(g.history.state, '', g.location.pathname + g.location.search); } catch (_) {} }
 
   // ---- scroll place of the open file
   function scrollers() { return [doc.scrollingElement, ...doc.querySelectorAll('[id]')].filter(el => el && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1)); }
@@ -137,16 +129,16 @@
   }
   doc.addEventListener('scroll', () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveScroll, 400); }, { capture: true, passive: true });
   g.addEventListener('pagehide', saveScroll);
-  doc.addEventListener('visibilitychange', () => { if (doc.visibilityState === 'hidden') saveScroll(); else if (fileOpen) touch(tabId()); });
+  doc.addEventListener('visibilitychange', () => { if (doc.visibilityState === 'hidden') saveScroll(); });
 
-  // ---- a file was opened in this tab
+  // ---- a file was opened in this tab; the same file picked from the "Reopen" card goes back to its place
   function opened(file) {
     if (!file) return;
     fileOpen = true;
-    const again = reopened === file.name + '|' + file.size; reopened = null;
-    if (again) return; // the tab's own copy, just reopened
-    ss.set(STATE_KEY, { name: file.name, size: file.size, scroll: null });
-    put(tabId(), file);
+    if (closeCard) { closeCard(); closeCard = null; }
+    const st = ss.get(STATE_KEY), same = st && st.name === file.name && st.size === file.size;
+    ss.set(STATE_KEY, { name: file.name, size: file.size, scroll: same ? st.scroll : null });
+    if (same && st.pending) restoreScroll(st.scroll);
   }
 
   // ---- opening a file over an open one
@@ -173,10 +165,8 @@
   async function toNewTab(file) {
     let w = null; try { w = g.open('', '_blank'); } catch (_) {}
     if (!w) return false;
-    const id = uid();
-    if (!(await put(id, file))) { try { w.close(); } catch (_) {} return false; }
-    w.location.href = g.location.pathname + g.location.search + '#inkdos-tab=' + id;
-    return true;
+    try { const id = await handOff(file); w.location.href = g.location.pathname + g.location.search + '#inkdos-tab=' + id; return true; }
+    catch (_) { try { w.close(); } catch (__) {} return false; }
   }
   const appInput = t => t && t.type === 'file' && !/^image\//.test(String(t.accept || '').trim()) && !t.hasAttribute('data-inkdos-no-resume');
   doc.addEventListener('change', e => {
@@ -193,19 +183,28 @@
     });
   }, true);
 
-  // ---- reopen this tab's file after a reload
+  // ---- after a reload: offer to reopen the tab's file; a tab opened for a file takes it from the hand-off
   async function restore() {
+    const launch = g.InkDOSFileLaunch;
+    if (handed) {
+      const file = await takeHandOff(handed);
+      const input = file && launch && launch.compatibleInput ? launch.compatibleInput(file) : null;
+      if (input && appInput(input)) { try { bypass = input; await launch.injectFile(file, input); } catch (e) { bypass = null; console.warn('InkDOS: could not open the file in this tab', e); } }
+      return;
+    }
     const st = ss.get(STATE_KEY);
-    if (launching || (!adopted && !st)) return;
-    const file = await get(tabId());
-    if (!file || (st && (st.name !== file.name || st.size !== file.size))) return;
-    const launch = g.InkDOSFileLaunch, input = launch && launch.compatibleInput ? launch.compatibleInput(file) : null;
-    if (!input || !appInput(input)) return;
-    try { bypass = input; reopened = file.name + '|' + file.size; await launch.injectFile(file, input); } catch (e) { bypass = null; reopened = null; console.warn('InkDOS: could not reopen the tab file', e); return; }
-    if (st) { ss.set(STATE_KEY, { ...ss.get(STATE_KEY), scroll: st.scroll }); restoreScroll(st.scroll); }
+    if (launching || !reloaded || !st || fileOpen) return;
+    const input = [...doc.querySelectorAll('input[type="file"]')].find(appInput);
+    if (!input) return;
+    ss.set(STATE_KEY, { ...st, pending: true });
+    closeCard = showReopen({
+      name: st.name,
+      onReopen: () => { if (launch && launch.requestPicker && launch.requestPicker(input)) return; input.click(); },
+      onDismiss: () => { closeCard = null; ss.del(STATE_KEY); }
+    });
   }
   // After the app has set up its file input and handlers.
   g.addEventListener('load', () => setTimeout(() => restore().catch(e => console.warn(e)), 0), { once: true });
 
-  g.InkDOSTabResume = Object.freeze({ store, opened, get fileOpen() { return fileOpen; } });
+  g.InkDOSTabResume = Object.freeze({ store, showReopen, reloaded, opened, get fileOpen() { return fileOpen; } });
 })(globalThis);
