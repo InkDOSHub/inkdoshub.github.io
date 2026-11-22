@@ -27,7 +27,7 @@ function openInOffice(file,win){
  if(!it)return false;
  toInkDOSHub(it,file,win).catch(error=>{win?.close?.();console.error('InkDOS: could not hand the document to ArtCraft',error)});return true;
 }
-async function lightRoute(file){if(!file)return false;setCurrentFile(file);if(openHandler)return !!(await openHandler(file));pendingLaunchFiles.push(file);return true}
+async function lightRoute(file){if(!file)return false;try{g.InkDOSTabResume?.opened?.(file)}catch(_){}setCurrentFile(file);if(openHandler)return !!(await openHandler(file));pendingLaunchFiles.push(file);return true}
 async function routeFile(file){if(!file)return false;return lightRoute(file)}
 async function drainPending(){if(!openHandler||!pendingLaunchFiles.length)return;const files=pendingLaunchFiles.splice(0);for(const file of files){try{await openHandler(file)}catch(error){console.error('InkDOS launched-file open failed:',error);dispatchError(error)}}}
 function setOpenHandler(handler){openHandler=typeof handler==='function'?handler:null;if(openHandler)Promise.resolve().then(drainPending);return !!openHandler}
