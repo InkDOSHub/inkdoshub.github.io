@@ -145,7 +145,7 @@
       if (it.handle && it.handle.getFile) {
         let ok = it.handle.queryPermission ? await it.handle.queryPermission({ mode: 'read' }) : 'granted';
         if (ok !== 'granted' && it.handle.requestPermission) ok = await it.handle.requestPermission({ mode: 'read' });
-        if (ok === 'granted') file = await it.handle.getFile();
+        if (ok === 'granted') { file = await it.handle.getFile(); try { (g.InkDOSFileHandles || (g.InkDOSFileHandles = new Map())).set([file.name, file.size, file.lastModified].join('|'), it.handle); } catch (_) {} } // saving still writes over the original
       } else if (it.file) file = new File([it.file], it.name, { type: it.file.type || '', lastModified: it.lastModified || Date.now() });
     } catch (_) { file = null; }
     const input = mainInput();
