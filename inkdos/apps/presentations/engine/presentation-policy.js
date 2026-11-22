@@ -243,11 +243,13 @@ function secureController(original){
         if(request!==requestSeq)return false;
         return inner.openFile(file);
       }
+      // The bytes read for validation are handed to the parser, so a large deck is read into memory once.
+      let bytes=null;
       try{
         if(Number(file.size)>PPTX_LIMITS.maxInputBytes){
           pptxFail('PPTX_INPUT_BUDGET','PPTX exceeds the compressed input-byte budget.');
         }
-        const bytes=new Uint8Array(await file.arrayBuffer());
+        bytes=new Uint8Array(await file.arrayBuffer());
         await validatePptx(bytes);
       }catch(error){
         options.chrome?.showError(error,file);
@@ -255,7 +257,7 @@ function secureController(original){
         return false;
       }
       if(request!==requestSeq)return false;
-      return inner.openFile(file);
+      return inner.openFile(file,bytes);
     }
     function install(){
       options.fileInput?.addEventListener('change',()=>{
