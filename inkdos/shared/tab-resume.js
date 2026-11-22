@@ -11,8 +11,9 @@
  * Budget: 10 entries per app, pictures 16 MB in all (oldest dropped first), entries unused for 60 days dropped.
  *
  * Load it before runtime/platform/file-launch.js (it reads the launch hash before that script clears it); that
- * script reports launched files through InkDOSTabResume.opened. Image inputs (pictures inserted into a document) are
- * left alone. On the script tag, `data-scroll="off"` skips the scroll place (apps that keep their own reading
+ * script reports launched files through InkDOSTabResume.opened. Image inputs (pictures inserted into a document) and
+ * inputs marked data-inkdos-no-resume are left alone. `data-recent-host="<selector>"` puts the Recent row in that
+ * element instead of the start screen's .start-card. On the script tag, `data-scroll="off"` skips the scroll place (apps that keep their own reading
  * position) and `data-ask="off"` skips the new-tab question (apps that ask on their own).
  */
 (function (g) {
@@ -20,7 +21,7 @@
   if (g.InkDOSTabResume || !g.document) return;
   const doc = g.document, script = doc.currentScript;
   const DB = 'inkdos-recents', PER_APP = 10, MAX_PICTURE = 2 * 1024 * 1024, BUDGET = 16 * 1024 * 1024, KEEP_MS = 60 * 864e5, HANDOFF_MS = 6e4;
-  const SCROLL = !(script && script.dataset.scroll === 'off'), ASK = !(script && script.dataset.ask === 'off');
+  const SCROLL = !(script && script.dataset.scroll === 'off'), ASK = !(script && script.dataset.ask === 'off'), HOST = script && script.dataset.recentHost || '';
   const APP = (g.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '') || '/');
   for (const old of ['inkdos-tab-resume', 'inkdos-tab-resume2']) { try { g.indexedDB && g.indexedDB.deleteDatabase(old); } catch (_) {} } // unreleased versions
   // A tab the browser reloaded (Safari restoring a dropped tab, or a refresh) or went back to, not one opened anew.
@@ -131,7 +132,7 @@
   function pick() { const input = mainInput(), launch = g.InkDOSFileLaunch; if (!input) return; if (launch && launch.requestPicker && launch.requestPicker(input)) return; input.click(); }
   let renderSeq = 0;
   async function render() {
-    const card = doc.querySelector('.start-state .start-card'); if (!card) return;
+    const card = doc.querySelector(HOST || '.start-state .start-card'); if (!card) return;
     const seq = ++renderSeq, items = await list(); if (seq !== renderSeq) return;
     let box = card.querySelector('.inkdos-recents');
     if (!items.length) { if (box) box.remove(); return; }
@@ -139,7 +140,7 @@
     if (!box) {
       box = doc.createElement('section'); box.className = 'inkdos-recents';
       box.style.cssText = 'margin-top:18px;width:100%;max-width:640px;text-align:left';
-      const actions = card.querySelector('.start-actions'); actions ? actions.after(box) : card.append(box);
+      const actions = HOST ? null : card.querySelector('.start-actions'); actions ? actions.after(box) : card.append(box);
     }
     for (const img of box.querySelectorAll('img')) URL.revokeObjectURL(img.src);
     const h = doc.createElement('div'); h.textContent = 'Recent'; h.style.cssText = 'font-weight:600;font-size:13px;opacity:.75;margin:0 0 8px';
@@ -150,7 +151,7 @@
       b.style.cssText = 'flex:0 0 auto;width:112px;display:grid;gap:6px;justify-items:center;padding:8px;border-radius:10px;border:1px solid ' + (isCurrent ? '#3c5cdb' : 'rgba(127,127,127,.35)') + ';background:transparent;color:inherit;font:12px/1.3 system-ui,-apple-system,sans-serif;cursor:pointer';
       const thumb = doc.createElement('div'); thumb.style.cssText = 'width:92px;height:120px;display:grid;place-items:center;border-radius:6px;overflow:hidden;background:rgba(127,127,127,.12)';
       if (it.picture) { const img = doc.createElement('img'); img.alt = ''; img.src = URL.createObjectURL(it.picture); img.style.cssText = 'max-width:100%;max-height:100%;display:block'; thumb.append(img); }
-      else { const icon = card.querySelector('.start-icon'); if (icon) { const i = icon.cloneNode(); i.removeAttribute('class'); i.style.cssText = 'width:44px;height:44px;opacity:.8'; thumb.append(i); } }
+      else { const src = (card.querySelector('.start-icon') || {}).src || (doc.querySelector('link[rel~="icon"]') || {}).href; if (src) { const i = doc.createElement('img'); i.alt = ''; i.src = src; i.style.cssText = 'width:44px;height:44px;opacity:.8'; thumb.append(i); } }
       const name = doc.createElement('span'); name.textContent = it.name; name.style.cssText = 'max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       b.append(thumb, name);
       if (isCurrent) { const tag = doc.createElement('span'); tag.textContent = 'Continue'; tag.style.cssText = 'color:#3c5cdb;font-weight:600'; b.append(tag); }
@@ -206,12 +207,20 @@
     });
   }, true);
 
+  // Puts a file into the app's input as if the user picked it.
+  async function inject(file, input) {
+    const launch = g.InkDOSFileLaunch;
+    if (launch && launch.injectFile) return launch.injectFile(file, input);
+    const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
   // ---- start: a tab opened for a file takes it from the hand-off; otherwise show the recent list
   g.addEventListener('load', () => setTimeout(async () => {
     if (handed) {
       const file = await takeHandOff(handed), launch = g.InkDOSFileLaunch;
-      const input = file && launch && launch.compatibleInput ? launch.compatibleInput(file) : null;
-      if (input && appInput(input)) { try { bypass = input; await launch.injectFile(file, input); } catch (e) { bypass = null; console.warn('InkDOS: could not open the file in this tab', e); } }
+      const input = file ? (launch && launch.compatibleInput ? launch.compatibleInput(file) : mainInput()) : null;
+      if (input && appInput(input)) { try { bypass = input; await inject(file, input); } catch (e) { bypass = null; console.warn('InkDOS: could not open the file in this tab', e); } }
     }
     render();
   }, 0), { once: true });
