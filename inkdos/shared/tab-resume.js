@@ -9,6 +9,8 @@
  * open is first and marked "Continue". Opening a file over an open one offers to keep both, the new one in a new tab.
  *
  * Budget: 10 entries per app, pictures 16 MB in all (oldest dropped first), entries unused for 60 days dropped.
+ * Opening an entry directly: on a computer whose browser can (File System Access) the entry keeps a link to the
+ * file, not a copy; elsewhere (iPhone) only the last 3 files are copied, 50 MB in all; older ones ask again.
  *
  * Load it before runtime/platform/file-launch.js (it reads the launch hash before that script clears it); that
  * script reports launched files through InkDOSTabResume.opened. Image inputs (pictures inserted into a document) and
@@ -20,7 +22,7 @@
   'use strict';
   if (g.InkDOSTabResume || !g.document) return;
   const doc = g.document, script = doc.currentScript;
-  const DB = 'inkdos-recents', PER_APP = 10, MAX_PICTURE = 2 * 1024 * 1024, BUDGET = 16 * 1024 * 1024, KEEP_MS = 60 * 864e5, HANDOFF_MS = 6e4;
+  const DB = 'inkdos-recents', COPIES = 3, COPY_MAX = 50 * 1024 * 1024, PER_APP = 10, MAX_PICTURE = 2 * 1024 * 1024, BUDGET = 16 * 1024 * 1024, KEEP_MS = 60 * 864e5, HANDOFF_MS = 6e4;
   const SCROLL = !(script && script.dataset.scroll === 'off'), ASK = !(script && script.dataset.ask === 'off'), HOST = script && script.dataset.recentHost || '';
   const APP = (g.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '') || '/');
   for (const old of ['inkdos-tab-resume', 'inkdos-tab-resume2']) { try { g.indexedDB && g.indexedDB.deleteDatabase(old); } catch (_) {} } // unreleased versions
@@ -52,12 +54,13 @@
   function prune() {
     return tx(['recent', 'handoff'], 'readwrite', async (rec, hand) => {
       const now = Date.now(), list = (await entries(rec)).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)), perApp = new Map();
-      let used = 0;
+      let used = 0, copies = 0, copied = 0;
       for (const [k, v] of list) {
         const n = (perApp.get(v.app) || 0) + 1; perApp.set(v.app, n);
         if (n > PER_APP || now - (v.at || 0) > KEEP_MS) { rec.delete(k); continue; }
         const size = v.picture ? v.picture.size : 0;
         if (size && used + size > BUDGET) { v.picture = null; rec.put(v, k); } else used += size;
+        if (v.file) { copies++; if (copies > COPIES || copied + v.file.size > COPY_MAX) { v.file = null; rec.put(v, k); } else copied += v.file.size; }
       }
       for (const [k, v] of await entries(hand)) if (now - (Number(v && v.at) || 0) > HANDOFF_MS) hand.delete(k);
     }).catch(() => {});
@@ -124,10 +127,31 @@
     fileOpen = true;
     current = { name: file.name, size: file.size, scroll: null };
     ss.set(STATE_KEY, { name: file.name, size: file.size });
-    recentOf(file.name, file.size).then(v => { if (v && v.scroll) restoreScroll(v.scroll); remember(file.name, file.size); });
+    // What lets the Recent list open it directly: on a computer a link to the file itself (no copy), else a copy
+    // (only the last few files, 50 MB in all).
+    const handle = g.InkDOSFileHandles && g.InkDOSFileHandles.get([file.name, file.size, file.lastModified].join('|'));
+    recentOf(file.name, file.size).then(v => {
+      if (v && v.scroll) restoreScroll(v.scroll);
+      const patch = handle ? { handle, file: null } : (v && (v.handle || (v.file && v.file.size === file.size))) ? {} : file.size <= COPY_MAX ? { file, lastModified: file.lastModified || 0 } : {};
+      remember(file.name, file.size, patch);
+    });
   }
 
   // ---- the "Recent" list on the start screen
+  // Opens an entry directly when its file can be reached (link or copy), else asks for it.
+  async function openRecent(it) {
+    let file = null;
+    try {
+      if (it.handle && it.handle.getFile) {
+        let ok = it.handle.queryPermission ? await it.handle.queryPermission({ mode: 'read' }) : 'granted';
+        if (ok !== 'granted' && it.handle.requestPermission) ok = await it.handle.requestPermission({ mode: 'read' });
+        if (ok === 'granted') file = await it.handle.getFile();
+      } else if (it.file) file = new File([it.file], it.name, { type: it.file.type || '', lastModified: it.lastModified || Date.now() });
+    } catch (_) { file = null; }
+    const input = mainInput();
+    if (!file || !input) return pick();
+    try { await inject(file, input); } catch (_) { pick(); }
+  }
   const mainInput = () => [...doc.querySelectorAll('input[type="file"]')].find(appInput);
   function pick() { const input = mainInput(), launch = g.InkDOSFileLaunch; if (!input) return; if (launch && launch.requestPicker && launch.requestPicker(input)) return; input.click(); }
   let renderSeq = 0;
@@ -155,14 +179,14 @@
       const name = doc.createElement('span'); name.textContent = it.name; name.style.cssText = 'max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       b.append(thumb, name);
       if (isCurrent) { const tag = doc.createElement('span'); tag.textContent = 'Continue'; tag.style.cssText = 'color:#3c5cdb;font-weight:600'; b.append(tag); }
-      b.onclick = pick;
+      b.onclick = () => openRecent(it);
       const x = doc.createElement('span'); x.textContent = '×'; x.setAttribute('role', 'button'); x.setAttribute('aria-label', 'Remove from recent');
       x.style.cssText = 'justify-self:end;margin:-4px -2px -6px 0;padding:0 4px;font-size:16px;line-height:1;opacity:.6';
       x.onclick = e => { e.stopPropagation(); forget(it.name, it.size); };
       b.prepend(x);
       row.append(b);
     }
-    const hint = doc.createElement('div'); hint.textContent = 'Choose the file again to continue where you left off.'; hint.style.cssText = 'font-size:12px;opacity:.65';
+    const hint = doc.createElement('div'); hint.textContent = items.every(i => i.file || i.handle) ? 'Tap to continue where you left off.' : 'Tap to continue where you left off. Older files ask for the file again.'; hint.style.cssText = 'font-size:12px;opacity:.65';
     box.replaceChildren(h, row, hint);
   }
 
