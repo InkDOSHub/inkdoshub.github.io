@@ -2,13 +2,17 @@
  * back to its file.
  *
  * iOS Safari drops a background tab and reloads it when the user comes back, which used to send every InkDOS app
- * back to its start screen with nothing to show what was open. No file is kept (no growing cache): each app keeps,
- * on this device and only for itself, a short list of recent files with where they were left and, for the PDF
- * reader, a small picture of that page. The list shows on the app's start screen; tapping an entry asks for the file
- * again (the browser needs the user to pick it) and opens it at the same place. After a reload the file the tab had
- * open is first and marked "Continue". Opening a file over an open one offers to keep both, the new one in a new tab.
+ * back to its start screen and lose the work. Each app keeps, on this device and only for itself, its last 10 files:
+ * where each was left, for the PDF reader a small picture of that page, and what is needed to open it again
+ * directly. On a computer whose browser can (File System Access) that is a link to the file itself; elsewhere
+ * (iPhone Safari) a copy of the file, whatever its size. Unsaved changes are kept too: while a file has unsaved
+ * changes, its entry holds the edited version (refreshed every 45 s and when the tab goes to the background), so a
+ * dropped tab loses nothing. The list shows on the app's start screen with the space it uses, a × per entry and
+ * "Clear recents"; clearing warns that unsaved work goes with it and offers to save it first. After a reload the
+ * file the tab had open is first and marked "Continue". Opening a file over an open one offers a new tab.
  *
- * Budget: 10 entries per app, pictures 16 MB in all (oldest dropped first), entries unused for 60 days dropped.
+ * Apps report unsaved work through InkDOSSaveProvider.isDirty() and InkDOSSaveProvider.snapshot() (→ Blob).
+ * Entries unused for 60 days are dropped; pictures stay within 16 MB in all.
  *
  * Load it before runtime/platform/file-launch.js (it reads the launch hash before that script clears it); that
  * script reports launched files through InkDOSTabResume.opened. Image inputs (pictures inserted into a document) and
@@ -20,7 +24,7 @@
   'use strict';
   if (g.InkDOSTabResume || !g.document) return;
   const doc = g.document, script = doc.currentScript;
-  const DB = 'inkdos-recents', PER_APP = 10, MAX_PICTURE = 2 * 1024 * 1024, BUDGET = 16 * 1024 * 1024, KEEP_MS = 60 * 864e5, HANDOFF_MS = 6e4;
+  const DB = 'inkdos-recents', WORK_MS = 45000, PER_APP = 10, MAX_PICTURE = 2 * 1024 * 1024, BUDGET = 16 * 1024 * 1024, KEEP_MS = 60 * 864e5, HANDOFF_MS = 6e4;
   const SCROLL = !(script && script.dataset.scroll === 'off'), ASK = !(script && script.dataset.ask === 'off'), HOST = script && script.dataset.recentHost || '';
   const APP = (g.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '') || '/');
   for (const old of ['inkdos-tab-resume', 'inkdos-tab-resume2']) { try { g.indexedDB && g.indexedDB.deleteDatabase(old); } catch (_) {} } // unreleased versions
@@ -82,7 +86,7 @@
   const STATE_KEY = 'inkdos-tab-state:' + APP;
   const hash = String(g.location.hash || '');
   const handed = (/(?:^#|&)inkdos-tab=([A-Za-z0-9-]+)/.exec(hash) || [])[1] || null;
-  let fileOpen = false, bypass = null, restoring = false, current = null;
+  let fileOpen = false, bypass = null, restoring = false, current = null, reopening = null, keeping = false;
   const ss = {
     get(k) { try { return JSON.parse(g.sessionStorage.getItem(k) || 'null'); } catch (_) { return null; } },
     set(k, v) { try { g.sessionStorage.setItem(k, JSON.stringify(v)); } catch (_) {} }
@@ -114,6 +118,23 @@
     };
     restoring = true; setTimeout(step, 300);
   }
+  // ---- unsaved changes: the entry holds the edited version while there are any
+  async function keepWork() {
+    const P = g.InkDOSSaveProvider;
+    if (!current || keeping || !P || typeof P.isDirty !== 'function' || typeof P.snapshot !== 'function') return;
+    let dirty = false; try { dirty = !!P.isDirty(); } catch (_) { return; }
+    if (!dirty) { if (current.sawDirty && current.edited) { current.edited = false; remember(current.name, current.size, { edited: false }); } return; } // saved
+    current.sawDirty = true; keeping = true;
+    try {
+      const blob = await P.snapshot();
+      if (blob && current) { current.edited = true; await remember(current.name, current.size, { file: new File([blob], current.name, { type: blob.type || '' }), edited: true, editedAt: Date.now() }); }
+    } catch (e) { console.warn('InkDOS: unsaved changes not kept', e); } finally { keeping = false; }
+  }
+  setInterval(keepWork, WORK_MS);
+  g.addEventListener('pagehide', keepWork);
+  doc.addEventListener('visibilitychange', () => { if (doc.visibilityState === 'hidden') keepWork(); });
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch (_) {}
+
   doc.addEventListener('scroll', () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => saveScroll(false), 400); }, { capture: true, passive: true });
   g.addEventListener('pagehide', () => saveScroll(true));
   doc.addEventListener('visibilitychange', () => { if (doc.visibilityState === 'hidden') saveScroll(true); });
@@ -122,12 +143,37 @@
   function opened(file) {
     if (!file || !file.name) return;
     fileOpen = true;
-    current = { name: file.name, size: file.size, scroll: null };
-    ss.set(STATE_KEY, { name: file.name, size: file.size });
-    recentOf(file.name, file.size).then(v => { if (v && v.scroll) restoreScroll(v.scroll); remember(file.name, file.size); });
+    // A file opened from the Recent list keeps its entry even when it is the edited version (another size).
+    const from = reopening && reopening.name === file.name ? reopening : null; reopening = null;
+    const id = from ? { name: from.name, size: from.size } : { name: file.name, size: file.size };
+    current = { ...id, scroll: null, edited: !!(from && from.edited), sawDirty: false };
+    ss.set(STATE_KEY, id);
+    // What lets the Recent list open it directly: on a computer a link to the file itself, else a copy.
+    const handle = g.InkDOSFileHandles && g.InkDOSFileHandles.get([file.name, file.size, file.lastModified].join('|'));
+    recentOf(id.name, id.size).then(v => {
+      if (v && v.scroll) restoreScroll(v.scroll);
+      const patch = from ? {} : handle ? { handle, file: null, edited: false } : (v && v.file && !v.edited && v.file.size === file.size) ? {} : { file, lastModified: file.lastModified || 0, edited: false };
+      remember(id.name, id.size, patch);
+    });
   }
 
   // ---- the "Recent" list on the start screen
+  // Opens an entry directly when its file can be reached (link or copy), else asks for it.
+  async function openRecent(it) {
+    let file = null;
+    try {
+      if (it.edited && it.file) file = new File([it.file], it.name, { type: it.file.type || '', lastModified: it.editedAt || Date.now() });
+      else if (it.handle && it.handle.getFile) {
+        let ok = it.handle.queryPermission ? await it.handle.queryPermission({ mode: 'read' }) : 'granted';
+        if (ok !== 'granted' && it.handle.requestPermission) ok = await it.handle.requestPermission({ mode: 'read' });
+        if (ok === 'granted') { file = await it.handle.getFile(); try { (g.InkDOSFileHandles || (g.InkDOSFileHandles = new Map())).set([file.name, file.size, file.lastModified].join('|'), it.handle); } catch (_) {} } // saving still writes over the original
+      } else if (it.file) file = new File([it.file], it.name, { type: it.file.type || '', lastModified: it.lastModified || Date.now() });
+    } catch (_) { file = null; }
+    const input = mainInput();
+    if (!file || !input) return pick();
+    reopening = it;
+    try { await inject(file, input); } catch (_) { reopening = null; pick(); }
+  }
   const mainInput = () => [...doc.querySelectorAll('input[type="file"]')].find(appInput);
   function pick() { const input = mainInput(), launch = g.InkDOSFileLaunch; if (!input) return; if (launch && launch.requestPicker && launch.requestPicker(input)) return; input.click(); }
   let renderSeq = 0;
@@ -154,16 +200,67 @@
       else { const src = (card.querySelector('.start-icon') || {}).src || (doc.querySelector('link[rel~="icon"]') || {}).href; if (src) { const i = doc.createElement('img'); i.alt = ''; i.src = src; i.style.cssText = 'width:44px;height:44px;opacity:.8'; thumb.append(i); } }
       const name = doc.createElement('span'); name.textContent = it.name; name.style.cssText = 'max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       b.append(thumb, name);
+      if (it.edited) { const tag = doc.createElement('span'); tag.textContent = 'Unsaved changes'; tag.style.cssText = 'color:#c4362c;font-size:11px'; b.append(tag); }
       if (isCurrent) { const tag = doc.createElement('span'); tag.textContent = 'Continue'; tag.style.cssText = 'color:#3c5cdb;font-weight:600'; b.append(tag); }
-      b.onclick = pick;
+      b.onclick = () => openRecent(it);
       const x = doc.createElement('span'); x.textContent = '×'; x.setAttribute('role', 'button'); x.setAttribute('aria-label', 'Remove from recent');
       x.style.cssText = 'justify-self:end;margin:-4px -2px -6px 0;padding:0 4px;font-size:16px;line-height:1;opacity:.6';
-      x.onclick = e => { e.stopPropagation(); forget(it.name, it.size); };
+      x.onclick = e => { e.stopPropagation(); clearRecents([it]); };
       b.prepend(x);
       row.append(b);
     }
-    const hint = doc.createElement('div'); hint.textContent = 'Choose the file again to continue where you left off.'; hint.style.cssText = 'font-size:12px;opacity:.65';
-    box.replaceChildren(h, row, hint);
+    const foot = doc.createElement('div'); foot.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap';
+    const used = doc.createElement('span'); used.style.cssText = 'font-size:11px;color:#8a8f98'; const ul = doc.createElement('span'), uv = doc.createElement('span'); ul.textContent = 'Space used'; uv.textContent = ': ' + mb(await usage()); uv.setAttribute('data-idioma-nao', ''); used.append(ul, uv);
+    const clear = doc.createElement('button'); clear.type = 'button'; clear.textContent = 'Clear recents';
+    clear.style.cssText = 'font:12px/1.2 system-ui,-apple-system,sans-serif;padding:5px 10px;border-radius:8px;border:1px solid rgba(127,127,127,.45);background:transparent;color:inherit;cursor:pointer';
+    clear.onclick = () => clearRecents(items);
+    foot.append(used, clear);
+    box.replaceChildren(h, row, foot);
+  }
+
+  // Space the Recent lists of every app take on this device (copies and pictures).
+  function usage() { return tx(['recent'], 'readonly', async st => (await entries(st)).reduce((n, [, v]) => n + (v.file ? v.file.size : 0) + (v.picture ? v.picture.size : 0), 0)).catch(() => 0); }
+  const mb = n => (n < 1048576 ? Math.max(0.1, n / 1048576).toFixed(1) : (n / 1048576).toFixed(n < 104857600 ? 1 : 0)) + ' MB';
+
+  // Clearing entries also drops unsaved changes kept in them (Safari offers no other place for them): warn first and
+  // offer to save them.
+  async function clearRecents(items) {
+    const unsaved = items.filter(i => i.edited && i.file);
+    const choice = await dialog({
+      title: items.length > 1 ? 'Clear recents?' : 'Remove from recent?',
+      text: unsaved.length ? 'Unsaved changes kept here will be lost, because Safari keeps no other copy of them. Save them first?' : 'Files that are not saved elsewhere cannot be reopened from here afterwards, because of Safari limits.',
+      buttons: [...(unsaved.length ? [['Save changes', 'save', 'main']] : []), ['Cancel', 'cancel'], ['Continue', 'go', 'danger']]
+    });
+    if (choice === 'cancel') return;
+    if (choice === 'save' && !(await saveFiles(unsaved.map(i => new File([i.file], i.name, { type: i.file.type || '' }))))) return;
+    for (const it of items) await tx(['recent'], 'readwrite', async st => { st.delete(keyOf(it.name, it.size)); }).catch(() => {});
+    render();
+  }
+  // Saves files through the share sheet (Save to Files) where it can take files, else as downloads.
+  async function saveFiles(files) {
+    try { if (navigator.canShare && navigator.canShare({ files })) { await navigator.share({ files }); return true; } } catch (e) { if (e && e.name === 'AbortError') return false; }
+    for (const f of files) { const a = doc.createElement('a'), u = URL.createObjectURL(f); a.href = u; a.download = f.name; doc.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 6e4); }
+    return true;
+  }
+  function dialog({ title, text, buttons }) {
+    return new Promise(resolve => {
+      const layer = doc.createElement('div'), box = doc.createElement('div'), h = doc.createElement('strong'), p = doc.createElement('p'), row = doc.createElement('div');
+      layer.setAttribute('role', 'dialog'); layer.setAttribute('aria-modal', 'true');
+      layer.style.cssText = 'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)';
+      box.style.cssText = 'background:var(--surface,#fff);color:var(--text,#111);border-radius:12px;padding:18px;width:min(400px,calc(100vw - 32px));display:grid;gap:10px;font:15px/1.4 system-ui,-apple-system,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.3)';
+      h.textContent = title; p.textContent = text; p.style.margin = '0';
+      row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap';
+      const done = v => { layer.remove(); resolve(v); };
+      for (const [label, value, kind] of buttons) {
+        const b = doc.createElement('button'); b.type = 'button'; b.textContent = label;
+        b.style.cssText = 'font:inherit;padding:7px 14px;border-radius:8px;border:1px solid #9aa4b2;' + (kind === 'main' ? 'background:#3c5cdb;color:#fff;border-color:#3c5cdb' : kind === 'danger' ? 'background:#c4362c;color:#fff;border-color:#c4362c' : 'background:transparent;color:inherit');
+        b.onclick = () => done(value); row.append(b);
+      }
+      layer.addEventListener('keydown', e => { if (e.key === 'Escape') done('cancel'); });
+      layer.addEventListener('click', e => { if (e.target === layer) done('cancel'); });
+      box.append(h, p, row); layer.append(box); doc.body.append(layer);
+      row.firstChild.focus();
+    });
   }
 
   // ---- opening a file over an open one

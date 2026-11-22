@@ -65,7 +65,7 @@ function create({session,chrome,promoteLegacyPpt}={}){
     catch(e){if(e?.code==='cancelled')chrome.status('Share cancelled');else chrome.showError(e,{name:session.fileName},{title:'Presentation could not be saved',retry:false});return null}finally{busy=false}
   }
   // Header Save menu (shared frame): overwrite the original PPTX or save a copy.
-  global.InkDOSSaveProvider=Object.freeze({fileName:()=>outputName(),canOverwrite:()=>!!session.active&&session.sourceKind==='pptx',
+  global.InkDOSSaveProvider=Object.freeze({fileName:()=>outputName(),canOverwrite:()=>!!session.active&&session.sourceKind==='pptx',isDirty:()=>!!(session.active&&session.sourceKind==='pptx'&&session.dirty),snapshot:async()=>(await buildCopy(false)).blob,
    buildOverwrite:async()=>{chrome.status('Saving over the original PPTX…');return (await buildCopy(false)).blob},
    afterOverwrite:()=>{session.dirty=false;chrome.status('Original PPTX overwritten')},
    saveCopy:()=>save(),onError:e=>{console.error(e);chrome.status('Overwrite failed: '+(e?.message||e))},exports:[]});
