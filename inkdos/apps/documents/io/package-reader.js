@@ -1,10 +1,10 @@
 (function(global){'use strict';
 const NS=global.InkDOS2Documents=global.InkDOS2Documents||{};
 const DEFAULT_BUDGETS=Object.freeze({
-  maxInputBytes:64*1024*1024,
-  maxEntries:4096,
-  maxEntryUncompressedBytes:32*1024*1024,
-  maxTotalUncompressedBytes:128*1024*1024,
+  maxInputBytes:Infinity,
+  maxEntries:0xfffe,
+  maxEntryUncompressedBytes:Infinity,
+  maxTotalUncompressedBytes:Infinity,
   maxCompressionRatio:250
 });
 function fail(code,message){const e=new Error(message);e.code=code;throw e}

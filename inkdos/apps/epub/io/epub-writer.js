@@ -1,4 +1,4 @@
-(function(g){'use strict';const NS=g.InkDOS2Epub=g.InkDOS2Epub||{},ANNO='META-INF/inkdos-annotations.json',MAX_OUT=96*1024*1024;
+(function(g){'use strict';const NS=g.InkDOS2Epub=g.InkDOS2Epub||{},ANNO='META-INF/inkdos-annotations.json',MAX_OUT=Infinity;
 function u16(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255}function u32(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255;a[o+2]=(v>>>16)&255;a[o+3]=(v>>>24)&255}
 function localHeader(name,crc,size){const n=new TextEncoder().encode(name),h=new Uint8Array(30+n.length);u32(h,0,0x04034b50);u16(h,4,20);u16(h,6,0x0800);u16(h,8,0);u16(h,10,0);u16(h,12,0x21);u32(h,14,crc);u32(h,18,size);u32(h,22,size);u16(h,26,n.length);u16(h,28,0);h.set(n,30);return h}
 function centralHeader(name,crc,size,offset){const n=new TextEncoder().encode(name),h=new Uint8Array(46+n.length);u32(h,0,0x02014b50);u16(h,4,20);u16(h,6,20);u16(h,8,0x0800);u16(h,10,0);u16(h,12,0);u16(h,14,0x21);u32(h,16,crc);u32(h,20,size);u32(h,24,size);u16(h,28,n.length);u16(h,30,0);u16(h,32,0);u16(h,34,0);u16(h,36,0);u32(h,38,0);u32(h,42,offset);h.set(n,46);return h}

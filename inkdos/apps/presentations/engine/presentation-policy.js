@@ -43,11 +43,12 @@ NS.PresentationPolicy=Object.freeze({
  * without coupling the parser/renderer to the security policy.
  */
 const PPTX_LIMITS=Object.freeze({
-  maxInputBytes:64*1024*1024,
-  maxEntries:4096,
-  maxEntryBytes:64*1024*1024,
-  maxInflatedBytes:256*1024*1024,
-  maxXmlBytes:16*1024*1024,
+  // No file-size limits (owner rule): sizes are unbounded; only structural checks stay.
+  maxInputBytes:Infinity,
+  maxEntries:0xfffe,
+  maxEntryBytes:Infinity,
+  maxInflatedBytes:Infinity,
+  maxXmlBytes:Infinity,
   maxCompressionRatio:250
 });
 

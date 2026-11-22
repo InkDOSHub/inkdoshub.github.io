@@ -1,7 +1,7 @@
 (function(root){
   'use strict';
   const NS=root.InkDOS2Spreadsheets=root.InkDOS2Spreadsheets||{};
-  const LIMITS=Object.freeze({maxInputBytes:64*1024*1024,maxEntries:4096,maxInflatedBytes:256*1024*1024,maxEntryBytes:64*1024*1024,maxXmlBytes:16*1024*1024});
+  const LIMITS=Object.freeze({maxInputBytes:Infinity,maxEntries:0xfffe,maxInflatedBytes:Infinity,maxEntryBytes:Infinity,maxXmlBytes:Infinity});
   const decoder=new TextDecoder('utf-8',{fatal:false});
   function fail(code,message){const e=new Error(message);e.code=code;throw e}
   function validateInputSize(size,name='workbook'){if(!Number.isFinite(size)||size<=0)fail('EMPTY_FILE',`${name} is empty.`);if(size>LIMITS.maxInputBytes)fail('INPUT_TOO_LARGE',`${name} exceeds the ${Math.round(LIMITS.maxInputBytes/1024/1024)} MiB input limit.`)}

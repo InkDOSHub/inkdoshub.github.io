@@ -1,6 +1,6 @@
 (function(global){'use strict';
 const NS=global.InkDOS2Presentations=global.InkDOS2Presentations||{},M=()=>NS.PresentationModel,XML='application/xml';
-const MAX_SLIDES=500,MAX_OBJECTS=2500,MAX_MEDIA_BYTES=32*1024*1024;
+const MAX_SLIDES=Infinity,MAX_OBJECTS=Infinity,MAX_MEDIA_BYTES=Infinity;
 function parseXml(text,label){const d=new DOMParser().parseFromString(text,XML);if(d.querySelector('parsererror'))throw new Error(`Malformed ${label} XML.`);return d}
 function kids(n,name){return [...(n?.children||[])].filter(x=>x.localName===name)}function child(n,name){return kids(n,name)[0]||null}function all(n,name){return [...(n?.getElementsByTagName('*')||[])].filter(x=>x.localName===name)}function first(n,name){return all(n,name)[0]||null}
 function attr(n,name,f=null){if(!n)return f;for(const a of [...n.attributes||[]])if(a.localName===name)return a.value;return f}function num(v,f=0){v=Number(v);return Number.isFinite(v)?v:f}function bool(v){return v==='1'||v==='true'}

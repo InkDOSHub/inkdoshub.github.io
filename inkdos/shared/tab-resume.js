@@ -334,12 +334,33 @@
   }, 0), { once: true });
 
   // ---- the house button: back to this app's start screen. Unsaved changes are kept in the Recent entry first.
+  // A new file (New on the start screen or in the menu) has no entry yet: the start screen is hidden while it is
+  // being edited, and its content goes into Recent under its title before leaving.
+  function startHidden() {
+    const s = doc.querySelector('.start-state');
+    return !!s && (s.hidden || !s.getClientRects().length || g.getComputedStyle(s).visibility === 'hidden');
+  }
+  const editing = () => fileOpen || startHidden();
+  async function keepNew() {
+    const P = g.InkDOSSaveProvider;
+    if (!P || typeof P.snapshot !== 'function') return false;
+    try {
+      const blob = await P.snapshot();
+      if (!blob) return false;
+      if (!blob.size) return true; // blank text: nothing to keep
+      const name = String((typeof P.fileName === 'function' && P.fileName()) || 'Untitled').trim() || 'Untitled';
+      await remember(name, blob.size, { file: new File([blob], name, { type: blob.type || '' }), edited: true, editedAt: Date.now() });
+      return true;
+    } catch (e) { console.warn('InkDOS: new file not kept', e); return false; }
+  }
   async function home() {
-    if (!fileOpen) return;
-    for (let i = 0; keeping && i < 50; i++) await new Promise(r => setTimeout(r, 100));
-    try { await keepWork(); } catch (_) {}
-    try { saveScroll(true); } catch (_) {}
+    if (!editing()) return;
+    if (fileOpen) {
+      for (let i = 0; keeping && i < 50; i++) await new Promise(r => setTimeout(r, 100));
+      try { await keepWork(); } catch (_) {}
+      try { saveScroll(true); } catch (_) {}
+    } else if (!(await keepNew()) && !g.confirm('Leave this new file? It could not be kept in Recent, so unsaved changes will be lost.')) return;
     g.location.assign(g.location.pathname + g.location.search);
   }
-  g.InkDOSTabResume = Object.freeze({ opened, remember, recentOf, render, reloaded, home, get fileOpen() { return fileOpen; } });
+  g.InkDOSTabResume = Object.freeze({ opened, remember, recentOf, render, reloaded, home, get fileOpen() { return fileOpen; }, get editing() { return editing(); } });
 })(globalThis);

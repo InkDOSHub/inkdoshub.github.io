@@ -1,7 +1,7 @@
 (function(global){'use strict';
 const NS=global.InkDOS2Documents=global.InkDOS2Documents||{};
 const FREE=0xffffffff,END=0xfffffffe,FAT=0xfffffffd,DIF=0xfffffffc;
-const MAX_BYTES=96*1024*1024,MAX_CHAIN=300000,MAX_STREAM=64*1024*1024,MAX_PIECES=200000,MAX_FKP_RUNS=200000;
+const MAX_BYTES=Infinity,MAX_CHAIN=Infinity,MAX_STREAM=Infinity,MAX_PIECES=Infinity,MAX_FKP_RUNS=Infinity;
 function asBytes(input){if(input instanceof Uint8Array)return input;if(input instanceof ArrayBuffer)return new Uint8Array(input);if(input&&input.buffer instanceof ArrayBuffer)return new Uint8Array(input.buffer,input.byteOffset||0,input.byteLength);throw new Error('Legacy DOC input is not a byte buffer.');}
 function dv(b){return new DataView(b.buffer,b.byteOffset,b.byteLength)}
 function u16(b,o){if(o<0||o+2>b.length)throw new Error('Legacy DOC structure is truncated.');return dv(b).getUint16(o,true)}

@@ -1,6 +1,6 @@
 (function(global){'use strict';
 const NS=global.InkDOS2Documents=global.InkDOS2Documents||{};
-const MAX_BYTES=16*1024*1024,MAX_BLOCKS=10000,MAX_DEPTH=96,MAX_TEXT=12*1024*1024;
+const MAX_BYTES=Infinity,MAX_BLOCKS=Infinity,MAX_DEPTH=96,MAX_TEXT=Infinity;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c));
 function error(code,message){const e=new Error(message);e.code=code;return e}
 function decode(buffer){const bytes=buffer instanceof Uint8Array?buffer:new Uint8Array(buffer||0);if(!bytes.length)throw error('rtf-empty','The selected RTF file is empty.');if(bytes.length>MAX_BYTES)throw error('rtf-too-large','RTF import is limited to 16 MB per file.');let text;try{text=new TextDecoder('windows-1252').decode(bytes)}catch(_){text=new TextDecoder('latin1').decode(bytes)}if(!/^\s*\{\\rtf\d+/i.test(text))throw error('rtf-signature','The selected file does not contain a valid RTF header.');return text}

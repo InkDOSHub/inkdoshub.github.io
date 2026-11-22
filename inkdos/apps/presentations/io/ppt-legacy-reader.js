@@ -2,7 +2,7 @@
 'use strict';
 const NS=global.InkDOS2Presentations=global.InkDOS2Presentations||{};
 const M=()=>NS.PresentationModel;
-const FREE=0xffffffff,END=0xfffffffe,MAX_BYTES=96*1024*1024,MAX_SLIDES=300,MAX_RECORDS=250000,MAX_PICTURE_BYTES=32*1024*1024;
+const FREE=0xffffffff,END=0xfffffffe,MAX_BYTES=Infinity,MAX_SLIDES=Infinity,MAX_RECORDS=Infinity,MAX_PICTURE_BYTES=Infinity;
 const PPT_STREAM='PowerPoint Document',PICTURES_STREAM='Pictures';
 const RT={Document:1000,DocumentAtom:1001,Slide:1006,SlideAtom:1007,MainMaster:1016,SlidePersistAtom:1011,SlideListWithText:4080,TextHeader:3999,TextChars:4000,StyleTextProp:4001,TextBytes:4008,PersistDirectory:6002,UserEditAtom:4085,OutlineTextRef:3998,HeadersFooters:4057,HeadersFootersAtom:4058,CString:4026,FontCollection:2005,FontEntity:4023};
 const ES={SpContainer:0xf004,Sp:0xf00a,Opt:0xf00b,ClientTextbox:0xf00d,ClientAnchor:0xf010};

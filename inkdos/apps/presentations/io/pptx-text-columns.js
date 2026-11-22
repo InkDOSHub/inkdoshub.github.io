@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const NS=global.InkDOS2Presentations=global.InkDOS2Presentations||{},EMU=12700,MAX_COLUMNS=16,MAX_EMBEDDED_FONTS=32,MAX_FONT_BYTES=16*1024*1024,MAX_TOTAL_FONT_BYTES=64*1024*1024;
+const NS=global.InkDOS2Presentations=global.InkDOS2Presentations||{},EMU=12700,MAX_COLUMNS=16,MAX_EMBEDDED_FONTS=Infinity,MAX_FONT_BYTES=Infinity,MAX_TOTAL_FONT_BYTES=Infinity;
 function children(node,name){return [...(node?.children||[])].filter(n=>n.localName===name)}
 function child(node,name){return children(node,name)[0]||null}
 function all(node,name){return [...(node?.getElementsByTagName('*')||[])].filter(n=>n.localName===name)}

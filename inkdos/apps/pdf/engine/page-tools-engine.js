@@ -1,6 +1,6 @@
 (function(global){'use strict';
 const NS=global.InkDOS2PdfP4=global.InkDOS2PdfP4||{};
-const LIMITS=Object.freeze({maxSourceBytes:128*1024*1024,maxPages:2000,maxMergeFiles:8,maxMergeBytes:192*1024*1024});
+const LIMITS=Object.freeze({maxSourceBytes:Infinity,maxPages:Infinity,maxMergeFiles:Infinity,maxMergeBytes:Infinity});
 function bytesOf(value){if(value instanceof Uint8Array)return new Uint8Array(value);if(value instanceof ArrayBuffer)return new Uint8Array(value);if(ArrayBuffer.isView(value))return new Uint8Array(value.buffer,value.byteOffset,value.byteLength);throw new Error('PDF bytes are required.')}
 function pdfLib(){const lib=global.PDFLib;if(!lib?.PDFDocument||!lib?.degrees)throw new Error('Local pdf-lib runtime is unavailable.');return lib}
 function guardBytes(bytes,label='PDF'){if(bytes.byteLength<5)throw new Error(label+' is empty or invalid.');if(bytes.byteLength>LIMITS.maxSourceBytes)throw new Error(label+' exceeds the 128 MB page-tools safety limit.');const head=String.fromCharCode(...bytes.subarray(0,5));if(head!=='%PDF-')throw new Error(label+' is not a PDF file.')}

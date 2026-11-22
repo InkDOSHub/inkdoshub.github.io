@@ -1,10 +1,10 @@
 (function(global){'use strict';
 const NS=global.InkDOS2Epub=global.InkDOS2Epub||{};
 const DEFAULT_BUDGETS=Object.freeze({
-  maxInputBytes:100*1024*1024,
-  maxEntries:4096,
-  maxEntryUncompressedBytes:32*1024*1024,
-  maxTotalUncompressedBytes:256*1024*1024,
+  maxInputBytes:Infinity,
+  maxEntries:0xfffe,
+  maxEntryUncompressedBytes:Infinity,
+  maxTotalUncompressedBytes:Infinity,
   maxCompressionRatio:250
 });
 function fail(code,message){const e=new Error(message);e.code=code;throw e}

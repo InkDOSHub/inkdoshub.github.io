@@ -99,11 +99,11 @@ svg{display:block}.svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 
 .framebar{min-height:58px;display:flex;align-items:center;padding:var(--frame-safe-t) var(--frame-safe-r) 8px var(--frame-safe-l);background:var(--frame-chrome);border-bottom:1px solid var(--frame-line);box-shadow:0 2px 10px rgba(15,23,42,.045);position:relative;z-index:30}
 .frame-left{display:flex;align-items:center;gap:9px;min-width:0;max-width:38%;position:relative;z-index:2}
-.menu-btn{width:42px;height:42px;min-width:42px;border:1px solid transparent;border-radius:12px;display:grid;place-items:center;background:transparent;cursor:pointer;transition:background .14s ease,border-color .14s ease,transform .08s ease}
-.menu-btn:hover,.menu-btn:focus-visible{background:var(--frame-surface-soft);border-color:var(--frame-line);outline:none}.menu-btn:active{transform:translateY(1px) scale(.98)}
-.menu-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+:is(.menu-btn,.frame-btn){width:42px;height:42px;min-width:42px;border:1px solid transparent;border-radius:12px;display:grid;place-items:center;background:transparent;cursor:pointer;transition:background .14s ease,border-color .14s ease,transform .08s ease}
+:is(.menu-btn,.frame-btn):hover,:is(.menu-btn,.frame-btn):focus-visible{background:var(--frame-surface-soft);border-color:var(--frame-line);outline:none}:is(.menu-btn,.frame-btn):active{transform:translateY(1px) scale(.98)}
+:is(.menu-btn,.frame-btn) svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
 .app-mark{display:flex;align-items:center;gap:7px;min-width:0;color:var(--frame-muted);font-weight:650;font-size:14px}.app-icon{width:31px;height:31px;flex:0 0 auto;filter:var(--frame-app-icon-filter,none)}.app-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.file-pill-wrap{position:absolute;left:50%;transform:translateX(-50%);width:min(420px,44vw);max-width:calc(100% - 220px);height:39px;z-index:1}
+
 .file-pill{width:100%;height:100%;border:1px solid var(--frame-line);border-radius:11px;background:var(--frame-surface);display:block;padding:0 28px 0 18px;font-weight:730;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:var(--frame-control-inset);outline:none}
 .file-pill:focus{border-color:var(--frame-accent-focus);box-shadow:0 0 0 3px var(--frame-accent-ring);text-align:left}.dirty-dot{position:absolute;right:10px;top:50%;transform:translateY(-55%);color:var(--frame-accent-strong);font-size:20px;line-height:1;pointer-events:none}
 
@@ -116,19 +116,19 @@ svg{display:block}.svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 .backdrop{position:fixed;inset:0;background:var(--frame-overlay);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:100}.drawer{position:fixed;z-index:110;top:calc(var(--frame-safe-t) + 58px);left:var(--frame-safe-l);width:min(260px,calc(100vw - 24px));max-height:calc(100dvh - var(--frame-safe-t) - var(--frame-safe-b) - 82px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:8px}.drawer[hidden],.backdrop[hidden]{display:none!important}.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:2px 4px;border-bottom:1px solid var(--frame-line);margin-bottom:4px}.drawer-title{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}.drawer-title .app-icon{width:31px;height:31px}.close-btn{width:36px;height:36px;border:0;border-radius:8px;background:transparent;display:grid;place-items:center;cursor:pointer}.close-btn:hover{background:color-mix(in srgb,var(--text) 7%,transparent);border-color:transparent}.close-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}.menu-list{display:grid;gap:1px}.menu-item{height:48px;border:0;border-radius:6px;background:transparent;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;padding:0 8px;text-align:left;cursor:pointer;font-weight:650;min-height:32px;font-size:14px;column-gap:10px}.menu-item:hover,.menu-item:focus-visible{background:var(--frame-surface-soft);outline:none}.menu-item:disabled{opacity:.45;cursor:default}.menu-item svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.menu-item .hint{font-size:11px;font-weight:500;color:var(--frame-muted)}
 
 @media(max-width:640px){
-  .framebar{min-height:60px;padding-bottom:6px}.frame-left{gap:6px;max-width:105px}.app-name{display:none}.app-mark{gap:0}.app-icon{width:30px;height:30px}.menu-btn{width:40px;height:40px;min-width:40px}
-  .file-pill-wrap{height:40px;width:48vw;max-width:calc(100% - 196px);min-width:128px}.file-pill{padding:0 23px 0 9px;font-size:15px}.dirty-dot{right:7px}
+  .framebar{min-height:60px;padding-bottom:6px}.frame-left{gap:6px;max-width:105px}.app-name{display:none}.app-mark{gap:0}.app-icon{width:30px;height:30px}:is(.menu-btn,.frame-btn){width:40px;height:40px;min-width:40px}
+  .file-pill{padding:0 23px 0 9px;font-size:15px}.dirty-dot{right:7px}
   .toolstrip{height:52px;padding-top:5px;padding-bottom:5px;gap:6px}.tool-btn{width:40px;height:40px;min-width:40px;flex-basis:40px;border-radius:10px}
   .statusbar{font-size:11px}.status-item{height:32px;padding:0 9px}.status-detail{display:none}.drawer{top:calc(var(--frame-safe-t) + 62px);border-radius:17px}
 }
-@media(max-width:390px){.file-pill-wrap{width:47vw;max-width:164px;min-width:118px}.file-pill{font-size:14px}.frame-left{max-width:96px}.app-icon{width:28px;height:28px}}
-@media(max-width:340px){.file-pill-wrap{width:calc(100% - 196px);max-width:124px;min-width:118px}}
-@media(prefers-reduced-motion:reduce){.menu-btn{transition:none}}
+@media(max-width:390px){.file-pill{font-size:14px}.frame-left{max-width:96px}.app-icon{width:28px;height:28px}}
+@media(max-width:340px){}
+@media(prefers-reduced-motion:reduce){:is(.menu-btn,.frame-btn){transition:none}}
 [hidden]{display:none!important}
 
 /* Desktop density contract D1 — local copy for TXT only. Touch/mobile geometry remains unchanged. */
 @media(min-width:900px) and (pointer:fine){
-  .framebar{min-height:46px;padding-top:4px;padding-bottom:4px}.frame-left{gap:7px}.menu-btn{width:34px;height:34px;min-width:34px;border-radius:9px}.menu-btn svg{width:18px;height:18px}.app-icon{width:26px;height:26px}.app-mark{font-size:13px}.file-pill-wrap{height:34px;width:min(420px,42vw)}.file-pill{border-radius:9px;font-size:14px}
+  .framebar{min-height:46px;padding-top:4px;padding-bottom:4px}.frame-left{gap:7px}:is(.menu-btn,.frame-btn){width:34px;height:34px;min-width:34px;border-radius:9px}:is(.menu-btn,.frame-btn) svg{width:18px;height:18px}.app-icon{width:26px;height:26px}.app-mark{font-size:13px}.file-pill{border-radius:9px;font-size:14px}
   .toolstrip{height:42px;padding-top:4px;padding-bottom:4px;gap:5px}.tool-btn{width:34px;height:34px;min-width:34px;flex-basis:34px;border-radius:9px}.tool-btn svg{width:17px;height:17px}.tool-btn.text-glyph{font-size:15px}.tool-sep{height:24px}
   .statusbar{min-height:30px;font-size:11px}.status-item{height:30px;padding:0 10px}.drawer{top:calc(var(--frame-safe-t) + 48px);width:min(310px,calc(100vw - var(--frame-safe-l) - var(--frame-safe-r)));border-radius:14px;padding:10px}.drawer-title .app-icon{width:26px;height:26px}.close-btn{width:32px;height:32px}.menu-item{height:42px;border-radius:10px;font-size:13px}
 }
@@ -146,7 +146,7 @@ svg{display:block}.svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 .framebar{min-height:calc(54px + var(--frame-safe-t));padding-top:var(--frame-safe-t);padding-bottom:5px;box-shadow:none}
 .frame-left{max-width:none}
 .title-icon{position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%);width:30px;height:30px;filter:var(--frame-app-icon-filter,none);pointer-events:none}
-.file-pill-wrap{width:min(420px,46vw);max-width:calc(100% - 150px);height:38px}
+
 .file-pill{background:color-mix(in srgb,var(--frame-chrome) 94%,transparent);padding:0 28px 0 12px;font-weight:650;box-shadow:none}
 .toolstrip-shell{box-shadow:none}.toolstrip{height:50px;padding-top:5px;padding-bottom:5px}
 .tool-btn{width:40px;height:40px;min-width:40px;flex-basis:40px;border-color:transparent;background:transparent;box-shadow:none}
@@ -155,9 +155,9 @@ svg{display:block}.svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 .statusbar{min-height:calc(34px + var(--frame-safe-b));font-size:12px;gap:10px;background:var(--chrome);border-top:1px solid var(--line);color:var(--muted)}.status-item{height:30px;padding:0 6px;border-right:0}.status-item:first-child{padding-left:0}
 .drawer-head{padding-bottom:8px;margin-bottom:4px;padding:2px 4px}.menu-item{font-weight:600;min-height:32px;padding:0 8px;border-radius:6px;font-size:14px;column-gap:10px}
 @media(pointer:fine){
-  .framebar{min-height:calc(46px + var(--frame-safe-t));padding-top:var(--frame-safe-t);padding-bottom:4px}.menu-btn{width:36px;height:36px;min-width:36px}.menu-btn svg{width:19px;height:19px}.file-pill-wrap{height:34px}.title-icon{width:27px;height:27px}.toolstrip{height:42px;padding-top:4px;padding-bottom:4px}.tool-btn{width:34px;height:34px;min-width:34px;flex-basis:34px}.drawer{top:calc(var(--frame-safe-t) + 52px)}
+  .framebar{min-height:calc(46px + var(--frame-safe-t));padding-top:var(--frame-safe-t);padding-bottom:4px}:is(.menu-btn,.frame-btn){width:36px;height:36px;min-width:36px}:is(.menu-btn,.frame-btn) svg{width:19px;height:19px}.title-icon{width:27px;height:27px}.toolstrip{height:42px;padding-top:4px;padding-bottom:4px}.tool-btn{width:34px;height:34px;min-width:34px;flex-basis:34px}.drawer{top:calc(var(--frame-safe-t) + 52px)}
 }
-@media(max-width:470px){.title-icon{display:none}.file-pill-wrap{width:50vw;max-width:calc(100% - 126px);min-width:118px}}
+@media(max-width:470px){.title-icon{display:none}}
 
 /* InkDOS 2.5.1 toolbar visual normalization — overrides D3 flattening only. */
 .toolstrip .tool-btn{
@@ -192,7 +192,7 @@ svg{display:block}.svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 #toolbar .size-chip{height:28px!important;min-width:0!important;padding:0 6px!important;border-radius:10px!important;gap:1px}#toolbar .size-chip input{width:22px!important;min-width:22px!important;font-size:14px}#toolbar .size-chip span{font-size:11px}
 </style>  <link rel="stylesheet" href="../../shared/ui-density.css"><link id="inkdosLocalizationStyles" rel="stylesheet" href="../../shared/localization/localization.css">
   <script src="../../shared/ui-density.js"></script><script src="../../shared/work-safety.js"></script><script src="../../shared/tela-cheia.js?v=1" defer></script>
-  <script src="../../shared/tab-resume.js?v=7"></script><script src="runtime/platform/file-launch.js?v=2"></script>
+  <script src="../../shared/tab-resume.js?v=8"></script><script src="runtime/platform/file-launch.js?v=2"></script>
 <style id="faixaLook">
 /* Office-style ribbon: groups with the name below. */
 #toolbar.toolstrip{height:auto;min-height:44px;align-items:stretch;gap:0;padding-top:4px;padding-bottom:2px;background:var(--panel,var(--frame-panel,#fff))}
@@ -206,9 +206,9 @@ svg{display:block}.svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 <body><svg class="svg-defs" aria-hidden="true"><defs><linearGradient id="inkdosTxtGradient" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd75e"/><stop offset="1" stop-color="#e0a716"/></linearGradient></defs></svg>
 <div class="app-frame">
   <header class="framebar" aria-label="Plain Text frame">
-    <div class="frame-left"><a class="menu-btn inkdos-hub-link" href="../../index.html" aria-label="Home" title="Home" style="color:inherit;text-decoration:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.5 12 4l8.5 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg></a>
-    </div>
-    <div class="file-pill-wrap"><img class="title-icon" src="../../../assets/icones-inkdos/txt.svg?v=3" alt=""><input id="docTitle" class="file-pill" value="Untitled.txt" aria-label="File name" spellcheck="false" autocomplete="off"><span id="dirtyDot" class="dirty-dot" hidden aria-hidden="true">•</span></div>
+    <div class="frame-side frame-left"><a class="frame-btn inkdos-hub-link" href="../../index.html" aria-label="Home" title="Home" style="color:inherit;text-decoration:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.5 12 4l8.5 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg></a></div>
+    <div class="document-title"><img class="title-icon" src="../../../assets/icones-inkdos/txt.svg?v=3" alt=""><input id="docTitle" class="file-pill" value="Untitled.txt" aria-label="File name" spellcheck="false" autocomplete="off"><span id="dirtyDot" class="dirty-dot" hidden aria-hidden="true">•</span></div>
+    <div class="frame-side frame-right" aria-hidden="true"></div>
   </header>
 
   <div class="toolstrip-shell">
@@ -527,7 +527,7 @@ NS.TxtEditorController=Object.freeze({create});
 </script>
 <script>/* apps/txt/io/txt-file-controller.js */
 (function(g){'use strict';
-const NS=g.InkDOS2=g.InkDOS2||{};const C=NS.TxtCodec,P=NS.TxtPolicy;const MAX_BYTES=64*1024*1024,LARGE_BYTES=4*1024*1024,TAB_RECOVERY_SLOT='inkdos2:txt:recovery-tab',RECOVERY_CHANNEL='inkdos2:txt:recovery-tabs';
+const NS=g.InkDOS2=g.InkDOS2||{};const C=NS.TxtCodec,P=NS.TxtPolicy;const MAX_BYTES=Infinity,LARGE_BYTES=4*1024*1024,TAB_RECOVERY_SLOT='inkdos2:txt:recovery-tab',RECOVERY_CHANNEL='inkdos2:txt:recovery-tabs';
 function recoveryId(){try{if(g.crypto&&typeof g.crypto.randomUUID==='function')return g.crypto.randomUUID()}catch(_){}return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)}
 function storeTabRecoveryId(id){try{if(g.sessionStorage)g.sessionStorage.setItem(TAB_RECOVERY_SLOT,id)}catch(_){}return id}
 function tabRecoveryKey(){try{let id=g.sessionStorage&&g.sessionStorage.getItem(TAB_RECOVERY_SLOT);if(!id)id=storeTabRecoveryId(recoveryId());return 'txt:tab:'+id}catch(_){return 'txt:volatile:'+recoveryId()}}
