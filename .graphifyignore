@@ -13,3 +13,7 @@ pdf.worker*
 **/lib/
 **/dist/
 **/node_modules/
+apps/quadro/assets/
+**/chunk-*.js
+**/ffmpeg-core*/
+**/wllama/
