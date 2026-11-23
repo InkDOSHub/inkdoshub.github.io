@@ -1,0 +1,36 @@
+name: Code graph
+# Regenerates docs/graph/SUMMARY.md with graphify (tree-sitter AST, no LLM, no API key)
+# and commits it back to the branch it ran on. Raw graph uploaded as artifact.
+# Agents read SUMMARY.md before opening code (context economy, see CLAUDE.md).
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/graph.yml', 'tools/graph-summary.py', '.graphifyignore']
+permissions:
+  contents: write
+jobs:
+  graph:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install graphify
+        run: pip install -q graphifyy && graphify --help | head -40
+      - name: Build graph (code only)
+        run: |
+          graphify update . || graphify . --no-viz
+          ls -la graphify-out
+      - name: Summary
+        run: python3 tools/graph-summary.py graphify-out/graph.json docs/graph/SUMMARY.md "$GITHUB_SHA" "${GITHUB_REPOSITORY#*/}"
+      - uses: actions/upload-artifact@v4
+        with: { name: graphify-out, path: graphify-out, retention-days: 14 }
+      - name: Commit summary
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add docs/graph/SUMMARY.md
+          git diff --cached --quiet && exit 0
+          git commit -m "Update code graph summary [skip ci]"
+          git push
