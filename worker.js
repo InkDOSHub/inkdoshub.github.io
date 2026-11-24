@@ -53,6 +53,7 @@ var worker_default = {
     const h = new Headers(up.headers);
     if (url.pathname.endsWith(".wasm")) h.set("Content-Type", "application/wasm");
     if (pagina) h.set("Cache-Control", "no-cache");
+    else if (up.ok && url.pathname.startsWith("/InkShell/") && url.searchParams.has("v")) h.set("Cache-Control", "public, max-age=31536000, immutable");
     for (const [k, v] of Object.entries(ISOLAR)) h.set(k, v);
     if (EXTERNOS[url.pathname] || url.pathname.endsWith(".wasm")) h.set("Access-Control-Allow-Origin", "*");
     return new Response(up.body, { status: up.status, statusText: up.statusText, headers: h });
