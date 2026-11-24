@@ -76,8 +76,18 @@ Regra: o trabalho principal com CI verde + ganho medido = merge sozinho (squash)
 
 # 10. Autonomia e retomada
 - Dono dormindo/ausente: seguir a fila sem pedir aprovação; check-in agendado a cada 60 min (send_later).
-- Limite de uso bateu: agendar retomada para depois da renovação e continuar o worker com SendMessage (não abrir outro).
 - Chave de parada: linha `CONTROLE: PARAR|seguir` no topo do ROADMAP.md, lida antes de CADA item.
+
+# 10b. Retomada e economia de tokens
+- Por que custa: retomar um worker com SendMessage relê o histórico INTEIRO dele (100–200 mil tokens num worker longo). O cache de prompt dura ~1 h; depois de uma pausa maior (limite de uso, noite) essa releitura é cobrada cheia. O mesmo vale para a conversa do gerente.
+- Limite de uso bateu: agendar a retomada para 1–2 min DEPOIS da renovação (send_later com horário exato). Não tentar antes.
+- Na retomada, NÃO continuar o worker antigo se a pausa passou de ~1 h ou se o histórico dele é grande. Abrir worker NOVO com resumo curto (5–10 mil tokens): branch, PR, último commit, runs (verde/vermelho), o que falta, rodadas já gastas do teto. O worker novo confere o estado com `git log`/`gh api` antes de agir.
+- Continuar o worker antigo com SendMessage só se a pausa foi curta (< 1 h, cache quente) e ele estava perto do fim.
+- Retomar UMA frente por vez depois de uma pausa; a segunda só quando a primeira já estiver rodando (evita pico de gasto no mesmo minuto).
+- Modelo por tipo de tarefa: núcleo difícil (motor, JIT, compilador) → modelo maior; catálogo, docs, testes, bench, CI → modelo menor e mais barato.
+- Gerente enxuto: o gerente não lê código nem logs inteiros; só relatórios de 3–4 linhas e resumos do CI. Quando a conversa do gerente ficar longa (um dia inteiro, ou depois de uma pausa longa), fechar a sessão e abrir uma nova com o ROADMAP.md + este modelo como memória.
+- Check-ins agendados: prompt curto, com só o estado necessário; nada de reler conversas.
+- Relatório do worker: 3–4 linhas. Worker não cola logs, tabelas inteiras ou diffs no relatório.
 
 # 11. Limites
 - Fora do escopo sem pedido: {{FORA}}.
@@ -104,6 +114,7 @@ Regra: o trabalho principal com CI verde + ganho medido = merge sozinho (squash)
 | Worktree por frente | dois workers sobrescrevendo o mesmo arquivo | 2 frentes em paralelo sem conflito |
 | Chave CONTROLE | sessões antigas soltas continuando trabalho | uma sessão oficial por vez |
 | Retomada agendada | limite de 5h para o trabalho de madrugada | worker retomado sozinho após a renovação |
+| Worker novo com resumo na retomada | reler 200 mil tokens de histórico com cache frio | retomar 2 workers velhos + abrir 1 novo no mesmo minuto gastou ~19% do limite de 5h |
 
 Três regras pedem o dono por escolha, não por limite técnico: merge em repo de produção, retomar item `travado` e mudar o teto de pontos.
 
@@ -168,4 +179,6 @@ Erros que aconteceram e viraram regra no prompt:
 5. **Bench marcou piora em tudo** num PR que não mexia no motor. Era o runner mais lento. Regra: comparar "x nativo" e desconfiar de piora geral.
 6. **Pedir para apagar branches pelo Actions foi bloqueado** como contorno de permissão. Regra: o que a sessão não pode fazer, o dono faz (ou liga a opção no GitHub); não contornar.
 7. **Achado de um worker virou item novo** (pwrite faltando, link copiando arquivo, sqlite travando). Regra: worker anota bugs fora do escopo no relatório; gerente decide se vira item.
-8. **Limite de 5h derrubou um worker no meio**. Regra: agendar retomada e continuar o MESMO worker com SendMessage.
+8. **Limite de 5h derrubou um worker no meio**. Regra: agendar retomada para logo depois da renovação.
+9. **Retomada cara**: logo após a renovação, retomar 2 workers longos (~150–200 mil tokens de histórico cada, cache frio) e abrir um 3º no mesmo minuto gastou ~19% do limite de 5h em menos de 1 minuto. Regra (seção 10b): pausa longa → worker NOVO com resumo curto; uma frente por vez; modelo menor fora do núcleo; gerente reiniciado quando a conversa fica longa.
+10. **Worktree criado no repositório errado**: o gerente estava na pasta de outro repo ao abrir o worker. Regra: abrir workers sempre a partir da pasta do repo do item, e o worker confere `git remote -v` antes de começar.
