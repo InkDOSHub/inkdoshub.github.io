@@ -86,6 +86,8 @@ Regra: o trabalho principal com CI verde + ganho medido = merge sozinho (squash)
 - Retomar UMA frente por vez depois de uma pausa; a segunda só quando a primeira já estiver rodando (evita pico de gasto no mesmo minuto).
 - Modelo por tipo de tarefa: núcleo difícil (motor, JIT, compilador) → modelo maior; catálogo, docs, testes, bench, CI → modelo menor e mais barato.
 - Gerente enxuto: o gerente não lê código nem logs inteiros; só relatórios de 3–4 linhas e resumos do CI. Quando a conversa do gerente ficar longa (um dia inteiro, ou depois de uma pausa longa), fechar a sessão e abrir uma nova com o ROADMAP.md + este modelo como memória.
+- `/compact` periódico (só o dono pode digitar; o gerente não dispara sozinho): a cada 5 merges, ou antes de uma pausa longa, ou quando o gerente avisar que a conversa está grande, o gerente PEDE ao dono para rodar, já com a frase pronta: `/compact manter só: regras do gerente, estado da fila, PRs abertos, pontos da semana, frentes em andamento e regras de economia`. Rodar entre itens (nenhum worker esperando resposta do gerente). Depois do compact, o gerente confere o estado real no ROADMAP.md e no GitHub antes do próximo item.
+- `/clear` só depois de colar um texto de passagem de turno; sessão nova na virada da semana.
 - Check-ins agendados: prompt curto, com só o estado necessário; nada de reler conversas.
 - Relatório do worker: 3–4 linhas. Worker não cola logs, tabelas inteiras ou diffs no relatório.
 
