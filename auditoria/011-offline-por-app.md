@@ -1,6 +1,6 @@
 # 011 · Offline mode per app (2026-10-30)
 
-Paulo's request: storing everything at once (about 700 MB) is scary and heavy. Now people pick app by app.
+The owner's request: storing everything at once (about 700 MB) is scary and heavy. Now people pick app by app.
 
 ## Result
 - **"Offline" in the ☰ menu** opens an in-page panel, no pop-up, with one item per app, its size and a green check.

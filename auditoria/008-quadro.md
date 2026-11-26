@@ -17,7 +17,7 @@ external addresses in the Excalidraw 0.18.1 bundle (`assets/`, third-party).
 - **Risk of losing drawings (recommended fix):** the drawing is saved in `localStorage`, including pasted images, as base64.
   `localStorage` holds about 5 MB; past that, saving fails silently (`catch {}`) and what is drawn afterwards is not saved,
   with no warning. Fixing it means switching to IndexedDB in `src/main.jsx` and **rebuilding the Whiteboard** (`tools/build_apps.sh`, which downloads
-  Excalidraw and regenerates the 184 files in `assets/`). That is costly, so it was not done without Paulo's ok. (Done later, see 010.)
+  Excalidraw and regenerates the 184 files in `assets/`). That is costly, so it was not done without the owner's ok. (Done later, see 010.)
 - The menu only uses standard Excalidraw items. The shareable link (which would send the drawing to Excalidraw's servers) and live collaboration
   do not appear, because the app does not pass the functions that enable them. Their addresses exist in the bundle but are unused.
 - "Browse libraries" opens `libraries.excalidraw.com` only when the person taps it.

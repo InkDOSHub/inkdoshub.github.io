@@ -2,7 +2,7 @@
 
 > Superseded by log 018 (Electron, the same apps as the web). Kept as history.
 
-Paulo's request: an InkDOS Hub for Windows that uses less CPU and memory than the site in the browser, without the Edge
+The owner's request: an InkDOS Hub for Windows that uses less CPU and memory than the site in the browser, without the Edge
 web engine, with Linux and a code editor integrated with Windows, updates of only what changed, and downloads
 checked and explained. Done after today's fixes (logs 010, 011 and 013) and the review (014).
 
@@ -21,7 +21,7 @@ replacing each web app with the native program:
 | Home screen in the browser (Edge tab, 150 to 300 MB) | WinForms launcher (108 KB, about 20 to 30 MB RAM, zero CPU idle) | Large |
 
 The launcher RAM numbers are estimates for WinForms on .NET Framework, not yet measured on a PC. The
-real measurement (Task Manager, with the Hub idle and with each tool open) is the next step on Paulo's PC.
+real measurement (Task Manager, with the Hub idle and with each tool open) is the next step on the owner's PC.
 
 ## What was done
 - `windows/hub/` (C#, .NET Framework 4.8, built into Windows 10 and 11, no admin): `Program.cs` (window),
@@ -57,7 +57,7 @@ real measurement (Task Manager, with the Hub idle and with each tool open) is th
 - Built here with the .NET 8 SDK (net48, no errors or warnings). The .exe is 108 KB.
 - The catalog was generated with Alpine, VS Code (364 MB, Microsoft SHA-256), Webcam and Transfer. GitHub entries
   (Zed, office editor, qpdf, Ghostscript, ffmpeg) are filled by the action, which has API access.
-- Not yet tested on real Windows. The interface and installers need Paulo's PC.
+- Not yet tested on real Windows. The interface and installers need the owner's PC.
 
 ## Pending
 - Measure RAM and CPU on the PC and record it here.

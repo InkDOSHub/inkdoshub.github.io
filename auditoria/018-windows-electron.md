@@ -1,7 +1,7 @@
 # 018 — InkDOS Hub for Windows on Electron (2026-10-30)
 
 ## Why
-Logs 016 and 017 replaced Hub apps with third-party programs (SumatraPDF, Windows apps). The request was different: the apps must be **the same as the web version**, without a browser. Tests on Paulo's PC (i5-1235U, 8 GB), with `windows/teste-desempenho.bat` and `windows/teste-arquivos.bat` (files from the `arquivos-teste` release):
+Logs 016 and 017 replaced Hub apps with third-party programs (SumatraPDF, Windows apps). The request was different: the apps must be **the same as the web version**, without a browser. Tests on the owner's PC (i5-1235U, 8 GB), with `windows/teste-desempenho.bat` and `windows/teste-arquivos.bat` (files from the `arquivos-teste` release):
 
 | Engine | Home screen (MB) | + 7 apps (MB) | Open complex file (s, average) | Complex file memory (MB) |
 |---|---|---|---|---|

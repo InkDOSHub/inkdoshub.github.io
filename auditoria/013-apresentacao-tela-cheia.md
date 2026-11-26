@@ -1,6 +1,6 @@
 # 013 · Presentations: full screen identical to editing (2026-10-30)
 
-Paulo's request: presentation mode must show exactly what appears while editing. In his example (a .ppt,
+The owner's request: presentation mode must show exactly what appears while editing. In the example (a .ppt,
 slide 5), in full screen the title moved up, the texts Pensamento, Emoção and Cpto merged into one line, the arrows
 lost their heads and there were two X buttons.
 
