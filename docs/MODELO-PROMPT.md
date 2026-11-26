@@ -13,7 +13,7 @@ Serve para projetos longos, com várias semanas de trabalho, CI no GitHub Action
 | Campo | O que pôr | Exemplo (InkShell) |
 | --- | --- | --- |
 | `{{PROJETO}}` | nome e meta em uma frase | Terminal Alpine Linux em WebAssembly no WebKit |
-| `{{DONO}}` | quem aprova | Paulo |
+| `{{DONO}}` | quem aprova | o dono |
 | `{{IDIOMA}}` | idioma das respostas; commits/PR | português curto; inglês |
 | `{{REPOS}}` | repos + papel + regra de merge | InkShell: merge sozinho c/ CI verde; Hub: só c/ aval |
 | `{{CI}}` | workflows que testam e medem | test.yml, bench.yml |

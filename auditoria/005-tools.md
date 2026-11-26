@@ -21,7 +21,7 @@
 
 ## Findings without change
 
-- **Incomplete translations:** of 508 texts, 243 are missing in each language (146 in Portuguese), and 123 to 139 keys are left over (texts that no longer exist). Completing them is costly (7 languages) and waits for Paulo's call.
+- **Incomplete translations:** of 508 texts, 243 are missing in each language (146 in Portuguese), and 123 to 139 keys are left over (texts that no longer exist). Completing them is costly (7 languages) and waits for the owner's call.
 - `build_apps.sh` pins the main versions but has no lockfile (transitive dependencies can change) and
   `npm i` runs install scripts. For a reproducible build: keep `package-lock.json` and use `npm ci --ignore-scripts`.
   Not changed because the build cannot be tested here cheaply.

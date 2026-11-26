@@ -1,7 +1,7 @@
 # 014 · Review after the 2026-10-30 changes
 
 Reviewed the code changed today (logs 010, 011 and 013) and the cheap audit follow-ups before starting the
-Windows app, as Paulo asked.
+Windows app, as the owner asked.
 
 ## Checked, no change
 - `inicio/offline.js` and `sw-portal.js`:

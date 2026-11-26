@@ -2,7 +2,7 @@
 
 > Superseded by log 018 (Electron, the same apps as the web). Kept as history.
 
-Request: in the Windows app, separate the old office editor from InkDOS and stop opening Edge and its graphics engine. Paulo chose "everything native, including the Webcam".
+Request: in the Windows app, separate the old office editor from InkDOS and stop opening Edge and its graphics engine. The owner chose "everything native, including the Webcam".
 
 ## Hub (windows/hub/)
 
